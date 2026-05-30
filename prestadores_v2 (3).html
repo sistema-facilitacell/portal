@@ -1,0 +1,2740 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Prestadores — Facilita Cell HR</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='5' fill='%23C9A84C'/><text y='18' font-size='16' fill='white' font-family='Arial' x='4'>F</text></svg>"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<!-- Firebase compat SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --navy:#0B1E35;--gold:#C9A84C;--gold2:#E8C96A;
+  --bg:#F1F5F9;--white:#fff;--border:#E2E8F0;
+  --tx:#1E293B;--mt:#64748B;
+  --blue:#2563EB;--green:#059669;--red:#DC2626;--amber:#D97706;--purple:#7C3AED;
+  --font:'Inter',sans-serif;
+}
+*{font-family:var(--font);}
+body{background:var(--bg);color:var(--tx);}
+
+/* ── LAYOUT ── */
+#app{display:flex;height:100vh;overflow:hidden;}
+.sidebar{width:220px;background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;height:100vh;overflow-y:auto;}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{background:#fff;border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;}
+#content{flex:1;overflow-y:auto;padding:22px;}
+
+/* ── SIDEBAR ── */
+.brand{padding:18px 14px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);}
+.brand-icon{width:34px;height:34px;background:var(--navy);border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.brand-title{font-size:13px;font-weight:800;color:var(--navy);line-height:1.2;}
+.brand-sub{font-size:10px;color:var(--mt);}
+.nav-menu{padding:8px 8px;flex:1;}
+.nav-sec{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--mt);padding:10px 8px 4px;margin-top:4px;opacity:.7;}
+.ni{display:flex;align-items:center;gap:9px;width:100%;padding:9px 10px;border:none;background:transparent;border-radius:8px;font-size:13px;font-weight:500;color:var(--mt);cursor:pointer;text-align:left;transition:all .15s;}
+.ni:hover{background:#F8FAFC;color:var(--tx);}
+.ni.active{background:#EFF6FF;color:var(--blue);font-weight:700;}
+.ni svg{width:16px;height:16px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.sidebar-footer{padding:12px 14px;border-top:1px solid var(--border);}
+.back-btn{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;border:1.5px solid var(--border);background:transparent;border-radius:8px;font-size:12px;font-weight:600;color:var(--mt);cursor:pointer;text-align:left;transition:all .15s;}
+.back-btn:hover{background:var(--navy);color:#fff;border-color:var(--navy);}
+
+/* ── TOPBAR ── */
+.topbar-title{font-size:16px;font-weight:700;color:var(--tx);}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0;}
+.status-dot.online{background:#10B981;}
+.status-dot.offline{background:#DC2626;}
+
+/* ── CARDS & GRIDS ── */
+.card{background:#fff;border-radius:14px;padding:18px;border:1px solid var(--border);box-shadow:0 1px 4px rgba(0,0,0,.04);}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:9px;border:none;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;text-decoration:none;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.btn-navy{background:var(--navy);color:#fff;} .btn-navy:hover{background:#162c47;}
+.btn-blue{background:var(--blue);color:#fff;} .btn-blue:hover{background:#1d4ed8;}
+.btn-green{background:var(--green);color:#fff;} .btn-green:hover{background:#047857;}
+.btn-red{background:var(--red);color:#fff;} .btn-red:hover{background:#b91c1c;}
+.btn-amber{background:var(--amber);color:#fff;} .btn-amber:hover{background:#b45309;}
+.btn-ghost{background:#F1F5F9;color:var(--tx);border:1px solid var(--border);} .btn-ghost:hover{background:#E2E8F0;}
+.btn-gold{background:var(--gold);color:#fff;} .btn-gold:hover{background:#b8903e;}
+.btn-sm{padding:6px 12px;font-size:12px;border-radius:7px;}
+.btn-icon{padding:7px;border-radius:7px;}
+
+/* ── FORMS ── */
+.fld{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+label{font-size:12px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.06em;}
+input,select,textarea{padding:9px 12px;border:1.5px solid var(--border);border-radius:9px;font-size:13px;font-family:var(--font);color:var(--tx);background:#fff;outline:none;transition:border-color .15s;}
+input:focus,select:focus,textarea:focus{border-color:var(--blue);}
+textarea{resize:vertical;min-height:80px;}
+.fld-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.fld-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+
+/* ── TABLE ── */
+table{width:100%;border-collapse:collapse;}
+thead th{padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--mt);border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.06em;}
+tbody tr:hover{background:#FAFBFC;}
+tbody td{padding:11px 12px;font-size:13px;border-bottom:1px solid #F8FAFC;color:var(--tx);}
+
+/* ── MODAL ── */
+#overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:999;display:none;align-items:flex-start;justify-content:center;padding:20px 16px;overflow-y:auto;}
+#overlay.open{display:flex;}
+.mbox{background:#fff;border-radius:16px;width:100%;max-width:800px;box-shadow:0 20px 60px rgba(0,0,0,.2);margin-top:20px;display:flex;flex-direction:column;max-height:92vh;}
+.mhd{display:flex;align-items:center;justify-content:space-between;padding:15px 22px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.mhd h3{font-size:16px;font-weight:700;}
+.mhd button{background:#F1F5F9;border:none;border-radius:7px;padding:5px 7px;cursor:pointer;}
+.mbd{padding:20px 22px;overflow-y:auto;flex:1;}
+.mft{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;flex-shrink:0;flex-wrap:wrap;}
+
+/* ── BADGE ── */
+.badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.badge-ativo{background:#D1FAE5;color:#065F46;}
+.badge-encerrado{background:#F1F5F9;color:#475569;}
+.badge-vencendo{background:#FEF3C7;color:#92400E;}
+.badge-inadimplente{background:#FEF2F2;color:#991B1B;}
+.badge-rascunho{background:#EDE9FE;color:#5B21B6;}
+.badge-assinado{background:#DBEAFE;color:#1e40af;}
+.badge-aguardando{background:#FEF9EC;color:#92400E;}
+
+/* ── AVATAR ── */
+.av{border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:700;flex-shrink:0;font-size:13px;}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:4px;background:#F8FAFC;border-radius:10px;padding:4px;margin-bottom:20px;}
+.tab{flex:1;padding:8px 12px;border:none;background:transparent;border-radius:7px;font-size:13px;font-weight:600;color:var(--mt);cursor:pointer;transition:all .15s;}
+.tab.active{background:#fff;color:var(--navy);box-shadow:0 1px 4px rgba(0,0,0,.08);}
+
+/* ── CONTRATO PREVIEW ── */
+.contrato-preview{background:#FAFBFC;border:1px solid var(--border);border-radius:10px;padding:20px 24px;font-size:13px;line-height:1.8;color:#334155;max-height:500px;overflow-y:auto;}
+.contrato-preview h2{font-size:15px;font-weight:800;text-align:center;margin-bottom:6px;color:var(--navy);}
+.contrato-preview h3{font-size:13px;font-weight:700;margin:14px 0 4px;color:var(--navy);border-bottom:1px solid var(--border);padding-bottom:4px;}
+.contrato-preview p{margin-bottom:8px;}
+.contrato-preview .clausula{margin-bottom:10px;}
+.contrato-preview .assinatura-box{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:30px;}
+.contrato-preview .assinatura-linha{border-top:1.5px solid #334155;padding-top:6px;font-size:11px;text-align:center;color:var(--mt);}
+
+/* ── ASSINATURA DIGITAL ── */
+#sig-canvas{border:2px dashed var(--border);border-radius:10px;background:#fff;cursor:crosshair;display:block;width:100%;}
+#sig-canvas:hover{border-color:var(--blue);}
+.sig-photo-preview{width:80px;height:80px;border-radius:8px;object-fit:cover;border:2px solid var(--border);}
+.sig-box{background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px;}
+.sig-status-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;}
+.sig-pendente{background:#FEF9EC;color:#92400E;}
+.sig-assinado{background:#D1FAE5;color:#065F46;}
+
+/* ── LINK COMPARTILHAMENTO ── */
+.link-box{background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:10px;}
+.link-url{flex:1;font-size:12px;font-family:monospace;color:#1d4ed8;word-break:break-all;}
+
+/* ── RECIBO STYLES ── */
+.recibo-card{background:#fff;border-radius:16px;border:1px solid var(--border);overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);transition:box-shadow .2s;}
+.recibo-card:hover{box-shadow:0 6px 24px rgba(0,0,0,.12);}
+.recibo-header-strip{height:6px;background:linear-gradient(90deg,var(--navy),var(--gold));}
+.recibo-preview{background:linear-gradient(135deg,#fefefe 0%,#f8fafc 100%);border:1px solid var(--border);border-radius:12px;padding:32px 40px;font-family:'Times New Roman',Times,serif;max-height:620px;overflow-y:auto;position:relative;}
+.recibo-preview::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(45deg,transparent,transparent 98px,rgba(201,168,76,.04) 98px,rgba(201,168,76,.04) 100px);pointer-events:none;}
+.recibo-watermark{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-35deg);font-size:72px;font-weight:900;color:rgba(11,30,53,.05);pointer-events:none;white-space:nowrap;letter-spacing:6px;}
+.recibo-sig-area{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:40px;}
+.recibo-sig-line{border-top:1.5px solid #334155;padding-top:8px;text-align:center;}
+@media print{
+  .recibo-print-area{page-break-after:always;}
+  .sidebar,.topbar,.print-hide,#overlay{display:none!important;}
+  body{background:#fff;}
+}
+/* ── RECIBO PÚBLICO ── */
+#recibo-publico{display:none;position:fixed;inset:0;background:linear-gradient(135deg,#0B1E35 0%,#1a3455 100%);z-index:99998;overflow-y:auto;}
+.recibo-pub-box{max-width:720px;margin:30px auto;background:#fff;border-radius:20px;box-shadow:0 20px 80px rgba(0,0,0,.4);overflow:hidden;}
+.recibo-pub-header{background:linear-gradient(135deg,var(--navy) 0%,#1a3455 100%);padding:28px 36px;color:#fff;position:relative;overflow:hidden;}
+.recibo-pub-header::after{content:'RECIBO';position:absolute;right:-10px;top:-10px;font-size:80px;font-weight:900;color:rgba(255,255,255,.05);letter-spacing:4px;}
+
+@media print{
+  .sidebar,.topbar,#overlay,.print-hide{display:none!important;}
+  #content{padding:0;overflow:visible;}
+  body{background:#fff;}
+  .card{box-shadow:none;border:none;}
+  .contrato-print{page-break-after:always;}
+}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+.toast-item{padding:11px 18px;border-radius:10px;font-size:13px;font-weight:600;color:#fff;box-shadow:0 4px 20px rgba(0,0,0,.2);animation:slideIn .3s ease;pointer-events:auto;}
+.toast-ok{background:#059669;} .toast-err{background:#DC2626;} .toast-warn{background:#D97706;}
+@keyframes slideIn{from{transform:translateX(80px);opacity:0;}to{transform:none;opacity:1;}}
+
+/* ── ALERTA ── */
+.alerta-box{background:#FEF9EC;border:1.5px solid #FDE68A;border-radius:12px;padding:14px 18px;display:flex;gap:12px;align-items:flex-start;margin-bottom:16px;}
+
+/* ── STATUS CARD ── */
+.stat-card{background:#fff;border-radius:14px;padding:16px 20px;border:1px solid var(--border);border-top-width:3px;}
+.stat-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--mt);margin-bottom:8px;}
+.stat-value{font-size:30px;font-weight:800;}
+.stat-sub{font-size:11px;color:var(--mt);margin-top:4px;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  .sidebar{display:none;}
+  .g3,.g4{grid-template-columns:1fr 1fr;}
+  .fld-row,.fld-row3{grid-template-columns:1fr;}
+}
+
+/* ── PAGINA ASSINATURA PUBLICA ── */
+#assinatura-publica{display:none;position:fixed;inset:0;background:#F1F5F9;z-index:99999;overflow-y:auto;}
+.assinatura-publica-box{max-width:680px;margin:30px auto;background:#fff;border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,.12);overflow:hidden;}
+.ap-header{background:var(--navy);padding:24px 30px;color:#fff;}
+.ap-body{padding:28px 30px;}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- TELA DE ASSINATURA PÚBLICA (colaborador)   -->
+<!-- ══════════════════════════════════════════ -->
+<div id="assinatura-publica">
+  <div class="assinatura-publica-box">
+    <div class="ap-header">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+        <div style="width:40px;height:40px;background:rgba(255,255,255,.15);border-radius:10px;display:flex;align-items:center;justify-content:center">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </div>
+        <div>
+          <div style="font-size:18px;font-weight:800">Assinatura de Contrato</div>
+          <div style="font-size:12px;opacity:.7">Facilita Cell — Sistema de RH</div>
+        </div>
+      </div>
+      <div style="font-size:12px;opacity:.6">Você recebeu este contrato para assinatura digital</div>
+    </div>
+    <div class="ap-body">
+      <div id="ap-loading" style="text-align:center;padding:40px;color:var(--mt)">
+        <div style="font-size:32px;margin-bottom:12px">⏳</div>
+        <div style="font-weight:600">Carregando contrato...</div>
+      </div>
+      <div id="ap-content" style="display:none">
+        <div id="ap-contrato-html" style="background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:20px;font-size:13px;line-height:1.8;max-height:400px;overflow-y:auto;margin-bottom:20px"></div>
+
+        <div id="ap-ja-assinado" style="display:none;background:#D1FAE5;border:1.5px solid #6EE7B7;border-radius:10px;padding:16px;margin-bottom:20px;text-align:center">
+          <div style="font-size:22px;margin-bottom:6px">✅</div>
+          <div style="font-weight:700;color:#065F46">Este contrato já foi assinado!</div>
+          <div id="ap-assinado-em" style="font-size:12px;color:#047857;margin-top:4px"></div>
+        </div>
+
+        <div id="ap-form-assinatura">
+          <div style="font-size:14px;font-weight:700;margin-bottom:16px;color:var(--navy)">✍️ Assinar Contrato</div>
+
+          <!-- Assinatura Escrita Digitalmente -->
+          <div class="fld">
+            <label>Assinatura Escrita Digitalmente (Digitalize seu nome como assinatura)</label>
+            <input type="text" id="ap-sig-typed" placeholder="Digite seu nome completo como assinatura digital..." style="font-family:cursive;font-size:18px;letter-spacing:2px;"/>
+          </div>
+
+          <!-- Canvas de assinatura -->
+          <div class="fld">
+            <label>Ou desenhe sua assinatura</label>
+            <canvas id="ap-sig-canvas" height="120" style="border:2px dashed var(--border);border-radius:10px;background:#fff;cursor:crosshair;width:100%;display:block;"></canvas>
+            <div style="display:flex;gap:8px;margin-top:6px">
+              <button class="btn btn-ghost btn-sm" onclick="clearAPCanvas()">🗑 Limpar</button>
+            </div>
+          </div>
+
+          <!-- Foto com data/hora -->
+          <div class="sig-box">
+            <div style="font-size:12px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">📸 Foto para Autenticação</div>
+            <div style="font-size:12px;color:var(--mt);margin-bottom:12px">Tire uma selfie ou envie uma foto para registrar sua identidade no momento da assinatura. A data e hora serão gravadas automaticamente.</div>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <button class="btn btn-blue btn-sm" onclick="abrirCameraAP()">📷 Abrir Câmera</button>
+              <label class="btn btn-ghost btn-sm" style="cursor:pointer">📁 Enviar Foto <input type="file" accept="image/*" onchange="carregarFotoAP(this)" style="display:none"/></label>
+              <div id="ap-foto-preview" style="display:none">
+                <img id="ap-foto-img" class="sig-photo-preview" src="" alt="Foto"/>
+                <div id="ap-foto-timestamp" style="font-size:10px;color:var(--mt);margin-top:4px"></div>
+              </div>
+            </div>
+            <video id="ap-video" autoplay playsinline style="display:none;width:200px;border-radius:8px;margin-top:10px"></video>
+            <button id="ap-capture-btn" class="btn btn-green btn-sm" style="display:none;margin-top:8px" onclick="capturarFotoAP()">✅ Capturar Foto</button>
+            <canvas id="ap-foto-canvas" style="display:none"></canvas>
+          </div>
+
+          <div style="background:#FEF9EC;border:1px solid #FDE68A;border-radius:8px;padding:12px 14px;font-size:12px;color:#92400E;margin-bottom:16px">
+            <strong>⚖️ Validade Jurídica:</strong> Esta assinatura digital tem validade jurídica conforme a Lei nº 14.063/2020 (Assinaturas Eletrônicas), o Art. 10 da MP 2.200-2/2001 e o Art. 8º-A da CLT. Ao assinar, você concorda com todos os termos do contrato acima.
+          </div>
+
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-green" onclick="confirmarAssinaturaAP()" id="ap-btn-assinar">✅ Confirmar Assinatura</button>
+          </div>
+        </div>
+      </div>
+      <div id="ap-erro" style="display:none;text-align:center;padding:40px;color:var(--red)">
+        <div style="font-size:32px;margin-bottom:12px">❌</div>
+        <div style="font-weight:600">Contrato não encontrado ou link inválido.</div>
+      </div>
+    </div>
+    <div style="padding:16px 30px;border-top:1px solid var(--border);display:flex;justify-content:center;font-size:11px;color:var(--mt)">
+      Facilita Cell HR — Sistema de Gestão de Prestadores • Powered by Firebase
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- TELA PÚBLICA DE ASSINATURA DE RECIBO      -->
+<!-- ══════════════════════════════════════════ -->
+<div id="recibo-publico">
+  <div class="recibo-pub-box">
+    <div class="recibo-pub-header">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px">
+        <div style="width:48px;height:48px;background:rgba(201,168,76,.2);border:2px solid rgba(201,168,76,.5);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="12" y1="17" x2="8" y2="17"/></svg>
+        </div>
+        <div>
+          <div style="font-size:20px;font-weight:800;letter-spacing:-.3px">Assinatura de Recibo</div>
+          <div style="font-size:12px;opacity:.65;margin-top:2px">Facilita Cell — Sistema de RH & Prestadores</div>
+        </div>
+      </div>
+      <div style="font-size:12px;opacity:.55;margin-top:4px">Você recebeu este recibo de pagamento para assinatura digital</div>
+    </div>
+    <div style="padding:28px 36px">
+      <div id="rp-loading" style="text-align:center;padding:50px;color:var(--mt)">
+        <div style="font-size:36px;margin-bottom:14px">⏳</div>
+        <div style="font-weight:600;font-size:15px">Carregando recibo...</div>
+      </div>
+      <div id="rp-content" style="display:none">
+        <div id="rp-recibo-html" style="margin-bottom:22px"></div>
+
+        <div id="rp-ja-assinado" style="display:none;background:linear-gradient(135deg,#D1FAE5,#A7F3D0);border:1.5px solid #6EE7B7;border-radius:12px;padding:20px;margin-bottom:20px;text-align:center">
+          <div style="font-size:28px;margin-bottom:8px">✅</div>
+          <div style="font-weight:800;color:#065F46;font-size:16px">Recibo Assinado com Sucesso!</div>
+          <div id="rp-assinado-em" style="font-size:12px;color:#047857;margin-top:6px"></div>
+        </div>
+
+        <div id="rp-form-assinatura">
+          <div style="font-size:15px;font-weight:800;margin-bottom:18px;color:var(--navy);display:flex;align-items:center;gap:8px">
+            <span style="width:32px;height:32px;background:var(--navy);border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:16px">✍️</span>
+            Assinar Recibo
+          </div>
+
+          <div class="fld">
+            <label>Assinatura Escrita Digitalmente</label>
+            <input type="text" id="rp-sig-typed" placeholder="Digite seu nome completo como assinatura digital..." style="font-family:cursive;font-size:18px;letter-spacing:2px;color:#1E293B;"/>
+          </div>
+
+          <div class="fld">
+            <label>Ou Desenhe Sua Assinatura no Canvas</label>
+            <canvas id="rp-sig-canvas" height="130" style="border:2px dashed var(--border);border-radius:10px;background:#fff;cursor:crosshair;width:100%;display:block;"></canvas>
+            <div style="display:flex;gap:8px;margin-top:6px">
+              <button class="btn btn-ghost btn-sm print-hide" onclick="clearRPCanvas()">🗑 Limpar Canvas</button>
+            </div>
+          </div>
+
+          <div class="sig-box">
+            <div style="font-size:12px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">📸 Foto para Autenticação Biométrica</div>
+            <div style="font-size:12px;color:var(--mt);margin-bottom:12px">Tire uma selfie ou envie uma foto. A data e horário serão gravados automaticamente como prova de identidade.</div>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <button class="btn btn-blue btn-sm" onclick="abrirCameraRP()">📷 Abrir Câmera</button>
+              <label class="btn btn-ghost btn-sm" style="cursor:pointer">📁 Enviar Foto <input type="file" accept="image/*" onchange="carregarFotoRP(this)" style="display:none"/></label>
+              <div id="rp-foto-preview" style="display:none;align-items:center;gap:10px">
+                <img id="rp-foto-img" class="sig-photo-preview" src="" alt="Foto"/>
+                <div>
+                  <div id="rp-foto-timestamp" style="font-size:11px;color:var(--mt);font-weight:600"></div>
+                  <div style="font-size:10px;color:#10B981">✅ Foto registrada</div>
+                </div>
+              </div>
+            </div>
+            <video id="rp-video" autoplay playsinline style="display:none;width:220px;border-radius:8px;margin-top:10px;border:2px solid var(--border)"></video>
+            <button id="rp-capture-btn" class="btn btn-green btn-sm" style="display:none;margin-top:8px" onclick="capturarFotoRP()">✅ Capturar Foto</button>
+            <canvas id="rp-foto-canvas" style="display:none"></canvas>
+          </div>
+
+          <div style="background:linear-gradient(135deg,#FEF9EC,#FFFBEB);border:1px solid #FDE68A;border-radius:10px;padding:14px 16px;font-size:12px;color:#92400E;margin-bottom:18px">
+            <strong>⚖️ Validade Jurídica:</strong> Esta assinatura digital tem validade jurídica conforme a <strong>Lei nº 14.063/2020</strong>, Art. 10 da <strong>MP 2.200-2/2001</strong>, Art. <strong>8º-A da CLT</strong> e o <strong>Código Civil Brasileiro (Art. 107)</strong>. Este recibo constitui prova de pagamento com eficácia legal plena.
+          </div>
+
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-green" onclick="confirmarAssinaturaRP()" id="rp-btn-assinar">✅ Confirmar Assinatura do Recibo</button>
+          </div>
+        </div>
+      </div>
+      <div id="rp-erro" style="display:none;text-align:center;padding:50px;color:var(--red)">
+        <div style="font-size:36px;margin-bottom:14px">❌</div>
+        <div style="font-weight:700;font-size:15px">Recibo não encontrado ou link inválido.</div>
+      </div>
+    </div>
+    <div style="padding:16px 36px;border-top:1px solid var(--border);display:flex;justify-content:center;font-size:11px;color:var(--mt)">
+      Facilita Cell HR — Sistema de Gestão de Prestadores • Firebase + Firestore
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- APP PRINCIPAL                              -->
+<!-- ══════════════════════════════════════════ -->
+<div id="app" style="display:none">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </div>
+      <div>
+        <div class="brand-title">Facilita Cell</div>
+        <div class="brand-sub">Prestadores</div>
+      </div>
+    </div>
+    <div class="nav-menu">
+      <div class="nav-sec">Menu</div>
+      <button class="ni active" id="ni-dashboard" onclick="setPage('dashboard')">
+        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> Dashboard
+      </button>
+      <button class="ni" id="ni-prestadores" onclick="setPage('prestadores')">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Prestadores
+      </button>
+      <button class="ni" id="ni-contratos" onclick="setPage('contratos')">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Contratos
+      </button>
+      <button class="ni" id="ni-pagamentos" onclick="setPage('pagamentos')">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Pagamentos
+      </button>
+      <button class="ni" id="ni-relatorio" onclick="setPage('relatorio')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="3" x2="9" y2="21"/></svg> Relatório
+      </button>
+      <button class="ni" id="ni-recibos" onclick="setPage('recibos')" style="margin-top:2px">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="12" y1="17" x2="8" y2="17"/><line x1="16" y1="9" x2="8" y2="9" style="display:none"/></svg> Recibos
+      </button>
+    </div>
+    <div class="sidebar-footer">
+      <div id="fb-status" style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--mt);margin-bottom:10px">
+        <span class="status-dot" id="fb-dot"></span>
+        <span id="fb-label">Conectando...</span>
+      </div>
+      <button class="back-btn" onclick="window.open('index_rh_v2_3.html','_self')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Voltar ao RH Principal
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="page-title">Dashboard</div>
+      <div class="topbar-right">
+        <span style="font-size:12px;color:var(--mt)" id="topbar-count"></span>
+        <button class="btn btn-navy btn-sm" onclick="openNovoPrestador()">+ Novo Prestador</button>
+      </div>
+    </div>
+    <div id="content"></div>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div id="login-screen" style="display:flex;position:fixed;inset:0;background:#0B1E35;z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:20px;padding:40px 48px;width:100%;max-width:420px;box-shadow:0 30px 80px rgba(0,0,0,.4);">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:28px;">
+      <div style="width:38px;height:38px;background:#0B1E35;border-radius:10px;display:flex;align-items:center;justify-content:center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+      </div>
+      <div>
+        <div style="font-size:16px;font-weight:800;color:#0B1E35">Prestadores</div>
+        <div style="font-size:11px;color:#64748B">Facilita Cell HR</div>
+      </div>
+    </div>
+    <div style="font-size:22px;font-weight:800;color:#0B1E35;margin-bottom:4px">Acesso Restrito</div>
+    <div style="font-size:13px;color:#64748B;margin-bottom:24px">Use a senha do sistema principal</div>
+    <div id="login-err" style="display:none;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px 14px;color:#DC2626;font-size:13px;margin-bottom:14px"></div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:12px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px">Senha</label>
+      <input type="password" id="login-pwd" placeholder="••••••••" style="width:100%;padding:10px 14px;border:1.5px solid #E2E8F0;border-radius:9px;font-size:14px;" onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <button class="btn btn-navy" style="width:100%;justify-content:center;padding:12px;" onclick="doLogin()">Entrar</button>
+  </div>
+</div>
+
+<!-- OVERLAY/MODAL -->
+<div id="overlay" onclick="if(event.target===this)closeModal()">
+  <div class="mbox">
+    <div class="mhd">
+      <h3 id="modal-title">—</h3>
+      <button onclick="closeModal()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="mbd" id="modal-body"></div>
+    <div class="mft" id="modal-footer"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════
+// FIREBASE CONFIG — NOVO PROJETO prestadores-8572e
+// ════════════════════════════════════════════
+const FB_CFG = {
+  apiKey:            'AIzaSyBanL5LOdeZzSuZVpFFTusDxlYVm2VMIR8',
+  authDomain:        'prestadores-8572e.firebaseapp.com',
+  projectId:         'prestadores-8572e',
+  storageBucket:     'prestadores-8572e.firebasestorage.app',
+  messagingSenderId: '608782309928',
+  appId:             '1:608782309928:web:2e9eabe0f35cb2a92a731d'
+};
+let FBASE = null, FSTORAGE = null;
+
+// ════════════════════════════════════════════
+// DADOS
+// ════════════════════════════════════════════
+let APP = {
+  prestadores: [],
+  contratos: [],
+  pagamentos: [],
+  assinaturas: [], // { id, contratoId, prestId, token, status, criadoEm, assinadoEm, sigTyped, sigCanvas, foto, fotoTimestamp, ip }
+  recibos: [],     // { id, numero, empresaNome, empresaCnpj, prestId, contratoId, valor, descricao, dataEmissao, dataPagamento, forma, obs, status, assinaturas:{rh,contratado} }
+};
+
+const LS_KEY = 'fcrh_prestadores_v4'; // mantém compatibilidade com dados existentes
+let MOD = 'dashboard';
+let SEARCH = '';
+const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+let REL_MES = new Date().getMonth();
+let REL_ANO = new Date().getFullYear();
+
+// ════════════════════════════════════════════
+// PERSISTÊNCIA
+// ════════════════════════════════════════════
+function lsSave(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(APP)); } catch(e){}
+}
+function lsLoad(){
+  try{
+    const d = localStorage.getItem(LS_KEY);
+    if(d){
+      const parsed = JSON.parse(d);
+      Object.assign(APP, parsed);
+    }
+    if(!APP.recibos) APP.recibos = [];
+    if(!APP.assinaturas) APP.assinaturas = [];
+  } catch(e){ console.warn('[lsLoad]',e); }
+}
+async function fbSave(){
+  if(!FBASE) return;
+  try{
+    // Salva dados principais
+    await FBASE.collection('prestadores_app').doc('dados').set({
+      prestadores: JSON.stringify(APP.prestadores),
+      contratos:   JSON.stringify(APP.contratos),
+      pagamentos:  JSON.stringify(APP.pagamentos),
+      recibos:     JSON.stringify(APP.recibos||[]),
+      ts: Date.now()
+    });
+  } catch(e){ console.warn('[FB Save]', e.message); }
+}
+async function fbSaveAssinatura(sig){
+  if(!FBASE) return;
+  try{
+    await FBASE.collection('assinaturas_contratos').doc(sig.token).set(sig);
+  } catch(e){ console.warn('[FB Sig Save]', e.message); }
+}
+async function fbLoadAssinatura(token){
+  if(!FBASE) return null;
+  try{
+    const snap = await FBASE.collection('assinaturas_contratos').doc(token).get();
+    return snap.exists ? snap.data() : null;
+  } catch(e){ return null; }
+}
+async function fbLoad(){
+  if(!FBASE) return;
+  try{
+    const snap = await FBASE.collection('prestadores_app').doc('dados').get();
+    if(snap.exists){
+      const d = snap.data();
+      if(d.prestadores) APP.prestadores = JSON.parse(d.prestadores);
+      if(d.contratos)   APP.contratos   = JSON.parse(d.contratos);
+      if(d.pagamentos)  APP.pagamentos  = JSON.parse(d.pagamentos);
+      if(d.recibos)     APP.recibos     = JSON.parse(d.recibos);
+      if(!APP.recibos)  APP.recibos     = [];
+      // Carrega assinaturas
+      const sigSnap = await FBASE.collection('assinaturas_contratos').get();
+      APP.assinaturas = sigSnap.docs.map(d=>d.data());
+      lsSave();
+    }
+  } catch(e){ console.warn('[FB Load]', e.message); }
+}
+async function save(){
+  lsSave();
+  await fbSave();
+}
+
+// ════════════════════════════════════════════
+// FIREBASE INIT
+// ════════════════════════════════════════════
+function initFirebase(){
+  try{
+    if(!firebase.apps.length) firebase.initializeApp(FB_CFG);
+    FBASE = firebase.firestore();
+    try{ FSTORAGE = firebase.storage(); } catch(e){}
+    document.getElementById('fb-dot').className = 'status-dot online';
+    document.getElementById('fb-label').textContent = 'Firestore ativo';
+  } catch(e){
+    document.getElementById('fb-dot').className = 'status-dot offline';
+    document.getElementById('fb-label').textContent = 'Sem nuvem';
+    console.warn('[Firebase]', e.message);
+  }
+}
+
+// ════════════════════════════════════════════
+// LOGIN
+// ════════════════════════════════════════════
+function doLogin(){
+  const pwd = document.getElementById('login-pwd').value;
+  const stored = localStorage.getItem('fcrh_pwd');
+  const hash = s => s.split('').reduce((a,c)=>Math.imul(31,a)+c.charCodeAt(0)|0,0).toString(16);
+  const ok = stored ? (hash(pwd) === stored || pwd === stored) : (pwd === '218939' || hash(pwd) === '581f1fe6' || pwd === 'facilita123' || pwd === 'Facilita@2024');
+  if(ok){
+    sessionStorage.setItem('prestadores_auth','1');
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').style.display='flex';
+    toast('✅ Acesso liberado', 'ok');
+  } else {
+    const err = document.getElementById('login-err');
+    err.style.display='block';
+    err.textContent='Senha incorreta.';
+  }
+}
+
+// ════════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════════
+const uid = () => Math.random().toString(36).slice(2,11);
+const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const today = () => new Date().toISOString().slice(0,10);
+const fmt = d => d ? new Date(d+'T00:00:00').toLocaleDateString('pt-BR') : '—';
+const fmtDT = ts => ts ? new Date(ts).toLocaleString('pt-BR') : '—';
+const fmtMoney = v => 'R$ '+(+v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+function av(nome, id, size=32){
+  const colors = ['#2563EB','#059669','#7C3AED','#D97706','#DC2626','#0891B2','#C9A84C'];
+  const c = colors[Math.abs((id||nome||'').split('').reduce((a,ch)=>a+ch.charCodeAt(0),0)) % colors.length];
+  const initials = (nome||'?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  return `<div class="av" style="width:${size}px;height:${size}px;background:${c};font-size:${size*0.38}px">${initials}</div>`;
+}
+
+function toast(msg, type='ok', ms=3500){
+  const el = document.createElement('div');
+  el.className = `toast-item toast-${type}`;
+  el.textContent = msg;
+  document.getElementById('toast').appendChild(el);
+  setTimeout(() => el.remove(), ms);
+}
+
+function openModal(title, body, footer=''){
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = body;
+  document.getElementById('modal-footer').innerHTML = footer || `<button class="btn btn-ghost" onclick="closeModal()">Fechar</button>`;
+  document.getElementById('overlay').classList.add('open');
+}
+function closeModal(){
+  document.getElementById('overlay').classList.remove('open');
+}
+
+// ════════════════════════════════════════════
+// NAVEGAÇÃO
+// ════════════════════════════════════════════
+const PAGE_TITLES = {
+  dashboard:'Dashboard',prestadores:'Prestadores de Serviço',
+  contratos:'Contratos',pagamentos:'Pagamentos',relatorio:'Relatório',
+  recibos:'Recibos de Pagamento'
+};
+function setPage(p){
+  MOD = p; SEARCH = '';
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  const el = document.getElementById('ni-'+p);
+  if(el) el.classList.add('active');
+  document.getElementById('page-title').textContent = PAGE_TITLES[p]||p;
+  document.getElementById('content').innerHTML = renders[p] ? renders[p]() : '<div class="card" style="padding:40px;text-align:center">Em construção</div>';
+  updateTopbarCount();
+}
+function updateTopbarCount(){
+  const ativos = APP.prestadores.filter(p=>p.status==='ativo').length;
+  document.getElementById('topbar-count').textContent = `${ativos} prestador${ativos!==1?'es':''} ativo${ativos!==1?'s':''}`;
+}
+
+// ════════════════════════════════════════════
+// STATUS
+// ════════════════════════════════════════════
+function statusContrato(c){
+  if(!c) return {label:'—',cls:'badge-rascunho'};
+  if(c.status==='encerrado') return {label:'Encerrado',cls:'badge-encerrado'};
+  if(c.status==='rascunho')  return {label:'Rascunho',cls:'badge-rascunho'};
+  if(!c.dataFim)             return {label:'Ativo',cls:'badge-ativo'};
+  const dias = Math.ceil((new Date(c.dataFim) - new Date()) / 86400000);
+  if(dias < 0)    return {label:'Vencido',cls:'badge-encerrado'};
+  if(dias <= 30)  return {label:`Vence em ${dias}d`,cls:'badge-vencendo'};
+  return {label:'Ativo',cls:'badge-ativo'};
+}
+function statusPagamento(p){
+  if(p.status==='pago')      return {label:'Pago',cls:'badge-ativo'};
+  if(p.status==='cancelado') return {label:'Cancelado',cls:'badge-encerrado'};
+  const dias = Math.ceil((new Date(p.dataVencimento) - new Date()) / 86400000);
+  if(dias < 0)   return {label:`Atrasado ${Math.abs(dias)}d`,cls:'badge-inadimplente'};
+  if(dias <= 5)  return {label:`Vence em ${dias}d`,cls:'badge-vencendo'};
+  return {label:'Pendente',cls:'badge-rascunho'};
+}
+function statusAssinatura(contratoId){
+  const sig = APP.assinaturas.find(s=>s.contratoId===contratoId);
+  if(!sig) return null;
+  if(sig.status==='assinado') return {label:'✅ Assinado',cls:'badge-assinado',sig};
+  return {label:'⏳ Aguardando',cls:'badge-aguardando',sig};
+}
+
+// ════════════════════════════════════════════
+// DASHBOARD
+// ════════════════════════════════════════════
+function rDashboard(){
+  const total = APP.prestadores.length;
+  const ativos = APP.prestadores.filter(p=>p.status==='ativo').length;
+  const contrAtivos = APP.contratos.filter(c=>c.status==='ativo').length;
+  const totalPagoMes = APP.pagamentos.filter(p=>{
+    return p.status==='pago' && p.dataPagamento && p.dataPagamento.slice(0,7)===today().slice(0,7);
+  }).reduce((s,p)=>s+(+p.valor||0), 0);
+  const pendentes = APP.pagamentos.filter(p=>p.status==='pendente');
+  const atrasados = pendentes.filter(p=>new Date(p.dataVencimento)<new Date()).length;
+  const vencendo30 = APP.contratos.filter(c=>{
+    if(c.status!=='ativo'||!c.dataFim) return false;
+    const dias = Math.ceil((new Date(c.dataFim)-new Date())/86400000);
+    return dias>=0 && dias<=30;
+  });
+  const sigPend = APP.assinaturas.filter(s=>s.status==='pendente').length;
+
+  return `
+  <div class="g4" style="margin-bottom:20px">
+    <div class="stat-card" style="border-top-color:#2563EB">
+      <div class="stat-label">Prestadores</div>
+      <div class="stat-value" style="color:#2563EB">${total}</div>
+      <div class="stat-sub">${ativos} ativos</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#059669">
+      <div class="stat-label">Contratos Ativos</div>
+      <div class="stat-value" style="color:#059669">${contrAtivos}</div>
+      <div class="stat-sub">${vencendo30.length} venc. em 30d</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#D97706">
+      <div class="stat-label">Pago Este Mês</div>
+      <div class="stat-value" style="color:#D97706;font-size:22px">${fmtMoney(totalPagoMes)}</div>
+      <div class="stat-sub">${APP.pagamentos.filter(p=>p.status==='pago'&&p.dataPagamento?.slice(0,7)===today().slice(0,7)).length} pagamentos</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#7C3AED">
+      <div class="stat-label">Assinaturas Pendentes</div>
+      <div class="stat-value" style="color:#7C3AED">${sigPend}</div>
+      <div class="stat-sub">${APP.assinaturas.filter(s=>s.status==='assinado').length} assinados</div>
+    </div>
+  </div>
+
+  ${vencendo30.length>0?`
+  <div class="alerta-box">
+    <span style="font-size:22px">⚠️</span>
+    <div>
+      <div style="font-weight:700;font-size:14px;color:#92400E">${vencendo30.length} contrato(s) vencendo nos próximos 30 dias</div>
+      <div style="font-size:12px;color:#B45309;margin-top:2px">${vencendo30.map(c=>{const p=APP.prestadores.find(x=>x.id===c.prestId);return esc(p?.nome||'—');}).join(', ')}</div>
+    </div>
+    <button class="btn btn-sm btn-amber print-hide" onclick="setPage('contratos')">Ver Contratos</button>
+  </div>`:''}
+
+  <div class="g2" style="gap:16px">
+    <div class="card">
+      <div style="font-size:14px;font-weight:700;margin-bottom:14px">📋 Últimos Prestadores</div>
+      ${APP.prestadores.length===0?`<p style="color:var(--mt);text-align:center;padding:20px">Nenhum prestador cadastrado.</p>`:`
+      <table><thead><tr><th>Nome</th><th>Especialidade</th><th>Status</th></tr></thead><tbody>
+        ${APP.prestadores.slice().reverse().slice(0,5).map(p=>`
+        <tr>
+          <td><div style="display:flex;align-items:center;gap:8px">${av(p.nome,p.id,28)}<span style="font-weight:600">${esc(p.nome)}</span></div></td>
+          <td style="color:var(--mt)">${esc(p.especialidade||'—')}</td>
+          <td><span class="badge ${p.status==='ativo'?'badge-ativo':'badge-encerrado'}">${p.status==='ativo'?'Ativo':'Inativo'}</span></td>
+        </tr>`).join('')}
+      </tbody></table>`}
+    </div>
+    <div class="card">
+      <div style="font-size:14px;font-weight:700;margin-bottom:14px">✍️ Status de Assinaturas</div>
+      ${APP.assinaturas.length===0?`<p style="color:var(--mt);text-align:center;padding:20px">Nenhuma assinatura enviada ainda.</p>`:`
+      <table><thead><tr><th>Prestador</th><th>Contrato</th><th>Status</th><th>Data</th></tr></thead><tbody>
+        ${APP.assinaturas.slice().reverse().slice(0,5).map(sig=>{
+          const c = APP.contratos.find(x=>x.id===sig.contratoId);
+          const p = APP.prestadores.find(x=>x.id===sig.prestId);
+          return `<tr>
+            <td style="font-weight:600">${esc(p?.nome||'—')}</td>
+            <td style="font-size:12px;color:var(--mt)">${esc(c?.tipo||'—')}</td>
+            <td><span class="badge ${sig.status==='assinado'?'badge-assinado':'badge-aguardando'}">${sig.status==='assinado'?'✅ Assinado':'⏳ Aguardando'}</span></td>
+            <td style="font-size:11px;color:var(--mt)">${sig.assinadoEm?fmtDT(sig.assinadoEm):fmtDT(sig.criadoEm)}</td>
+          </tr>`;
+        }).join('')}
+      </tbody></table>`}
+    </div>
+  </div>`;
+}
+
+// ════════════════════════════════════════════
+// PRESTADORES
+// ════════════════════════════════════════════
+function rPrestadores(){
+  const lista = APP.prestadores.filter(p=>{
+    if(!SEARCH) return true;
+    const s = SEARCH.toLowerCase();
+    return (p.nome||'').toLowerCase().includes(s)||(p.especialidade||'').toLowerCase().includes(s)||(p.cpf||'').includes(s);
+  });
+  return `
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap">
+    <input placeholder="🔍 Buscar por nome, CPF ou especialidade..." style="width:320px;padding:8px 12px;border:1.5px solid var(--border);border-radius:9px;font-size:13px"
+      value="${esc(SEARCH)}" oninput="SEARCH=this.value;document.getElementById('content').innerHTML=rPrestadores()">
+    <button class="btn btn-navy" onclick="openNovoPrestador()">+ Novo Prestador</button>
+  </div>
+  <div class="card">
+    ${lista.length===0?`<p style="text-align:center;padding:40px;color:var(--mt)">${APP.prestadores.length===0?'Nenhum prestador cadastrado ainda.':'Nenhum resultado encontrado.'}</p>`:`
+    <table>
+      <thead><tr><th>Prestador</th><th>CPF / CNPJ</th><th>Especialidade</th><th>Contato</th><th>Contratos</th><th>Status</th><th>Ações</th></tr></thead>
+      <tbody>
+        ${lista.map(p=>{
+          const ctrs = APP.contratos.filter(c=>c.prestId===p.id&&c.status==='ativo').length;
+          return `<tr>
+            <td><div style="display:flex;align-items:center;gap:9px">
+              ${av(p.nome,p.id,32)}
+              <div>
+                <div style="font-weight:600;font-size:13px">${esc(p.nome)}</div>
+                <div style="font-size:11px;color:var(--mt)">${esc(p.email||'—')}</div>
+              </div>
+            </div></td>
+            <td style="font-family:monospace;font-size:12px">${esc(p.cpf||p.cnpj||'—')}</td>
+            <td>${esc(p.especialidade||'—')}</td>
+            <td style="font-size:12px">${esc(p.telefone||'—')}</td>
+            <td><span style="background:#EFF6FF;color:#2563EB;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700">${ctrs} ativo${ctrs!==1?'s':''}</span></td>
+            <td><span class="badge ${p.status==='ativo'?'badge-ativo':'badge-encerrado'}">${p.status==='ativo'?'Ativo':'Inativo'}</span></td>
+            <td>
+              <div style="display:flex;gap:4px">
+                <button class="btn btn-sm btn-ghost btn-icon" title="Editar" onclick="openEditPrestador('${p.id}')">✏️</button>
+                <button class="btn btn-sm btn-ghost btn-icon" title="Novo Contrato" onclick="openNovoContrato('${p.id}')">📄</button>
+                <button class="btn btn-sm btn-ghost btn-icon" title="Novo Pagamento" onclick="openNovoPagamento('${p.id}')">💰</button>
+                <button class="btn btn-sm btn-ghost btn-icon" title="Excluir" onclick="deletePrestador('${p.id}')">🗑</button>
+              </div>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`}
+  </div>`;
+}
+
+function openNovoPrestador(){ openFormPrestador(null); }
+function openEditPrestador(id){ openFormPrestador(APP.prestadores.find(p=>p.id===id)); }
+
+function openFormPrestador(p){
+  const novo = !p;
+  p = p || { id: uid(), nome:'', cpf:'', cnpj:'', rg:'', especialidade:'', telefone:'', email:'', pix:'', banco:'', agencia:'', conta:'', obs:'', status:'ativo', dataCadastro: today() };
+  openModal(novo?'➕ Novo Prestador':'✏️ Editar Prestador', `
+  <div class="fld-row">
+    <div class="fld" style="grid-column:span 2"><label>Nome Completo *</label>
+      <input id="pf-nome" value="${esc(p.nome)}" placeholder="Nome do prestador ou empresa"/></div>
+  </div>
+  <div class="fld-row3">
+    <div class="fld"><label>CPF</label><input id="pf-cpf" value="${esc(p.cpf)}" placeholder="000.000.000-00"/></div>
+    <div class="fld"><label>RG</label><input id="pf-rg" value="${esc(p.rg||'')}" placeholder="0000000-0"/></div>
+    <div class="fld"><label>CNPJ (opcional)</label><input id="pf-cnpj" value="${esc(p.cnpj)}" placeholder="00.000.000/0000-00"/></div>
+  </div>
+  <div class="fld-row">
+    <div class="fld"><label>Especialidade / Serviço *</label>
+      <input id="pf-esp" value="${esc(p.especialidade)}" placeholder="Ex: Técnico em Celular"/></div>
+    <div class="fld"><label>Telefone / WhatsApp</label>
+      <input id="pf-tel" value="${esc(p.telefone)}" placeholder="(45) 9 9999-9999"/></div>
+  </div>
+  <div class="fld-row">
+    <div class="fld"><label>E-mail</label>
+      <input id="pf-email" type="email" value="${esc(p.email)}" placeholder="email@exemplo.com"/></div>
+    <div class="fld"><label>Status</label>
+      <select id="pf-status">
+        <option value="ativo" ${p.status==='ativo'?'selected':''}>Ativo</option>
+        <option value="inativo" ${p.status==='inativo'?'selected':''}>Inativo</option>
+      </select>
+    </div>
+  </div>
+  <div style="font-size:12px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.06em;margin:16px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)">Dados Bancários / Pagamento</div>
+  <div class="fld-row3">
+    <div class="fld"><label>Banco</label><input id="pf-banco" value="${esc(p.banco)}" placeholder="Ex: Caixa, Itaú"/></div>
+    <div class="fld"><label>Agência</label><input id="pf-agencia" value="${esc(p.agencia)}" placeholder="0000"/></div>
+    <div class="fld"><label>Conta</label><input id="pf-conta" value="${esc(p.conta)}" placeholder="00000-0"/></div>
+  </div>
+  <div class="fld"><label>Chave PIX</label>
+    <input id="pf-pix" value="${esc(p.pix)}" placeholder="CPF, e-mail, telefone ou chave aleatória"/></div>
+  <div class="fld"><label>Observações</label>
+    <textarea id="pf-obs">${esc(p.obs)}</textarea></div>
+  `,`
+  <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+  <button class="btn btn-navy" onclick="salvarPrestador('${p.id}', ${novo})">💾 Salvar</button>
+  `);
+}
+
+async function salvarPrestador(id, novo){
+  const nome = document.getElementById('pf-nome').value.trim();
+  const esp  = document.getElementById('pf-esp').value.trim();
+  if(!nome){ toast('Nome é obrigatório.','err'); return; }
+  if(!esp)  { toast('Especialidade é obrigatória.','err'); return; }
+  const obj = {
+    id, nome, esp,
+    cpf:         document.getElementById('pf-cpf').value.trim(),
+    rg:          document.getElementById('pf-rg').value.trim(),
+    cnpj:        document.getElementById('pf-cnpj').value.trim(),
+    especialidade: esp,
+    telefone:    document.getElementById('pf-tel').value.trim(),
+    email:       document.getElementById('pf-email').value.trim(),
+    pix:         document.getElementById('pf-pix').value.trim(),
+    banco:       document.getElementById('pf-banco').value.trim(),
+    agencia:     document.getElementById('pf-agencia').value.trim(),
+    conta:       document.getElementById('pf-conta').value.trim(),
+    obs:         document.getElementById('pf-obs').value.trim(),
+    status:      document.getElementById('pf-status').value,
+    dataCadastro: novo ? today() : (APP.prestadores.find(p=>p.id===id)||{}).dataCadastro || today(),
+  };
+  const idx = APP.prestadores.findIndex(p=>p.id===id);
+  if(idx>=0) APP.prestadores[idx]=obj; else APP.prestadores.push(obj);
+  await save();
+  closeModal();
+  toast(novo?'✅ Prestador cadastrado!':'✅ Prestador atualizado!');
+  setPage('prestadores');
+}
+
+async function deletePrestador(id){
+  const p = APP.prestadores.find(x=>x.id===id);
+  if(!p||!confirm(`Excluir "${p.nome}"?\nTodos os contratos e pagamentos vinculados também serão removidos.`)) return;
+  APP.prestadores = APP.prestadores.filter(x=>x.id!==id);
+  APP.contratos   = APP.contratos.filter(c=>c.prestId!==id);
+  APP.pagamentos  = APP.pagamentos.filter(pg=>pg.prestId!==id);
+  APP.assinaturas = APP.assinaturas.filter(s=>s.prestId!==id);
+  await save();
+  toast('Prestador excluído.','warn');
+  setPage('prestadores');
+}
+
+// ════════════════════════════════════════════
+// CONTRATOS
+// ════════════════════════════════════════════
+function rContratos(){
+  const filtro = SEARCH.toLowerCase();
+  const lista = APP.contratos.filter(c=>{
+    const p = APP.prestadores.find(x=>x.id===c.prestId);
+    if(!filtro) return true;
+    return (p?.nome||'').toLowerCase().includes(filtro)||(c.descricao||'').toLowerCase().includes(filtro);
+  }).sort((a,b)=>b.dataInicio.localeCompare(a.dataInicio));
+
+  return `
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap">
+    <input placeholder="🔍 Buscar contrato ou prestador..." style="width:300px;padding:8px 12px;border:1.5px solid var(--border);border-radius:9px;font-size:13px"
+      value="${esc(SEARCH)}" oninput="SEARCH=this.value;document.getElementById('content').innerHTML=rContratos()">
+    <button class="btn btn-navy" onclick="openNovoContrato(null)">+ Novo Contrato</button>
+  </div>
+  <div class="card">
+    ${lista.length===0?`<p style="text-align:center;padding:40px;color:var(--mt)">Nenhum contrato cadastrado.</p>`:`
+    <table>
+      <thead><tr><th>Prestador</th><th>Tipo</th><th>Valor</th><th>Início</th><th>Vencimento</th><th>Status</th><th>Assinatura</th><th>Ações</th></tr></thead>
+      <tbody>
+        ${lista.map(c=>{
+          const p = APP.prestadores.find(x=>x.id===c.prestId);
+          const st = statusContrato(c);
+          const sig = statusAssinatura(c.id);
+          return `<tr>
+            <td><div style="display:flex;align-items:center;gap:8px">${av(p?.nome||'?',c.prestId,28)}<span style="font-weight:600">${esc(p?.nome||'—')}</span></div></td>
+            <td><span style="background:#F1F5F9;color:var(--mt);padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700">${esc(c.tipo||'—')}</span></td>
+            <td style="font-family:monospace;font-weight:700;color:#059669">${fmtMoney(c.valor)}<span style="font-size:10px;color:var(--mt);font-weight:400"> /${c.valorTipo||'serv.'}</span></td>
+            <td style="font-size:12px;color:var(--mt)">${fmt(c.dataInicio)}</td>
+            <td style="font-size:12px;color:var(--mt)">${c.dataFim?fmt(c.dataFim):'<span style="color:#059669;font-size:11px">Indeterminado</span>'}</td>
+            <td><span class="badge ${st.cls}">${st.label}</span></td>
+            <td>${sig?`<span class="badge ${sig.cls}">${sig.label}</span>`:`<span style="color:var(--mt);font-size:11px">—</span>`}</td>
+            <td>
+              <div style="display:flex;gap:4px;flex-wrap:wrap">
+                <button class="btn btn-sm btn-ghost btn-icon" title="Ver/Imprimir" onclick="verContrato('${c.id}')">📄</button>
+                <button class="btn btn-sm btn-ghost btn-icon" title="Editar" onclick="openEditContrato('${c.id}')">✏️</button>
+                <button class="btn btn-sm btn-gold btn-icon" title="Enviar para Assinatura" onclick="enviarParaAssinatura('${c.id}')">✍️</button>
+                <button class="btn btn-sm btn-ghost btn-icon" title="Assinar pelo RH" onclick="abrirAssinaturaRH('${c.id}')">🖊️</button>
+                <button class="btn btn-sm btn-ghost btn-icon" title="Novo Pagamento" onclick="openNovoPagamento('${c.prestId}','${c.id}')">💰</button>
+                <button class="btn btn-sm btn-ghost btn-icon" title="Encerrar" onclick="encerrarContrato('${c.id}')" ${c.status==='encerrado'?'disabled':''}>🔒</button>
+                <button class="btn btn-sm btn-ghost btn-icon" title="Excluir" onclick="deleteContrato('${c.id}')">🗑</button>
+              </div>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`}
+  </div>
+  <div style="margin-top:12px;font-size:11px;color:var(--mt);text-align:right">
+    ✍️ = Enviar link para assinatura do prestador &nbsp;|&nbsp; 🖊️ = Assinar pelo RH agora
+  </div>`;
+}
+
+function openNovoContrato(prestId){ openFormContrato(null, prestId); }
+function openEditContrato(id){ openFormContrato(APP.contratos.find(c=>c.id===id), null); }
+
+function openFormContrato(c, prestIdDefault){
+  const novo = !c;
+  c = c || { id:uid(), prestId:prestIdDefault||'', tipo:'Prestação de Serviços', descricao:'', valor:'', valorTipo:'mensal', dataInicio:today(), dataFim:'', renovacaoAuto:false, status:'ativo', obs:'' };
+  const optsPrests = APP.prestadores.filter(p=>p.status==='ativo').map(p=>
+    `<option value="${p.id}" ${c.prestId===p.id?'selected':''}>${esc(p.nome)} — ${esc(p.especialidade||'')}</option>`
+  ).join('');
+  openModal(novo?'📄 Novo Contrato':'✏️ Editar Contrato', `
+  <div class="fld"><label>Prestador *</label>
+    <select id="cf-prest"><option value="">Selecione o prestador...</option>${optsPrests}</select></div>
+  <div class="fld-row">
+    <div class="fld"><label>Tipo de Contrato</label>
+      <select id="cf-tipo">${['Prestação de Serviços','Consultoria','Manutenção','Comissão','Locação','Outros'].map(t=>`<option value="${t}" ${c.tipo===t?'selected':''}>${t}</option>`).join('')}</select></div>
+    <div class="fld"><label>Status</label>
+      <select id="cf-status">
+        <option value="ativo" ${c.status==='ativo'?'selected':''}>Ativo</option>
+        <option value="rascunho" ${c.status==='rascunho'?'selected':''}>Rascunho</option>
+        <option value="encerrado" ${c.status==='encerrado'?'selected':''}>Encerrado</option>
+      </select></div>
+  </div>
+  <div class="fld"><label>Descrição do Serviço *</label>
+    <textarea id="cf-desc" style="min-height:70px">${esc(c.descricao)}</textarea></div>
+  <div class="fld-row3">
+    <div class="fld"><label>Valor (R$) *</label>
+      <input id="cf-valor" type="number" step="0.01" min="0" value="${c.valor}" placeholder="0,00"/></div>
+    <div class="fld"><label>Periodicidade</label>
+      <select id="cf-vtp">${['mensal','semanal','quinzenal','por serviço','por hora','anual'].map(t=>`<option value="${t}" ${c.valorTipo===t?'selected':''}>${t}</option>`).join('')}</select></div>
+    <div class="fld"><label>Renovação Auto.</label>
+      <select id="cf-renov">
+        <option value="false" ${!c.renovacaoAuto?'selected':''}>Não</option>
+        <option value="true" ${c.renovacaoAuto?'selected':''}>Sim</option>
+      </select></div>
+  </div>
+  <div class="fld-row">
+    <div class="fld"><label>Data de Início *</label><input id="cf-inicio" type="date" value="${c.dataInicio}"/></div>
+    <div class="fld"><label>Data de Término <span style="font-weight:400;text-transform:none">(vazio = indeterminado)</span></label>
+      <input id="cf-fim" type="date" value="${c.dataFim}"/></div>
+  </div>
+  <div class="fld"><label>Cláusulas / Observações Específicas</label>
+    <textarea id="cf-obs" style="min-height:80px">${esc(c.obs)}</textarea></div>
+  `,`
+  <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+  <button class="btn btn-blue" onclick="previewContrato('${c.id}')">👁 Preview</button>
+  <button class="btn btn-navy" onclick="salvarContrato('${c.id}', ${novo})">💾 Salvar Contrato</button>
+  `);
+}
+
+async function salvarContrato(id, novo){
+  const prestId = document.getElementById('cf-prest').value;
+  const descricao = document.getElementById('cf-desc').value.trim();
+  const valor = document.getElementById('cf-valor').value;
+  const inicio = document.getElementById('cf-inicio').value;
+  if(!prestId){ toast('Selecione o prestador.','err'); return; }
+  if(!descricao){ toast('Descrição é obrigatória.','err'); return; }
+  if(!valor||+valor<=0){ toast('Informe o valor.','err'); return; }
+  if(!inicio){ toast('Data de início é obrigatória.','err'); return; }
+  const obj = {
+    id, prestId, descricao, valor: +valor,
+    tipo:          document.getElementById('cf-tipo').value,
+    valorTipo:     document.getElementById('cf-vtp').value,
+    dataInicio:    inicio,
+    dataFim:       document.getElementById('cf-fim').value || '',
+    renovacaoAuto: document.getElementById('cf-renov').value === 'true',
+    status:        document.getElementById('cf-status').value,
+    obs:           document.getElementById('cf-obs').value.trim(),
+    dataGeracao:   novo ? today() : (APP.contratos.find(c=>c.id===id)||{}).dataGeracao || today(),
+  };
+  const idx = APP.contratos.findIndex(c=>c.id===id);
+  if(idx>=0) APP.contratos[idx]=obj; else APP.contratos.push(obj);
+  await save();
+  closeModal();
+  toast(novo?'✅ Contrato criado!':'✅ Contrato atualizado!');
+  setPage('contratos');
+}
+
+async function encerrarContrato(id){
+  const c = APP.contratos.find(x=>x.id===id);
+  if(!c||!confirm('Encerrar este contrato?')) return;
+  c.status = 'encerrado'; c.dataEncerramento = today();
+  await save(); toast('Contrato encerrado.','warn'); setPage('contratos');
+}
+async function deleteContrato(id){
+  if(!confirm('Excluir este contrato? Os pagamentos vinculados também serão removidos.')) return;
+  APP.contratos  = APP.contratos.filter(c=>c.id!==id);
+  APP.pagamentos = APP.pagamentos.filter(p=>p.contratoId!==id);
+  APP.assinaturas = APP.assinaturas.filter(s=>s.contratoId!==id);
+  await save(); toast('Contrato excluído.','warn'); setPage('contratos');
+}
+
+// ════════════════════════════════════════════
+// GERAR CONTRATO HTML (CLT + Cartorial)
+// ════════════════════════════════════════════
+function buildContratoHTML(c, p, assinaturaDados){
+  const empresa = 'FACILITA CELL LTDA';
+  const cnpjEmpresa = localStorage.getItem('fcrh_cnpj_empresa') || '42.427.915/0001-00';
+  const endEmpresa  = localStorage.getItem('fcrh_endereco_empresa') || 'Rua das Cataratas, nº 100, Centro, Foz do Iguaçu – PR, CEP: 85851-010';
+  const repLegal    = localStorage.getItem('fcrh_rep_legal') || 'Representante Legal';
+  const hoje = new Date().toLocaleDateString('pt-BR',{day:'numeric',month:'long',year:'numeric'});
+
+  const sig = assinaturaDados || APP.assinaturas.find(s=>s.contratoId===c.id&&s.status==='assinado');
+
+  return `
+  <div class="contrato-preview" id="contrato-print-area">
+    <!-- CABEÇALHO CARTORIAL -->
+    <div style="text-align:center;border-bottom:2px solid var(--navy);padding-bottom:14px;margin-bottom:14px">
+      <div style="font-size:10px;color:var(--mt);margin-bottom:4px">CONTRATO PARTICULAR DE PRESTAÇÃO DE SERVIÇOS AUTÔNOMOS</div>
+      <h2 style="font-size:16px">CONTRATO DE ${(c.tipo||'PRESTAÇÃO DE SERVIÇOS').toUpperCase()}</h2>
+      <div style="font-size:10px;color:var(--mt);margin-top:4px">Nº ${c.id?.slice(0,8).toUpperCase()||'—'} · Emitido em ${hoje}</div>
+      <div style="font-size:10px;color:var(--mt)">Foz do Iguaçu – Paraná · CNPJ: ${esc(cnpjEmpresa)}</div>
+    </div>
+
+    <h3>DAS PARTES CONTRATANTES</h3>
+    <p><strong>CONTRATANTE:</strong> ${esc(empresa)}, pessoa jurídica de direito privado, inscrita no CNPJ sob nº ${esc(cnpjEmpresa)}, com sede estabelecida na ${esc(endEmpresa)}, neste ato representada por ${esc(repLegal)}, doravante denominada simplesmente <strong>CONTRATANTE</strong>.</p>
+    <p><strong>CONTRATADO(A):</strong> ${esc(p.nome)}, ${p.rg?'portador(a) do RG nº '+esc(p.rg)+', ':''} ${p.cpf?'inscrito(a) no CPF sob nº '+esc(p.cpf):p.cnpj?'inscrito(a) no CNPJ sob nº '+esc(p.cnpj):''}, ${p.email?'e-mail: '+esc(p.email)+',':''} ${p.telefone?'telefone: '+esc(p.telefone)+',':''} residente e domiciliado(a) em Foz do Iguaçu – PR, doravante denominado(a) simplesmente <strong>CONTRATADO(A)</strong>.</p>
+    <p>Têm entre si, justo e contratado, o presente instrumento particular, que se rege pelas cláusulas e condições a seguir estipuladas, e pelas disposições do <strong>Código Civil Brasileiro (Lei nº 10.406/2002)</strong>, da <strong>Consolidação das Leis do Trabalho – CLT (Decreto-Lei nº 5.452/1943)</strong> no que couber, e da <strong>Lei nº 14.063/2020</strong> no tocante às assinaturas eletrônicas.</p>
+
+    <h3>CLÁUSULA 1ª — DO OBJETO (Art. 593 e ss. do Código Civil)</h3>
+    <p>O presente contrato tem por objeto a prestação de serviços especializados de <strong>${esc(p.especialidade||c.tipo)}</strong>, de caráter autônomo, nos termos do Art. 593 do Código Civil, conforme descrição abaixo:</p>
+    <p style="background:#F8FAFC;padding:12px 16px;border-radius:8px;border-left:3px solid #C9A84C;font-style:italic">${esc(c.descricao)}</p>
+    <p>Os serviços serão prestados com total autonomia técnica e operacional, podendo ser executados nas dependências da CONTRATANTE ou em local a ser acordado entre as partes.</p>
+
+    <h3>CLÁUSULA 2ª — DA REMUNERAÇÃO E FORMA DE PAGAMENTO</h3>
+    <p>Pela prestação dos serviços objeto deste contrato, a CONTRATANTE pagará ao(à) CONTRATADO(A) a título de <em>pro labore</em> o valor de <strong>${fmtMoney(c.valor)} (${valorPorExtenso(c.valor)})</strong> por ${esc(c.valorTipo||'serviço')}.</p>
+    <p><strong>Forma de Pagamento:</strong> ${p.pix?'Por meio de PIX — Chave: '+esc(p.pix):p.banco?'Por transferência bancária — Banco: '+esc(p.banco)+', Agência: '+esc(p.agencia||'—')+', Conta: '+esc(p.conta||'—'):'A ser acordado entre as partes'}.</p>
+    <p>Parágrafo único: O pagamento está condicionado à apresentação do respectivo <strong>Recibo de Autônomo (RPA)</strong> ou <strong>Nota Fiscal de Serviços</strong>, quando aplicável, conforme legislação tributária vigente.</p>
+
+    <h3>CLÁUSULA 3ª — DO PRAZO DE VIGÊNCIA (Art. 472 do Código Civil)</h3>
+    <p>O presente contrato terá vigência a partir de <strong>${fmt(c.dataInicio)}</strong>${c.dataFim?' com término previsto em <strong>'+fmt(c.dataFim)+'</strong>':' por prazo <strong>indeterminado</strong>'}${c.renovacaoAuto?', renovando-se automaticamente por iguais e sucessivos períodos, salvo manifestação contrária de qualquer das partes com antecedência mínima de 30 (trinta) dias':''}, podendo ser rescindido por qualquer das partes mediante aviso prévio de <strong>30 (trinta) dias</strong>, na forma do Art. 599 do Código Civil.</p>
+
+    <h3>CLÁUSULA 4ª — DA NATUREZA JURÍDICA DO VÍNCULO (Art. 593 CC e Art. 3º CLT)</h3>
+    <p>O(A) CONTRATADO(A) prestará os serviços com <strong>total autonomia</strong>, sem subordinação jurídica, pessoalidade obrigatória, habitualidade ou onerosidade caracterizadores da relação de emprego, conforme exigências do Art. 3º da CLT, <strong>não se configurando, portanto, vínculo empregatício</strong> entre as partes.</p>
+    <p>O(A) CONTRATADO(A) declara estar ciente de que é responsável pelo recolhimento de seus próprios tributos, incluindo <strong>INSS como contribuinte individual</strong> (Lei nº 8.212/91) e <strong>Imposto de Renda Retido na Fonte – IRRF</strong>, quando aplicável, conforme tabela progressiva da Receita Federal do Brasil.</p>
+    <p>Parágrafo único: Caso em algum momento reste configurada relação de emprego entre as partes, aplicar-se-ão as disposições da CLT, inclusive quanto a FGTS (Lei nº 8.036/90), 13º salário (Lei nº 4.090/62), férias remuneradas (Art. 129 CLT) e aviso prévio (Art. 487 CLT).</p>
+
+    <h3>CLÁUSULA 5ª — DAS OBRIGAÇÕES DO(A) CONTRATADO(A)</h3>
+    <p>O(A) CONTRATADO(A) obriga-se a: <strong>(a)</strong> executar os serviços com qualidade técnica, dentro dos padrões da CONTRATANTE e nos prazos acordados; <strong>(b)</strong> manter absoluto sigilo sobre informações, dados, processos e segredos industriais da CONTRATANTE, sob pena de responsabilidade civil e criminal; <strong>(c)</strong> não subcontratar os serviços sem prévia e expressa autorização por escrito; <strong>(d)</strong> zelar pelos equipamentos e instalações da CONTRATANTE quando utilizados na execução dos serviços; <strong>(e)</strong> observar todas as normas de segurança, higiene e medicina do trabalho aplicáveis.</p>
+
+    <h3>CLÁUSULA 6ª — DAS OBRIGAÇÕES DA CONTRATANTE</h3>
+    <p>A CONTRATANTE obriga-se a: <strong>(a)</strong> efetuar os pagamentos nos prazos acordados; <strong>(b)</strong> fornecer as condições necessárias para a execução dos serviços; <strong>(c)</strong> comunicar previamente quaisquer alterações nas condições de prestação de serviços.</p>
+
+    <h3>CLÁUSULA 7ª — DA CONFIDENCIALIDADE E PROPRIEDADE INTELECTUAL</h3>
+    <p>Todos os trabalhos, projetos, sistemas, códigos-fonte, documentos e demais produções intelectuais desenvolvidos pelo(a) CONTRATADO(A) no âmbito deste contrato são de propriedade exclusiva da CONTRATANTE, nos termos da <strong>Lei nº 9.279/96</strong> (Propriedade Industrial) e <strong>Lei nº 9.610/98</strong> (Direitos Autorais).</p>
+
+    <h3>CLÁUSULA 8ª — DA RESCISÃO (Art. 473, 474 e 599 do Código Civil)</h3>
+    <p>O presente contrato poderá ser rescindido: <strong>(a)</strong> por mútuo acordo entre as partes, mediante formalização escrita; <strong>(b)</strong> por descumprimento de qualquer cláusula por qualquer das partes, com notificação prévia de 15 (quinze) dias para correção; <strong>(c)</strong> por conveniência de qualquer das partes, com aviso prévio de 30 (trinta) dias; <strong>(d)</strong> imediatamente, em caso de falência, insolvência ou descumpriemnto grave de obrigações.</p>
+    <p>Parágrafo único: A rescisão por justa causa, devidamente comprovada, não gera direito a qualquer indenização adicional além dos valores já devidos pelos serviços prestados.</p>
+
+    ${c.obs?`<h3>CLÁUSULA 9ª — DISPOSIÇÕES ESPECÍFICAS</h3><p>${esc(c.obs)}</p>`:''}
+
+    <h3>CLÁUSULA ${c.obs?'10':'9'}ª — DA VALIDADE DA ASSINATURA ELETRÔNICA</h3>
+    <p>As partes reconhecem que a assinatura eletrônica aposta neste instrumento tem plena validade jurídica, nos termos da <strong>Lei nº 14.063/2020</strong>, do <strong>Art. 10, §2º da MP 2.200-2/2001</strong> e do <strong>Art. 8º-A da CLT</strong> (incluído pela Lei nº 14.611/2023), dispensando o reconhecimento de firma em cartório, podendo ser utilizado como prova em processo judicial ou administrativo.</p>
+
+    <h3>CLÁUSULA ${c.obs?'11':'10'}ª — DO FORO COMPETENTE (Art. 651 CLT)</h3>
+    <p>Para dirimir quaisquer controvérsias oriundas do presente contrato, as partes elegem o Foro da <strong>Comarca de Foz do Iguaçu/PR</strong>, com renúncia expressa a qualquer outro, por mais privilegiado que seja. Em caso de reconhecimento de relação de emprego, fica eleita a <strong>Vara do Trabalho de Foz do Iguaçu/PR</strong>, nos termos do Art. 651 da CLT.</p>
+
+    <p style="text-align:center;margin-top:20px;color:var(--mt);font-size:12px">Foz do Iguaçu, ${hoje}</p>
+    <p style="text-align:center;font-size:10px;color:var(--mt)">Gerado pelo Sistema Facilita Cell HR · Firebase ID: ${c.id}</p>
+
+    <!-- ASSINATURAS -->
+    <div class="assinatura-box" style="margin-top:30px">
+      <div>
+        ${sig?.assinadoPorRH
+          ? `<div style="background:#D1FAE5;border:1.5px solid #6EE7B7;border-radius:10px;padding:10px 12px;margin-bottom:8px;text-align:center">
+              ${sig.sigContratante
+                ? `<img src="${sig.sigContratante}" style="max-height:54px;max-width:100%;border-radius:4px;display:block;margin:0 auto 4px" alt="Assinatura Desenhada"/>`
+                : sig.sigTypedContratante
+                ? `<div style="font-family:cursive;font-size:22px;color:#065F46;letter-spacing:2px;margin-bottom:4px">${esc(sig.sigTypedContratante)}</div>`
+                : ''}
+              ${sig.fotoContratante
+                ? `<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px">
+                    <img src="${sig.fotoContratante}" style="width:52px;height:52px;border-radius:8px;object-fit:cover;border:2px solid #6EE7B7"/>
+                    <div style="text-align:left">
+                      <div style="font-size:9px;color:#047857;font-weight:700">📸 Foto de autenticação</div>
+                      <div style="font-size:9px;color:#047857">📅 ${fmtDT(sig.fotoContratanteTS)}</div>
+                    </div>
+                  </div>`
+                : ''}
+              <div style="font-size:9px;color:#047857;margin-top:6px;font-weight:700">✅ Assinado em ${fmtDT(sig.assinadoRHEm)}</div>
+            </div>`
+          : `<div style="height:60px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;color:#94A3B8;font-size:11px">Aguardando assinatura</div>`}
+        <div class="assinatura-linha">______________________________<br>${esc(empresa)}<br><span style="font-size:10px">CNPJ: ${esc(cnpjEmpresa)}</span><br>CONTRATANTE</div>
+      </div>
+      <div>
+        ${sig?.status==='assinado'
+          ? `<div style="background:#D1FAE5;border:1.5px solid #6EE7B7;border-radius:10px;padding:10px 12px;margin-bottom:8px;text-align:center">
+              ${sig.sigCanvas
+                ? `<img src="${sig.sigCanvas}" style="max-height:54px;max-width:100%;border-radius:4px;display:block;margin:0 auto 4px" alt="Assinatura Desenhada"/>`
+                : sig.sigTyped
+                ? `<div style="font-family:cursive;font-size:22px;color:#065F46;letter-spacing:2px;margin-bottom:4px">${esc(sig.sigTyped)}</div>`
+                : ''}
+              ${sig.foto
+                ? `<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px">
+                    <img src="${sig.foto}" style="width:52px;height:52px;border-radius:8px;object-fit:cover;border:2px solid #6EE7B7"/>
+                    <div style="text-align:left">
+                      <div style="font-size:9px;color:#047857;font-weight:700">📸 Foto de autenticação</div>
+                      <div style="font-size:9px;color:#047857">📅 ${fmtDT(sig.fotoTimestamp||sig.fotoTS)}</div>
+                    </div>
+                  </div>`
+                : ''}
+              <div style="font-size:9px;color:#047857;margin-top:6px;font-weight:700">✅ Assinado em ${fmtDT(sig.assinadoEm)}</div>
+            </div>`
+          : `<div style="height:60px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;color:#94A3B8;font-size:11px">Aguardando assinatura</div>`}
+        <div class="assinatura-linha">______________________________<br>${esc(p.nome)}<br><span style="font-size:10px">${p.cpf?'CPF: '+esc(p.cpf):p.cnpj?'CNPJ: '+esc(p.cnpj):''}</span><br>CONTRATADO(A)</div>
+      </div>
+    </div>
+
+    ${sig?.status==='assinado'?`
+    <div style="background:#D1FAE5;border:1px solid #6EE7B7;border-radius:8px;padding:10px 14px;margin-top:16px;font-size:11px;color:#065F46;text-align:center">
+      ✅ <strong>Documento assinado digitalmente</strong> em ${fmtDT(sig.assinadoEm)} · Token: ${sig.token?.slice(0,16)}... · IP registrado
+    </div>`:''}
+
+    <p style="text-align:center;margin-top:16px;font-size:10px;color:var(--mt)">Testemunha 1: _________________________________ CPF: _______________ &nbsp;&nbsp; Testemunha 2: _________________________________ CPF: _______________</p>
+    <p style="text-align:center;font-size:9px;color:#94A3B8;margin-top:8px">Este instrumento foi gerado e registrado no Sistema Facilita Cell HR · Foz do Iguaçu – PR · Referência Fiscal: ${c.id}</p>
+  </div>`;
+}
+
+function valorPorExtenso(v){
+  const n = Math.round(+v * 100);
+  if(n===0) return 'zero reais';
+  const reais = Math.floor(n/100), cents = n%100;
+  const unidades=['','um','dois','três','quatro','cinco','seis','sete','oito','nove','dez','onze','doze','treze','quatorze','quinze','dezesseis','dezessete','dezoito','dezenove'];
+  const dezenas=['','','vinte','trinta','quarenta','cinquenta','sessenta','setenta','oitenta','noventa'];
+  const centenas=['','cento','duzentos','trezentos','quatrocentos','quinhentos','seiscentos','setecentos','oitocentos','novecentos'];
+  function conv(n){
+    if(n===0) return '';
+    if(n===100) return 'cem';
+    if(n<20) return unidades[n];
+    if(n<100) return dezenas[Math.floor(n/10)]+(n%10?' e '+unidades[n%10]:'');
+    if(n<1000) return centenas[Math.floor(n/100)]+(n%100?' e '+conv(n%100):'');
+    if(n<1000000) return conv(Math.floor(n/1000))+' mil'+(n%1000?' e '+conv(n%1000):'');
+    return n.toString();
+  }
+  let ext='';
+  if(reais>0) ext+=conv(reais)+' real'+(reais!==1?'s':'');
+  if(reais>0&&cents>0) ext+=' e ';
+  if(cents>0) ext+=conv(cents)+' centavo'+(cents!==1?'s':'');
+  return ext;
+}
+
+function previewContrato(id){
+  let c, p;
+  const formPrest = document.getElementById('cf-prest');
+  if(formPrest){
+    c={ id, prestId:formPrest.value, tipo:document.getElementById('cf-tipo')?.value||'Prestação de Serviços', descricao:document.getElementById('cf-desc')?.value||'', valor:+(document.getElementById('cf-valor')?.value||0), valorTipo:document.getElementById('cf-vtp')?.value||'mensal', dataInicio:document.getElementById('cf-inicio')?.value||today(), dataFim:document.getElementById('cf-fim')?.value||'', renovacaoAuto:document.getElementById('cf-renov')?.value==='true', obs:document.getElementById('cf-obs')?.value||'' };
+    p = APP.prestadores.find(x=>x.id===c.prestId);
+  } else {
+    c = APP.contratos.find(x=>x.id===id);
+    p = c ? APP.prestadores.find(x=>x.id===c.prestId) : null;
+  }
+  if(!c||!p){ toast('Salve o contrato antes de visualizar.','warn'); return; }
+  openModal('📄 Contrato — Preview', buildContratoHTML(c, p), `
+    <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+    <button class="btn btn-navy" onclick="imprimirContrato('${id}')">🖨 Imprimir / PDF</button>
+  `);
+}
+
+function verContrato(id){
+  const c = APP.contratos.find(x=>x.id===id);
+  const p = c ? APP.prestadores.find(x=>x.id===c.prestId) : null;
+  if(!c||!p){ toast('Dados não encontrados.','err'); return; }
+  openModal('📄 Contrato de Prestação de Serviços', buildContratoHTML(c, p), `
+    <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+    <button class="btn btn-navy" onclick="imprimirContrato('${id}')">🖨 Imprimir / PDF</button>
+  `);
+}
+
+function imprimirContrato(id){
+  const area = document.getElementById('contrato-print-area');
+  if(!area){ toast('Abra o contrato primeiro.','err'); return; }
+  const c = APP.contratos.find(x=>x.id===id);
+  const p = c ? APP.prestadores.find(x=>x.id===c.prestId) : {nome:'—', cpf:'', cnpj:''};
+  const sig = APP.assinaturas.find(s=>s.contratoId===id&&s.status==='assinado');
+  const w = window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Contrato ${id}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',sans-serif;}
+    body{background:#fff;padding:40px 60px;color:#1E293B;font-size:12.5px;line-height:1.85;}
+    h2{font-size:15px;font-weight:800;text-align:center;margin-bottom:6px;color:#0B1E35;}
+    h3{font-size:11.5px;font-weight:700;margin:16px 0 5px;color:#0B1E35;border-bottom:1px solid #E2E8F0;padding-bottom:3px;text-transform:uppercase;letter-spacing:.04em;}
+    p{margin-bottom:8px;text-align:justify;}
+    .assinatura-box{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:40px;}
+    .assinatura-linha{border-top:1.5px solid #1E293B;padding-top:6px;font-size:11px;text-align:center;color:#64748B;}
+    @page{margin:2.5cm 2cm;}
+    .sig-assinado-box{background:#D1FAE5;border:1px solid #6EE7B7;border-radius:6px;padding:8px 12px;margin-top:16px;font-size:10px;color:#065F46;text-align:center;}
+  </style></head><body>${area.innerHTML}</body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(()=>{w.print();},400);
+}
+
+// ════════════════════════════════════════════
+// ASSINATURA RH (pelo sistema)
+// ════════════════════════════════════════════
+let RH_SIG_DRAWING = false, RH_SIG_CTX = null, RH_SIG_CANVAS = null;
+let RH_FOTO_DATA = null, RH_FOTO_TS = null, RH_STREAM = null;
+
+function abrirAssinaturaRH(contratoId){
+  const c = APP.contratos.find(x=>x.id===contratoId);
+  const p = c ? APP.prestadores.find(x=>x.id===c.prestId) : null;
+  if(!c||!p){ toast('Contrato não encontrado.','err'); return; }
+
+  openModal('🖊️ Assinatura do RH — ' + p.nome, `
+  <div style="font-size:13px;color:var(--mt);margin-bottom:16px">Assine abaixo em nome da <strong>FACILITA CELL LTDA</strong> para o contrato de <strong>${esc(p.nome)}</strong>.</div>
+
+  <div class="fld">
+    <label>Assinatura Digital Escrita (Representante Legal)</label>
+    <input type="text" id="rh-sig-typed" placeholder="Digite o nome do representante legal como assinatura..." style="font-family:cursive;font-size:18px;letter-spacing:2px;"/>
+  </div>
+
+  <div class="fld">
+    <label>Ou desenhe a assinatura</label>
+    <canvas id="rh-sig-canvas" height="120" style="border:2px dashed var(--border);border-radius:10px;background:#fff;cursor:crosshair;width:100%;display:block;"></canvas>
+    <button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="clearRHCanvas()">🗑 Limpar Canvas</button>
+  </div>
+
+  <div class="sig-box">
+    <div style="font-size:12px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">📸 Foto do Representante para Autenticação</div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-blue btn-sm" onclick="abrirCameraRH()">📷 Câmera</button>
+      <label class="btn btn-ghost btn-sm" style="cursor:pointer">📁 Arquivo <input type="file" accept="image/*" onchange="carregarFotoRH(this)" style="display:none"/></label>
+      <div id="rh-foto-preview" style="display:none">
+        <img id="rh-foto-img" class="sig-photo-preview" src="" alt="Foto"/>
+        <div id="rh-foto-timestamp" style="font-size:10px;color:var(--mt);margin-top:4px"></div>
+      </div>
+    </div>
+    <video id="rh-video" autoplay playsinline style="display:none;width:200px;border-radius:8px;margin-top:10px"></video>
+    <button id="rh-capture-btn" class="btn btn-green btn-sm" style="display:none;margin-top:8px" onclick="capturarFotoRH()">✅ Capturar</button>
+    <canvas id="rh-foto-canvas" style="display:none"></canvas>
+  </div>
+  `, `
+  <button class="btn btn-ghost" onclick="fecharAssinaturaRH()">Cancelar</button>
+  <button class="btn btn-green" onclick="salvarAssinaturaRH('${contratoId}')">✅ Salvar Assinatura do RH</button>
+  `);
+
+  setTimeout(()=>{ initRHCanvas(); }, 100);
+}
+
+function initRHCanvas(){
+  RH_SIG_CANVAS = document.getElementById('rh-sig-canvas');
+  if(!RH_SIG_CANVAS) return;
+  RH_SIG_CTX = RH_SIG_CANVAS.getContext('2d');
+  RH_SIG_CANVAS.width = RH_SIG_CANVAS.offsetWidth;
+  RH_SIG_CANVAS.height = 120;
+  RH_SIG_CTX.strokeStyle = '#1E293B'; RH_SIG_CTX.lineWidth = 2.5; RH_SIG_CTX.lineCap = 'round'; RH_SIG_CTX.lineJoin = 'round';
+  const getPos = (e) => {
+    const r = RH_SIG_CANVAS.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return {x:(t.clientX-r.left)*(RH_SIG_CANVAS.width/r.width), y:(t.clientY-r.top)*(RH_SIG_CANVAS.height/r.height)};
+  };
+  RH_SIG_CANVAS.addEventListener('mousedown', e=>{ RH_SIG_DRAWING=true; const p=getPos(e); RH_SIG_CTX.beginPath(); RH_SIG_CTX.moveTo(p.x,p.y); });
+  RH_SIG_CANVAS.addEventListener('mousemove', e=>{ if(!RH_SIG_DRAWING) return; const p=getPos(e); RH_SIG_CTX.lineTo(p.x,p.y); RH_SIG_CTX.stroke(); });
+  RH_SIG_CANVAS.addEventListener('mouseup', ()=>{ RH_SIG_DRAWING=false; });
+  RH_SIG_CANVAS.addEventListener('touchstart', e=>{ e.preventDefault(); RH_SIG_DRAWING=true; const p=getPos(e); RH_SIG_CTX.beginPath(); RH_SIG_CTX.moveTo(p.x,p.y); }, {passive:false});
+  RH_SIG_CANVAS.addEventListener('touchmove', e=>{ e.preventDefault(); if(!RH_SIG_DRAWING) return; const p=getPos(e); RH_SIG_CTX.lineTo(p.x,p.y); RH_SIG_CTX.stroke(); }, {passive:false});
+  RH_SIG_CANVAS.addEventListener('touchend', ()=>{ RH_SIG_DRAWING=false; });
+}
+function clearRHCanvas(){ if(RH_SIG_CTX&&RH_SIG_CANVAS) RH_SIG_CTX.clearRect(0,0,RH_SIG_CANVAS.width,RH_SIG_CANVAS.height); }
+
+async function abrirCameraRH(){
+  try{
+    RH_STREAM = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
+    const v = document.getElementById('rh-video');
+    v.srcObject = RH_STREAM; v.style.display='block';
+    document.getElementById('rh-capture-btn').style.display='inline-flex';
+  } catch(e){ toast('Câmera não disponível: '+e.message,'err'); }
+}
+function carregarFotoRH(input){
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    RH_FOTO_DATA = e.target.result;
+    RH_FOTO_TS = Date.now();
+    document.getElementById('rh-foto-img').src = RH_FOTO_DATA;
+    document.getElementById('rh-foto-preview').style.display='flex';
+    document.getElementById('rh-foto-timestamp').textContent = '📅 ' + fmtDT(RH_FOTO_TS);
+    toast('Foto carregada ✓','ok');
+  };
+  reader.readAsDataURL(file);
+}
+function capturarFotoRH(){
+  const v = document.getElementById('rh-video');
+  const canvas = document.getElementById('rh-foto-canvas');
+  canvas.width = v.videoWidth; canvas.height = v.videoHeight;
+  canvas.getContext('2d').drawImage(v,0,0);
+  RH_FOTO_DATA = canvas.toDataURL('image/jpeg',0.8);
+  RH_FOTO_TS = Date.now();
+  document.getElementById('rh-foto-img').src = RH_FOTO_DATA;
+  document.getElementById('rh-foto-preview').style.display='flex';
+  document.getElementById('rh-foto-timestamp').textContent = '📅 ' + fmtDT(RH_FOTO_TS);
+  v.style.display='none'; document.getElementById('rh-capture-btn').style.display='none';
+  if(RH_STREAM){ RH_STREAM.getTracks().forEach(t=>t.stop()); RH_STREAM=null; }
+  toast('Foto capturada ✓','ok');
+}
+function fecharAssinaturaRH(){
+  if(RH_STREAM){ RH_STREAM.getTracks().forEach(t=>t.stop()); RH_STREAM=null; }
+  RH_FOTO_DATA=null; RH_FOTO_TS=null;
+  closeModal();
+}
+
+async function salvarAssinaturaRH(contratoId){
+  const typed = document.getElementById('rh-sig-typed')?.value.trim();
+  const canvasData = RH_SIG_CANVAS ? RH_SIG_CANVAS.toDataURL('image/png') : null;
+  const isEmpty = canvasData ? (()=>{const c=document.createElement('canvas');c.width=RH_SIG_CANVAS.width;c.height=RH_SIG_CANVAS.height;return canvasData===c.toDataURL('image/png');})() : true;
+
+  if(!typed && isEmpty){ toast('Assine digitalmente ou escreva a assinatura.','err'); return; }
+
+  let sig = APP.assinaturas.find(s=>s.contratoId===contratoId);
+  if(!sig){
+    const c = APP.contratos.find(x=>x.id===contratoId);
+    sig = { id: uid(), token: uid()+uid(), contratoId, prestId: c?.prestId||'', status:'pendente', criadoEm: Date.now() };
+    APP.assinaturas.push(sig);
+  }
+  sig.sigTypedContratante = typed || '';
+  sig.sigContratante = isEmpty ? null : canvasData;
+  sig.fotoContratante = RH_FOTO_DATA || null;
+  sig.fotoContratanteTS = RH_FOTO_TS || null;
+  sig.assinadoPorRH = true;
+  sig.assinadoRHEm = Date.now();
+
+  lsSave();
+  await fbSaveAssinatura(sig);
+  fecharAssinaturaRH();
+  toast('✅ Assinatura do RH registrada!','ok');
+  setPage('contratos');
+}
+
+// ════════════════════════════════════════════
+// ENVIAR LINK PARA ASSINATURA DO PRESTADOR
+// ════════════════════════════════════════════
+async function enviarParaAssinatura(contratoId){
+  const c = APP.contratos.find(x=>x.id===contratoId);
+  const p = c ? APP.prestadores.find(x=>x.id===c.prestId) : null;
+  if(!c||!p){ toast('Contrato ou prestador não encontrado.','err'); return; }
+
+  // Gera token único
+  const token = uid()+uid()+uid();
+  const linkBase = window.location.href.split('?')[0];
+  const link = `${linkBase}?assinar=${token}`;
+
+  // Cria/atualiza registro de assinatura
+  let sig = APP.assinaturas.find(s=>s.contratoId===contratoId&&s.status!=='assinado');
+  if(!sig){
+    sig = { id:uid(), token, contratoId, prestId:c.prestId, status:'pendente', criadoEm:Date.now() };
+    APP.assinaturas.push(sig);
+  } else {
+    sig.token = token; sig.criadoEm = Date.now();
+  }
+
+  // Salva no Firestore para acesso público
+  if(FBASE){
+    try{
+      await FBASE.collection('assinaturas_contratos').doc(token).set({
+        ...sig,
+        contrato: JSON.stringify(c),
+        prestador: JSON.stringify(p)
+      });
+    } catch(e){ console.warn('[FB Assinatura]', e.message); }
+  }
+  lsSave();
+
+  // Texto da mensagem WhatsApp
+  const msgWA = encodeURIComponent(`Olá ${p.nome}! 👋\n\nSeu contrato de *${c.tipo}* com a *Facilita Cell* está pronto para assinatura digital.\n\n📄 Acesse o link abaixo para visualizar e assinar:\n${link}\n\nO link permite assinar diretamente pelo celular.\n\nDúvidas, entre em contato com o RH.\n\n_Facilita Cell — RH_`);
+  const waLink = `https://wa.me/${(p.telefone||'').replace(/\D/g,'').replace(/^0/,'55')}?text=${msgWA}`;
+
+  openModal('📤 Enviar para Assinatura — ' + p.nome, `
+  <div style="font-size:13px;color:var(--mt);margin-bottom:16px">
+    Um link de assinatura digital foi gerado para <strong>${esc(p.nome)}</strong>.<br>
+    Compartilhe o link abaixo com o colaborador para que ele assine o contrato digitalmente.
+  </div>
+
+  <div class="link-box" style="margin-bottom:14px">
+    <span style="font-size:18px">🔗</span>
+    <div class="link-url" id="link-para-copiar">${link}</div>
+    <button class="btn btn-blue btn-sm" onclick="copiarLink('${link}')">📋 Copiar</button>
+  </div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+    <a href="${waLink}" target="_blank" class="btn btn-green btn-sm">💬 Enviar por WhatsApp</a>
+    <a href="mailto:${p.email}?subject=Contrato para Assinatura Digital — Facilita Cell&body=Olá ${encodeURIComponent(p.nome)},%0A%0ASeu contrato está pronto para assinatura digital.%0A%0AClique no link: ${encodeURIComponent(link)}" class="btn btn-blue btn-sm">📧 Enviar por E-mail</a>
+  </div>
+
+  <div style="background:#F8FAFC;border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;color:var(--mt)">
+    <strong>⚖️ Base Legal:</strong> Lei nº 14.063/2020 · MP 2.200-2/2001 · Art. 8º-A CLT<br>
+    <strong>🔒 Token:</strong> ${token}<br>
+    <strong>📅 Expira:</strong> 30 dias após emissão<br>
+    <strong>📌 Status atual:</strong> ${p.email?'E-mail disponível: '+esc(p.email):'Sem e-mail cadastrado'} · ${p.telefone?'WhatsApp: '+esc(p.telefone):'Sem telefone cadastrado'}
+  </div>
+  `, `
+  <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+  <button class="btn btn-navy" onclick="copiarLink('${link}');toast('Link copiado!','ok')">📋 Copiar Link</button>
+  `);
+}
+
+function copiarLink(link){
+  navigator.clipboard.writeText(link).then(()=>toast('Link copiado!','ok')).catch(()=>{
+    const inp = document.createElement('input'); inp.value=link; document.body.appendChild(inp); inp.select(); document.execCommand('copy'); inp.remove(); toast('Link copiado!','ok');
+  });
+}
+
+// ════════════════════════════════════════════
+// PÁGINA PÚBLICA DE ASSINATURA
+// ════════════════════════════════════════════
+let AP_FOTO_DATA = null, AP_FOTO_TS = null, AP_STREAM = null;
+let AP_SIG_DRAWING = false, AP_SIG_CTX = null, AP_SIG_CANVAS = null;
+let AP_TOKEN = null, AP_SIG_DOC = null;
+
+async function checkAssinaturaPublica(){
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('assinar');
+  if(!token) return false;
+  AP_TOKEN = token;
+
+  document.getElementById('assinatura-publica').style.display='block';
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='none';
+
+  if(!FBASE){
+    document.getElementById('ap-loading').style.display='none';
+    document.getElementById('ap-erro').style.display='block';
+    return true;
+  }
+
+  try{
+    const snap = await FBASE.collection('assinaturas_contratos').doc(token).get();
+    if(!snap.exists){
+      document.getElementById('ap-loading').style.display='none';
+      document.getElementById('ap-erro').style.display='block';
+      return true;
+    }
+    AP_SIG_DOC = snap.data();
+    const c = JSON.parse(AP_SIG_DOC.contrato||'{}');
+    const p = JSON.parse(AP_SIG_DOC.prestador||'{}');
+
+    document.getElementById('ap-loading').style.display='none';
+    document.getElementById('ap-content').style.display='block';
+    document.getElementById('ap-contrato-html').innerHTML = buildContratoHTMLSimples(c, p);
+
+    if(AP_SIG_DOC.status === 'assinado'){
+      document.getElementById('ap-ja-assinado').style.display='block';
+      document.getElementById('ap-assinado-em').textContent = 'Assinado em: ' + fmtDT(AP_SIG_DOC.assinadoEm);
+      document.getElementById('ap-form-assinatura').style.display='none';
+    } else {
+      setTimeout(()=>{ initAPCanvas(); }, 100);
+    }
+  } catch(e){
+    document.getElementById('ap-loading').style.display='none';
+    document.getElementById('ap-erro').style.display='block';
+  }
+  return true;
+}
+
+function buildContratoHTMLSimples(c, p){
+  const empresa = 'FACILITA CELL LTDA';
+  const hoje = new Date().toLocaleDateString('pt-BR',{day:'numeric',month:'long',year:'numeric'});
+  return `<div style="font-size:13px;line-height:1.8;color:#334155">
+    <div style="text-align:center;margin-bottom:12px">
+      <strong style="color:#0B1E35;font-size:15px">CONTRATO DE ${(c.tipo||'PRESTAÇÃO DE SERVIÇOS').toUpperCase()}</strong><br>
+      <span style="font-size:10px;color:#64748B">Nº ${(c.id||'').slice(0,8).toUpperCase()} · ${hoje}</span>
+    </div>
+    <p><strong>CONTRATANTE:</strong> ${esc(empresa)}</p>
+    <p><strong>CONTRATADO(A):</strong> ${esc(p.nome)} ${p.cpf?'· CPF: '+esc(p.cpf):''}</p>
+    <p><strong>Objeto:</strong> ${esc(c.descricao||'—')}</p>
+    <p><strong>Valor:</strong> ${fmtMoney(c.valor)} por ${esc(c.valorTipo||'serviço')}</p>
+    <p><strong>Vigência:</strong> ${fmt(c.dataInicio)} ${c.dataFim?' a '+fmt(c.dataFim):' (indeterminado)'}</p>
+    <p style="margin-top:10px;font-size:11px;color:#64748B">Para ver o contrato completo com todas as cláusulas, contate o RH. Ao assinar, você concorda com todos os termos e condições do contrato de prestação de serviços.</p>
+  </div>`;
+}
+
+function initAPCanvas(){
+  AP_SIG_CANVAS = document.getElementById('ap-sig-canvas');
+  if(!AP_SIG_CANVAS) return;
+  AP_SIG_CTX = AP_SIG_CANVAS.getContext('2d');
+  AP_SIG_CANVAS.width = AP_SIG_CANVAS.offsetWidth || 600;
+  AP_SIG_CANVAS.height = 120;
+  AP_SIG_CTX.strokeStyle='#1E293B'; AP_SIG_CTX.lineWidth=2.5; AP_SIG_CTX.lineCap='round'; AP_SIG_CTX.lineJoin='round';
+  const getPos = e => { const r=AP_SIG_CANVAS.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return{x:(t.clientX-r.left)*(AP_SIG_CANVAS.width/r.width),y:(t.clientY-r.top)*(AP_SIG_CANVAS.height/r.height)}; };
+  AP_SIG_CANVAS.addEventListener('mousedown',e=>{AP_SIG_DRAWING=true;const p=getPos(e);AP_SIG_CTX.beginPath();AP_SIG_CTX.moveTo(p.x,p.y);});
+  AP_SIG_CANVAS.addEventListener('mousemove',e=>{if(!AP_SIG_DRAWING)return;const p=getPos(e);AP_SIG_CTX.lineTo(p.x,p.y);AP_SIG_CTX.stroke();});
+  AP_SIG_CANVAS.addEventListener('mouseup',()=>{AP_SIG_DRAWING=false;});
+  AP_SIG_CANVAS.addEventListener('touchstart',e=>{e.preventDefault();AP_SIG_DRAWING=true;const p=getPos(e);AP_SIG_CTX.beginPath();AP_SIG_CTX.moveTo(p.x,p.y);},{passive:false});
+  AP_SIG_CANVAS.addEventListener('touchmove',e=>{e.preventDefault();if(!AP_SIG_DRAWING)return;const p=getPos(e);AP_SIG_CTX.lineTo(p.x,p.y);AP_SIG_CTX.stroke();},{passive:false});
+  AP_SIG_CANVAS.addEventListener('touchend',()=>{AP_SIG_DRAWING=false;});
+}
+function clearAPCanvas(){ if(AP_SIG_CTX&&AP_SIG_CANVAS) AP_SIG_CTX.clearRect(0,0,AP_SIG_CANVAS.width,AP_SIG_CANVAS.height); }
+
+async function abrirCameraAP(){
+  try{
+    AP_STREAM = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
+    const v=document.getElementById('ap-video'); v.srcObject=AP_STREAM; v.style.display='block';
+    document.getElementById('ap-capture-btn').style.display='inline-flex';
+  } catch(e){ alert('Câmera não disponível: '+e.message); }
+}
+function carregarFotoAP(input){
+  const file=input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    AP_FOTO_DATA=e.target.result; AP_FOTO_TS=Date.now();
+    document.getElementById('ap-foto-img').src=AP_FOTO_DATA;
+    document.getElementById('ap-foto-preview').style.display='flex';
+    document.getElementById('ap-foto-timestamp').textContent='📅 '+fmtDT(AP_FOTO_TS);
+  };
+  reader.readAsDataURL(file);
+}
+function capturarFotoAP(){
+  const v=document.getElementById('ap-video');
+  const canvas=document.getElementById('ap-foto-canvas');
+  canvas.width=v.videoWidth; canvas.height=v.videoHeight;
+  canvas.getContext('2d').drawImage(v,0,0);
+  AP_FOTO_DATA=canvas.toDataURL('image/jpeg',0.8); AP_FOTO_TS=Date.now();
+  document.getElementById('ap-foto-img').src=AP_FOTO_DATA;
+  document.getElementById('ap-foto-preview').style.display='flex';
+  document.getElementById('ap-foto-timestamp').textContent='📅 '+fmtDT(AP_FOTO_TS);
+  v.style.display='none'; document.getElementById('ap-capture-btn').style.display='none';
+  if(AP_STREAM){AP_STREAM.getTracks().forEach(t=>t.stop()); AP_STREAM=null;}
+}
+
+async function confirmarAssinaturaAP(){
+  const typed = document.getElementById('ap-sig-typed')?.value.trim();
+  const canvasData = AP_SIG_CANVAS ? AP_SIG_CANVAS.toDataURL('image/png') : null;
+  const isEmpty = canvasData ? (()=>{const c=document.createElement('canvas');c.width=AP_SIG_CANVAS.width;c.height=AP_SIG_CANVAS.height;return canvasData===c.toDataURL('image/png');})() : true;
+
+  if(!typed && isEmpty){
+    alert('Por favor, assine digitalmente ou escreva seu nome como assinatura.');
+    return;
+  }
+
+  document.getElementById('ap-btn-assinar').disabled = true;
+  document.getElementById('ap-btn-assinar').textContent = '⏳ Salvando...';
+
+  const atualizacao = {
+    ...AP_SIG_DOC,
+    status: 'assinado',
+    assinadoEm: Date.now(),
+    sigTyped: typed || '',
+    sigCanvas: isEmpty ? null : canvasData,
+    foto: AP_FOTO_DATA || null,
+    fotoTimestamp: AP_FOTO_TS || null,
+    userAgent: navigator.userAgent,
+  };
+
+  try{
+    if(FBASE){
+      await FBASE.collection('assinaturas_contratos').doc(AP_TOKEN).update(atualizacao);
+    }
+    // Atualiza memória local também
+    const idx = APP.assinaturas.findIndex(s=>s.token===AP_TOKEN);
+    if(idx>=0) Object.assign(APP.assinaturas[idx], atualizacao);
+    else APP.assinaturas.push(atualizacao);
+    lsSave();
+
+    // Re-renderiza o contrato com a assinatura aplicada
+    const c = JSON.parse(AP_SIG_DOC.contrato||'{}');
+    const p = JSON.parse(AP_SIG_DOC.prestador||'{}');
+    document.getElementById('ap-contrato-html').innerHTML = buildContratoHTMLSimples(c, p);
+
+    document.getElementById('ap-form-assinatura').style.display='none';
+    document.getElementById('ap-ja-assinado').style.display='block';
+    document.getElementById('ap-assinado-em').textContent = 'Assinado com sucesso em: ' + fmtDT(atualizacao.assinadoEm);
+    document.getElementById('ap-content').querySelector('#ap-contrato-html').innerHTML +=
+      `<div style="background:#D1FAE5;border:1px solid #6EE7B7;border-radius:8px;padding:10px;margin-top:12px;text-align:center;font-size:12px;color:#065F46">✅ <strong>Assinado digitalmente</strong> em ${fmtDT(atualizacao.assinadoEm)}</div>`;
+  } catch(e){
+    alert('Erro ao salvar assinatura: '+e.message);
+    document.getElementById('ap-btn-assinar').disabled=false;
+    document.getElementById('ap-btn-assinar').textContent='✅ Confirmar Assinatura';
+  }
+}
+
+// ════════════════════════════════════════════
+// PAGAMENTOS
+// ════════════════════════════════════════════
+function rPagamentos(){
+  const filtro = SEARCH.toLowerCase();
+  const lista = APP.pagamentos.filter(pg=>{
+    const p = APP.prestadores.find(x=>x.id===pg.prestId);
+    if(!filtro) return true;
+    return (p?.nome||'').toLowerCase().includes(filtro);
+  }).sort((a,b)=>b.dataVencimento.localeCompare(a.dataVencimento));
+
+  const totalPago = lista.filter(p=>p.status==='pago').reduce((s,p)=>s+(+p.valor||0),0);
+  const totalPend = lista.filter(p=>p.status==='pendente').reduce((s,p)=>s+(+p.valor||0),0);
+
+  return `
+  <div class="g3" style="margin-bottom:20px">
+    <div class="stat-card" style="border-top-color:#059669">
+      <div class="stat-label">Total Pago</div>
+      <div class="stat-value" style="color:#059669;font-size:22px">${fmtMoney(totalPago)}</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#D97706">
+      <div class="stat-label">A Pagar</div>
+      <div class="stat-value" style="color:#D97706;font-size:22px">${fmtMoney(totalPend)}</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#DC2626">
+      <div class="stat-label">Atrasados</div>
+      <div class="stat-value" style="color:#DC2626">${lista.filter(p=>p.status==='pendente'&&new Date(p.dataVencimento)<new Date()).length}</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap">
+    <input placeholder="🔍 Buscar prestador..." style="width:300px;padding:8px 12px;border:1.5px solid var(--border);border-radius:9px;font-size:13px"
+      value="${esc(SEARCH)}" oninput="SEARCH=this.value;document.getElementById('content').innerHTML=rPagamentos()">
+    <button class="btn btn-navy" onclick="openNovoPagamento(null)">+ Registrar Pagamento</button>
+  </div>
+  <div class="card">
+    ${lista.length===0?`<p style="text-align:center;padding:40px;color:var(--mt)">Nenhum pagamento registrado.</p>`:`
+    <table>
+      <thead><tr><th>Prestador</th><th>Contrato</th><th>Valor</th><th>Vencimento</th><th>Pagamento</th><th>Forma</th><th>Status</th><th>Ações</th></tr></thead>
+      <tbody>
+        ${lista.map(pg=>{
+          const p = APP.prestadores.find(x=>x.id===pg.prestId);
+          const c = APP.contratos.find(x=>x.id===pg.contratoId);
+          const st = statusPagamento(pg);
+          return `<tr>
+            <td><div style="display:flex;align-items:center;gap:7px">${av(p?.nome||'?',pg.prestId,26)}<span style="font-weight:600">${esc(p?.nome||'—')}</span></div></td>
+            <td style="font-size:11px;color:var(--mt)">${esc(c?.tipo||'—')}</td>
+            <td style="font-family:monospace;font-weight:700">${fmtMoney(pg.valor)}</td>
+            <td style="font-size:12px">${fmt(pg.dataVencimento)}</td>
+            <td style="font-size:12px;color:var(--mt)">${pg.dataPagamento?fmt(pg.dataPagamento):'—'}</td>
+            <td style="font-size:12px;color:var(--mt)">${esc(pg.forma||'—')}</td>
+            <td><span class="badge ${st.cls}">${st.label}</span></td>
+            <td>
+              <div style="display:flex;gap:4px">
+                ${pg.status!=='pago'?`<button class="btn btn-sm btn-green btn-icon" title="Marcar como Pago" onclick="marcarPago('${pg.id}')">✅</button>`:''}
+                <button class="btn btn-sm btn-ghost btn-icon" title="Excluir" onclick="deletePagamento('${pg.id}')">🗑</button>
+              </div>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`}
+  </div>`;
+}
+
+function openNovoPagamento(prestIdDefault, contratoIdDefault){
+  const optsPrests = APP.prestadores.filter(p=>p.status==='ativo').map(p=>
+    `<option value="${p.id}" ${prestIdDefault===p.id?'selected':''}>${esc(p.nome)}</option>`
+  ).join('');
+  const optsContratos = APP.contratos.filter(c=>c.status==='ativo').map(c=>{
+    const p = APP.prestadores.find(x=>x.id===c.prestId);
+    return `<option value="${c.id}" data-prest="${c.prestId}" data-valor="${c.valor}" ${contratoIdDefault===c.id?'selected':''}>${esc(p?.nome||'—')} — ${esc(c.tipo)}</option>`;
+  }).join('');
+  openModal('💰 Registrar Pagamento', `
+  <div class="fld"><label>Prestador *</label>
+    <select id="pgf-prest"><option value="">Selecione...</option>${optsPrests}</select></div>
+  <div class="fld"><label>Contrato (opcional)</label>
+    <select id="pgf-contrato"><option value="">Sem contrato específico</option>${optsContratos}</select></div>
+  <div class="fld-row">
+    <div class="fld"><label>Valor (R$) *</label><input id="pgf-valor" type="number" step="0.01" min="0" placeholder="0,00"/></div>
+    <div class="fld"><label>Forma de Pagamento</label>
+      <select id="pgf-forma">${['PIX','Transferência','Dinheiro','Boleto','Cheque','Outro'].map(f=>`<option>${f}</option>`).join('')}</select></div>
+  </div>
+  <div class="fld-row">
+    <div class="fld"><label>Data de Vencimento *</label><input id="pgf-venc" type="date" value="${today()}"/></div>
+    <div class="fld"><label>Data do Pagamento</label><input id="pgf-pgto" type="date"/></div>
+  </div>
+  <div class="fld"><label>Observações</label><textarea id="pgf-obs"></textarea></div>
+  `,`
+  <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+  <button class="btn btn-navy" onclick="salvarPagamento()">💾 Salvar</button>
+  `);
+  if(contratoIdDefault){
+    const c = APP.contratos.find(x=>x.id===contratoIdDefault);
+    if(c) setTimeout(()=>{
+      document.getElementById('pgf-valor').value = c.valor;
+      document.getElementById('pgf-prest').value = c.prestId;
+    },50);
+  }
+}
+
+async function salvarPagamento(){
+  const prestId = document.getElementById('pgf-prest').value;
+  const valor   = document.getElementById('pgf-valor').value;
+  const venc    = document.getElementById('pgf-venc').value;
+  if(!prestId){ toast('Selecione o prestador.','err'); return; }
+  if(!valor||+valor<=0){ toast('Informe o valor.','err'); return; }
+  if(!venc){ toast('Informe a data de vencimento.','err'); return; }
+  const dataPgto = document.getElementById('pgf-pgto').value;
+  const obj = {
+    id: uid(), prestId, valor: +valor,
+    contratoId:    document.getElementById('pgf-contrato').value || '',
+    forma:         document.getElementById('pgf-forma').value,
+    dataVencimento:venc,
+    dataPagamento: dataPgto||'',
+    status:        dataPgto?'pago':'pendente',
+    obs:           document.getElementById('pgf-obs').value.trim(),
+  };
+  APP.pagamentos.push(obj);
+  await save();
+  closeModal();
+  toast('✅ Pagamento registrado!');
+  setPage('pagamentos');
+}
+
+async function marcarPago(id){
+  const pg = APP.pagamentos.find(x=>x.id===id);
+  if(!pg) return;
+  pg.status='pago'; pg.dataPagamento=today();
+  await save(); toast('✅ Pagamento marcado como pago!'); setPage('pagamentos');
+}
+async function deletePagamento(id){
+  if(!confirm('Excluir este pagamento?')) return;
+  APP.pagamentos = APP.pagamentos.filter(x=>x.id!==id);
+  await save(); toast('Pagamento excluído.','warn'); setPage('pagamentos');
+}
+
+// ════════════════════════════════════════════
+// RELATÓRIO
+// ════════════════════════════════════════════
+function rRelatorio(){
+  const pgsMes = APP.pagamentos.filter(p=>p.status==='pago'&&p.dataPagamento?.slice(0,7)===`${REL_ANO}-${String(REL_MES+1).padStart(2,'0')}`);
+  const pgsPend = APP.pagamentos.filter(p=>p.status==='pendente'&&p.dataVencimento?.slice(0,7)===`${REL_ANO}-${String(REL_MES+1).padStart(2,'0')}`);
+  const totalPago = pgsMes.reduce((s,p)=>s+(+p.valor||0),0);
+  const totalPend = pgsPend.reduce((s,p)=>s+(+p.valor||0),0);
+  const porPrest = {};
+  pgsMes.forEach(pg=>{
+    const p=APP.prestadores.find(x=>x.id===pg.prestId); const nome=p?.nome||'—';
+    if(!porPrest[pg.prestId]) porPrest[pg.prestId]={nome,total:0,qtd:0,especialidade:p?.especialidade||'—'};
+    porPrest[pg.prestId].total += +pg.valor||0; porPrest[pg.prestId].qtd++;
+  });
+  const ranking = Object.values(porPrest).sort((a,b)=>b.total-a.total);
+
+  return `
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:8px">
+      <label style="font-size:12px;font-weight:700;color:var(--mt)">MÊS</label>
+      <select style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px" onchange="REL_MES=+this.value;document.getElementById('content').innerHTML=rRelatorio()">
+        ${MONTHS.map((m,i)=>`<option value="${i}" ${i===REL_MES?'selected':''}>${m}</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <label style="font-size:12px;font-weight:700;color:var(--mt)">ANO</label>
+      <select style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px" onchange="REL_ANO=+this.value;document.getElementById('content').innerHTML=rRelatorio()">
+        ${[2024,2025,2026,2027].map(y=>`<option value="${y}" ${y===REL_ANO?'selected':''}>${y}</option>`).join('')}
+      </select>
+    </div>
+    <button class="btn btn-ghost btn-sm print-hide" onclick="window.print()">🖨 Imprimir</button>
+  </div>
+  <div class="g3" style="margin-bottom:20px">
+    <div class="stat-card" style="border-top-color:#059669">
+      <div class="stat-label">Pago em ${MONTHS[REL_MES]}</div>
+      <div class="stat-value" style="color:#059669;font-size:22px">${fmtMoney(totalPago)}</div>
+      <div class="stat-sub">${pgsMes.length} pagamento(s)</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#D97706">
+      <div class="stat-label">A Pagar em ${MONTHS[REL_MES]}</div>
+      <div class="stat-value" style="color:#D97706;font-size:22px">${fmtMoney(totalPend)}</div>
+      <div class="stat-sub">${pgsPend.length} pendente(s)</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#2563EB">
+      <div class="stat-label">Prestadores Pagos</div>
+      <div class="stat-value" style="color:#2563EB">${new Set(pgsMes.map(p=>p.prestId)).size}</div>
+      <div class="stat-sub">de ${APP.prestadores.filter(p=>p.status==='ativo').length} ativos</div>
+    </div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div style="font-size:14px;font-weight:700;margin-bottom:14px">💰 Gasto por Prestador — ${MONTHS[REL_MES]}/${REL_ANO}</div>
+      ${ranking.length===0?`<p style="text-align:center;padding:20px;color:var(--mt)">Nenhum pagamento este mês.</p>`:`
+      <table><thead><tr><th>Prestador</th><th>Especialidade</th><th>Qtd</th><th>Total</th></tr></thead><tbody>
+        ${ranking.map((r,i)=>`<tr>
+          <td><div style="display:flex;align-items:center;gap:6px"><span style="font-size:12px;font-weight:800;color:var(--mt);min-width:18px">${i+1}º</span><span style="font-weight:600">${esc(r.nome)}</span></div></td>
+          <td style="color:var(--mt);font-size:12px">${esc(r.especialidade)}</td>
+          <td style="text-align:center">${r.qtd}</td>
+          <td style="font-family:monospace;font-weight:700;color:#059669">${fmtMoney(r.total)}</td>
+        </tr>`).join('')}
+      </tbody></table>`}
+    </div>
+    <div class="card">
+      <div style="font-size:14px;font-weight:700;margin-bottom:14px">✍️ Assinaturas — ${MONTHS[REL_MES]}/${REL_ANO}</div>
+      ${APP.assinaturas.length===0?`<p style="text-align:center;padding:20px;color:var(--mt)">Nenhuma assinatura.</p>`:`
+      <table><thead><tr><th>Prestador</th><th>Status</th><th>Data</th></tr></thead><tbody>
+        ${APP.assinaturas.map(sig=>{
+          const p=APP.prestadores.find(x=>x.id===sig.prestId);
+          return `<tr>
+            <td style="font-weight:600">${esc(p?.nome||'—')}</td>
+            <td><span class="badge ${sig.status==='assinado'?'badge-assinado':'badge-aguardando'}">${sig.status==='assinado'?'✅ Assinado':'⏳ Aguardando'}</span></td>
+            <td style="font-size:11px;color:var(--mt)">${sig.assinadoEm?fmtDT(sig.assinadoEm):'—'}</td>
+          </tr>`;
+        }).join('')}
+      </tbody></table>`}
+    </div>
+  </div>`;
+}
+
+// ════════════════════════════════════════════
+// RECIBOS
+// ════════════════════════════════════════════
+let RECIBO_NUM_BASE = 1000;
+
+function proximoNumRecibo(){
+  const nums = APP.recibos.map(r=>parseInt(r.numero)||0);
+  const max = nums.length ? Math.max(...nums) : RECIBO_NUM_BASE;
+  return String(max + 1).padStart(4,'0');
+}
+
+function rRecibos(){
+  const filtro = SEARCH.toLowerCase();
+  APP.recibos = APP.recibos || [];
+  const lista = APP.recibos.filter(r=>{
+    const p = APP.prestadores.find(x=>x.id===r.prestId);
+    if(!filtro) return true;
+    return (p?.nome||'').toLowerCase().includes(filtro)||(r.numero||'').includes(filtro)||(r.empresaNome||'').toLowerCase().includes(filtro);
+  }).sort((a,b)=>(b.dataEmissao||'').localeCompare(a.dataEmissao||''));
+
+  const totalEmitido = lista.reduce((s,r)=>s+(+r.valor||0),0);
+  const totalPago = lista.filter(r=>r.status==='pago').reduce((s,r)=>s+(+r.valor||0),0);
+  const pendentes = lista.filter(r=>r.status!=='pago').length;
+
+  return `
+  <div class="g3" style="margin-bottom:20px">
+    <div class="stat-card" style="border-top-color:#0B1E35;background:linear-gradient(135deg,#fff,#f8fafc)">
+      <div class="stat-label">Total Emitido</div>
+      <div class="stat-value" style="color:var(--navy);font-size:22px">${fmtMoney(totalEmitido)}</div>
+      <div class="stat-sub">${lista.length} recibo(s)</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#059669;background:linear-gradient(135deg,#fff,#f8fafc)">
+      <div class="stat-label">Total Quitado</div>
+      <div class="stat-value" style="color:#059669;font-size:22px">${fmtMoney(totalPago)}</div>
+      <div class="stat-sub">${lista.filter(r=>r.status==='pago').length} recibo(s) pagos</div>
+    </div>
+    <div class="stat-card" style="border-top-color:#D97706;background:linear-gradient(135deg,#fff,#f8fafc)">
+      <div class="stat-label">Pendentes</div>
+      <div class="stat-value" style="color:#D97706">${pendentes}</div>
+      <div class="stat-sub">Aguardando pagamento</div>
+    </div>
+  </div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap">
+    <input placeholder="🔍 Buscar por prestador, número, empresa..." style="width:320px;padding:8px 12px;border:1.5px solid var(--border);border-radius:9px;font-size:13px"
+      value="${esc(SEARCH)}" oninput="SEARCH=this.value;document.getElementById('content').innerHTML=rRecibos()">
+    <button class="btn btn-navy print-hide" onclick="openNovoRecibo()">+ Novo Recibo</button>
+  </div>
+
+  ${lista.length===0?`
+  <div class="card" style="text-align:center;padding:60px 40px;background:linear-gradient(135deg,#fafbfc,#f1f5f9)">
+    <div style="font-size:48px;margin-bottom:16px">🧾</div>
+    <div style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:8px">Nenhum recibo emitido</div>
+    <div style="font-size:13px;color:var(--mt);margin-bottom:20px">Crie recibos de pagamento luxuosos e cartoriais para seus prestadores</div>
+    <button class="btn btn-navy" onclick="openNovoRecibo()">+ Criar Primeiro Recibo</button>
+  </div>
+  `:
+  `<div style="display:grid;gap:14px">
+    ${lista.map(r=>{
+      const p = APP.prestadores.find(x=>x.id===r.prestId);
+      const sigRH = r.assinaturas?.rh?.assinado;
+      const sigPrest = r.assinaturas?.contratado?.assinado;
+      return `
+      <div class="recibo-card">
+        <div class="recibo-header-strip"></div>
+        <div style="padding:16px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <div style="flex:1;min-width:200px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+              <span style="background:var(--navy);color:var(--gold);font-size:11px;font-weight:800;padding:3px 10px;border-radius:6px;font-family:monospace">Nº ${esc(r.numero||'—')}</span>
+              <span class="badge ${r.status==='pago'?'badge-ativo':r.status==='cancelado'?'badge-encerrado':'badge-aguardando'}">${r.status==='pago'?'✅ Pago':r.status==='cancelado'?'❌ Cancelado':'⏳ Pendente'}</span>
+            </div>
+            <div style="font-weight:700;font-size:14px;color:var(--tx);margin-bottom:2px">${esc(p?.nome||'—')}</div>
+            <div style="font-size:12px;color:var(--mt)">${esc(r.empresaNome||'—')} · CNPJ: ${esc(r.empresaCnpj||'—')}</div>
+          </div>
+          <div style="text-align:center;min-width:120px">
+            <div style="font-size:20px;font-weight:800;color:#059669;font-family:monospace">${fmtMoney(r.valor)}</div>
+            <div style="font-size:11px;color:var(--mt)">${fmt(r.dataEmissao)}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span style="font-size:11px;padding:3px 8px;border-radius:6px;background:${sigRH?'#D1FAE5':'#FEF9EC'};color:${sigRH?'#065F46':'#92400E'}" title="Assinatura RH">🖊️ RH ${sigRH?'✓':'⏳'}</span>
+            <span style="font-size:11px;padding:3px 8px;border-radius:6px;background:${sigPrest?'#D1FAE5':'#FEF9EC'};color:${sigPrest?'#065F46':'#92400E'}" title="Assinatura Prestador">👤 ${sigPrest?'✓':'⏳'}</span>
+          </div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap">
+            <button class="btn btn-sm btn-ghost btn-icon print-hide" title="Visualizar Recibo" onclick="visualizarRecibo('${r.id}')">👁</button>
+            <button class="btn btn-sm btn-ghost btn-icon print-hide" title="Editar" onclick="editarRecibo('${r.id}')">✏️</button>
+            <button class="btn btn-sm btn-gold btn-icon print-hide" title="Assinar pelo RH" onclick="abrirAssinaturaReciboRH('${r.id}')">🖊️</button>
+            <button class="btn btn-sm btn-blue btn-icon print-hide" title="Enviar para Assinatura do Prestador" onclick="enviarReciboParaAssinatura('${r.id}')">📤</button>
+            <button class="btn btn-sm btn-green btn-icon print-hide" title="Imprimir" onclick="imprimirRecibo('${r.id}')">🖨</button>
+            <button class="btn btn-sm btn-ghost btn-icon print-hide" title="${r.status==='pago'?'Cancelar':'Marcar como Pago'}" onclick="toggleStatusRecibo('${r.id}')">${r.status==='pago'?'↩️':'✅'}</button>
+            <button class="btn btn-sm btn-ghost btn-icon print-hide" title="Excluir" onclick="deleteRecibo('${r.id}')">🗑</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`}
+  <div style="margin-top:12px;font-size:11px;color:var(--mt);text-align:right;class="print-hide">
+    🖊️ = Assinar pelo RH &nbsp;|&nbsp; 📤 = Enviar link para prestador &nbsp;|&nbsp; 🖨 = Imprimir
+  </div>`;
+}
+
+function openNovoRecibo(){
+  openFormRecibo(null);
+}
+function editarRecibo(id){
+  openFormRecibo(APP.recibos.find(r=>r.id===id));
+}
+
+function openFormRecibo(rec){
+  const novo = !rec;
+  const num = novo ? proximoNumRecibo() : rec.numero;
+  const cnpjEmp = localStorage.getItem('fcrh_cnpj_empresa') || '42.427.915/0001-00';
+  const nomeEmp = localStorage.getItem('fcrh_nome_empresa') || 'FACILITA CELL LTDA';
+  rec = rec || { id:uid(), numero:num, empresaNome:nomeEmp, empresaCnpj:cnpjEmp, prestId:'', contratoId:'', valor:'', descricao:'', dataEmissao:today(), dataPagamento:'', forma:'PIX', obs:'', status:'pendente' };
+
+  const optsPrests = APP.prestadores.filter(p=>p.status==='ativo').map(p=>
+    `<option value="${p.id}" ${rec.prestId===p.id?'selected':''}>${esc(p.nome)} — ${esc(p.especialidade||p.cpf||'')}</option>`
+  ).join('');
+  const optsContratos = APP.contratos.filter(c=>c.status!=='encerrado').map(c=>{
+    const p = APP.prestadores.find(x=>x.id===c.prestId);
+    return `<option value="${c.id}" ${rec.contratoId===c.id?'selected':''}>${esc(p?.nome||'—')} — ${esc(c.tipo)} (${fmtMoney(c.valor)})</option>`;
+  }).join('');
+
+  openModal(novo?'🧾 Novo Recibo de Pagamento':'✏️ Editar Recibo Nº '+num, `
+  <div style="background:linear-gradient(135deg,var(--navy),#1a3455);border-radius:10px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between">
+    <div style="color:#fff">
+      <div style="font-size:11px;opacity:.6;text-transform:uppercase;letter-spacing:.08em">Número do Recibo</div>
+      <div style="font-size:22px;font-weight:800;color:var(--gold);font-family:monospace">Nº ${esc(num)}</div>
+    </div>
+    <div style="color:rgba(255,255,255,.5);font-size:32px">🧾</div>
+  </div>
+
+  <div style="font-size:12px;font-weight:800;color:var(--mt);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)">🏢 Dados da Empresa Emissora</div>
+  <div class="fld-row">
+    <div class="fld"><label>Nome da Empresa *</label>
+      <input id="rf-empresa-nome" value="${esc(rec.empresaNome)}" placeholder="Ex: FACILITA CELL LTDA"/></div>
+    <div class="fld"><label>CNPJ da Empresa *</label>
+      <input id="rf-empresa-cnpj" value="${esc(rec.empresaCnpj)}" placeholder="XX.XXX.XXX/XXXX-XX" oninput="this.value=maskCNPJ(this.value)"/></div>
+  </div>
+
+  <div style="font-size:12px;font-weight:800;color:var(--mt);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);margin-top:4px">👤 Prestador & Contrato</div>
+  <div class="fld"><label>Prestador *</label>
+    <select id="rf-prest" onchange="autoPreencherValorRecibo()"><option value="">Selecione o prestador...</option>${optsPrests}</select></div>
+  <div class="fld"><label>Contrato Referência (opcional)</label>
+    <select id="rf-contrato"><option value="">Sem contrato específico</option>${optsContratos}</select></div>
+
+  <div style="font-size:12px;font-weight:800;color:var(--mt);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);margin-top:4px">💰 Valores & Pagamento</div>
+  <div class="fld-row3">
+    <div class="fld"><label>Valor (R$) *</label>
+      <input id="rf-valor" type="number" step="0.01" min="0" value="${rec.valor}" placeholder="0,00"/></div>
+    <div class="fld"><label>Forma de Pagamento</label>
+      <select id="rf-forma">${['PIX','Transferência Bancária','Dinheiro','Boleto Bancário','Cheque','Cartão','Outro'].map(f=>`<option value="${f}" ${rec.forma===f?'selected':''}>${f}</option>`).join('')}</select></div>
+    <div class="fld"><label>Status</label>
+      <select id="rf-status">
+        <option value="pendente" ${rec.status==='pendente'?'selected':''}>⏳ Pendente</option>
+        <option value="pago" ${rec.status==='pago'?'selected':''}>✅ Pago</option>
+        <option value="cancelado" ${rec.status==='cancelado'?'selected':''}>❌ Cancelado</option>
+      </select></div>
+  </div>
+  <div class="fld-row">
+    <div class="fld"><label>Data de Emissão *</label><input id="rf-emissao" type="date" value="${rec.dataEmissao}"/></div>
+    <div class="fld"><label>Data do Pagamento</label><input id="rf-pgto" type="date" value="${rec.dataPagamento||''}"/></div>
+  </div>
+
+  <div style="font-size:12px;font-weight:800;color:var(--mt);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);margin-top:4px">📝 Descrição & Observações</div>
+  <div class="fld"><label>Descrição do Serviço/Pagamento *</label>
+    <textarea id="rf-desc" style="min-height:80px">${esc(rec.descricao)}</textarea></div>
+  <div class="fld"><label>Observações / Deduções / Notas Fiscais</label>
+    <textarea id="rf-obs" style="min-height:60px">${esc(rec.obs)}</textarea></div>
+  `,`
+  <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+  <button class="btn btn-blue" onclick="previewReciboModal('${rec.id}')">👁 Preview</button>
+  <button class="btn btn-navy" onclick="salvarRecibo('${rec.id}', ${novo})">💾 Salvar Recibo</button>
+  `);
+}
+
+function maskCNPJ(v){
+  return v.replace(/\D/g,'').replace(/^(\d{2})(\d)/,'$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/,'$1.$2.$3').replace(/\.(\d{3})(\d)/,'.$1/$2').replace(/(\d{4})(\d)/,'$1-$2').slice(0,18);
+}
+
+function autoPreencherValorRecibo(){
+  const prestId = document.getElementById('rf-prest')?.value;
+  if(!prestId) return;
+  const contrato = APP.contratos.find(c=>c.prestId===prestId&&c.status==='ativo');
+  if(contrato){
+    const vEl = document.getElementById('rf-valor');
+    if(vEl&&!vEl.value) vEl.value = contrato.valor;
+    const cEl = document.getElementById('rf-contrato');
+    if(cEl&&!cEl.value) cEl.value = contrato.id;
+    const dEl = document.getElementById('rf-desc');
+    if(dEl&&!dEl.value) dEl.value = contrato.descricao||contrato.tipo||'';
+  }
+}
+
+async function salvarRecibo(id, novo){
+  const empresaNome = document.getElementById('rf-empresa-nome').value.trim();
+  const empresaCnpj = document.getElementById('rf-empresa-cnpj').value.trim();
+  const prestId  = document.getElementById('rf-prest').value;
+  const valor    = document.getElementById('rf-valor').value;
+  const descricao= document.getElementById('rf-desc').value.trim();
+  const emissao  = document.getElementById('rf-emissao').value;
+  if(!empresaNome){toast('Nome da empresa é obrigatório.','err');return;}
+  if(!prestId){toast('Selecione o prestador.','err');return;}
+  if(!valor||+valor<=0){toast('Informe o valor.','err');return;}
+  if(!descricao){toast('Informe a descrição.','err');return;}
+  if(!emissao){toast('Informe a data de emissão.','err');return;}
+
+  // Salva configurações da empresa para próximos recibos
+  localStorage.setItem('fcrh_cnpj_empresa', empresaCnpj);
+  localStorage.setItem('fcrh_nome_empresa', empresaNome);
+
+  const existente = APP.recibos.find(r=>r.id===id);
+  const obj = {
+    ...(existente||{}),
+    id, empresaNome, empresaCnpj, prestId, valor:+valor, descricao, dataEmissao:emissao,
+    numero:       existente?.numero || document.getElementById('rf-emissao').closest('.mbd').querySelector('[id="rf-emissao"]') ? proximoNumRecibo() : (existente?.numero||proximoNumRecibo()),
+    contratoId:   document.getElementById('rf-contrato').value||'',
+    forma:        document.getElementById('rf-forma').value,
+    dataPagamento:document.getElementById('rf-pgto').value||'',
+    obs:          document.getElementById('rf-obs').value.trim(),
+    status:       document.getElementById('rf-status').value,
+    dataGeracao:  novo?today():(existente?.dataGeracao||today()),
+    assinaturas:  existente?.assinaturas||{rh:{assinado:false},contratado:{assinado:false}},
+  };
+  if(novo) obj.numero = proximoNumRecibo();
+  const idx = APP.recibos.findIndex(r=>r.id===id);
+  if(idx>=0) APP.recibos[idx]=obj; else APP.recibos.push(obj);
+  await save();
+  closeModal();
+  toast(novo?'✅ Recibo criado!':'✅ Recibo atualizado!');
+  setPage('recibos');
+}
+
+async function deleteRecibo(id){
+  if(!confirm('Excluir este recibo permanentemente?')) return;
+  APP.recibos = APP.recibos.filter(r=>r.id!==id);
+  await save(); toast('Recibo excluído.','warn'); setPage('recibos');
+}
+async function toggleStatusRecibo(id){
+  const r = APP.recibos.find(x=>x.id===id);
+  if(!r) return;
+  r.status = r.status==='pago'?'pendente':'pago';
+  if(r.status==='pago') r.dataPagamento=today();
+  await save(); toast(r.status==='pago'?'✅ Recibo marcado como pago!':'Recibo reaberto.','ok'); setPage('recibos');
+}
+
+// ── BUILD RECIBO HTML (Luxuoso Cartorial) ──
+function buildReciboHTML(r, p, assinaturas){
+  if(!r||!p) return '<p>Dados inválidos.</p>';
+  const cnpjEmp = r.empresaCnpj||'—';
+  const nomeEmp = r.empresaNome||'—';
+  const endEmpresa = localStorage.getItem('fcrh_endereco_empresa')||'Rua das Cataratas, nº 100, Centro, Foz do Iguaçu – PR, CEP: 85851-010';
+  const hoje = new Date().toLocaleDateString('pt-BR',{day:'numeric',month:'long',year:'numeric'});
+  const sigRH = r.assinaturas?.rh || assinaturas?.rh;
+  const sigPrest = r.assinaturas?.contratado || assinaturas?.contratado;
+
+  const valorExtenso = valorPorExtenso(r.valor);
+
+  return `
+  <div class="recibo-preview" id="recibo-print-area" style="position:relative">
+    <div class="recibo-watermark">RECIBO</div>
+
+    <!-- CABEÇALHO LUXUOSO -->
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;padding-bottom:20px;border-bottom:2px solid #0B1E35;gap:20px;flex-wrap:wrap">
+      <div>
+        <div style="font-family:'Times New Roman',serif;font-size:22px;font-weight:700;color:#0B1E35;letter-spacing:1px;margin-bottom:2px">${esc(nomeEmp)}</div>
+        <div style="font-size:11px;color:#64748B">CNPJ: ${esc(cnpjEmp)}</div>
+        <div style="font-size:11px;color:#64748B">${esc(endEmpresa)}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="background:#0B1E35;color:#C9A84C;font-size:11px;font-weight:800;padding:4px 14px;border-radius:6px;letter-spacing:2px;text-transform:uppercase;display:inline-block;margin-bottom:6px">RECIBO DE PAGAMENTO</div>
+        <div style="font-family:monospace;font-size:18px;font-weight:800;color:#0B1E35">Nº ${esc(r.numero||'—')}</div>
+        <div style="font-size:11px;color:#64748B">${hoje}</div>
+      </div>
+    </div>
+
+    <!-- VALOR EM DESTAQUE -->
+    <div style="background:linear-gradient(135deg,#0B1E35 0%,#1a3455 100%);border-radius:12px;padding:20px 28px;margin-bottom:22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-size:11px;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Valor Total a Receber</div>
+        <div style="font-size:32px;font-weight:800;color:#C9A84C;font-family:monospace;letter-spacing:-1px">${fmtMoney(r.valor)}</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px;font-style:italic">${esc(valorExtenso)}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="background:${r.status==='pago'?'rgba(16,185,129,.25)':'rgba(217,119,6,.25)'};border:1px solid ${r.status==='pago'?'rgba(16,185,129,.5)':'rgba(217,119,6,.5)'};color:${r.status==='pago'?'#6EE7B7':'#FCD34D'};font-size:13px;font-weight:800;padding:6px 16px;border-radius:20px;letter-spacing:1px">${r.status==='pago'?'✅ PAGO':'⏳ PENDENTE'}</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:6px">Forma: ${esc(r.forma||'—')}</div>
+        ${r.dataPagamento?`<div style="font-size:11px;color:rgba(255,255,255,.5)">Pago em: ${fmt(r.dataPagamento)}</div>`:''}
+      </div>
+    </div>
+
+    <!-- DADOS DAS PARTES -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:16px">
+        <div style="font-size:10px;font-weight:800;color:#64748B;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+          <span style="width:18px;height:18px;background:#0B1E35;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:10px">🏢</span> PAGADOR (CONTRATANTE)
+        </div>
+        <div style="font-weight:700;color:#1E293B;font-size:13px;margin-bottom:3px">${esc(nomeEmp)}</div>
+        <div style="font-size:12px;color:#64748B">CNPJ: ${esc(cnpjEmp)}</div>
+        <div style="font-size:12px;color:#64748B">${esc(endEmpresa)}</div>
+      </div>
+      <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:16px">
+        <div style="font-size:10px;font-weight:800;color:#64748B;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+          <span style="width:18px;height:18px;background:#059669;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:10px">👤</span> BENEFICIÁRIO (PRESTADOR)
+        </div>
+        <div style="font-weight:700;color:#1E293B;font-size:13px;margin-bottom:3px">${esc(p.nome)}</div>
+        ${p.cpf?`<div style="font-size:12px;color:#64748B">CPF: ${esc(p.cpf)}</div>`:''}
+        ${p.cnpj?`<div style="font-size:12px;color:#64748B">CNPJ: ${esc(p.cnpj)}</div>`:''}
+        ${p.especialidade?`<div style="font-size:12px;color:#64748B">Especialidade: ${esc(p.especialidade)}</div>`:''}
+        ${p.pix?`<div style="font-size:12px;color:#64748B">PIX: ${esc(p.pix)}</div>`:''}
+      </div>
+    </div>
+
+    <!-- DESCRIÇÃO DOS SERVIÇOS -->
+    <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:16px 18px;margin-bottom:20px">
+      <div style="font-size:10px;font-weight:800;color:#92400E;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">📋 DESCRIÇÃO DOS SERVIÇOS / REFERÊNCIA DO PAGAMENTO</div>
+      <div style="font-size:13px;color:#1E293B;line-height:1.7;font-style:italic">${esc(r.descricao)}</div>
+      ${r.obs?`<div style="font-size:12px;color:#92400E;margin-top:8px;padding-top:8px;border-top:1px dashed #FDE68A"><strong>Obs:</strong> ${esc(r.obs)}</div>`:''}
+    </div>
+
+    <!-- BASE LEGAL -->
+    <div style="border:1px solid #E2E8F0;border-radius:10px;padding:14px 18px;margin-bottom:24px;font-size:11px;color:#64748B;line-height:1.7">
+      <strong style="color:#0B1E35">⚖️ BASE LEGAL:</strong> Recibo emitido em conformidade com a <strong>Lei nº 10.406/2002 (Código Civil)</strong>, Art. 320; 
+      <strong>Decreto-Lei nº 5.452/1943 (CLT)</strong>; <strong>Lei nº 8.212/1991</strong> (INSS Contribuinte Individual); 
+      <strong>RIR/2018 (Decreto nº 9.580/2018)</strong> – IRRF sobre rendimento de autônomo; 
+      <strong>Lei nº 14.063/2020</strong> – Assinaturas Eletrônicas com validade jurídica; 
+      <strong>MP nº 2.200-2/2001</strong> – Infraestrutura de Chaves Públicas Brasileira (ICP-Brasil).
+      O presente recibo tem força de quitação das obrigações nele descritas nos termos do Art. 320 do Código Civil.
+    </div>
+
+    <!-- DECLARAÇÃO CARTORIAL -->
+    <div style="text-align:center;font-size:12px;color:#64748B;margin-bottom:28px;font-style:italic;padding:0 20px">
+      Eu, <strong>${esc(p.nome)}</strong>, declaro ter recebido da <strong>${esc(nomeEmp)}</strong> a quantia de 
+      <strong>${fmtMoney(r.valor)} (${esc(valorExtenso)})</strong>, referente aos serviços descritos acima, 
+      dando plena, rasa e irrevogável quitação para nada mais reclamar a respeito.
+      <br>Foz do Iguaçu, ${hoje}.
+    </div>
+
+    <!-- ASSINATURAS -->
+    <div class="recibo-sig-area">
+      <div>
+        <div style="margin-bottom:10px">
+          ${sigRH&&sigRH.assinado?`
+            <div style="background:#D1FAE5;border:1.5px solid #6EE7B7;border-radius:10px;padding:10px 12px;margin-bottom:8px;text-align:center">
+              ${sigRH.sigCanvas
+                ? `<img src="${sigRH.sigCanvas}" style="max-height:54px;max-width:100%;border-radius:4px;display:block;margin:0 auto 4px" alt="Assinatura Desenhada"/>`
+                : sigRH.sigTyped
+                ? `<div style="font-family:cursive;font-size:20px;color:#065F46;letter-spacing:2px;margin-bottom:4px">${esc(sigRH.sigTyped)}</div>`
+                : ''}
+              ${sigRH.foto?`<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px">
+                <img src="${sigRH.foto}" style="width:52px;height:52px;border-radius:8px;object-fit:cover;border:2px solid #6EE7B7"/>
+                <div style="text-align:left">
+                  <div style="font-size:9px;color:#047857;font-weight:700">📸 Foto de autenticação</div>
+                  <div style="font-size:9px;color:#047857">📅 ${fmtDT(sigRH.fotoTS||sigRH.ts)}</div>
+                </div>
+              </div>`:''}
+              <div style="font-size:9px;color:#047857;margin-top:6px;font-weight:700">✅ Assinado em ${fmtDT(sigRH.assinadoEm||sigRH.ts)}</div>
+            </div>
+          `:`<div style="height:60px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;color:#94A3B8;font-size:11px">Aguardando assinatura</div>`}
+        </div>
+        <div class="recibo-sig-line">
+          <div style="font-weight:700;font-size:12px;color:#1E293B">${esc(nomeEmp)}</div>
+          <div style="font-size:11px;color:#64748B">CONTRATANTE / PAGADOR</div>
+          <div style="font-size:10px;color:#94A3B8">CNPJ: ${esc(cnpjEmp)}</div>
+        </div>
+      </div>
+      <div>
+        <div style="margin-bottom:10px">
+          ${sigPrest&&sigPrest.assinado?`
+            <div style="background:#D1FAE5;border:1.5px solid #6EE7B7;border-radius:10px;padding:10px 12px;margin-bottom:8px;text-align:center">
+              ${sigPrest.sigCanvas
+                ? `<img src="${sigPrest.sigCanvas}" style="max-height:54px;max-width:100%;border-radius:4px;display:block;margin:0 auto 4px" alt="Assinatura Desenhada"/>`
+                : sigPrest.sigTyped
+                ? `<div style="font-family:cursive;font-size:20px;color:#065F46;letter-spacing:2px;margin-bottom:4px">${esc(sigPrest.sigTyped)}</div>`
+                : ''}
+              ${sigPrest.foto?`<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px">
+                <img src="${sigPrest.foto}" style="width:52px;height:52px;border-radius:8px;object-fit:cover;border:2px solid #6EE7B7"/>
+                <div style="text-align:left">
+                  <div style="font-size:9px;color:#047857;font-weight:700">📸 Foto de autenticação</div>
+                  <div style="font-size:9px;color:#047857">📅 ${fmtDT(sigPrest.fotoTS||sigPrest.fotoTimestamp||sigPrest.ts)}</div>
+                </div>
+              </div>`:''}
+              <div style="font-size:9px;color:#047857;margin-top:6px;font-weight:700">✅ Assinado em ${fmtDT(sigPrest.assinadoEm||sigPrest.ts)}</div>
+            </div>
+          `:`<div style="height:60px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;color:#94A3B8;font-size:11px">Aguardando assinatura</div>`}
+        </div>
+        <div class="recibo-sig-line">
+          <div style="font-weight:700;font-size:12px;color:#1E293B">${esc(p.nome)}</div>
+          <div style="font-size:11px;color:#64748B">BENEFICIÁRIO / PRESTADOR</div>
+          ${p.cpf?`<div style="font-size:10px;color:#94A3B8">CPF: ${esc(p.cpf)}</div>`:''}
+          ${p.cnpj?`<div style="font-size:10px;color:#94A3B8">CNPJ: ${esc(p.cnpj)}</div>`:''}
+        </div>
+      </div>
+    </div>
+
+    <!-- RODAPÉ CARTORIAL -->
+    <div style="margin-top:24px;padding-top:14px;border-top:1px solid #E2E8F0;text-align:center;font-size:10px;color:#94A3B8">
+      <div>Documento gerado digitalmente · Ref. Nº ${esc(r.numero||'—')} · ${new Date().toLocaleString('pt-BR')}</div>
+      <div style="margin-top:3px">Facilita Cell HR — Sistema de Gestão de Prestadores · Firebase Firestore</div>
+    </div>
+  </div>`;
+}
+
+function previewReciboModal(reciboId){
+  const id = reciboId || document.getElementById('rf-prest')?.closest('.mbd')?.dataset?.reciboId;
+  // Coleta dados do form se aberto
+  let r;
+  const rfPrest = document.getElementById('rf-prest');
+  if(rfPrest){
+    r = {
+      id: reciboId,
+      empresaNome: document.getElementById('rf-empresa-nome')?.value||'',
+      empresaCnpj: document.getElementById('rf-empresa-cnpj')?.value||'',
+      prestId: rfPrest.value,
+      valor: +document.getElementById('rf-valor')?.value||0,
+      descricao: document.getElementById('rf-desc')?.value||'',
+      obs: document.getElementById('rf-obs')?.value||'',
+      dataEmissao: document.getElementById('rf-emissao')?.value||today(),
+      dataPagamento: document.getElementById('rf-pgto')?.value||'',
+      forma: document.getElementById('rf-forma')?.value||'',
+      status: document.getElementById('rf-status')?.value||'pendente',
+      numero: (APP.recibos.find(x=>x.id===reciboId)||{}).numero||proximoNumRecibo(),
+      assinaturas: (APP.recibos.find(x=>x.id===reciboId)||{}).assinaturas||{},
+    };
+  } else {
+    r = APP.recibos.find(x=>x.id===reciboId);
+  }
+  const p = APP.prestadores.find(x=>x.id===r?.prestId);
+  if(!r||!p){ toast('Selecione o prestador primeiro.','err'); return; }
+  const html = buildReciboHTML(r, p);
+  openModal('🧾 Preview do Recibo Nº '+(r.numero||'—'), html, `
+    <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+    <button class="btn btn-green" onclick="closeModal();imprimirReciboFromData('${reciboId}')">🖨 Imprimir</button>
+  `);
+}
+
+function visualizarRecibo(id){
+  const r = APP.recibos.find(x=>x.id===id);
+  const p = r ? APP.prestadores.find(x=>x.id===r.prestId) : null;
+  if(!r||!p){ toast('Recibo não encontrado.','err'); return; }
+  const html = buildReciboHTML(r, p);
+  openModal('🧾 Recibo Nº '+r.numero, html, `
+    <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+    <button class="btn btn-gold" onclick="abrirAssinaturaReciboRH('${id}');closeModal()">🖊️ Assinar RH</button>
+    <button class="btn btn-blue" onclick="enviarReciboParaAssinatura('${id}');closeModal()">📤 Enviar Prestador</button>
+    <button class="btn btn-green" onclick="imprimirRecibo('${id}')">🖨 Imprimir</button>
+  `);
+}
+
+function imprimirRecibo(id){
+  const r = APP.recibos.find(x=>x.id===id);
+  const p = r ? APP.prestadores.find(x=>x.id===r.prestId) : null;
+  if(!r||!p){ toast('Recibo não encontrado.','err'); return; }
+  imprimirReciboHTML(buildReciboHTML(r,p));
+}
+function imprimirReciboFromData(id){
+  imprimirRecibo(id);
+}
+function imprimirReciboHTML(html){
+  const w = window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',sans-serif;}
+    body{background:#fff;padding:30px 50px;color:#1E293B;font-size:12px;}
+    @page{margin:2cm 1.5cm;}
+    .recibo-watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-35deg);font-size:80px;font-weight:900;color:rgba(0,0,0,.04);pointer-events:none;letter-spacing:8px;white-space:nowrap;}
+    .recibo-preview{position:relative;background:#fff;}
+    .recibo-sig-area{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:40px;}
+    .recibo-sig-line{border-top:1.5px solid #1E293B;padding-top:8px;text-align:center;}
+  </style></head><body>${html}</body></html>`);
+  w.document.close(); w.focus();
+  setTimeout(()=>{w.print();},500);
+}
+
+// ── ASSINATURA RH NO RECIBO ──
+let RECIBO_RH_FOTO = null, RECIBO_RH_FOTO_TS = null, RECIBO_RH_STREAM = null;
+let RECIBO_RH_CANVAS = null, RECIBO_RH_CTX = null, RECIBO_RH_DRAWING = false;
+
+function abrirAssinaturaReciboRH(reciboId){
+  const r = APP.recibos.find(x=>x.id===reciboId);
+  const p = r ? APP.prestadores.find(x=>x.id===r.prestId) : null;
+  if(!r||!p){ toast('Recibo não encontrado.','err'); return; }
+
+  openModal('🖊️ Assinatura do RH — Recibo Nº '+r.numero, `
+  <div style="background:linear-gradient(135deg,var(--navy),#1a3455);border-radius:10px;padding:14px 18px;margin-bottom:18px;color:#fff">
+    <div style="font-size:11px;opacity:.6;margin-bottom:4px">Assinar em nome de</div>
+    <div style="font-size:15px;font-weight:800">${esc(r.empresaNome)}</div>
+    <div style="font-size:12px;opacity:.6">CNPJ: ${esc(r.empresaCnpj)} · Recibo Nº ${esc(r.numero)} · ${esc(p.nome)}</div>
+  </div>
+
+  <div class="fld">
+    <label>Assinatura Escrita Digitalmente (Representante Legal)</label>
+    <input type="text" id="rrh-sig-typed" placeholder="Digite o nome do representante legal..." style="font-family:cursive;font-size:18px;letter-spacing:2px;color:#1E293B"/>
+  </div>
+  <div class="fld">
+    <label>Ou Desenhe a Assinatura</label>
+    <canvas id="rrh-sig-canvas" height="120" style="border:2px dashed var(--border);border-radius:10px;background:#fff;cursor:crosshair;width:100%;display:block"></canvas>
+    <button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="clearRRHCanvas()">🗑 Limpar</button>
+  </div>
+  <div class="sig-box">
+    <div style="font-size:12px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">📸 Foto para Autenticação — RH</div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-blue btn-sm" onclick="abrirCameraRRH()">📷 Câmera</button>
+      <label class="btn btn-ghost btn-sm" style="cursor:pointer">📁 Arquivo <input type="file" accept="image/*" onchange="carregarFotoRRH(this)" style="display:none"/></label>
+      <div id="rrh-foto-preview" style="display:none;align-items:center;gap:8px">
+        <img id="rrh-foto-img" class="sig-photo-preview" src="" alt="Foto"/>
+        <div id="rrh-foto-timestamp" style="font-size:10px;color:var(--mt)"></div>
+      </div>
+    </div>
+    <video id="rrh-video" autoplay playsinline style="display:none;width:200px;border-radius:8px;margin-top:10px"></video>
+    <button id="rrh-capture-btn" class="btn btn-green btn-sm" style="display:none;margin-top:8px" onclick="capturarFotoRRH()">✅ Capturar</button>
+    <canvas id="rrh-foto-canvas" style="display:none"></canvas>
+  </div>
+  `, `
+  <button class="btn btn-ghost" onclick="fecharAssinaturaRRH()">Cancelar</button>
+  <button class="btn btn-green" onclick="salvarAssinaturaReciboRH('${reciboId}')">✅ Salvar Assinatura RH</button>
+  `);
+  setTimeout(()=>{ initRRHCanvas(); }, 100);
+}
+
+function initRRHCanvas(){
+  RECIBO_RH_CANVAS = document.getElementById('rrh-sig-canvas');
+  if(!RECIBO_RH_CANVAS) return;
+  RECIBO_RH_CTX = RECIBO_RH_CANVAS.getContext('2d');
+  RECIBO_RH_CANVAS.width = RECIBO_RH_CANVAS.offsetWidth;
+  RECIBO_RH_CANVAS.height = 120;
+  RECIBO_RH_CTX.strokeStyle='#1E293B'; RECIBO_RH_CTX.lineWidth=2.5; RECIBO_RH_CTX.lineCap='round'; RECIBO_RH_CTX.lineJoin='round';
+  const getPos = e => {
+    const rect = RECIBO_RH_CANVAS.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return {x:(t.clientX-rect.left)*(RECIBO_RH_CANVAS.width/rect.width), y:(t.clientY-rect.top)*(RECIBO_RH_CANVAS.height/rect.height)};
+  };
+  RECIBO_RH_CANVAS.addEventListener('mousedown', e=>{ RECIBO_RH_DRAWING=true; const pos=getPos(e); RECIBO_RH_CTX.beginPath(); RECIBO_RH_CTX.moveTo(pos.x,pos.y); });
+  RECIBO_RH_CANVAS.addEventListener('mousemove', e=>{ if(!RECIBO_RH_DRAWING) return; const pos=getPos(e); RECIBO_RH_CTX.lineTo(pos.x,pos.y); RECIBO_RH_CTX.stroke(); });
+  RECIBO_RH_CANVAS.addEventListener('mouseup', ()=>{ RECIBO_RH_DRAWING=false; });
+  RECIBO_RH_CANVAS.addEventListener('touchstart', e=>{ e.preventDefault(); RECIBO_RH_DRAWING=true; const pos=getPos(e); RECIBO_RH_CTX.beginPath(); RECIBO_RH_CTX.moveTo(pos.x,pos.y); }, {passive:false});
+  RECIBO_RH_CANVAS.addEventListener('touchmove', e=>{ e.preventDefault(); if(!RECIBO_RH_DRAWING) return; const pos=getPos(e); RECIBO_RH_CTX.lineTo(pos.x,pos.y); RECIBO_RH_CTX.stroke(); }, {passive:false});
+  RECIBO_RH_CANVAS.addEventListener('touchend', ()=>{ RECIBO_RH_DRAWING=false; });
+}
+function clearRRHCanvas(){ if(RECIBO_RH_CTX&&RECIBO_RH_CANVAS) RECIBO_RH_CTX.clearRect(0,0,RECIBO_RH_CANVAS.width,RECIBO_RH_CANVAS.height); }
+async function abrirCameraRRH(){
+  try{
+    RECIBO_RH_STREAM = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
+    const v = document.getElementById('rrh-video');
+    v.srcObject=RECIBO_RH_STREAM; v.style.display='block';
+    document.getElementById('rrh-capture-btn').style.display='inline-flex';
+  } catch(e){ toast('Câmera não disponível.','err'); }
+}
+function carregarFotoRRH(input){
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    RECIBO_RH_FOTO = e.target.result; RECIBO_RH_FOTO_TS = Date.now();
+    document.getElementById('rrh-foto-img').src = RECIBO_RH_FOTO;
+    document.getElementById('rrh-foto-preview').style.display='flex';
+    document.getElementById('rrh-foto-timestamp').textContent = '📅 '+fmtDT(RECIBO_RH_FOTO_TS);
+    toast('Foto carregada ✓','ok');
+  };
+  reader.readAsDataURL(file);
+}
+function capturarFotoRRH(){
+  const v = document.getElementById('rrh-video');
+  const canvas = document.getElementById('rrh-foto-canvas');
+  canvas.width=v.videoWidth; canvas.height=v.videoHeight;
+  canvas.getContext('2d').drawImage(v,0,0);
+  RECIBO_RH_FOTO = canvas.toDataURL('image/jpeg',.8);
+  RECIBO_RH_FOTO_TS = Date.now();
+  document.getElementById('rrh-foto-img').src = RECIBO_RH_FOTO;
+  document.getElementById('rrh-foto-preview').style.display='flex';
+  document.getElementById('rrh-foto-timestamp').textContent = '📅 '+fmtDT(RECIBO_RH_FOTO_TS);
+  v.style.display='none'; document.getElementById('rrh-capture-btn').style.display='none';
+  if(RECIBO_RH_STREAM){ RECIBO_RH_STREAM.getTracks().forEach(t=>t.stop()); RECIBO_RH_STREAM=null; }
+  toast('Foto capturada ✓','ok');
+}
+function fecharAssinaturaRRH(){
+  if(RECIBO_RH_STREAM){ RECIBO_RH_STREAM.getTracks().forEach(t=>t.stop()); RECIBO_RH_STREAM=null; }
+  RECIBO_RH_FOTO=null; RECIBO_RH_FOTO_TS=null; closeModal();
+}
+
+async function salvarAssinaturaReciboRH(reciboId){
+  const typed = document.getElementById('rrh-sig-typed')?.value.trim();
+  const canvasData = RECIBO_RH_CANVAS ? RECIBO_RH_CANVAS.toDataURL('image/png') : null;
+  const isEmpty = canvasData ? (()=>{ const c=document.createElement('canvas'); c.width=RECIBO_RH_CANVAS.width; c.height=RECIBO_RH_CANVAS.height; return canvasData===c.toDataURL('image/png'); })() : true;
+  if(!typed&&isEmpty){ toast('Assine digitalmente ou escreva a assinatura.','err'); return; }
+
+  const r = APP.recibos.find(x=>x.id===reciboId);
+  if(!r){ toast('Recibo não encontrado.','err'); return; }
+  if(!r.assinaturas) r.assinaturas = {};
+  r.assinaturas.rh = {
+    assinado: true,
+    sigTyped: typed||'',
+    sigCanvas: isEmpty ? null : canvasData,
+    foto: RECIBO_RH_FOTO||null,
+    fotoTS: RECIBO_RH_FOTO_TS||null,
+    assinadoEm: Date.now(),
+    ts: Date.now(),
+  };
+  await save();
+  // Salva no Firestore (registro individual da assinatura RH)
+  if(FBASE){
+    try{ await FBASE.collection('recibos_assinaturas').doc(reciboId+'-rh').set(r.assinaturas.rh); }catch(e){}
+    // Atualiza também o documento público do recibo se existir token
+    if(r.tokenAssinatura){
+      try{
+        await FBASE.collection('recibos_publicos').doc(r.tokenAssinatura).update({
+          recibo: JSON.stringify(r)
+        });
+      }catch(e){}
+    }
+  }
+  fecharAssinaturaRRH();
+  toast('✅ Assinatura RH salva no recibo!','ok');
+  setPage('recibos');
+}
+
+// ── ENVIAR RECIBO PARA ASSINATURA DO PRESTADOR ──
+async function enviarReciboParaAssinatura(reciboId){
+  const r = APP.recibos.find(x=>x.id===reciboId);
+  const p = r ? APP.prestadores.find(x=>x.id===r.prestId) : null;
+  if(!r||!p){ toast('Recibo não encontrado.','err'); return; }
+
+  const token = 'recibo_'+uid()+uid();
+  r.tokenAssinatura = token;
+  const linkBase = window.location.href.split('?')[0];
+  const link = `${linkBase}?recibo=${token}`;
+
+  // Salva no Firestore
+  if(FBASE){
+    try{
+      await FBASE.collection('recibos_publicos').doc(token).set({
+        recibo: JSON.stringify(r),
+        prestador: JSON.stringify(p),
+        criadoEm: Date.now()
+      });
+    } catch(e){ console.warn('[FB Recibo]', e.message); }
+  }
+  await save();
+
+  const msgWA = encodeURIComponent(`Olá ${p.nome}! 👋\n\n🧾 Seu *Recibo de Pagamento Nº ${r.numero}* está pronto para assinatura digital!\n\n💰 Valor: *${fmtMoney(r.valor)}*\n📋 ${r.descricao?.slice(0,60)||'Serviços prestados'}...\n\n✍️ Acesse e assine aqui:\n${link}\n\nDúvidas? Entre em contato com o RH da Facilita Cell.\n\n_Facilita Cell — RH Prestadores_`);
+  const tel = (p.telefone||'').replace(/\D/g,'').replace(/^0/,'55');
+  const waLink = tel ? `https://wa.me/${tel}?text=${msgWA}` : `https://wa.me/?text=${msgWA}`;
+
+  openModal('📤 Enviar Recibo para Assinatura — '+p.nome, `
+  <div style="background:linear-gradient(135deg,#0B1E35,#1a3455);border-radius:12px;padding:18px 22px;margin-bottom:18px;color:#fff">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:11px;opacity:.6">Recibo de Pagamento</div>
+        <div style="font-size:16px;font-weight:800;color:#C9A84C">Nº ${esc(r.numero)}</div>
+        <div style="font-size:13px;margin-top:2px">${esc(p.nome)}</div>
+      </div>
+      <div style="font-size:24px;font-weight:800;color:#C9A84C;font-family:monospace">${fmtMoney(r.valor)}</div>
+    </div>
+  </div>
+
+  <div style="font-size:13px;color:var(--mt);margin-bottom:14px">
+    Link gerado para <strong>${esc(p.nome)}</strong>. Compartilhe para que ele assine o recibo digitalmente.
+  </div>
+
+  <div class="link-box" style="margin-bottom:16px">
+    <span style="font-size:18px">🔗</span>
+    <div class="link-url">${link}</div>
+    <button class="btn btn-blue btn-sm" onclick="copiarLink('${link}')">📋 Copiar</button>
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px">
+    <a href="${waLink}" target="_blank" class="btn btn-green">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.890-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+      Enviar por WhatsApp
+    </a>
+    ${p.email?`<a href="mailto:${p.email}?subject=Recibo Nº ${r.numero} para Assinatura — ${r.empresaNome}&body=Olá ${encodeURIComponent(p.nome)},%0A%0ASeu recibo de pagamento Nº ${r.numero} no valor de ${encodeURIComponent(fmtMoney(r.valor))} está pronto para assinatura digital.%0A%0AClique no link: ${encodeURIComponent(link)}" class="btn btn-blue btn-sm">📧 E-mail</a>`:''}
+  </div>
+
+  <div style="background:#F8FAFC;border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--mt)">
+    <strong>⚖️ Base Legal:</strong> Lei nº 14.063/2020 · MP 2.200-2/2001 · Art. 8º-A CLT · Art. 320 Código Civil<br>
+    <strong>🔒 Token:</strong> <code style="font-size:10px;background:#E2E8F0;padding:2px 6px;border-radius:4px">${token}</code>
+  </div>
+  `, `
+  <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+  <button class="btn btn-navy" onclick="copiarLink('${link}');toast('Link copiado!','ok')">📋 Copiar Link</button>
+  `);
+}
+
+// ── PÁGINA PÚBLICA DE ASSINATURA DO RECIBO ──
+let RP_FOTO = null, RP_FOTO_TS = null, RP_STREAM = null;
+let RP_SIG_DRAWING = false, RP_SIG_CTX = null, RP_SIG_CANVAS = null;
+let RP_TOKEN = null, RP_DOC = null;
+
+async function checkReciboPublico(){
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('recibo');
+  if(!token) return false;
+  RP_TOKEN = token;
+
+  document.getElementById('recibo-publico').style.display='block';
+  document.getElementById('assinatura-publica').style.display='none';
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='none';
+
+  if(!FBASE){
+    document.getElementById('rp-loading').style.display='none';
+    document.getElementById('rp-erro').style.display='block';
+    return true;
+  }
+  try{
+    const snap = await FBASE.collection('recibos_publicos').doc(token).get();
+    if(!snap.exists){
+      document.getElementById('rp-loading').style.display='none';
+      document.getElementById('rp-erro').style.display='block';
+      return true;
+    }
+    RP_DOC = snap.data();
+    const r = JSON.parse(RP_DOC.recibo||'{}');
+    const p = JSON.parse(RP_DOC.prestador||'{}');
+
+    document.getElementById('rp-loading').style.display='none';
+    document.getElementById('rp-content').style.display='block';
+
+    // Mostra o recibo
+    document.getElementById('rp-recibo-html').innerHTML = buildReciboHTML(r, p);
+
+    // Verifica se já assinou
+    if(r.assinaturas?.contratado?.assinado){
+      document.getElementById('rp-ja-assinado').style.display='block';
+      document.getElementById('rp-form-assinatura').style.display='none';
+      document.getElementById('rp-assinado-em').textContent = 'Assinado em: '+fmtDT(r.assinaturas.contratado.assinadoEm||r.assinaturas.contratado.ts);
+      return true;
+    }
+
+    // Inicia canvas
+    setTimeout(()=>{ initRPCanvas(); }, 200);
+  } catch(e){
+    document.getElementById('rp-loading').style.display='none';
+    document.getElementById('rp-erro').style.display='block';
+  }
+  return true;
+}
+
+function initRPCanvas(){
+  RP_SIG_CANVAS = document.getElementById('rp-sig-canvas');
+  if(!RP_SIG_CANVAS) return;
+  RP_SIG_CTX = RP_SIG_CANVAS.getContext('2d');
+  RP_SIG_CANVAS.width = RP_SIG_CANVAS.offsetWidth||600;
+  RP_SIG_CANVAS.height = 130;
+  RP_SIG_CTX.strokeStyle='#1E293B'; RP_SIG_CTX.lineWidth=2.5; RP_SIG_CTX.lineCap='round'; RP_SIG_CTX.lineJoin='round';
+  const getPos = e => {
+    const rect = RP_SIG_CANVAS.getBoundingClientRect();
+    const t = e.touches?e.touches[0]:e;
+    return {x:(t.clientX-rect.left)*(RP_SIG_CANVAS.width/rect.width),y:(t.clientY-rect.top)*(RP_SIG_CANVAS.height/rect.height)};
+  };
+  RP_SIG_CANVAS.addEventListener('mousedown', e=>{ RP_SIG_DRAWING=true; const pos=getPos(e); RP_SIG_CTX.beginPath(); RP_SIG_CTX.moveTo(pos.x,pos.y); });
+  RP_SIG_CANVAS.addEventListener('mousemove', e=>{ if(!RP_SIG_DRAWING) return; const pos=getPos(e); RP_SIG_CTX.lineTo(pos.x,pos.y); RP_SIG_CTX.stroke(); });
+  RP_SIG_CANVAS.addEventListener('mouseup', ()=>{ RP_SIG_DRAWING=false; });
+  RP_SIG_CANVAS.addEventListener('touchstart', e=>{ e.preventDefault(); RP_SIG_DRAWING=true; const pos=getPos(e); RP_SIG_CTX.beginPath(); RP_SIG_CTX.moveTo(pos.x,pos.y); }, {passive:false});
+  RP_SIG_CANVAS.addEventListener('touchmove', e=>{ e.preventDefault(); if(!RP_SIG_DRAWING) return; const pos=getPos(e); RP_SIG_CTX.lineTo(pos.x,pos.y); RP_SIG_CTX.stroke(); }, {passive:false});
+  RP_SIG_CANVAS.addEventListener('touchend', ()=>{ RP_SIG_DRAWING=false; });
+}
+function clearRPCanvas(){ if(RP_SIG_CTX&&RP_SIG_CANVAS) RP_SIG_CTX.clearRect(0,0,RP_SIG_CANVAS.width,RP_SIG_CANVAS.height); }
+
+async function abrirCameraRP(){
+  try{
+    RP_STREAM = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
+    const v = document.getElementById('rp-video'); v.srcObject=RP_STREAM; v.style.display='block';
+    document.getElementById('rp-capture-btn').style.display='inline-flex';
+  } catch(e){ alert('Câmera não disponível: '+e.message); }
+}
+function carregarFotoRP(input){
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    RP_FOTO = e.target.result; RP_FOTO_TS = Date.now();
+    document.getElementById('rp-foto-img').src = RP_FOTO;
+    document.getElementById('rp-foto-preview').style.display='flex';
+    document.getElementById('rp-foto-timestamp').textContent = '📅 '+fmtDT(RP_FOTO_TS);
+  };
+  reader.readAsDataURL(file);
+}
+function capturarFotoRP(){
+  const v = document.getElementById('rp-video');
+  const canvas = document.getElementById('rp-foto-canvas');
+  canvas.width=v.videoWidth; canvas.height=v.videoHeight;
+  canvas.getContext('2d').drawImage(v,0,0);
+  RP_FOTO = canvas.toDataURL('image/jpeg',.8); RP_FOTO_TS = Date.now();
+  document.getElementById('rp-foto-img').src = RP_FOTO;
+  document.getElementById('rp-foto-preview').style.display='flex';
+  document.getElementById('rp-foto-timestamp').textContent = '📅 '+fmtDT(RP_FOTO_TS);
+  v.style.display='none'; document.getElementById('rp-capture-btn').style.display='none';
+  if(RP_STREAM){ RP_STREAM.getTracks().forEach(t=>t.stop()); RP_STREAM=null; }
+}
+
+async function confirmarAssinaturaRP(){
+  const typed = document.getElementById('rp-sig-typed')?.value.trim();
+  const canvasData = RP_SIG_CANVAS ? RP_SIG_CANVAS.toDataURL('image/png') : null;
+  const isEmpty = canvasData ? (()=>{ const c=document.createElement('canvas'); c.width=RP_SIG_CANVAS.width; c.height=RP_SIG_CANVAS.height; return canvasData===c.toDataURL('image/png'); })() : true;
+
+  if(!typed&&isEmpty){ alert('Por favor, assine digitalmente ou escreva seu nome.'); return; }
+
+  const btn = document.getElementById('rp-btn-assinar');
+  btn.disabled=true; btn.textContent='⏳ Salvando...';
+
+  const sigData = {
+    assinado: true,
+    sigTyped: typed||'',
+    sigCanvas: isEmpty?null:canvasData,
+    foto: RP_FOTO||null,
+    fotoTS: RP_FOTO_TS||null,
+    assinadoEm: Date.now(),
+    ts: Date.now(),
+    userAgent: navigator.userAgent,
+  };
+
+  try{
+    if(FBASE && RP_DOC){
+      const r = JSON.parse(RP_DOC.recibo||'{}');
+      if(!r.assinaturas) r.assinaturas = {};
+      r.assinaturas.contratado = sigData;
+      await FBASE.collection('recibos_publicos').doc(RP_TOKEN).update({
+        recibo: JSON.stringify(r),
+        assinadoContratadoEm: sigData.assinadoEm
+      });
+      // Re-renderiza o recibo com a assinatura aplicada
+      const p = JSON.parse(RP_DOC.prestador||'{}');
+      document.getElementById('rp-recibo-html').innerHTML = buildReciboHTML(r, p);
+    }
+    document.getElementById('rp-form-assinatura').style.display='none';
+    document.getElementById('rp-ja-assinado').style.display='block';
+    document.getElementById('rp-assinado-em').textContent = 'Recibo assinado com sucesso em: '+fmtDT(sigData.assinadoEm);
+  } catch(e){
+    alert('Erro ao salvar assinatura: '+e.message);
+    btn.disabled=false; btn.textContent='✅ Confirmar Assinatura do Recibo';
+  }
+}
+
+
+// ════════════════════════════════════════════
+// MAP RENDERS
+// ════════════════════════════════════════════
+const renders = {
+  dashboard:   rDashboard,
+  prestadores: rPrestadores,
+  contratos:   rContratos,
+  pagamentos:  rPagamentos,
+  relatorio:   rRelatorio,
+  recibos:     rRecibos,
+};
+
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+async function init(){
+  try { initFirebase(); } catch(e){ console.warn('[initFirebase]',e); }
+  lsLoad();
+  try { await fbLoad(); } catch(e){ console.warn('[fbLoad]',e); }
+
+  if(!localStorage.getItem('fcrh_pwd')){
+    localStorage.setItem('fcrh_pwd', '581f1fe6');
+  }
+
+  // Verifica se é URL de assinatura de recibo
+  try {
+    const isRecibo = await checkReciboPublico();
+    if(isRecibo) return;
+  } catch(e){ console.warn('[checkRecibo]',e); }
+
+  // Verifica se é URL de assinatura de contrato
+  try {
+    const isAssinatura = await checkAssinaturaPublica();
+    if(isAssinatura) return;
+  } catch(e){ console.warn('[checkAssinatura]',e); }
+
+  const sessionOk = sessionStorage.getItem('prestadores_auth') === '1';
+  if(sessionOk){
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').style.display='flex';
+    setPage('dashboard');
+  } else {
+    // Garante que a tela de login aparece
+    document.getElementById('login-screen').style.display='flex';
+    document.getElementById('app').style.display='none';
+  }
+}
+
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
