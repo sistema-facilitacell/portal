@@ -1,11 +1,1162 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta http-equiv="refresh" content="0; url=./portal_v2_pwa.html">
-  <title>Portal do Colaborador — Facilita Cell</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Facilita Cell — Sistema de Holerites</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+  :root {
+    --verde: #1a7a4a;
+    --verde-escuro: #0f5233;
+    --verde-claro: #e6f5ee;
+    --verde-medio: #2ecc71;
+    --cinza-fundo: #f4f6f3;
+    --cinza-borda: #d8ddd6;
+    --cinza-texto: #5a6657;
+    --preto: #1a1f18;
+    --branco: #ffffff;
+    --amarelo: #f5a623;
+    --vermelho: #c0392b;
+    --radius: 12px;
+    --shadow: 0 2px 16px rgba(26,122,74,0.10);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--cinza-fundo);
+    color: var(--preto);
+    min-height: 100vh;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    position: fixed; top: 0; left: 0; width: 260px; height: 100vh;
+    background: var(--verde-escuro);
+    display: flex; flex-direction: column;
+    padding: 0;
+    z-index: 100;
+  }
+  .sidebar-logo {
+    padding: 28px 24px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .logo-tag {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: #fff;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+  }
+  .logo-sub {
+    font-size: 11px;
+    color: rgba(255,255,255,0.45);
+    font-weight: 400;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+  .sidebar-nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: rgba(255,255,255,0.6);
+    font-size: 14px; font-weight: 400;
+    transition: all 0.18s;
+    border: none; background: none; width: 100%; text-align: left;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.08); color: #fff; }
+  .nav-item.active { background: rgba(46,204,113,0.18); color: #2ecc71; }
+  .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .sidebar-footer {
+    padding: 16px 24px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    font-size: 11px;
+    color: rgba(255,255,255,0.3);
+    line-height: 1.6;
+  }
+
+  /* MAIN */
+  .main { margin-left: 260px; min-height: 100vh; }
+
+  /* TOPBAR */
+  .topbar {
+    background: var(--branco);
+    border-bottom: 1px solid var(--cinza-borda);
+    padding: 0 36px;
+    height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .topbar-title { font-size: 15px; font-weight: 500; color: var(--preto); }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .badge-clt {
+    background: var(--verde-claro);
+    color: var(--verde);
+    font-size: 11px; font-weight: 600;
+    padding: 4px 10px; border-radius: 20px;
+    letter-spacing: 0.5px;
+  }
+
+  /* PAGE */
+  .page { display: none; padding: 36px; }
+  .page.active { display: block; }
+
+  /* SECTION TITLE */
+  .section-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 26px; color: var(--preto);
+    margin-bottom: 6px;
+  }
+  .section-sub { font-size: 14px; color: var(--cinza-texto); margin-bottom: 28px; }
+
+  /* CARDS RESUMO */
+  .cards-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+  .card-stat {
+    background: var(--branco);
+    border: 1px solid var(--cinza-borda);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+  .card-stat-label { font-size: 12px; color: var(--cinza-texto); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+  .card-stat-value { font-size: 28px; font-weight: 600; color: var(--preto); line-height: 1; }
+  .card-stat-value span { font-size: 14px; font-weight: 400; color: var(--cinza-texto); }
+  .card-stat-accent { border-left: 3px solid var(--verde-medio); }
+
+  /* FORM SECTION */
+  .form-card {
+    background: var(--branco);
+    border: 1px solid var(--cinza-borda);
+    border-radius: var(--radius);
+    padding: 28px 32px;
+    margin-bottom: 24px;
+  }
+  .form-card-title {
+    font-size: 13px; font-weight: 600;
+    color: var(--cinza-texto);
+    text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--cinza-borda);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .form-card-title svg { width: 16px; height: 16px; color: var(--verde); }
+  .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .form-grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group label { font-size: 12px; font-weight: 500; color: var(--cinza-texto); }
+  .form-group input, .form-group select {
+    border: 1px solid var(--cinza-borda);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px; font-family: 'Outfit', sans-serif;
+    color: var(--preto);
+    background: var(--cinza-fundo);
+    transition: border 0.15s;
+    outline: none;
+  }
+  .form-group input:focus, .form-group select:focus { border-color: var(--verde); background: #fff; }
+  .form-group .help { font-size: 11px; color: var(--cinza-texto); margin-top: 2px; }
+
+  /* TABELA VENDAS */
+  .vendas-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .vendas-header h3 { font-size: 15px; font-weight: 500; }
+  .btn { border: none; border-radius: 8px; cursor: pointer; font-family: 'Outfit', sans-serif; font-weight: 500; transition: all 0.15s; }
+  .btn-green { background: var(--verde); color: #fff; padding: 10px 20px; font-size: 13px; }
+  .btn-green:hover { background: var(--verde-escuro); }
+  .btn-outline { background: transparent; color: var(--verde); border: 1px solid var(--verde); padding: 9px 18px; font-size: 13px; }
+  .btn-outline:hover { background: var(--verde-claro); }
+  .btn-danger { background: #fff0ee; color: var(--vermelho); border: 1px solid #f5c6c0; padding: 6px 12px; font-size: 12px; border-radius: 6px; }
+  .btn-danger:hover { background: #fde8e5; }
+  .btn-sm { padding: 6px 14px; font-size: 12px; }
+  .btn-primary-lg {
+    background: var(--verde);
+    color: #fff;
+    padding: 14px 32px;
+    font-size: 15px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    display: flex; align-items: center; gap: 10px;
+    transition: all 0.15s;
+  }
+  .btn-primary-lg:hover { background: var(--verde-escuro); transform: translateY(-1px); }
+
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 11px; font-weight: 600; color: var(--cinza-texto); text-transform: uppercase; letter-spacing: 0.7px; text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--cinza-borda); }
+  td { padding: 12px; font-size: 14px; border-bottom: 1px solid var(--cinza-borda); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--cinza-fundo); }
+
+  /* CALCULO PREVIEW */
+  .calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .calc-section { }
+  .calc-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--cinza-borda);
+    font-size: 14px;
+  }
+  .calc-row:last-child { border-bottom: none; }
+  .calc-row-label { color: var(--cinza-texto); }
+  .calc-row-value { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; }
+  .calc-total {
+    display: flex; justify-content: space-between;
+    padding: 14px 16px;
+    background: var(--verde-claro);
+    border-radius: 8px;
+    margin-top: 12px;
+    font-weight: 600;
+  }
+  .calc-total .label { color: var(--verde-escuro); font-size: 14px; }
+  .calc-total .value { font-family: 'DM Mono', monospace; color: var(--verde); font-size: 18px; }
+  .calc-desconto { color: var(--vermelho) !important; }
+  .separador { height: 1px; background: var(--cinza-borda); margin: 16px 0; }
+  .desc-section-title { font-size: 12px; font-weight: 600; color: var(--cinza-texto); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+
+  /* HOLERITE IMPRIMIVEL */
+  .holerite-wrap {
+    background: var(--branco);
+    border: 1px solid var(--cinza-borda);
+    border-radius: var(--radius);
+    max-width: 820px;
+  }
+  .holerite-topo {
+    background: var(--verde-escuro);
+    padding: 28px 36px;
+    border-radius: var(--radius) var(--radius) 0 0;
+    display: flex; justify-content: space-between; align-items: flex-start;
+  }
+  .holerite-empresa { color: #fff; }
+  .holerite-empresa h1 { font-family: 'DM Serif Display', serif; font-size: 24px; margin-bottom: 4px; }
+  .holerite-empresa p { font-size: 12px; color: rgba(255,255,255,0.55); line-height: 1.8; }
+  .holerite-periodo {
+    text-align: right; color: rgba(255,255,255,0.8);
+  }
+  .holerite-periodo .mes { font-size: 22px; font-weight: 600; color: #fff; }
+  .holerite-periodo .tipo { font-size: 11px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+  .holerite-body { padding: 28px 36px; }
+  .holerite-func-info {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    background: var(--cinza-fundo);
+    padding: 16px; border-radius: 8px;
+    margin-bottom: 24px;
+  }
+  .func-info-item { }
+  .func-info-label { font-size: 10px; color: var(--cinza-texto); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 3px; }
+  .func-info-value { font-size: 14px; font-weight: 500; color: var(--preto); }
+  .holerite-tabela { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+  .holerite-tabela thead { background: var(--cinza-fundo); }
+  .holerite-tabela th { font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase; color: var(--cinza-texto); font-weight: 600; padding: 10px 12px; text-align: left; }
+  .holerite-tabela td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid var(--cinza-borda); }
+  .holerite-tabela .positivo { color: var(--verde); font-family: 'DM Mono', monospace; text-align: right; }
+  .holerite-tabela .negativo { color: var(--vermelho); font-family: 'DM Mono', monospace; text-align: right; }
+  .holerite-tabela .neutro { font-family: 'DM Mono', monospace; text-align: right; }
+  .holerite-rodape {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .rodape-box {
+    border: 1px solid var(--cinza-borda);
+    border-radius: 8px;
+    padding: 14px;
+  }
+  .rodape-box-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--cinza-texto); margin-bottom: 6px; }
+  .rodape-box-value { font-size: 20px; font-weight: 600; font-family: 'DM Mono', monospace; }
+  .rodape-box.liquido { border-color: var(--verde); background: var(--verde-claro); }
+  .rodape-box.liquido .rodape-box-value { color: var(--verde); }
+  .rodape-box.bruto .rodape-box-value { color: var(--preto); }
+  .rodape-box.desconto .rodape-box-value { color: var(--vermelho); }
+  .assinaturas {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    margin-top: 36px;
+    padding-top: 20px;
+    border-top: 1px solid var(--cinza-borda);
+  }
+  .assinatura-box { text-align: center; }
+  .assinatura-linha { border-top: 1px solid var(--preto); margin-bottom: 8px; }
+  .assinatura-label { font-size: 12px; color: var(--cinza-texto); }
+  .legal-box {
+    background: #fffdf0;
+    border: 1px solid #f0e6a0;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-top: 20px;
+    font-size: 11px;
+    color: #7a6a00;
+    line-height: 1.7;
+  }
+  .legal-box strong { color: #5a4d00; }
+
+  /* LISTA HOLERITES */
+  .holerite-item {
+    display: flex; align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--cinza-borda);
+    gap: 16px;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .holerite-item:hover { background: var(--cinza-fundo); }
+  .hi-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--verde-claro);
+    color: var(--verde);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 600;
+    flex-shrink: 0;
+  }
+  .hi-info { flex: 1; }
+  .hi-nome { font-size: 14px; font-weight: 500; }
+  .hi-detalhe { font-size: 12px; color: var(--cinza-texto); margin-top: 2px; }
+  .hi-valor { font-family: 'DM Mono', monospace; font-size: 15px; font-weight: 600; color: var(--verde); }
+  .hi-status {
+    font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px;
+  }
+  .status-gerado { background: var(--verde-claro); color: var(--verde); }
+  .status-pendente { background: #fff4e0; color: #b06a00; }
+
+  /* TOAST */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--verde-escuro);
+    color: #fff;
+    padding: 14px 22px;
+    border-radius: 10px;
+    font-size: 14px; font-weight: 500;
+    display: none;
+    align-items: center; gap: 10px;
+    z-index: 9999;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    animation: slideIn 0.3s ease;
+  }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* PRINT */
+  @media print {
+    @page { size: A4; margin: 14mm 16mm 16mm 16mm; }
+    *, *::before, *::after { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    .sidebar, .topbar, .nav-btns, .btn, .btn-outline, .btn-green, .btn-primary-lg { display: none !important; }
+    .main { margin: 0 !important; }
+    body { background: #fff !important; font-size: 12px; }
+    .page { display: none !important; padding: 0 !important; }
+    #page-holerite { display: block !important; padding: 0 !important; }
+    .holerite-wrap { border: none !important; box-shadow: none !important; max-width: 100% !important; border-radius: 0 !important; }
+    .holerite-topo { border-radius: 0 !important; background: #0f5233 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .holerite-topo * { color: inherit !important; }
+    .holerite-body { padding: 20px 0 0 !important; }
+    .holerite-func-info { background: #f4f6f3 !important; -webkit-print-color-adjust: exact; }
+    .holerite-tabela td, .holerite-tabela th { padding: 7px 10px !important; font-size: 11px !important; }
+    .rodape-box.liquido { background: #e6f5ee !important; border-color: #1a7a4a !important; -webkit-print-color-adjust: exact; }
+    .legal-box { background: #fffdf0 !important; border-color: #f0e6a0 !important; -webkit-print-color-adjust: exact; font-size: 10px !important; }
+    .print-marca-dagua { display: block !important; }
+    .assinaturas { page-break-inside: avoid; }
+    .rodape-box-value { font-size: 16px !important; }
+  }
+
+  select option { font-family: 'Outfit', sans-serif; }
+  .tag-verde { background: var(--verde-claro); color: var(--verde); border-radius: 4px; font-size: 12px; padding: 2px 8px; }
+
+  .alerta-inss { background: #fffdf0; border-left: 3px solid var(--amarelo); padding: 10px 14px; border-radius: 0 6px 6px 0; font-size: 12px; color: #7a6200; margin-top: 12px; }
+</style>
 </head>
 <body>
-  <script>window.location.replace('./portal_v2_pwa.html');</script>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-tag">Facilita Cell</div>
+    <div class="logo-sub">Sistema de Holerites</div>
+  </div>
+  <div class="sidebar-nav">
+    <button class="nav-item active" onclick="showPage('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Painel Geral
+    </button>
+    <button class="nav-item" onclick="showPage('novo')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>
+      Novo Holerite
+    </button>
+    <button class="nav-item" onclick="showPage('lista')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 12h6M9 8h6M9 16h4M4 6c0-1.1.9-2 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6z"/></svg>
+      Holerites Gerados
+    </button>
+    <button class="nav-item" onclick="showPage('config')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      Configurações CLT
+    </button>
+  </div>
+  <div class="sidebar-footer">
+    Conforme CLT — Lei 13.467/17<br>
+    CNPJ: 00.000.000/0001-00<br>
+    © 2024 Facilita Cell
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <span class="topbar-title" id="topbar-title">Painel Geral</span>
+    <div class="topbar-right">
+      <span class="badge-clt">✓ Conforme CLT</span>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="page-dashboard">
+    <div class="section-title">Painel de Controle</div>
+    <div class="section-sub">Resumo de holerites e folha de pagamento da Facilita Cell</div>
+
+    <div class="cards-grid">
+      <div class="card-stat card-stat-accent">
+        <div class="card-stat-label">Holerites Gerados</div>
+        <div class="card-stat-value" id="stat-total">0</div>
+      </div>
+      <div class="card-stat card-stat-accent">
+        <div class="card-stat-label">Total Folha Bruta</div>
+        <div class="card-stat-value" id="stat-bruto">R$ 0</div>
+      </div>
+      <div class="card-stat card-stat-accent">
+        <div class="card-stat-label">Total Descontos</div>
+        <div class="card-stat-value" id="stat-desc">R$ 0</div>
+      </div>
+      <div class="card-stat card-stat-accent">
+        <div class="card-stat-label">Total Líquido</div>
+        <div class="card-stat-value" id="stat-liq" style="color:var(--verde)">R$ 0</div>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+        Holerites Recentes
+      </div>
+      <div id="dashboard-lista">
+        <div style="text-align:center; padding: 40px; color: var(--cinza-texto); font-size: 14px;">
+          Nenhum holerite gerado ainda.<br>
+          <span style="font-size:12px">Clique em "Novo Holerite" para começar.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOVO HOLERITE -->
+  <div class="page" id="page-novo">
+    <div class="section-title">Novo Holerite de Extra</div>
+    <div class="section-sub">Preencha os dados do funcionário e os dias trabalhados como extra (diarista)</div>
+
+    <!-- DADOS FUNCIONÁRIO -->
+    <div class="form-card">
+      <div class="form-card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Dados do Funcionário
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Nome Completo *</label>
+          <input type="text" id="f-nome" placeholder="Ex: João Silva Santos">
+        </div>
+        <div class="form-group">
+          <label>CPF *</label>
+          <input type="text" id="f-cpf" placeholder="000.000.000-00" maxlength="14" oninput="mascaraCPF(this)">
+        </div>
+        <div class="form-group">
+          <label>PIS/PASEP</label>
+          <input type="text" id="f-pis" placeholder="000.00000.00-0">
+        </div>
+        <div class="form-group">
+          <label>Cargo / Função *</label>
+          <input type="text" id="f-cargo" placeholder="Ex: Vendedor Externo">
+        </div>
+        <div class="form-group">
+          <label>Mês de Referência *</label>
+          <select id="f-mes">
+            <option value="">Selecione...</option>
+            <option>Janeiro/2025</option><option>Fevereiro/2025</option><option>Março/2025</option>
+            <option>Abril/2025</option><option>Maio/2025</option><option>Junho/2025</option>
+            <option>Julho/2025</option><option>Agosto/2025</option><option>Setembro/2025</option>
+            <option>Outubro/2025</option><option>Novembro/2025</option><option>Dezembro/2025</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Valor da Diária (R$) — R$ 2.500 ÷ 30</label>
+          <input type="number" id="f-diaria" value="83.33" min="0" step="0.01" oninput="calcular()">
+          <span class="help">Baseado em salário base R$ 2.500,00 ÷ 30 dias = R$ 83,33/dia</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- DIAS TRABALHADOS -->
+    <div class="form-card">
+      <div class="form-card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        Dias e Horas Trabalhadas
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Dias Trabalhados *</label>
+          <input type="number" id="f-dias" placeholder="Ex: 12" min="0" max="31" oninput="calcular()">
+        </div>
+        <div class="form-group">
+          <label>Horas por Dia</label>
+          <input type="number" id="f-horas" placeholder="Ex: 8" min="1" max="10" value="8">
+          <span class="help">Padrão CLT: 8h/dia</span>
+        </div>
+        <div class="form-group">
+          <label>Horas Extras (total)</label>
+          <input type="number" id="f-hextra" placeholder="Ex: 6" min="0" value="0" oninput="calcular()">
+          <span class="help">Acréscimo de 50% (CLT art. 59)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CELULARES VENDIDOS -->
+    <div class="form-card">
+      <div class="form-card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+        Celulares Vendidos (Comissão)
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Quantidade de Celulares Vendidos *</label>
+          <input type="number" id="f-celulares" placeholder="Ex: 10" min="0" step="1" value="0" oninput="calcular()">
+          <span class="help">Comissão fixa: R$ 15,00 por celular vendido</span>
+        </div>
+        <div class="form-group" style="justify-content:flex-end; padding-bottom:4px">
+          <label>Valor da Comissão (calculado)</label>
+          <div style="background:var(--verde-claro); border:1px solid var(--cinza-borda); border-radius:8px; padding:10px 14px; font-size:15px; font-weight:600; color:var(--verde); font-family:'DM Mono',monospace;" id="f-comissao-display">R$ 0,00</div>
+          <span class="help">R$ 15,00 × quantidade vendida</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- OUTROS -->
+    <div class="form-card">
+      <div class="form-card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l2 2"/></svg>
+        Outros Valores
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Vale Refeição (R$)</label>
+          <input type="number" id="f-vr" placeholder="0.00" min="0" step="0.01" value="0" oninput="calcular()">
+        </div>
+        <div class="form-group">
+          <label>Outros Descontos (R$)</label>
+          <input type="number" id="f-outros-desc" placeholder="0.00" min="0" step="0.01" value="0" oninput="calcular()">
+          <span class="help">Outros descontos previstos em contrato</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PREVIEW CÁLCULO -->
+    <div class="form-card" id="preview-card">
+      <div class="form-card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 7H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-3"/><path d="M18 2h-6v6h6V2z"/></svg>
+        Pré-visualização dos Cálculos — CLT
+      </div>
+      <div class="calc-grid">
+        <div>
+          <div class="desc-section-title">Proventos</div>
+          <div class="calc-row"><span class="calc-row-label">Diárias (R$ 2.500÷30 = R$ 83,33/dia)</span><span class="calc-row-value" id="cv-diarias">R$ 0,00</span></div>
+          <div class="calc-row"><span class="calc-row-label">Horas Extras (50%)</span><span class="calc-row-value" id="cv-hextra">R$ 0,00</span></div>
+          <div class="calc-row"><span class="calc-row-label">Comissão Celulares (R$15/un.)</span><span class="calc-row-value" id="cv-comissao">R$ 0,00</span></div>
+          <div class="calc-row"><span class="calc-row-label">Vale Refeição</span><span class="calc-row-value" id="cv-vr">R$ 0,00</span></div>
+          <div class="separador"></div>
+          <div class="calc-row" style="font-weight:600"><span>Salário Bruto</span><span class="calc-row-value" id="cv-bruto">R$ 0,00</span></div>
+        </div>
+        <div>
+          <div class="calc-total" style="margin-top:0">
+            <span class="label">💰 Salário Líquido</span>
+            <span class="value" id="cv-liquido">R$ 0,00</span>
+          </div>
+          <span id="cv-inss" style="display:none"></span>
+          <span id="cv-irrf" style="display:none"></span>
+          <span id="cv-vt" style="display:none"></span>
+          <span id="cv-outros" style="display:none"></span>
+          <span id="cv-total-desc" style="display:none"></span>
+          <span id="alerta-inss" style="display:none"></span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:12px; justify-content:flex-end">
+      <button class="btn btn-outline" onclick="limparForm()">Limpar</button>
+      <button class="btn-primary-lg" onclick="gerarHolerite()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+        Gerar Holerite Oficial
+      </button>
+    </div>
+  </div>
+
+  <!-- HOLERITES GERADOS -->
+  <div class="page" id="page-lista">
+    <div class="section-title">Holerites Gerados</div>
+    <div class="section-sub">Histórico de holerites emitidos pela Facilita Cell</div>
+    <div class="form-card" style="padding:0; overflow:hidden">
+      <div id="lista-holerites">
+        <div style="text-align:center; padding: 48px; color: var(--cinza-texto); font-size:14px">
+          Nenhum holerite gerado ainda.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOLERITE VISUALIZACAO -->
+  <div class="page" id="page-holerite">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px">
+      <div>
+        <div class="section-title">Holerite — Comprovante de Pagamento</div>
+        <div class="section-sub">Documento gerado conforme CLT e legislação trabalhista vigente</div>
+      </div>
+      <div style="display:flex; gap:10px" class="nav-btns">
+        <button class="btn btn-outline" onclick="showPage('lista')">← Voltar</button>
+        <button class="btn btn-green" onclick="imprimirHolerite()" style="display:flex;align-items:center;gap:8px;padding:10px 22px;font-size:14px;font-weight:600;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Imprimir / Salvar PDF
+        </button>
+      </div>
+    </div>
+    <div class="holerite-wrap" id="holerite-content">
+    </div>
+  </div>
+
+  <!-- CONFIGURAÇÕES -->
+  <div class="page" id="page-config">
+    <div class="section-title">Configurações CLT — 2025</div>
+    <div class="section-sub">Tabelas legais de INSS e IRRF conforme legislação vigente</div>
+
+    <div class="form-card">
+      <div class="form-card-title">Tabela INSS 2025 — Art. 28 Lei 8.212/91</div>
+      <table>
+        <thead><tr><th>Faixa Salarial</th><th>Alíquota</th><th>Desconto Máximo</th></tr></thead>
+        <tbody>
+          <tr><td>Até R$ 1.518,00</td><td><span class="tag-verde">7,5%</span></td><td>R$ 113,85</td></tr>
+          <tr><td>R$ 1.518,01 a R$ 2.793,88</td><td><span class="tag-verde">9%</span></td><td>R$ 114,48</td></tr>
+          <tr><td>R$ 2.793,89 a R$ 4.190,83</td><td><span class="tag-verde">12%</span></td><td>R$ 167,16</td></tr>
+          <tr><td>R$ 4.190,84 a R$ 8.157,41</td><td><span class="tag-verde">14%</span></td><td>R$ 396,23</td></tr>
+          <tr><td>Acima de R$ 8.157,41</td><td><span class="tag-verde">Teto: R$ 908,86</span></td><td>R$ 908,86</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:11px; color:var(--cinza-texto); margin-top:12px">⚠️ O cálculo do INSS é progressivo (alíquota incide sobre cada faixa separadamente)</p>
+    </div>
+
+    <div class="form-card">
+      <div class="form-card-title">Tabela IRRF 2025 — Lei 7.713/88</div>
+      <table>
+        <thead><tr><th>Base de Cálculo (mensal)</th><th>Alíquota</th><th>Parcela a Deduzir</th></tr></thead>
+        <tbody>
+          <tr><td>Até R$ 2.259,20</td><td>Isento</td><td>—</td></tr>
+          <tr><td>R$ 2.259,21 a R$ 2.826,65</td><td>7,5%</td><td>R$ 169,44</td></tr>
+          <tr><td>R$ 2.826,66 a R$ 3.751,05</td><td>15%</td><td>R$ 381,44</td></tr>
+          <tr><td>R$ 3.751,06 a R$ 4.664,68</td><td>22,5%</td><td>R$ 662,77</td></tr>
+          <tr><td>Acima de R$ 4.664,68</td><td>27,5%</td><td>R$ 896,00</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="form-card">
+      <div class="form-card-title">Dados da Empresa</div>
+      <div class="form-grid form-grid-2">
+        <div class="form-group"><label>Razão Social</label><input type="text" id="cfg-razao" value="Facilita Cell Comércio de Celulares Ltda"></div>
+        <div class="form-group"><label>CNPJ</label><input type="text" id="cfg-cnpj" value="00.000.000/0001-00"></div>
+        <div class="form-group"><label>Endereço</label><input type="text" id="cfg-end" value="Rua das Tecnologias, 123 — Centro"></div>
+        <div class="form-group"><label>Cidade / UF</label><input type="text" id="cfg-cidade" value="Foz do Iguaçu / PR"></div>
+      </div>
+      <div style="margin-top:16px">
+        <button class="btn btn-green" onclick="salvarConfig()">Salvar Configurações</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+  <span id="toast-msg">Holerite gerado com sucesso!</span>
+</div>
+
+<!-- LOADING OVERLAY -->
+<div id="loading-overlay" style="position:fixed;inset:0;background:rgba(15,82,51,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px;">
+  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" stroke-width="1.5" style="animation:spin 1s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+  <div style="color:#fff;font-family:'Outfit',sans-serif;font-size:15px;font-weight:500;">Conectando ao banco de dados...</div>
+</div>
+<style>@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}</style>
+
+<script>
+// === FIREBASE INIT ===
+const firebaseConfig = {
+  apiKey: "AIzaSyCCpr5rmqkwr5bu6i4HY0WvaZrNlynPKFc",
+  authDomain: "holerites-b74b2.firebaseapp.com",
+  projectId: "holerites-b74b2",
+  storageBucket: "holerites-b74b2.firebasestorage.app",
+  messagingSenderId: "205714202989",
+  appId: "1:205714202989:web:9031a213e17ae1b6b57a64"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// === ESTADO ===
+let holerites = [];
+let holeriteSelecionado = null;
+const COMISSAO_POR_CELULAR = 15;
+
+// === CONFIG EMPRESA (padrão) ===
+let cfg = {
+  razao: 'Facilita Cell Comércio de Celulares Ltda',
+  cnpj: '00.000.000/0001-00',
+  end: 'Rua das Tecnologias, 123 — Centro',
+  cidade: 'Foz do Iguaçu / PR'
+};
+
+// === NAVEGAÇÃO ===
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  const pageNames = { dashboard:'Painel Geral', novo:'Novo Holerite', lista:'Holerites Gerados', holerite:'Visualizar Holerite', config:'Configurações CLT' };
+  document.getElementById('topbar-title').textContent = pageNames[page] || '';
+  const navMap = { dashboard: 0, novo: 1, lista: 2, config: 3 };
+  const navItems = document.querySelectorAll('.nav-item');
+  if (navMap[page] !== undefined) navItems[navMap[page]].classList.add('active');
+  if (page === 'dashboard') atualizarDashboard();
+  if (page === 'lista') renderLista();
+}
+
+// === MÁSCARA CPF ===
+function mascaraCPF(input) {
+  let v = input.value.replace(/\D/g,'');
+  if (v.length <= 3) input.value = v;
+  else if (v.length <= 6) input.value = v.slice(0,3)+'.'+v.slice(3);
+  else if (v.length <= 9) input.value = v.slice(0,3)+'.'+v.slice(3,6)+'.'+v.slice(6);
+  else input.value = v.slice(0,3)+'.'+v.slice(3,6)+'.'+v.slice(6,9)+'-'+v.slice(9,11);
+}
+
+// === FORMATAÇÃO ===
+function fmt(v) {
+  return 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+// === CÁLCULO ===
+function calcular() {
+  const dias = parseFloat(document.getElementById('f-dias').value) || 0;
+  const diaria = parseFloat(document.getElementById('f-diaria').value) || 0;
+  const hExtra = parseFloat(document.getElementById('f-hextra').value) || 0;
+  const hDia = parseFloat(document.getElementById('f-horas').value) || 8;
+  const vr = parseFloat(document.getElementById('f-vr').value) || 0;
+  const outrosDesc = parseFloat(document.getElementById('f-outros-desc').value) || 0;
+  const celulares = parseInt(document.getElementById('f-celulares').value) || 0;
+
+  const totalDiarias = dias * diaria;
+  const valorHora = diaria / hDia;
+  const valorHExtra = hExtra * valorHora * 1.5;
+  const totalComissao = celulares * COMISSAO_POR_CELULAR;
+  const salarioBruto = totalDiarias + valorHExtra + totalComissao + vr;
+
+  const inss = 0;
+  const irrf = 0;
+  const vtDesconto = 0;
+  const totalDesconto = outrosDesc;
+  const liquido = salarioBruto - totalDesconto;
+
+  const comDisplay = document.getElementById('f-comissao-display');
+  if (comDisplay) comDisplay.textContent = fmt(totalComissao);
+
+  document.getElementById('cv-diarias').textContent = fmt(totalDiarias);
+  document.getElementById('cv-hextra').textContent = fmt(valorHExtra);
+  document.getElementById('cv-comissao').textContent = fmt(totalComissao);
+  document.getElementById('cv-vr').textContent = fmt(vr);
+  document.getElementById('cv-bruto').textContent = fmt(salarioBruto);
+  document.getElementById('cv-liquido').textContent = fmt(Math.max(0, liquido));
+
+  return { totalDiarias, valorHExtra, totalComissao, celulares, vr, salarioBruto, inss, irrf, vtDesconto, outrosDesc, liquido: Math.max(0, liquido) };
+}
+
+// === GERAR E SALVAR NO FIRESTORE ===
+async function gerarHolerite() {
+  const nome = document.getElementById('f-nome').value.trim();
+  const cpf  = document.getElementById('f-cpf').value.trim();
+  const cargo = document.getElementById('f-cargo').value.trim();
+  const mes  = document.getElementById('f-mes').value;
+  if (!nome || !cpf || !cargo || !mes) { toast('Preencha todos os campos obrigatórios!', true); return; }
+  const dias = parseFloat(document.getElementById('f-dias').value) || 0;
+  if (dias === 0) { toast('Informe os dias trabalhados!', true); return; }
+
+  const btnGerar = document.querySelector('.btn-primary-lg');
+  btnGerar.disabled = true;
+  btnGerar.textContent = 'Salvando...';
+
+  try {
+    const dados = calcular();
+    const celulares = parseInt(document.getElementById('f-celulares').value) || 0;
+    const pis   = document.getElementById('f-pis').value || '—';
+    const hExtra = parseFloat(document.getElementById('f-hextra').value) || 0;
+    const hDia  = parseFloat(document.getElementById('f-horas').value) || 8;
+    const diaria = parseFloat(document.getElementById('f-diaria').value) || 0;
+
+    // Ler config atual dos inputs
+    const cfgAtual = {
+      razao:  document.getElementById('cfg-razao').value  || cfg.razao,
+      cnpj:   document.getElementById('cfg-cnpj').value   || cfg.cnpj,
+      end:    document.getElementById('cfg-end').value    || cfg.end,
+      cidade: document.getElementById('cfg-cidade').value || cfg.cidade,
+    };
+
+    const holerite = {
+      nome, cpf, cargo, mes, pis, dias, diaria, hExtra, hDia,
+      celulares,
+      vr: parseFloat(document.getElementById('f-vr').value) || 0,
+      vtOriginal: 0,
+      outrosDesc: parseFloat(document.getElementById('f-outros-desc').value) || 0,
+      ...dados,
+      cfg: cfgAtual,
+      dataEmissao: new Date().toLocaleDateString('pt-BR'),
+      criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    const docRef = await db.collection('holerites').add(holerite);
+    holerite.id = docRef.id;
+
+    holeriteSelecionado = holerite;
+    renderHolerite(holerite);
+    showPage('holerite');
+    toast('✓ Holerite salvo no banco de dados!');
+  } catch (err) {
+    console.error(err);
+    toast('Erro ao salvar: ' + err.message, true);
+  } finally {
+    btnGerar.disabled = false;
+    btnGerar.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg> Gerar Holerite Oficial`;
+  }
+}
+
+// === EXCLUIR HOLERITE ===
+async function excluirHolerite(id, event) {
+  event.stopPropagation();
+  if (!confirm('Tem certeza que deseja excluir este holerite?')) return;
+  try {
+    await db.collection('holerites').doc(id).delete();
+    toast('Holerite excluído.');
+  } catch(err) {
+    toast('Erro ao excluir: ' + err.message, true);
+  }
+}
+
+// === RENDER HOLERITE ===
+function renderHolerite(h) {
+  const rows = [];
+  rows.push(`<tr><td>Valor das Diárias (${h.dias} dias × ${fmt(h.diaria)})</td><td class="neutro">${h.dias}</td><td class="neutro">${h.hDia}h</td><td class="positivo">${fmt(h.totalDiarias)}</td><td class="neutro">—</td></tr>`);
+  if (h.valorHExtra > 0) rows.push(`<tr><td>Horas Extras (${h.hExtra}h × 50% adicional — CLT art.59)</td><td class="neutro">—</td><td class="neutro">${h.hExtra}h</td><td class="positivo">${fmt(h.valorHExtra)}</td><td class="neutro">—</td></tr>`);
+  if (h.totalComissao > 0) rows.push(`<tr><td>Comissão por Celulares Vendidos (${h.celulares} un. × R$ 15,00)</td><td class="neutro">${h.celulares}</td><td class="neutro">R$15/un.</td><td class="positivo">${fmt(h.totalComissao)}</td><td class="neutro">—</td></tr>`);
+  if (h.vr > 0) rows.push(`<tr><td>Vale Refeição</td><td class="neutro">—</td><td class="neutro">—</td><td class="positivo">${fmt(h.vr)}</td><td class="neutro">—</td></tr>`);
+  rows.push(`<tr style="background:var(--verde-claro)"><td style="font-weight:600">TOTAL BRUTO</td><td></td><td></td><td style="font-family:'DM Mono',monospace;font-weight:700;text-align:right;color:var(--verde)">${fmt(h.salarioBruto)}</td><td></td></tr>`);
+  if (h.outrosDesc > 0) rows.push(`<tr><td>Outros Descontos</td><td></td><td></td><td class="neutro">—</td><td class="negativo">${fmt(h.outrosDesc)}</td></tr>`);
+
+  document.getElementById('holerite-content').innerHTML = `
+    <div class="holerite-topo">
+      <div class="holerite-empresa">
+        <h1>Facilita Cell</h1>
+        <p>${h.cfg.razao}<br>CNPJ: ${h.cfg.cnpj}<br>${h.cfg.end}<br>${h.cfg.cidade}</p>
+      </div>
+      <div class="holerite-periodo">
+        <div class="tipo">Holerite de Extra / Diarista</div>
+        <div class="mes">${h.mes}</div>
+        <div style="font-size:12px; margin-top:8px; color:rgba(255,255,255,0.5)">Emitido em ${h.dataEmissao}</div>
+      </div>
+    </div>
+    <div class="holerite-body">
+      <div class="holerite-func-info">
+        <div class="func-info-item"><div class="func-info-label">Nome</div><div class="func-info-value">${h.nome}</div></div>
+        <div class="func-info-item"><div class="func-info-label">CPF</div><div class="func-info-value">${h.cpf}</div></div>
+        <div class="func-info-item"><div class="func-info-label">PIS/PASEP</div><div class="func-info-value">${h.pis}</div></div>
+        <div class="func-info-item"><div class="func-info-label">Cargo</div><div class="func-info-value">${h.cargo}</div></div>
+        <div class="func-info-item"><div class="func-info-label">Dias Trabalhados</div><div class="func-info-value">${h.dias} dias</div></div>
+        <div class="func-info-item"><div class="func-info-label">Valor Diária</div><div class="func-info-value">${fmt(h.diaria)}</div></div>
+        <div class="func-info-item"><div class="func-info-label">Celulares Vendidos</div><div class="func-info-value">${h.celulares} unid.</div></div>
+        <div class="func-info-item"><div class="func-info-label">Tipo de Contrato</div><div class="func-info-value">Extra / Diarista</div></div>
+      </div>
+
+      <table class="holerite-tabela">
+        <thead>
+          <tr>
+            <th style="width:48%">Descrição</th>
+            <th style="text-align:right">Qtd.</th>
+            <th style="text-align:right">Ref.</th>
+            <th style="text-align:right">Proventos</th>
+            <th style="text-align:right">Descontos</th>
+          </tr>
+        </thead>
+        <tbody>${rows.join('')}</tbody>
+      </table>
+
+      <div class="holerite-rodape">
+        <div class="rodape-box bruto">
+          <div class="rodape-box-label">Salário Bruto</div>
+          <div class="rodape-box-value">${fmt(h.salarioBruto)}</div>
+        </div>
+        <div class="rodape-box desconto">
+          <div class="rodape-box-label">Total Descontos</div>
+          <div class="rodape-box-value">- ${fmt(h.outrosDesc)}</div>
+        </div>
+        <div class="rodape-box liquido">
+          <div class="rodape-box-label">Salário Líquido a Pagar</div>
+          <div class="rodape-box-value">${fmt(h.liquido)}</div>
+        </div>
+      </div>
+
+      <div class="legal-box">
+        <strong>Base Legal e Memória de Cálculo:</strong> Holerite elaborado em conformidade com a CLT (Decreto-Lei n.º 5.452/43). Horas extras com adicional mínimo de 50% (CLT art. 59). Comissões integram a remuneração (CLT art. 457 §1°). Documento com validade jurídica e contábil.
+      </div>
+
+      <div style="margin-top:28px; padding:18px 0 0; border-top: 2px solid #1a7a4a;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+          <div style="font-size:11px; color:#5a6657;">
+            <strong style="color:#1a1f18;">Nº do Documento:</strong> HC-${String(h.id).slice(-8).toUpperCase()}<br>
+            <strong style="color:#1a1f18;">Data de Emissão:</strong> ${h.dataEmissao}<br>
+            <strong style="color:#1a1f18;">Competência:</strong> ${h.mes}
+          </div>
+          <div style="text-align:right; font-size:11px; color:#5a6657;">
+            <strong style="color:#1a1f18;">Empresa:</strong> Facilita Cell<br>
+            <strong style="color:#1a1f18;">CNPJ:</strong> ${h.cfg.cnpj}<br>
+            <strong style="color:#1a1f18;">Cidade:</strong> ${h.cfg.cidade}
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:32px; margin-top:8px;">
+          <div style="text-align:center;">
+            <div style="height:56px; border-bottom: 1.5px solid #1a1f18; margin-bottom:10px; position:relative;">
+              <div style="position:absolute; bottom:6px; left:50%; transform:translateX(-50%); font-size:9px; color:#5a6657; white-space:nowrap; letter-spacing:0.5px;">ASSINAR ACIMA</div>
+            </div>
+            <div style="font-size:12px; font-weight:600; color:#1a1f18;">Departamento de RH</div>
+            <div style="font-size:11px; color:#5a6657; margin-top:2px;">Recursos Humanos — Facilita Cell</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="height:56px; border-bottom: 1.5px solid #1a1f18; margin-bottom:10px; position:relative;">
+              <div style="position:absolute; bottom:6px; left:50%; transform:translateX(-50%); font-size:9px; color:#5a6657; white-space:nowrap; letter-spacing:0.5px;">ASSINAR ACIMA</div>
+            </div>
+            <div style="font-size:12px; font-weight:600; color:#1a1f18;">Responsável Financeiro</div>
+            <div style="font-size:11px; color:#5a6657; margin-top:2px;">Autorização de Pagamento</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="height:56px; border-bottom: 1.5px solid #1a1f18; margin-bottom:10px; position:relative;">
+              <div style="position:absolute; bottom:6px; left:50%; transform:translateX(-50%); font-size:9px; color:#5a6657; white-space:nowrap; letter-spacing:0.5px;">ASSINAR ACIMA</div>
+            </div>
+            <div style="font-size:12px; font-weight:600; color:#1a1f18;">${h.nome}</div>
+            <div style="font-size:11px; color:#5a6657; margin-top:2px;">CPF: ${h.cpf} — ${h.cargo}</div>
+            <div style="font-size:10px; color:#5a6657; margin-top:1px;">Declaro ter recebido o valor acima</div>
+          </div>
+        </div>
+
+        <div style="margin-top:20px; padding:10px 14px; border:1px dashed #d8ddd6; border-radius:6px; font-size:10px; color:#5a6657; line-height:1.8; text-align:center;">
+          Declaro que recebi da empresa <strong style="color:#1a1f18;">Facilita Cell</strong> a importância líquida de <strong style="color:#1a7a4a; font-size:12px;">${fmt(h.liquido)}</strong> referente ao período de <strong style="color:#1a1f18;">${h.mes}</strong>, conforme discriminado neste holerite. · Documento gerado eletronicamente — válido sem assinatura digital conforme MP 2.200-2/01.
+        </div>
+
+        <div style="margin-top:14px; display:flex; justify-content:space-between; align-items:center; font-size:9px; color:#aaa; padding-top:10px; border-top:1px solid #eee;">
+          <span>Facilita Cell · Sistema de Holerites · Documento n.º HC-${String(h.id).slice(-8).toUpperCase()}</span>
+          <span>Gerado em ${h.dataEmissao} · Conforme CLT — Decreto-Lei n.º 5.452/43</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// === LISTA ===
+function renderLista() {
+  const el = document.getElementById('lista-holerites');
+  if (holerites.length === 0) {
+    el.innerHTML = '<div style="text-align:center; padding: 48px; color: var(--cinza-texto); font-size:14px">Nenhum holerite gerado ainda.</div>';
+    return;
+  }
+  el.innerHTML = holerites.map(h => `
+    <div class="holerite-item" onclick="verHolerite('${h.id}')">
+      <div class="hi-avatar">${h.nome.split(' ').map(n=>n[0]).slice(0,2).join('')}</div>
+      <div class="hi-info">
+        <div class="hi-nome">${h.nome}</div>
+        <div class="hi-detalhe">${h.cargo} · ${h.mes} · ${h.dias} dias · ${h.celulares} celulares</div>
+      </div>
+      <div class="hi-valor">${fmt(h.liquido)}</div>
+      <span class="hi-status status-gerado">✓ Gerado</span>
+      <button class="btn-danger" onclick="excluirHolerite('${h.id}', event)" title="Excluir">✕</button>
+    </div>
+  `).join('');
+}
+
+function verHolerite(id) {
+  const h = holerites.find(x => x.id === id);
+  if (!h) return;
+  holeriteSelecionado = h;
+  renderHolerite(h);
+  showPage('holerite');
+}
+
+// === DASHBOARD ===
+function atualizarDashboard() {
+  const total = holerites.length;
+  const bruto = holerites.reduce((s,h) => s+h.salarioBruto, 0);
+  const desc  = holerites.reduce((s,h) => s+h.outrosDesc, 0);
+  const liq   = holerites.reduce((s,h) => s+h.liquido, 0);
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-bruto').textContent = fmt(bruto);
+  document.getElementById('stat-desc').textContent  = fmt(desc);
+  document.getElementById('stat-liq').textContent   = fmt(liq);
+
+  const el = document.getElementById('dashboard-lista');
+  if (holerites.length === 0) {
+    el.innerHTML = '<div style="text-align:center; padding: 40px; color: var(--cinza-texto); font-size: 14px">Nenhum holerite gerado ainda.<br><span style="font-size:12px">Clique em "Novo Holerite" para começar.</span></div>';
+    return;
+  }
+  el.innerHTML = holerites.slice(0,5).map(h => `
+    <div class="holerite-item" onclick="verHolerite('${h.id}')">
+      <div class="hi-avatar">${h.nome.split(' ').map(n=>n[0]).slice(0,2).join('')}</div>
+      <div class="hi-info">
+        <div class="hi-nome">${h.nome}</div>
+        <div class="hi-detalhe">${h.cargo} · ${h.mes} · ${h.dias} dias</div>
+      </div>
+      <div class="hi-valor">${fmt(h.liquido)}</div>
+      <span class="hi-status status-gerado">✓ Emitido</span>
+    </div>
+  `).join('');
+}
+
+// === IMPRIMIR ===
+function imprimirHolerite() {
+  const conteudo = document.getElementById('holerite-content');
+  if (!conteudo || !conteudo.innerHTML.trim()) {
+    toast('Nenhum holerite para imprimir!', true); return;
+  }
+  const estilos = Array.from(document.styleSheets).map(s => {
+    try { return Array.from(s.cssRules).map(r => r.cssText).join('\n'); } catch(e) { return ''; }
+  }).join('\n');
+
+  const janela = window.open('', '_blank', 'width=900,height=700');
+  janela.document.write(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Holerite — Facilita Cell</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --verde:#1a7a4a;--verde-escuro:#0f5233;--verde-claro:#e6f5ee;--verde-medio:#2ecc71;
+    --cinza-fundo:#f4f6f3;--cinza-borda:#d8ddd6;--cinza-texto:#5a6657;
+    --preto:#1a1f18;--branco:#ffffff;--amarelo:#f5a623;--vermelho:#c0392b;--radius:12px;
+  }
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Outfit',sans-serif; background:#fff; color:var(--preto); }
+  @page { size:A4; margin:14mm 16mm 16mm 16mm; }
+  *, *::before, *::after { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+  ${estilos}
+  .holerite-wrap { border:none !important; box-shadow:none !important; max-width:100% !important; border-radius:0 !important; }
+  .holerite-topo { border-radius:0 !important; background:#0f5233 !important; }
+  .holerite-body { padding:20px 0 0 !important; }
+  .holerite-func-info { background:#f4f6f3 !important; }
+  .holerite-tabela td, .holerite-tabela th { padding:7px 10px !important; font-size:11px !important; }
+  .rodape-box.liquido { background:#e6f5ee !important; border-color:#1a7a4a !important; }
+  .legal-box { background:#fffdf0 !important; border-color:#f0e6a0 !important; font-size:10px !important; }
+  .rodape-box-value { font-size:16px !important; }
+</style>
+</head>
+<body>
+<div class="holerite-wrap">${conteudo.innerHTML}</div>
+<script>
+  window.onload = function() {
+    setTimeout(function(){ window.print(); window.close(); }, 600);
+  };
+<\/script>
+</body></html>`);
+  janela.document.close();
+}
+
+// === LIMPAR ===
+function limparForm() {
+  ['f-nome','f-cpf','f-pis','f-cargo','f-dias','f-hextra','f-diaria','f-vr','f-outros-desc','f-celulares'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('f-mes').value = '';
+  document.getElementById('f-horas').value = '8';
+  document.getElementById('f-celulares').value = '0';
+  calcular();
+}
+
+// === SALVAR CONFIG ===
+async function salvarConfig() {
+  cfg = {
+    razao:  document.getElementById('cfg-razao').value,
+    cnpj:   document.getElementById('cfg-cnpj').value,
+    end:    document.getElementById('cfg-end').value,
+    cidade: document.getElementById('cfg-cidade').value,
+  };
+  try {
+    await db.collection('configuracoes').doc('empresa').set(cfg);
+    toast('Configurações salvas!');
+  } catch(err) {
+    toast('Erro ao salvar configurações.', true);
+  }
+}
+
+// === TOAST ===
+function toast(msg, erro) {
+  const t  = document.getElementById('toast');
+  const tm = document.getElementById('toast-msg');
+  tm.textContent = msg;
+  t.style.background = erro ? 'var(--vermelho)' : 'var(--verde-escuro)';
+  t.style.display = 'flex';
+  setTimeout(() => { t.style.display = 'none'; }, 3500);
+}
+
+// === INIT — LISTENER EM TEMPO REAL ===
+async function init() {
+  // Carregar config salva
+  try {
+    const cfgDoc = await db.collection('configuracoes').doc('empresa').get();
+    if (cfgDoc.exists) {
+      cfg = cfgDoc.data();
+      document.getElementById('cfg-razao').value  = cfg.razao  || '';
+      document.getElementById('cfg-cnpj').value   = cfg.cnpj   || '';
+      document.getElementById('cfg-end').value    = cfg.end    || '';
+      document.getElementById('cfg-cidade').value = cfg.cidade || '';
+    }
+  } catch(e) { /* usa padrão */ }
+
+  // Listener em tempo real para holerites
+  db.collection('holerites')
+    .orderBy('criadoEm', 'desc')
+    .onSnapshot(snapshot => {
+      holerites = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Atualiza a tela que estiver visível
+      const paginaAtiva = document.querySelector('.page.active');
+      if (paginaAtiva) {
+        const id = paginaAtiva.id;
+        if (id === 'page-dashboard') atualizarDashboard();
+        if (id === 'page-lista')     renderLista();
+      }
+      // Esconder loading na primeira carga
+      document.getElementById('loading-overlay').style.display = 'none';
+    }, err => {
+      console.error(err);
+      document.getElementById('loading-overlay').style.display = 'none';
+      toast('Erro ao conectar ao banco: ' + err.message, true);
+    });
+
+  calcular();
+}
+
+init();
+</script>
 </body>
 </html>
