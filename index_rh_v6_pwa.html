@@ -2890,6 +2890,33 @@ async function saveGroqKey(k){
   return Promise.resolve();
 }
 
+// ── Helper de IA para o Chat — tenta Groq, fallback automático para Anthropic ──
+// Garante que pelo menos um provedor responda, mesmo que o outro esteja fora.
+async function chatAICall(systemPrompt, userPrompt) {
+  // 1ª tentativa: Groq (mais rápido e gratuito)
+  if (GROQ_KEY) {
+    const r = await groqCall(systemPrompt, userPrompt, '');
+    if (r.ok && r.text) {
+      console.log('[Chat IA] Respondido via Groq ✅');
+      return r.text;
+    }
+    console.warn('[Chat IA] Groq falhou:', r.text, '— tentando Anthropic...');
+  }
+
+  // 2ª tentativa: Anthropic (fallback)
+  if (ANTHROPIC_KEY) {
+    const prompt = systemPrompt + '\n\n' + userPrompt;
+    const r2 = await aiCall({ max_tokens: 250, messages: [{ role: 'user', content: prompt }] }, '');
+    if (r2.ok && r2.text) {
+      console.log('[Chat IA] Respondido via Anthropic ✅');
+      return r2.text;
+    }
+    console.warn('[Chat IA] Anthropic falhou:', r2.text);
+  }
+
+  throw new Error('Nenhum provedor de IA disponível. Verifique as chaves no painel IA (⚙ Configurar IA).');
+}
+
 // ── MEL-12: Dados da empresa centralizados ──────────────────────────────────
 // Nunca edite CNPJ/endereço diretamente no código — use o painel ⚙ Empresa.
 const EMPRESA_CFG_DEFAULT = {
@@ -15288,11 +15315,11 @@ function rBancoHoras(){
   const totCred=ativos.reduce((s,e)=>_bhLs(e.id).filter(l=>l.data>=_bhCutoff()&&l.tipo==='credito').reduce((ss,l)=>ss+l.minutos,s),0);
   const totDeb=ativos.reduce((s,e)=>_bhLs(e.id).filter(l=>l.data>=_bhCutoff()&&l.tipo==='debito').reduce((ss,l)=>ss+l.minutos,s),0);
 
-  // [M8-rBancoHoras] dados para botões de extensão — integrados diretamente (sem monkey-patch)
-  if(!APP.bhSolicitacoes||!APP.bhSolicitacoes.length){
-    try{ APP.bhSolicitacoes=JSON.parse(localStorage.getItem('fcrh_bh_solicitacoes')||'[]'); }catch(e){}
-  }
-  const _m8Pendentes=(APP.bhSolicitacoes||[]).filter(s=>s.status==='pendente').length;
+  // [M8-rBancoHoras] dados para botões de extensão — FIX v10: usa cache Firestore _BH_SOLIC_LISTA
+  // _BH_SOLIC_LISTA é carregado async via _loadBHSolicFirestore() quando a aba abre
+  const _m8Pendentes=(_BH_SOLIC_LISTA||[]).filter(s=>s.status==='pendente').length;
+  // Dispara refresh async do Firestore para manter badge atualizado
+  if(!_BH_SOLIC_LISTA.length){ _loadBHSolicFirestore().then(()=>{ const btn=document.querySelector('[onclick="_bhMostrarSolicitacoes()"]'); if(btn){ const p=(_BH_SOLIC_LISTA||[]).filter(s=>s.status==='pendente').length; btn.textContent='📬 Ver Solicitações'+(p>0?` (${p})`:''); } }); }
   let _m8Venc=[];
   try{ _m8Venc=_bhGetVencimentos().filter(v=>v.urgencia!=='aviso'); }catch(e){}
   let _m8LimitBadges='';
@@ -27086,105 +27113,188 @@ function _salvarSolicitacaoCompensacao(){
   navigate('bancohoras');
 }
 
-function rBHSolicitacoes(){
-  // FIX-P1: bhSolicitacoes agora persiste via save() → Firebase/Supabase
-  // Mantém fallback de localStorage para compatibilidade com dados legados
-  if(!APP.bhSolicitacoes||!APP.bhSolicitacoes.length){
-    try{
-      const legacy=JSON.parse(localStorage.getItem('fcrh_bh_solicitacoes')||'[]');
-      if(legacy.length){ APP.bhSolicitacoes=legacy; save('bhSolicitacoes'); } // migra legado para nuvem
-    }catch(e){}
+// ═══════════════════════════════════════════════════════════════════
+// FIX v10: rBHSolicitacoes agora lê da coleção Firestore 'bh_solicitacoes'
+// (mesma coleção que o Portal do Colaborador usa para salvar pedidos)
+// ═══════════════════════════════════════════════════════════════════
+let _BH_SOLIC_LISTA = []; // cache local para esta sessão
+
+async function _loadBHSolicFirestore() {
+  if (typeof DB === 'undefined' || !DB) return;
+  try {
+    const snap = await DB.collection('bh_solicitacoes').orderBy('criadoEm', 'desc').limit(300).get();
+    _BH_SOLIC_LISTA = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch(e) {
+    // sem índice, busca sem order
+    try {
+      const snap2 = await DB.collection('bh_solicitacoes').get();
+      _BH_SOLIC_LISTA = snap2.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.criadoEm || '').localeCompare(a.criadoEm || ''));
+    } catch(_) { _BH_SOLIC_LISTA = []; }
   }
-  const sols=(APP.bhSolicitacoes||[]).sort((a,b)=>new Date(b.criadoEm)-new Date(a.criadoEm));
-  if(!sols.length){
+}
+
+function _htmlBHSolicitacoes() {
+  const sols = _BH_SOLIC_LISTA;
+  if (!sols.length) {
     return `<div style="text-align:center;padding:32px;color:var(--mt)">
       <div style="font-size:36px;margin-bottom:12px">📭</div>
       <div style="font-weight:700">Nenhuma solicitação de compensação</div>
-      <div style="font-size:13px;margin-top:6px">Funcionários podem solicitar compensações pelo botão abaixo.</div>
-      <button class="btn btn-blue" style="margin-top:16px" onclick="abrirSolicitacaoCompensacao(null)">📋 Solicitar Compensação</button>
+      <div style="font-size:13px;margin-top:6px">Os colaboradores podem solicitar compensações pelo Portal do Colaborador.</div>
+      <button class="btn btn-blue" style="margin-top:16px" onclick="abrirSolicitacaoCompensacao(null)">📋 Nova Solicitação Manual</button>
     </div>`;
   }
-  const pendentes=sols.filter(s=>s.status==='pendente').length;
-  const tipoLabel={folga_dia:'Folga (dia inteiro)',saida_antecipada:'Saída antecipada',entrada_tardia:'Entrada tardia',outro:'Outro'};
-  const fmtMin=m=>{const h=Math.floor(m/60),mi=m%60;return h+'h'+String(mi).padStart(2,'0')+'min'};
-  return`
+  const pendentes = sols.filter(s => s.status === 'pendente').length;
+  const tipoLabel = { folga_dia:'Folga (dia inteiro)', saida_antecipada:'Saída antecipada', entrada_tardia:'Entrada tardia', outro:'Outro' };
+  const fmtMin = m => { const h = Math.floor(m/60), mi = m%60; return h+'h'+String(mi).padStart(2,'0')+'min'; };
+  return `
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
     <div>
       <div style="font-size:15px;font-weight:700">📋 Solicitações de Compensação</div>
-      ${pendentes>0?`<div style="font-size:12px;color:#D97706;font-weight:600;margin-top:3px">⏳ ${pendentes} aguardando aprovação</div>`:''}
+      ${pendentes > 0 ? `<div style="font-size:12px;color:#D97706;font-weight:600;margin-top:3px">⏳ ${pendentes} aguardando aprovação</div>` : ''}
     </div>
     <div style="display:flex;gap:8px">
+      <button class="btn btn-sm" onclick="_recarregarBHSolic()">🔄 Atualizar</button>
       <button class="btn btn-blue btn-sm" onclick="abrirSolicitacaoCompensacao(null)">+ Nova Solicitação</button>
     </div>
   </div>
   <table><thead><tr>
     <th>Funcionário</th><th>Data</th><th>Tipo</th><th>Horas</th><th>Justificativa</th><th>Status</th><th>Ações</th>
   </tr></thead><tbody>
-  ${sols.map(s=>{
-    const emp=APP.employees.find(e=>e.id===s.empId);
-    const corStatus=s.status==='pendente'?'#D97706':s.status==='aprovado'?'#059669':'#DC2626';
-    const bgStatus=s.status==='pendente'?'#FFFBEB':s.status==='aprovado'?'#F0FDF4':'#FEF2F2';
-    const iconeStatus=s.status==='pendente'?'⏳':s.status==='aprovado'?'✅':'❌';
-    return`<tr>
-      <td style="font-weight:600;font-size:13px">${esc(emp?.nome||'—')}</td>
-      <td style="font-size:12px">${new Date(s.data+'T00:00:00').toLocaleDateString('pt-BR')}</td>
-      <td style="font-size:12px">${tipoLabel[s.tipo]||s.tipo}</td>
-      <td style="font-weight:700;color:#2563EB;text-align:center">${fmtMin(s.minutos)}</td>
+  ${sols.map(s => {
+    const emp = APP.employees.find(e => e.id === s.empId);
+    const nomeExib = emp ? emp.nome : (s.empNome || s.empId || '—');
+    const corStatus = s.status==='pendente'?'#D97706':s.status==='aprovado'?'#059669':'#DC2626';
+    const bgStatus  = s.status==='pendente'?'#FFFBEB':s.status==='aprovado'?'#F0FDF4':'#FEF2F2';
+    const iconeStatus = s.status==='pendente'?'⏳':s.status==='aprovado'?'✅':'❌';
+    const dataFmt = s.data ? new Date(s.data+'T00:00:00').toLocaleDateString('pt-BR') : '—';
+    return `<tr>
+      <td style="font-weight:600;font-size:13px">${esc(nomeExib)}</td>
+      <td style="font-size:12px">${dataFmt}</td>
+      <td style="font-size:12px">${tipoLabel[s.tipo]||s.tipo||'—'}</td>
+      <td style="font-weight:700;color:#2563EB;text-align:center">${fmtMin(s.minutos||0)}</td>
       <td style="font-size:12px;color:var(--mt);max-width:180px">${esc(s.justificativa||'—')}</td>
       <td><span style="background:${bgStatus};color:${corStatus};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">
-        ${iconeStatus} ${s.status.charAt(0).toUpperCase()+s.status.slice(1)}
+        ${iconeStatus} ${(s.status||'pendente').charAt(0).toUpperCase()+(s.status||'pendente').slice(1)}
       </span></td>
       <td>
-        ${s.status==='pendente'?`
+        ${s.status==='pendente' ? `
         <div style="display:flex;gap:5px">
           <button class="btn btn-sm" style="background:#F0FDF4;color:#059669;font-size:11px;border:1px solid #BBF7D0" onclick="aprovarSolicitacaoBH('${s.id}')">✅ Aprovar</button>
           <button class="btn btn-sm" style="background:#FEF2F2;color:#DC2626;font-size:11px;border:1px solid #FECACA" onclick="recusarSolicitacaoBH('${s.id}')">❌ Recusar</button>
-        </div>`:`<button class="btn btn-sm btn-icon-red" onclick="excluirSolicitacaoBH('${s.id}')">🗑</button>`}
+        </div>` : `<button class="btn btn-sm btn-icon-red" onclick="excluirSolicitacaoBH('${s.id}')">🗑</button>`}
       </td>
     </tr>`;
   }).join('')}
   </tbody></table>`;
 }
 
-function aprovarSolicitacaoBH(id){
-  if(!APP.bhSolicitacoes)return;
-  const sol=APP.bhSolicitacoes.find(s=>s.id===id);
-  if(!sol)return;
-  sol.status='aprovado';
-  sol.aprovadoEm=new Date().toISOString();
-  // Lança o débito automático no banco de horas
-  if(!APP.bancohoras[sol.empId])APP.bancohoras[sol.empId]=[];
-  APP.bancohoras[sol.empId].push({
-    id:uid(),data:sol.data,tipo:'debito',minutos:sol.minutos,
-    motivo:`Compensação aprovada — ${sol.justificativa||''}`,
-    criadoEm:new Date().toISOString(),_solId:id
-  });
-  save('bancohoras');
-  save('bhSolicitacoes'); // FIX-P1: persiste em Firebase + Supabase
-  toast('✅ Solicitação aprovada e débito lançado!','ok',5000);
-  navigate('bancohoras');
+async function _recarregarBHSolic() {
+  const c = document.getElementById('content');
+  if (c) c.innerHTML = `<div class="card" style="padding:32px;text-align:center"><div style="font-size:32px;margin-bottom:8px">🔄</div><div style="font-size:14px;color:var(--mt)">Carregando solicitações...</div></div>`;
+  await _loadBHSolicFirestore();
+  if (c) {
+    const wrapper = c.querySelector('#bh-solic-container');
+    if (wrapper) wrapper.innerHTML = _htmlBHSolicitacoes();
+    else navigate('bancohoras');
+  }
 }
 
-async function recusarSolicitacaoBH(id){
-  if(!APP.bhSolicitacoes)return;
-  const motivo=prompt('Motivo da recusa (opcional):');
-  const sol=APP.bhSolicitacoes.find(s=>s.id===id);
-  if(!sol)return;
-  sol.status='recusado';
-  sol.recusadoEm=new Date().toISOString();
-  sol.motivoRecusa=motivo||'';
-  save('bhSolicitacoes'); // FIX-P1: persiste em Firebase + Supabase
-  toast('Solicitação recusada.','warn');
-  navigate('bancohoras');
+function rBHSolicitacoes() {
+  // Renderiza esqueleto imediatamente e carrega Firestore em background
+  setTimeout(async () => {
+    await _loadBHSolicFirestore();
+    const container = document.getElementById('bh-solic-container');
+    if (container) container.innerHTML = _htmlBHSolicitacoes();
+  }, 0);
+  return `<div id="bh-solic-container" style="min-height:120px">
+    <div style="text-align:center;padding:32px;color:var(--mt)">
+      <div style="font-size:28px;margin-bottom:8px">⏳</div>
+      <div style="font-size:14px">Carregando solicitações do Firestore...</div>
+    </div>
+  </div>`;
 }
 
-async function excluirSolicitacaoBH(id){
-  if(!APP.bhSolicitacoes)return;
-  if(!await confirmDialog('Excluir esta solicitação?'))return;
-  APP.bhSolicitacoes=APP.bhSolicitacoes.filter(s=>s.id!==id);
-  save('bhSolicitacoes'); // FIX-P1: persiste em Firebase + Supabase
-  toast('Excluído.','ok');
-  navigate('bancohoras');
+async function aprovarSolicitacaoBH(id) {
+  const sol = _BH_SOLIC_LISTA.find(s => s.id === id);
+  if (!sol) { toast('Solicitação não encontrada.', 'warn'); return; }
+  if (typeof DB === 'undefined' || !DB) { toast('Sem conexão Firebase.', 'warn'); return; }
+  try {
+    // Atualiza no Firestore
+    await DB.collection('bh_solicitacoes').doc(id).update({
+      status: 'aprovado',
+      aprovadoEm: new Date().toISOString(),
+      aprovadoPor: 'RH'
+    });
+    // Lança débito no banco de horas do funcionário
+    if (!APP.bancohoras[sol.empId]) APP.bancohoras[sol.empId] = [];
+    APP.bancohoras[sol.empId].push({
+      id: uid(), data: sol.data, tipo: 'debito', minutos: sol.minutos,
+      motivo: `Compensação aprovada — ${sol.justificativa || ''}`,
+      criadoEm: new Date().toISOString(), _solId: id
+    });
+    save('bancohoras');
+    // Notifica colaborador via portal_notificacoes
+    try {
+      await DB.collection('portal_notificacoes').add({
+        empId: sol.empId, empCpf: sol.empCpf || '',
+        tipo: 'solicitacao',
+        titulo: '✅ Solicitação de Banco de Horas aprovada',
+        corpo: 'Sua solicitação de compensação foi aprovada pelo RH.',
+        lida: false,
+        criadoEm: new Date().toISOString(),
+        solicitacaoId: id,
+      });
+    } catch(_) {}
+    // Atualiza cache local
+    sol.status = 'aprovado';
+    const container = document.getElementById('bh-solic-container');
+    if (container) container.innerHTML = _htmlBHSolicitacoes();
+    toast('✅ Solicitação aprovada e débito lançado!', 'ok', 5000);
+  } catch(e) { alert('Erro ao aprovar: ' + e.message); }
+}
+
+async function recusarSolicitacaoBH(id) {
+  const sol = _BH_SOLIC_LISTA.find(s => s.id === id);
+  if (!sol) { toast('Solicitação não encontrada.', 'warn'); return; }
+  const motivo = prompt('Motivo da recusa (opcional):');
+  if (motivo === null) return; // cancelou
+  if (typeof DB === 'undefined' || !DB) { toast('Sem conexão Firebase.', 'warn'); return; }
+  try {
+    await DB.collection('bh_solicitacoes').doc(id).update({
+      status: 'recusado',
+      recusadoEm: new Date().toISOString(),
+      motivoRecusa: motivo || ''
+    });
+    // Notifica colaborador
+    try {
+      await DB.collection('portal_notificacoes').add({
+        empId: sol.empId, empCpf: sol.empCpf || '',
+        tipo: 'solicitacao',
+        titulo: '❌ Solicitação de Banco de Horas recusada',
+        corpo: motivo ? `Motivo: ${motivo}` : 'Sua solicitação de compensação foi recusada pelo RH.',
+        lida: false,
+        criadoEm: new Date().toISOString(),
+        solicitacaoId: id,
+      });
+    } catch(_) {}
+    sol.status = 'recusado';
+    const container = document.getElementById('bh-solic-container');
+    if (container) container.innerHTML = _htmlBHSolicitacoes();
+    toast('Solicitação recusada.', 'warn');
+  } catch(e) { alert('Erro ao recusar: ' + e.message); }
+}
+
+async function excluirSolicitacaoBH(id) {
+  if (!await confirmDialog('Excluir esta solicitação?')) return;
+  if (typeof DB === 'undefined' || !DB) { toast('Sem conexão Firebase.', 'warn'); return; }
+  try {
+    await DB.collection('bh_solicitacoes').doc(id).delete();
+    _BH_SOLIC_LISTA = _BH_SOLIC_LISTA.filter(s => s.id !== id);
+    const container = document.getElementById('bh-solic-container');
+    if (container) container.innerHTML = _htmlBHSolicitacoes();
+    toast('Excluído.', 'ok');
+  } catch(e) { alert('Erro ao excluir: ' + e.message); }
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -27383,8 +27493,18 @@ function usarBiometricoDia(d, bioEnt, bioSai, empId, mes, ano){
 // Monkey-patches com _origRBancoHoras / _origRPonto removidos.
 // ════════════════════════════════════════════════════════════════════
 
-function _bhMostrarSolicitacoes(){
-  openModal('📋 Solicitações de Compensação',rBHSolicitacoes(),660);
+async function _bhMostrarSolicitacoes(){
+  // FIX v10: carrega do Firestore antes de abrir o modal
+  openModal('📋 Solicitações de Compensação',
+    '<div style="text-align:center;padding:32px;color:var(--mt)"><div style="font-size:28px;margin-bottom:8px">⏳</div><div style="font-size:14px">Carregando solicitações do Firestore...</div></div>',
+    660);
+  await _loadBHSolicFirestore();
+  // Tenta atualizar o corpo do modal já aberto
+  const modalContent = document.querySelector('.modal-content');
+  if (modalContent) {
+    const body = modalContent.querySelector('.modal-body') || modalContent.lastElementChild;
+    if (body) body.innerHTML = '<div id="bh-solic-container">' + _htmlBHSolicitacoes() + '</div>';
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -29910,6 +30030,7 @@ td,th{font-size:15px!important;}
       <strong>Chat com Colaboradores</strong>
       <span id="rh-chat-header-sub">Selecione um colaborador</span>
     </div>
+    <button id="rh-chat-ai-toggle" onclick="rhChatAIToggle()" title="Ativar/desativar resposta automática da IA" style="padding:4px 10px;border-radius:8px;border:1.5px solid #BBF7D0;background:#F0FDF4;color:#059669;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">🤖 IA: ON</button>
     <button id="rh-chat-close-btn" onclick="rhChatClose()">✕</button>
   </div>
 
@@ -29931,8 +30052,22 @@ td,th{font-size:15px!important;}
     </div>
   </div>
 
-  <!-- Input -->
+  <!-- Input + IA -->
+  <div id="rh-chat-ai-suggestion" style="display:none;border-top:1px solid #E2E8F0;padding:8px 12px;background:#F0F9FF;font-size:12px;color:#1E40AF">
+    <div style="display:flex;align-items:flex-start;gap:8px">
+      <span style="font-size:16px;flex-shrink:0">🤖</span>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:11px;color:#1E40AF;margin-bottom:4px;text-transform:uppercase;letter-spacing:.3px">Sugestão da IA</div>
+        <div id="rh-chat-ai-text" style="line-height:1.5;color:#1E293B;font-size:13px"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:8px;justify-content:flex-end">
+      <button onclick="rhChatAIReject()" style="padding:5px 12px;border:1px solid #CBD5E1;border-radius:8px;background:#fff;color:#64748B;font-size:11px;font-weight:700;cursor:pointer">Ignorar</button>
+      <button onclick="rhChatAIAccept()" style="padding:5px 14px;border:none;border-radius:8px;background:linear-gradient(135deg,#6366F1,#7C3AED);color:#fff;font-size:11px;font-weight:700;cursor:pointer">✓ Usar esta resposta</button>
+    </div>
+  </div>
   <div id="rh-chat-input-area">
+    <button id="rh-chat-ai-btn" onclick="rhChatAISuggest()" title="Sugerir resposta com IA" style="width:38px;height:38px;border-radius:10px;border:1.5px solid #C7D2FE;background:#EEF2FF;color:#6366F1;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;transition:all .15s">🤖</button>
     <textarea id="rh-chat-input" placeholder="Digite uma mensagem..." rows="1"
       onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();rhChatSend();}"
       oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"></textarea>
@@ -30017,6 +30152,8 @@ function rhChatStartGlobalListener() {
             if(RH_CHAT.empId !== emp.id || !RH_CHAT.open) {
               rhChatShowNotif(emp, msg.texto || '');
             }
+            // IA AUTO-REPLY: dispara resposta automática para mensagem nova do colaborador
+            rhChatIAAutoReply(emp, msgId);
           }
         });
 
@@ -30164,6 +30301,7 @@ function rhChatSelectEmp(empId) {
   }
 
   if(sub) sub.textContent = emp.nome + ' — ' + emp.cargo;
+  if(typeof _rhAIUpdateToggleBtn === 'function') _rhAIUpdateToggleBtn();
 
   if(!FBASE) {
     if(msgArea) msgArea.innerHTML = '<div style="text-align:center;padding:30px;color:#94A3B8;font-size:13px">⚠ Firebase necessário para o chat em tempo real.<br>Conecte o Firebase para usar esta função.</div>';
@@ -30323,6 +30461,232 @@ window.buildNav = function(...args){
   if(typeof rhChatPopulateSelect === 'function') rhChatPopulateSelect();
   if(typeof rhChatUpdateBadge === 'function') rhChatUpdateBadge();
 };
+
+
+// ════════════════════════════════════════════════════════════════════════
+// MÓDULO IA DO CHAT — Resposta automática via Claude API
+// A IA responde automaticamente quando o colaborador manda mensagem.
+// O RH pode desativar por colaborador ou globalmente.
+// ════════════════════════════════════════════════════════════════════════
+
+const RH_CHAT_AI = {
+  lastSuggestion: '',
+  autoReplyEnabled: true,          // toggle global
+  replyingFor: new Set(),          // empIds com resposta em andamento (evita duplicatas)
+  disabledFor: new Set(),          // empIds onde o RH desativou a IA manualmente
+};
+
+// Contexto do colaborador para a IA
+function _rhAIEmpCtx(emp) {
+  if (!emp) return '';
+  const p = [];
+  if (emp.nome)     p.push('Nome: ' + emp.nome);
+  if (emp.cargo)    p.push('Cargo: ' + emp.cargo);
+  if (emp.setor)    p.push('Setor: ' + emp.setor);
+  if (emp.admissao) p.push('Admissão: ' + emp.admissao);
+  return p.join(' | ');
+}
+
+// Busca histórico do Firestore para ter contexto real
+async function _rhAIGetHistory(empId) {
+  try {
+    const snap = await FBASE.collection('rh_chat').doc(empId).collection('msgs')
+      .orderBy('ts', 'asc').limitToLast(15).get();
+    return snap.docs.map(d => {
+      const m = d.data();
+      return { de: m.de === 'rh' ? 'RH' : 'Colaborador', texto: m.texto || '' };
+    });
+  } catch(e) {
+    return [];
+  }
+}
+
+// Envia mensagem da IA como RH no Firestore
+async function _rhAISendMessage(empId, texto) {
+  const empNome = (APP.employees || []).find(e => e.id === empId)?.nome || '';
+  await FBASE.collection('rh_chat').doc(empId).collection('msgs').add({
+    de: 'rh',
+    texto: texto,
+    ts: firebase.firestore.FieldValue.serverTimestamp(),
+    lida: false,
+    lidaEm: null,
+    enviadoPorIA: true,
+  });
+  await FBASE.collection('rh_chat').doc(empId).set({
+    ultimaMsgTs: firebase.firestore.FieldValue.serverTimestamp(),
+    ultimaMsgTexto: texto,
+    ultimaMsgDe: 'rh',
+    empId, empNome, rhUnread: 0,
+  }, { merge: true });
+}
+
+// Mostra indicador "digitando..." na área de mensagens
+function _rhAIShowTyping(empId) {
+  if (RH_CHAT.empId !== empId || !RH_CHAT.open) return;
+  const msgArea = document.getElementById('rh-chat-messages');
+  if (!msgArea) return;
+  const existing = msgArea.querySelector('#rh-ai-typing');
+  if (existing) return;
+  const div = document.createElement('div');
+  div.id = 'rh-ai-typing';
+  div.className = 'rh-chat-msg rh';
+  div.innerHTML = `
+    <div class="rh-chat-sender" style="color:#6366F1">🤖 Assistente IA</div>
+    <div class="rh-chat-bubble" style="background:linear-gradient(135deg,#6366F1,#7C3AED);opacity:.7;display:flex;gap:4px;align-items:center;padding:10px 14px">
+      <span style="width:7px;height:7px;border-radius:50%;background:#fff;animation:pulse-badge .8s infinite"></span>
+      <span style="width:7px;height:7px;border-radius:50%;background:#fff;animation:pulse-badge .8s .2s infinite"></span>
+      <span style="width:7px;height:7px;border-radius:50%;background:#fff;animation:pulse-badge .8s .4s infinite"></span>
+    </div>`;
+  msgArea.appendChild(div);
+  msgArea.scrollTop = msgArea.scrollHeight;
+}
+
+function _rhAIHideTyping() {
+  document.getElementById('rh-ai-typing')?.remove();
+}
+
+// ── RESPOSTA AUTOMÁTICA (chamada pelo listener global) ──────────────────
+async function rhChatIAAutoReply(emp, msgId) {
+  const empId = emp.id;
+
+  // Checks de guarda
+  if (!RH_CHAT_AI.autoReplyEnabled) return;
+  if (RH_CHAT_AI.disabledFor.has(empId)) return;
+  if (RH_CHAT_AI.replyingFor.has(empId)) return;
+  if (!FBASE) return;
+
+  RH_CHAT_AI.replyingFor.add(empId);
+
+  // Pequeno delay humanizado (1-3s)
+  const delay = 1000 + Math.random() * 2000;
+  await new Promise(r => setTimeout(r, delay));
+
+  // Mostra digitando se conversa estiver aberta
+  _rhAIShowTyping(empId);
+
+  try {
+    const historico = await _rhAIGetHistory(empId);
+    const empCtx = _rhAIEmpCtx(emp);
+    const historicoFormatado = historico.map(m => `${m.de}: ${m.texto}`).join('\n');
+
+    const sysPrompt = `Você é o assistente de RH virtual da empresa, respondendo automaticamente pelo chat interno.
+Responda de forma profissional, cordial e objetiva (máximo 2-3 frases).
+Regras:
+- Responda APENAS à última mensagem do colaborador
+- Para dúvidas sobre férias: informe que o RH analisará e responderá em breve, ou oriente a abrir solicitação no portal
+- Para dúvidas sobre holerite: oriente a acessar a aba Holerite no portal
+- Para dúvidas sobre ponto/banco de horas: oriente a verificar no portal ou abrir solicitação
+- Para dúvidas gerais de RH: responda com orientação prática
+- Se o assunto for urgente ou sensível, informe que um membro do RH entrará em contato
+- Use linguagem natural e respeitosa, sem exagerar em formalidade
+- NÃO use asteriscos, markdown ou formatação especial
+- Escreva APENAS o texto da resposta, nada mais`;
+
+    const userPrompt = `Dados do colaborador:
+${empCtx}
+
+Histórico da conversa:
+${historicoFormatado}`;
+
+    const resposta = await chatAICall(sysPrompt, userPrompt);
+    if (!resposta) throw new Error('Resposta vazia');
+
+    _rhAIHideTyping();
+    await _rhAISendMessage(empId, resposta);
+
+    console.log('[Chat IA] Auto-resposta enviada para', emp.nome);
+
+  } catch(e) {
+    _rhAIHideTyping();
+    console.error('[Chat IA] Erro auto-reply:', e.message);
+    // Falha silenciosa — o RH ainda pode responder manualmente
+  } finally {
+    RH_CHAT_AI.replyingFor.delete(empId);
+  }
+}
+
+// ── BOTÃO MANUAL (🤖) — sugestão para o RH revisar antes de enviar ──────
+async function rhChatAISuggest() {
+  if (!RH_CHAT.empId) { toast('Selecione um colaborador.', 'warn'); return; }
+
+  const btn = document.getElementById('rh-chat-ai-btn');
+  const suggBox = document.getElementById('rh-chat-ai-suggestion');
+  const suggText = document.getElementById('rh-chat-ai-text');
+  if (!btn || !suggBox || !suggText) return;
+
+  btn.disabled = true; btn.textContent = '⏳'; btn.style.opacity = '.6';
+  suggBox.style.display = 'none';
+
+  try {
+    const emp = (APP.employees || []).find(e => e.id === RH_CHAT.empId);
+    const historico = await _rhAIGetHistory(RH_CHAT.empId);
+    if (!historico.length) { toast('Sem histórico para analisar.', 'warn'); return; }
+
+    const empCtx = _rhAIEmpCtx(emp);
+    const historicoFormatado = historico.map(m => `${m.de}: ${m.texto}`).join('\n');
+
+    const sysPrompt2 = `Você é um assistente de RH. Sugira uma resposta profissional e cordial (máximo 3 frases) para a última mensagem do colaborador. Escreva apenas o texto da resposta sugerida, sem introdução ou formatação.`;
+    const userPrompt2 = `Colaborador: ${empCtx}
+
+Histórico:
+${historicoFormatado}`;
+
+    const sugestao = await chatAICall(sysPrompt2, userPrompt2);
+    if (!sugestao) throw new Error('Resposta vazia');
+
+    RH_CHAT_AI.lastSuggestion = sugestao;
+    suggText.textContent = sugestao;
+    suggBox.style.display = 'block';
+    document.getElementById('rh-chat-panel')?.scrollTo({ top: 99999, behavior: 'smooth' });
+  } catch(e) {
+    toast('Erro IA: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = '🤖'; btn.style.opacity = '1';
+  }
+}
+
+async function rhChatAIAccept() {
+  const input = document.getElementById('rh-chat-input');
+  if (!input || !RH_CHAT_AI.lastSuggestion) return;
+  input.value = RH_CHAT_AI.lastSuggestion;
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 100) + 'px';
+  rhChatAIReject();
+  await rhChatSend();
+}
+
+function rhChatAIReject() {
+  document.getElementById('rh-chat-ai-suggestion')?.style && (document.getElementById('rh-chat-ai-suggestion').style.display = 'none');
+  RH_CHAT_AI.lastSuggestion = '';
+}
+
+// Toggle IA on/off para o colaborador atual
+function rhChatAIToggle() {
+  const empId = RH_CHAT.empId;
+  if (!empId) return;
+  if (RH_CHAT_AI.disabledFor.has(empId)) {
+    RH_CHAT_AI.disabledFor.delete(empId);
+    toast('🤖 IA ativada para este colaborador.', 'ok');
+  } else {
+    RH_CHAT_AI.disabledFor.add(empId);
+    toast('IA desativada para este colaborador. O RH responderá manualmente.', 'warn');
+  }
+  _rhAIUpdateToggleBtn();
+}
+
+function _rhAIUpdateToggleBtn() {
+  const btn = document.getElementById('rh-chat-ai-toggle');
+  if (!btn) return;
+  const off = RH_CHAT_AI.disabledFor.has(RH_CHAT.empId);
+  btn.textContent = off ? '🤖 IA: OFF' : '🤖 IA: ON';
+  btn.style.background = off ? '#FEF2F2' : '#F0FDF4';
+  btn.style.color = off ? '#DC2626' : '#059669';
+  btn.style.borderColor = off ? '#FECACA' : '#BBF7D0';
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// FIM MÓDULO IA DO CHAT
+// ════════════════════════════════════════════════════════════════════════
 
 // Expõe funções globalmente para o botão do nav
 window._rhChatOpen = rhChatOpen;
