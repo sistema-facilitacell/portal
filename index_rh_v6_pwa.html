@@ -1667,17 +1667,17 @@ td,th{font-size:15px!important;}
           <button class="fb-btn" id="ai-key-btn" style="color:#7C3AED;margin-top:4px" onclick="openAnthropicKeyModal()" title="Configurar chave da API Anthropic para IA">🤖 Configurar IA</button>
           <button class="fb-btn" style="color:#059669;margin-top:4px" onclick="downloadBackupJSON()" title="Baixa todos os dados do app como JSON — proteção contra perda de dados">💾 Backup JSON</button>
           <button class="fb-btn" style="color:#0891B2;margin-top:4px" onclick="openEmpresaCfgModal()" title="Configurar dados da empresa e modelo de IA">⚙ Empresa & IA</button>
+          <!-- Liberação portal -->
+          <div id="sb-portal-acesso-wrap" style="margin-top:10px;padding:10px;background:#F8FAFC;border-radius:10px;border:1.5px solid #E2E8F0">
+            <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#64748B;margin-bottom:6px">Portal do Colaborador</div>
+            <button id="sb-btn-portal-acesso" onclick="togglePortalAcesso()"
+              style="width:100%;display:flex;align-items:center;justify-content:center;gap:7px;padding:9px 12px;border-radius:9px;border:none;cursor:pointer;font-size:12px;font-weight:800;font-family:var(--font);transition:all .2s;background:#E2E8F0;color:#64748B;">
+              <span id="sb-portal-icon">⏳</span>
+              <span id="sb-portal-label">Verificando...</span>
+            </button>
+            <div id="sb-portal-timer" style="font-size:10px;color:#94A3B8;text-align:center;margin-top:5px;display:none"></div>
+          </div>
         </div>
-      </div>
-      <!-- Liberação portal sidebar -->
-      <div id="sb-portal-acesso-wrap" style="margin-top:10px;padding:10px;background:#F8FAFC;border-radius:10px;border:1.5px solid #E2E8F0">
-        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#64748B;margin-bottom:6px">Portal do Colaborador</div>
-        <button id="sb-btn-portal-acesso" onclick="togglePortalAcesso()"
-          style="width:100%;display:flex;align-items:center;justify-content:center;gap:7px;padding:9px 12px;border-radius:9px;border:none;cursor:pointer;font-size:12px;font-weight:800;font-family:var(--font);transition:all .2s">
-          <span id="sb-portal-icon">🔒</span>
-          <span id="sb-portal-label">Acesso Bloqueado</span>
-        </button>
-        <div id="sb-portal-timer" style="font-size:10px;color:#94A3B8;text-align:center;margin-top:5px;display:none"></div>
       </div>
     </div>
   </div>
@@ -2010,12 +2010,16 @@ async function fbFlushQueue(){
 async function fbLoad(k){
   if(!FBASE)return null;
   try{
-    const s=await FBASE.collection('hr').doc(k).get();
+    // Timeout de 8s por documento — evita travar o loadCloud
+    const fetchPromise = FBASE.collection('hr').doc(k).get();
+    const timeoutPromise = new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),8000));
+    const s = await Promise.race([fetchPromise, timeoutPromise]);
     if(!s.exists)return null;
     const data=s.data();
     try{return data.d?JSON.parse(data.d):null;}catch(_e){console.error('[fbLoad] JSON inválido:',_e);return null;}
   }catch(e){
-    console.error('[Firebase] ❌ Erro ao carregar '+k+':',e);
+    if(e.message==='timeout') console.warn('[Firebase] ⚠ Timeout ao carregar '+k+' — pulando');
+    else console.error('[Firebase] ❌ Erro ao carregar '+k+':',e);
     return null;
   }
 }
@@ -2067,7 +2071,12 @@ function loadLocal(){
 async function loadCloud(){
   // FIX-P1: inclui chaves anteriormente ausentes — lancamentos_bh, bhSolicitacoes, wf_*
   const keys=[..._VALID_KEYS];
-  const results=await Promise.all(keys.map(k=>fbLoad(k)));
+  // Timeout global de 15s — se a nuvem não responder, segue com o que tiver
+  const loadWithTimeout = (k) => Promise.race([
+    fbLoad(k),
+    new Promise(resolve=>setTimeout(()=>{console.warn('[loadCloud] ⚠ Timeout global:',k);resolve(null);},15000))
+  ]);
+  const results=await Promise.all(keys.map(k=>loadWithTimeout(k)));
   let loaded=0;
   results.forEach((d,i)=>{
     const k=keys[i];
@@ -14275,14 +14284,20 @@ async function initApp(){
     }catch(e){
       console.error('[initApp/firebase] Erro inesperado:',e);
       toast('⚠ Erro de conexão com Firebase.','err');
+      if(window._fbSyncBanner){window._fbSyncBanner.style.background='#92400E';window._fbSyncBanner.innerHTML='⚠ Erro de conexão com a nuvem';setTimeout(()=>{if(window._fbSyncBanner&&window._fbSyncBanner.parentNode)window._fbSyncBanner.parentNode.removeChild(window._fbSyncBanner);window._fbSyncBanner=null;},3000);}
     }
   })();
 
-  // Timeout de segurança — se Firebase travar, cancela silenciosamente após 20s
+  // Timeout de segurança — se Firebase travar, remove banner e segue após 12s
   const timeoutPromise = new Promise(resolve=>setTimeout(()=>{
-    console.warn('[initApp] Timeout Firebase de 20s atingido — sistema já aberto normalmente.');
+    console.warn('[initApp] Timeout Firebase de 12s atingido — sistema já aberto normalmente.');
+    if(window._fbSyncBanner){
+      window._fbSyncBanner.style.background='#92400E';
+      window._fbSyncBanner.innerHTML='⚠ Sem resposta da nuvem — modo local ativo';
+      setTimeout(()=>{if(window._fbSyncBanner&&window._fbSyncBanner.parentNode)window._fbSyncBanner.parentNode.removeChild(window._fbSyncBanner);window._fbSyncBanner=null;},3000);
+    }
     resolve();
-  },20000));
+  },12000));
 
   // ── Supabase: inicia em paralelo com Firebase (não bloqueia UI) ──
   _sbUpdateUI('loading');
@@ -26237,6 +26252,10 @@ function _atualizarBtnPortalAcesso() {
         ? 'Liberado (emergência)' : 'Acesso Liberado';
       sbWrap.style.borderColor = '#86EFAC';
       sbWrap.style.background = '#F0FDF4';
+      // Abre painel cfg para o estado ficar visível
+      var _cp = document.getElementById('cfg-panel');
+      var _ca = document.getElementById('cfg-arrow');
+      if (_cp && _cp.style.display === 'none') { _cp.style.display = 'block'; if(_ca) _ca.style.transform = 'rotate(180deg)'; }
     } else {
       sbBtn.style.background = 'linear-gradient(135deg,#DC2626,#EF4444)';
       sbBtn.style.color = '#fff';
