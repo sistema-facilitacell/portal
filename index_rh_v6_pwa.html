@@ -8,10 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet"/>
 
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
-<link rel="icon" href="icone-192.png" type="image/png"/>
-<link rel="apple-touch-icon" href="icone-192.png"/>
-<link rel="apple-touch-icon" sizes="192x192" href="icone-192.png"/>
-<link rel="apple-touch-icon" sizes="512x512" href="icone-512.png"/>
+<script>(function(){if(window.location.protocol!=="file:"){var icons=[["icon","icone-192.png","image/png",""],["apple-touch-icon","icone-192.png","",""],["apple-touch-icon","icone-192.png","","192x192"],["apple-touch-icon","icone-512.png","","512x512"]];icons.forEach(function(i){var l=document.createElement("link");l.rel=i[0];l.href=i[1];if(i[2])l.type=i[2];if(i[3])l.setAttribute("sizes",i[3]);document.head.appendChild(l);});}})();</script>
 
 <!-- Firebase carregado estaticamente — evita travamento por download dinâmico -->
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -19,15 +16,15 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <!-- Firebase Realtime Database — 2º banco para ponto biométrico em tempo real -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<!-- Firebase Auth — necessário para autenticação anônima (Firestore rules) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <!-- Supabase — 3º banco para dados sensíveis (funcionários, holerite, contratos) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
 <script>
 window.FIREBASE_LOADED = (typeof firebase !== 'undefined');
 window.FIREBASE_LOAD_ERROR = null;
-// FBASE_RTDB = instância do Realtime Database (ponto biométrico)
-// FBASE      = instância do Firestore (dados de RH)
-window.FBASE_RTDB = null;
+// FBASE = instância do Firestore (dados de RH — banco único)
 </script>
 
 <script>
@@ -1465,7 +1462,7 @@ td,th{font-size:15px!important;}
 </script>
   <!-- PWA -->
   <!-- PWA manifest inline para evitar CORS em file:// -->
-  <script>(function(){var m={name:"Atlas RH",short_name:"Atlas RH",start_url:".",display:"standalone",background_color:"#ffffff",theme_color:"#123482",icons:[]};var b=new Blob([JSON.stringify(m)],{type:"application/json"});var l=document.createElement("link");l.rel="manifest";l.href=window.location.protocol==="file:"?URL.createObjectURL(b):"manifest_rh.json";document.head.appendChild(l);})();</script>
+  <script>(function(){var m={name:"Atlas RH",short_name:"Atlas RH",start_url:"./",display:"standalone",background_color:"#ffffff",theme_color:"#123482",icons:[]};var b=new Blob([JSON.stringify(m)],{type:"application/json"});var l=document.createElement("link");l.rel="manifest";l.href=window.location.protocol==="file:"?URL.createObjectURL(b):"manifest_rh.json";document.head.appendChild(l);})();</script>
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1850,7 +1847,12 @@ const ac=id=>AVC[((id||'x').charCodeAt(1)||((id||'x').charCodeAt(0)))%AVC.length
 const fBRL=v=>`R$ ${parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 const f2=v=>parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const dim=(y,m)=>new Date(y,m+1,0).getDate();
-const av=(name,id,sz=34)=>`<div class="av" style="width:${sz}px;height:${sz}px;background:${ac(id)};font-size:${Math.round(sz*.38)}px">${initials(name)}</div>`;
+const av=(name,id,sz=34)=>{
+  const _emp=APP&&APP.employees?APP.employees.find(e=>e.id===id):null;
+  const _foto=_emp?.fotoPerfil||null;
+  if(_foto) return `<div class="av" style="width:${sz}px;height:${sz}px;background:url('${_foto}') center/cover no-repeat;border:2px solid #E2E8F0;flex-shrink:0"></div>`;
+  return `<div class="av" style="width:${sz}px;height:${sz}px;background:${ac(id)};font-size:${Math.round(sz*.38)}px">${initials(name)}</div>`;
+};
 const bdg=(l,c)=>`<span class="badge" style="background:${c}18;color:${c}">${esc(l)}</span>`;
 const svgI=(p,sz=15)=>`<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const empSC=s=>s==='ativo'?'#059669':s==='ferias'?'#2563EB':s==='afastado'?'#D97706':'#DC2626';
@@ -1901,16 +1903,20 @@ function _escHtml(s){
 // sempre caírem no fallback 15 — configuração nunca era respeitada.
 const COMISSAO_CEL_FIXO = 15; // R$ 15,00 por celular vendido — altere aqui para mudar globalmente
 let FBASE=null,FB_SAVING=false;
+// FIX-RACE: contador de saves concorrentes — evita que o 1º save concluído
+// zere o flag enquanto o 2º (save('pontos') + save('bancohoras') simultâneos) ainda está rodando
+let _FB_SAVE_ACTIVE=0;
 // FIX: watchdog — se FB_SAVING travar por mais de 15s, força reset do indicador
 let _fbSavingWatchdog=null;
 const _fbSavingSet=(v)=>{
-  FB_SAVING=v;
-  if(v){
+  if(v){ _FB_SAVE_ACTIVE++; } else { _FB_SAVE_ACTIVE=Math.max(0,_FB_SAVE_ACTIVE-1); }
+  FB_SAVING=(_FB_SAVE_ACTIVE>0);
+  if(FB_SAVING){
     clearTimeout(_fbSavingWatchdog);
     _fbSavingWatchdog=setTimeout(()=>{
       if(FB_SAVING){
         console.warn('[Firebase] Watchdog: indicador "Salvando..." travado por 15s — forçando reset');
-        FB_SAVING=false; updateFbUI();
+        _FB_SAVE_ACTIVE=0; FB_SAVING=false; updateFbUI();
       }
     },15000);
   } else {
@@ -1975,21 +1981,108 @@ let FB_ERROR=null;
 let FB_SAVE_QUEUE={};  // fila de saves pendentes
 
 const FB_RETRY_COUNT={};
+const FB_RETRY_TIMERS={}; // timers de retry pendentes por chave — evita loops
+const FB_SAVE_RUNNING={}; // flag: fbSave já está rodando para esta chave
 async function fbSave(k){
   if(!FBASE){
     FB_SAVE_QUEUE[k]=true;
-    console.warn('[fbSave] Firebase não conectado — na fila:',k);
+    console.debug('[fbSave] Firebase não conectado — na fila:',k);
     return;
   }
+  // ANTI-LOOP: se já tem um fbSave rodando para esta chave, apenas marca na fila e sai
+  // Sem isso, o debounce + retry geram múltiplos fbSave paralelos que se retroalimentam
+  if(FB_SAVE_RUNNING[k]){
+    FB_SAVE_QUEUE[k]=true; // salva depois que o atual terminar
+    return;
+  }
+  // Cancela retry pendente — este save já é mais recente
+  if(FB_RETRY_TIMERS[k]){
+    clearTimeout(FB_RETRY_TIMERS[k]);
+    delete FB_RETRY_TIMERS[k];
+  }
+  FB_SAVE_RUNNING[k]=true;
   FB_SAVING=true; _fbSavingSet(true); updateFbUI('saving');
   try{
-    const payload={d:JSON.stringify(APP[k]),ts:Date.now(),k};
-    await FBASE.collection('hr').doc(k).set(payload);
+    let payload={d:JSON.stringify(APP[k]),ts:Date.now(),k};
+
+    // FIX-SIZE: verifica tamanho antes de salvar (limite Firestore = 1MB por documento)
+    // APP.pontos e APP.bancohoras crescem indefinidamente com meses/funcionarios
+    const _sizeBytes=new Blob([payload.d]).size;
+    const _sizeKB=Math.round(_sizeBytes/1024);
+    if(_sizeBytes>950000){
+      console.warn('[fbSave] Payload "'+k+'" muito grande: '+_sizeKB+'KB. Arquivando dados antigos...');
+      const _hoje=new Date();
+      if(k==='pontos'){
+        const _cutoff=new Date(_hoje.getFullYear(),_hoje.getMonth()-14,1);
+        Object.keys(APP.pontos).forEach(pk=>{
+          const pts=pk.split('_');
+          if(pts.length>=3){
+            const pAno=parseInt(pts[pts.length-2]),pMes=parseInt(pts[pts.length-1]);
+            if(!isNaN(pAno)&&!isNaN(pMes)&&new Date(pAno,pMes,1)<_cutoff) delete APP.pontos[pk];
+          }
+        });
+        lsSave('pontos');
+        toast('Cartao Ponto: meses > 14 meses arquivados localmente para liberar espaco na nuvem.','warn',8000);
+        console.warn('[fbSave] Pontos podados. Novo: '+Math.round(new Blob([JSON.stringify(APP.pontos)]).size/1024)+'KB');
+      }
+      if(k==='bancohoras'){
+        const _cutoffBH=new Date(_hoje.getFullYear(),_hoje.getMonth()-13,1).toISOString().slice(0,10);
+        Object.keys(APP.bancohoras).forEach(empId=>{
+          if(Array.isArray(APP.bancohoras[empId])){
+            APP.bancohoras[empId]=APP.bancohoras[empId].filter(l=>!l._syncAuto||(l.data||'')>=_cutoffBH);
+          }
+        });
+        lsSave('bancohoras');
+        toast('Banco de Horas: lancamentos automaticos antigos arquivados para liberar espaco na nuvem.','warn',8000);
+        console.warn('[fbSave] BancoHoras podado. Novo: '+Math.round(new Blob([JSON.stringify(APP.bancohoras)]).size/1024)+'KB');
+      }
+      payload={d:JSON.stringify(APP[k]),ts:Date.now(),k};
+    } else {
+      console.log('[fbSave] Payload "'+k+'": '+_sizeKB+'KB');
+    }
+
+    // FIX-TIMEOUT: timeout de 10s no .set() — sem isso, a promise fica pendurada
+    // indefinidamente em file:// ou com rede instável, e o watchdog só reseta o
+    // indicador visual mas não libera o fbSave (que continua em background).
+    let _setDone=false;
+    await new Promise(function(resolve,reject){
+      const _setTimer=setTimeout(function(){
+        if(_setDone)return;
+        _setDone=true;
+        reject(new Error('fb-set-timeout'));
+      },10000);
+      FBASE.collection('hr').doc(k).set(payload).then(function(){
+        if(_setDone)return;
+        _setDone=true;
+        clearTimeout(_setTimer);
+        resolve();
+      }).catch(function(e){
+        if(_setDone)return;
+        _setDone=true;
+        clearTimeout(_setTimer);
+        reject(e);
+      });
+    });
     FB_ERROR=null;
     delete FB_SAVE_QUEUE[k];
     FB_RETRY_COUNT[k]=0;
     console.log('[Firebase] ✅ Salvo na nuvem:',k);
   }catch(e){
+    // fb-set-timeout: Firebase trava sem resposta (file://, offline, rede instável)
+    // Não conta como retry de erro — coloca na fila para tentar quando rede voltar
+    if(e.message==='fb-set-timeout'){
+      FB_RETRY_COUNT[k]=(FB_RETRY_COUNT[k]||0)+1;
+      if(FB_RETRY_COUNT[k]<=3){
+        const delay=FB_RETRY_COUNT[k]*10000; // 10s, 20s, 30s
+        console.warn(`[Firebase] ⚠ Timeout ao salvar ${k} — retry ${FB_RETRY_COUNT[k]}/3 em ${delay/1000}s`);
+        FB_RETRY_TIMERS[k]=setTimeout(()=>{ delete FB_RETRY_TIMERS[k]; fbSave(k); },delay);
+      } else {
+        FB_RETRY_COUNT[k]=0;
+        FB_SAVE_QUEUE[k]=true; // fica na fila; só sobe quando o usuário fizer nova ação
+        console.warn('[Firebase] ⚠ Timeout ao salvar '+k+' após 3 tentativas — aguardando próxima ação do usuário');
+      }
+      return; // finally vai limpar o indicador
+    }
     FB_ERROR=e.message||String(e);
     console.error('[Firebase] ❌ Erro ao salvar '+k+':',e);
     FB_RETRY_COUNT[k]=(FB_RETRY_COUNT[k]||0)+1;
@@ -1997,9 +2090,9 @@ async function fbSave(k){
       // Re-tenta até 3 vezes com backoff
       const delay=FB_RETRY_COUNT[k]*3000;
       console.warn(`[Firebase] Re-tentando em ${delay/1000}s (tentativa ${FB_RETRY_COUNT[k]}/3)...`);
-      // FIX: garante que FB_SAVING=false ANTES do retry assíncrono (evita trava no indicador)
       FB_SAVING=false; _fbSavingSet(false); updateFbUI();
-      setTimeout(()=>fbSave(k),delay);
+      FB_SAVE_RUNNING[k]=false; // libera o lock antes do retry
+      FB_RETRY_TIMERS[k]=setTimeout(()=>{ delete FB_RETRY_TIMERS[k]; fbSave(k); },delay);
       return; // sai agora — o finally não deve sobrescrever o retry
     }else{
       FB_RETRY_COUNT[k]=0;
@@ -2007,12 +2100,16 @@ async function fbSave(k){
       // Agenda nova tentativa em 60s (ex: usuário perdeu internet temporariamente)
       toast('⚠ Dado "'+k+'" não foi para nuvem após 3 tentativas. Salvamento local OK. Tentando em 60s...','err');
       FB_SAVE_QUEUE[k]=true;
-      setTimeout(()=>{ if(FBASE&&FB_SAVE_QUEUE[k]){ console.log('[Firebase] Retry tardio:',k); fbSave(k); } },60000);
+      FB_RETRY_TIMERS[k]=setTimeout(()=>{ delete FB_RETRY_TIMERS[k]; if(FBASE&&FB_SAVE_QUEUE[k]){ console.log('[Firebase] Retry tardio:',k); fbSave(k); } },60000);
     }
   }finally{
-    // FIX: finally garante que FB_SAVING sempre volta para false,
-    // mesmo em caso de erro inesperado não capturado pelo catch
+    FB_SAVE_RUNNING[k]=false; // libera o lock desta chave
     FB_SAVING=false; _fbSavingSet(false); updateFbUI();
+    // Se chegou novo save enquanto este rodava, drena agora
+    if(FB_SAVE_QUEUE[k]&&FBASE){
+      delete FB_SAVE_QUEUE[k];
+      setTimeout(()=>fbSave(k), 500);
+    }
   }
 }
 
@@ -2026,19 +2123,34 @@ async function fbFlushQueue(){
 
 async function fbLoad(k){
   if(!FBASE)return null;
-  try{
-    // Timeout de 8s por documento — evita travar o loadCloud
-    const fetchPromise = FBASE.collection('hr').doc(k).get();
-    const timeoutPromise = new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),8000));
-    const s = await Promise.race([fetchPromise, timeoutPromise]);
-    if(!s.exists)return null;
-    const data=s.data();
-    try{return data.d?JSON.parse(data.d):null;}catch(_e){console.error('[fbLoad] JSON inválido:',_e);return null;}
-  }catch(e){
-    if(e.message==='timeout') console.warn('[Firebase] ⚠ Timeout ao carregar '+k+' — pulando');
-    else console.error('[Firebase] ❌ Erro ao carregar '+k+':',e);
-    return null;
-  }
+  // FIX-TIMEOUT: usa resolve(null) no timer ao invés de reject — garante que a promise
+  // SEMPRE resolve em ≤8s mesmo quando o SDK Firebase fica em retry infinito offline
+  // (Promise.race com reject só funcionava se o .get() estava pendente; se o SDK travava
+  // a microtask queue internamente, o reject nunca propagava antes do timeout externo de 15s)
+  return new Promise(function(resolve){
+    let _done=false;
+    const _timer=setTimeout(function(){
+      if(_done)return;
+      _done=true;
+      console.warn('[Firebase] ⚠ Timeout ao carregar '+k+' — pulando');
+      resolve(null);
+    },8000);
+    FBASE.collection('hr').doc(k).get().then(function(s){
+      if(_done)return;
+      _done=true;
+      clearTimeout(_timer);
+      if(!s.exists){resolve(null);return;}
+      const data=s.data();
+      try{resolve(data.d?JSON.parse(data.d):null);}
+      catch(_e){console.error('[fbLoad] JSON inválido:',_e);resolve(null);}
+    }).catch(function(e){
+      if(_done)return;
+      _done=true;
+      clearTimeout(_timer);
+      console.error('[Firebase] ❌ Erro ao carregar '+k+':',e);
+      resolve(null);
+    });
+  });
 }
 
 // Salva local + nuvem
@@ -2054,13 +2166,30 @@ const _VALID_KEYS=new Set(['employees','candidates','pontos','financeiro','atest
 ]);
 
 // ── save(k) — salva local + Firebase + Supabase (dados sensíveis) ──
+// ── Debounce de gravação no Firebase para chaves de alto volume ──
+// pontos e bancohoras são atualizados pelo listener a cada batida → sem debounce
+// disparam dezenas de gravações por minuto e esgotam a cota diária.
+// Com debounce de 4s: múltiplas chamadas em sequência viram UMA gravação.
+const _saveDebounceTimers = {};
+// pontos e bancohoras têm debounce alto — o listener biométrico dispara saves
+// para cada batida individual; sem debounce, cada sync de 7 funcionários gera
+// 14+ writes simultâneos no Firestore. 8s agrupa todos em 1 único write.
+const _SAVE_DEBOUNCE_KEYS = new Set(['pontos','bancohoras']);
+const _SAVE_DEBOUNCE_MS   = 8000; // 8 segundos — agrupa saves em rajada do listener bio
+
 function save(k){
   if(!_VALID_KEYS.has(k)){ console.error('[save] Chave inválida:',k); return; }
   // 1. localStorage (imediato — garante que UI não perde dados)
   lsSave(k);
-  // 2. Firebase Firestore (todos os dados)
-  if(FBASE) fbSave(k);
-  else{ FB_SAVE_QUEUE[k]=true; console.warn('[save] Firebase na fila:',k); }
+  // 2. Firebase Firestore — debounce para chaves de alto volume
+  if(FBASE){
+    if(_SAVE_DEBOUNCE_KEYS.has(k)){
+      clearTimeout(_saveDebounceTimers[k]);
+      _saveDebounceTimers[k] = setTimeout(()=>{ fbSave(k); }, _SAVE_DEBOUNCE_MS);
+    } else {
+      fbSave(k);
+    }
+  } else { FB_SAVE_QUEUE[k]=true; console.debug('[save] Firebase na fila:',k); }
   // 3. Supabase PostgreSQL (dados sensíveis — espelho seguro)
   if(typeof SB_SENSITIVE_KEYS !== 'undefined' && SB_SENSITIVE_KEYS.has(k)){
     if(typeof SB_READY !== 'undefined' && SB_READY && typeof sbSave === 'function'){
@@ -2085,13 +2214,16 @@ function loadLocal(){
 }
 
 // Carrega da nuvem — nuvem é a fonte da verdade, com merge inteligente para bancohoras
+let _cloudLoadCount = 0; // conta quantas vezes loadCloud rodou na sessão
 async function loadCloud(){
   // FIX-P1: inclui chaves anteriormente ausentes — lancamentos_bh, bhSolicitacoes, wf_*
   const keys=[..._VALID_KEYS];
+  _cloudLoadCount++;
+  const isFirstLoad = (_cloudLoadCount === 1); // só sobe local→nuvem na 1ª carga
   // Timeout global de 15s — se a nuvem não responder, segue com o que tiver
   const loadWithTimeout = (k) => Promise.race([
     fbLoad(k),
-    new Promise(resolve=>setTimeout(()=>{console.warn('[loadCloud] ⚠ Timeout global:',k);resolve(null);},15000))
+    new Promise(resolve=>setTimeout(()=>{console.debug('[loadCloud] Timeout:',k);resolve(null);},20000))
   ]);
   const results=await Promise.all(keys.map(k=>loadWithTimeout(k)));
   let loaded=0;
@@ -2120,8 +2252,34 @@ async function loadCloud(){
         });
         APP.bancohoras=merged;
         lsSave('bancohoras');
-        // Sobe merged para nuvem para garantir persistência
-        fbSave('bancohoras');
+        // Sobe merged para nuvem SOMENTE se houve lançamentos extras locais
+        // (evita write desnecessário a cada abertura do app)
+        if(Object.keys(merged).some(empId=>{
+          const nuvemArr=Array.isArray(d[empId])?d[empId]:[];
+          const mergedArr=Array.isArray(merged[empId])?merged[empId]:[];
+          return mergedArr.length>nuvemArr.length;
+        })){ fbSave('bancohoras'); }
+        loaded++;
+        return;
+      }
+      // candidates: NUNCA sobrescreve se REC já carregou dados (merge por id)
+      // O módulo de Recrutamento gerencia a coleção 'candidatos/' separada e
+      // sincroniza APP.candidates via jbLoad — loadCloud não deve destruir isso.
+      if(k === 'candidates'){
+        const nuvem = Array.isArray(d) ? d : [];
+        const local = Array.isArray(APP.candidates) ? APP.candidates : [];
+        if(local.length > 0 && nuvem.length === 0){
+          // Nuvem vazia mas local tem dados → preserva local, sobe para nuvem
+          console.log('[loadCloud] candidates: nuvem vazia, preservando '+local.length+' locais');
+          fbSave('candidates');
+        } else if(nuvem.length > 0){
+          // Merge: une por id, nuvem tem prioridade sobre local para mesmo id
+          const mergedMap = {};
+          local.forEach(c=>{ if(c.id) mergedMap[c.id] = c; });
+          nuvem.forEach(c=>{ if(c.id) mergedMap[c.id] = c; });
+          APP.candidates = Object.values(mergedMap);
+          lsSave('candidates');
+        }
         loaded++;
         return;
       }
@@ -2132,10 +2290,13 @@ async function loadCloud(){
       loaded++;
     } else {
       // Nuvem vazia para esta chave → sobe o localStorage para nuvem
-      const local=lsLoad(k);
-      if(local!==null&&(Array.isArray(local)?local.length>0:Object.keys(local||{}).length>0)){
-        console.log('[loadCloud] Subindo local→nuvem:',k);
-        fbSave(k); // sobe dados locais para a nuvem
+      // Só na 1ª carga da sessão — evita writes desnecessários em reloads de visibilitychange
+      if(isFirstLoad){
+        const local=lsLoad(k);
+        if(local!==null&&(Array.isArray(local)?local.length>0:Object.keys(local||{}).length>0)){
+          console.log('[loadCloud] Subindo local→nuvem:',k);
+          fbSave(k);
+        }
       }
     }
   });
@@ -2212,25 +2373,25 @@ async function showFbStatus(){
     if(FB_ERROR && (FB_ERROR.includes('permission') || FB_ERROR.includes('PERMISSION') || FB_ERROR.includes('Missing or insufficient'))){
       return {
         icon:'🔒', cor:'#D97706', bg:'#FFFBEB', borda:'#FDE68A',
-        titulo:'Erro de permissão no Firestore',
-        descricao:'O Firebase está conectado, mas as <strong>Regras de Segurança</strong> estão bloqueando a leitura/escrita. Isso é o erro mais comum.',
+        titulo:'Regras do Firestore bloqueando acesso',
+        descricao:'As regras de segurança exigem <strong>autenticação</strong>, mas o provedor Anônimo não está ativo. Escolha uma das soluções abaixo:',
         passos:[
-          'Acesse o <a href="https://console.firebase.google.com/project/rh-facilitacell/firestore/rules" target="_blank" style="color:#2563EB;font-weight:700">Firebase Console → Firestore → Rules</a>.',
-          'Substitua todo o conteúdo pelas regras abaixo e clique em <strong>Publicar</strong>.',
-          'Clique em <strong>Testar conexão</strong> aqui embaixo para confirmar.'
+          '<strong>Solução 1 — Recomendada (segura):</strong> Acesse <a href="https://console.firebase.google.com/project/rh-facilitacell/authentication/providers" target="_blank" style="color:#7C3AED;font-weight:700">Authentication → Sign-in method</a>, ative o provedor <strong>Anônimo</strong> e salve. O Atlas RH faz login automático — sem precisar alterar as regras.',
+          '<strong>Solução 2 — Simples (regras abertas):</strong> Acesse <a href="https://console.firebase.google.com/project/rh-facilitacell/firestore/rules" target="_blank" style="color:#2563EB;font-weight:700">Firestore → Rules</a>, substitua pelo código abaixo e clique em <strong>Publicar</strong>.',
+          'Após qualquer uma das soluções, recarregue a página (F5).'
         ],
-        extra: '<pre style="background:#1E293B;color:#E2E8F0;padding:10px;border-radius:8px;font-size:11px;overflow-x:auto;margin:0">rules_version = &quot;2&quot;;\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /{document=**} {\n      allow read, write: if true;\n    }\n  }\n}</pre>'
+        extra: '<div style="margin-top:6px"><div style="font-size:11px;color:#92400E;font-weight:700;margin-bottom:4px">Regras abertas (Solução 2):</div><pre style="background:#1E293B;color:#E2E8F0;padding:10px;border-radius:8px;font-size:11px;overflow-x:auto;margin:0">rules_version = &quot;2&quot;;\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /{document=**} {\n      allow read, write: if true;\n    }\n  }\n}</pre><div style="font-size:11px;color:#92400E;margin-top:4px">⚠ Regras abertas funcionam mas qualquer pessoa com o ID do projeto pode acessar os dados. Prefira a Solção 1.</div></div>'
       };
     }
     if(FB_ERROR && (FB_ERROR.includes('auth') || FB_ERROR.includes('unauthenticated') || FB_ERROR.includes('UNAUTHENTICATED'))){
       return {
         icon:'🔑', cor:'#7C3AED', bg:'#F5F3FF', borda:'#DDD6FE',
-        titulo:'Erro de autenticação',
-        descricao:'O Firebase está pedindo login mas a autenticação anônima não está ativa.',
+        titulo:'Autenticação anônima não habilitada',
+        descricao:'As regras do Firestore exigem login. O Atlas RH usa <strong>autenticação anônima automática</strong> — basta ativá-la no console.',
         passos:[
           'Acesse o <a href="https://console.firebase.google.com/project/rh-facilitacell/authentication/providers" target="_blank" style="color:#2563EB;font-weight:700">Firebase Console → Authentication → Sign-in method</a>.',
-          'Ative o provedor <strong>Anônimo</strong> e salve.',
-          'Recarregue a página do Atlas RH.'
+          'Localize <strong>Anônimo</strong> na lista de provedores e clique para <strong>ativar</strong>.',
+          'Salve e recarregue a página do Atlas RH (F5) — o sistema vai se autenticar automaticamente.'
         ]
       };
     }
@@ -2625,7 +2786,9 @@ function navigate(mod){
     document.getElementById('content').innerHTML='<div class="card" style="text-align:center;padding:40px"><div style="font-size:36px;margin-bottom:12px">⏳</div><div style="font-size:15px;font-weight:700;color:var(--mt)">Carregando cartão ponto...</div></div>';
     bioLoadData().then(()=>{
       // Sync imediato: garante que batidas do dia já estão em APP.pontos
-      _bioSyncAllPontosDoMes().catch((e)=>{ console.warn('[bioSync] Falha ao sincronizar pontos do mês:', e); toast('⚠ Sincronização do cartão ponto falhou. Dados podem estar desatualizados.','err'); }).finally(()=>{ // FIX-BUG3
+      // _bioSyncAllPontosDoMes: só roda se o listener não está ativo (file://)
+      // Quando o onSnapshot está ativo, o sync já é automático — chamar aqui gera writes duplicados
+      if(!BIO_REALTIME_UNSUB) _bioSyncAllPontosDoMes().catch((e)=>{ console.warn('[bioSync] Falha ao sincronizar pontos do mês:', e); }).finally(()=>{ // FIX-BUG3
         MOD='ponto';
         buildNav();
         // FIX-C1: try-catch — rPonto() pode lançar se dados biométricos estiverem incompletos
@@ -3950,6 +4113,9 @@ function rPonto(){
   const eid=emp?.id||'';
   if(!PONTO_STATE.empId&&eid){PONTO_STATE.empId=eid;}
   if(!eid)return '<div class="card" style="text-align:center;padding:40px"><p style="color:var(--mt)">Nenhum funcionário ativo cadastrado.<br><button class="btn btn-blue" style="margin-top:12px" onclick="navigate(&apos;funcionarios&apos;)">+ Cadastrar Funcionário</button></p></div>';
+  // Garante que mes/ano do PONTO_STATE estão definidos (troca de funcionário reseta)
+  if(PONTO_STATE.mes===undefined||PONTO_STATE.mes===null){PONTO_STATE.mes=new Date().getMonth();}
+  if(!PONTO_STATE.ano){PONTO_STATE.ano=new Date().getFullYear();}
 
   const hoje = new Date(); hoje.setHours(0,0,0,0);
   const admStr = emp?.dataAdmissao||'';
@@ -3982,22 +4148,41 @@ function rPonto(){
       else bioByDate[dt].outs.push(p.time);
     });
 
-  // ── Monta lista de meses desde admissão até hoje ──
-  const meses=[];
-  const c=new Date(dataInicio.getFullYear(), dataInicio.getMonth(), 1);
-  const fimMes=new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-  while(c<=fimMes){ meses.push({ano:c.getFullYear(),mes:c.getMonth()}); c.setMonth(c.getMonth()+1); }
+  // ── Monta lista de meses disponíveis (só para o seletor) ──
+  const _mesesDisp=[];
+  const _c=new Date(dataInicio.getFullYear(), dataInicio.getMonth(), 1);
+  const _fimMes=new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  while(_c<=_fimMes){ _mesesDisp.push({ano:_c.getFullYear(),mes:_c.getMonth()}); _c.setMonth(_c.getMonth()+1); }
 
-  // ── Acumuladores globais ──
-  let totalPres=0, totalFaltas=0, totalAtes=0, totalExtraMin=0, totalNegMin=0;
+  // ── Mês selecionado — troca NUNCA dispara save/Firebase ──
+  const _mesSel = _mesesDisp.find(m=>m.ano===PONTO_STATE.ano&&m.mes===PONTO_STATE.mes)
+    || _mesesDisp[_mesesDisp.length-1]
+    || {ano:hoje.getFullYear(), mes:hoje.getMonth()};
+  PONTO_STATE.mes = _mesSel.mes;
+  PONTO_STATE.ano = _mesSel.ano;
 
   const MESES_NOME=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  // HTML do seletor de mês
+  const _mesSelectOpts = _mesesDisp.slice().reverse().map(m=>{
+    const sel=(m.ano===_mesSel.ano&&m.mes===_mesSel.mes)?'selected':'';
+    return `<option value="${m.ano}-${m.mes}" ${sel}>${MESES_NOME[m.mes]} ${m.ano}</option>`;
+  }).join('');
+  const _mesSelectHtml = `<select id="ponto-mes-sel"
+    onchange="(function(){const[a,m]=this.value.split('-').map(Number);PONTO_STATE.ano=a;PONTO_STATE.mes=m;navigate('ponto')}).call(this)"
+    style="font-weight:700;font-size:13px;padding:5px 10px;border:1.5px solid #C9A84C;border-radius:8px;background:#FFFBEB;color:#78350F;cursor:pointer">
+    ${_mesSelectOpts}
+  </select>`;
+
+  // ── Acumuladores do mês selecionado ──
+  let totalPres=0, totalFaltas=0, totalAtes=0, totalExtraMin=0, totalNegMin=0;
+
   const DOW_LABELS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
   const STATUS_BORDER={normal:'#059669',falta:'#DC2626',atestado:'#D97706',folga:'#7C3AED',ferias:'#2563EB'};
   const STATUS_BG={normal:'#F0FDF4',falta:'#FEF2F2',atestado:'#FFFBEB',folga:'#F5F3FF',ferias:'#EFF6FF'};
 
-  // ── Renderiza grade de cada mês ──
-  let mesesHtml = meses.map(({ano,mes})=>{
+  // ── Renderiza APENAS o mês selecionado ──
+  let mesesHtml = [_mesSel].map(({ano,mes})=>{
     const k=`${eid}_${ano}_${mes}`;
     const pm=APP.pontos[k]||{};
     const nDias=new Date(ano,mes+1,0).getDate();
@@ -4124,18 +4309,17 @@ function rPonto(){
 
   return `
   <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
-    <select onchange="PONTO_STATE.empId=this.value;navigate('ponto')" style="font-weight:700;font-size:13px">
+    <select onchange="PONTO_STATE.empId=this.value;PONTO_STATE.mes=new Date().getMonth();PONTO_STATE.ano=new Date().getFullYear();navigate('ponto')" style="font-weight:700;font-size:13px">
       ${APP.employees.filter(e=>e.status==='ativo').map(e=>`<option value="${e.id}"${eid===e.id?' selected':''}>${esc(e.nome)}</option>`).join('')}
     </select>
+    ${_mesSelectHtml}
     <div style="font-size:12px;color:var(--mt);background:#F1F5F9;border-radius:8px;padding:5px 12px">
       📅 Admissão: <strong>${admFmt}</strong>
-    </div>
-    <div style="font-size:11px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:5px 12px;color:#059669;font-weight:700">
-      🔬 A partir de 01/06/2026 → preenchimento automático pelo biométrico
     </div>
     <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-sm" style="background:#7C3AED;color:#fff;font-weight:700" onclick="sincronizarTudo({empId:'${eid}',origem:'ponto'})">⚡ Sincronizar Tudo</button>
       <button class="btn btn-sm btn-ghost" onclick="navigate('biometrico')">🔬 Biométrico</button>
+    </div>
     </div>
   </div>
 
@@ -4182,8 +4366,8 @@ function rPonto(){
   <!-- P2 FIX: usa eid e mês/ano do mês mais recente renderizado; PONTO_STATE.mes/ano não é atualizado pelo seletor -->
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
     <button class="btn btn-sm" style="background:#F0FDF4;color:#059669;border:1px solid #BBF7D0" onclick="abrirImportacaoPontoLote()">📥 Importar Lote CSV</button>
-    ${eid?`<button class="btn btn-sm" style="background:#EFF6FF;color:#2563EB;border:1px solid #BFDBFE" onclick="verComparativoBioPonto('${eid}',${meses[meses.length-1]?.mes??new Date().getMonth()},${meses[meses.length-1]?.ano??new Date().getFullYear()})">🔬 Comparativo Biométrico</button>`:''}
-    ${eid?`<button class="btn btn-sm" style="background:#F5F3FF;color:#7C3AED;border:1px solid #DDD6FE" onclick="abrirEspelhoPontoComAssinatura('${eid}',${meses[meses.length-1]?.mes??new Date().getMonth()},${meses[meses.length-1]?.ano??new Date().getFullYear()})">📋 Espelho c/ Assinatura</button>`:''}
+    ${eid?`<button class="btn btn-sm" style="background:#EFF6FF;color:#2563EB;border:1px solid #BFDBFE" onclick="verComparativoBioPonto('${eid}',${_mesSel.mes},${_mesSel.ano})">🔬 Comparativo Biométrico</button>`:''}
+    ${eid?`<button class="btn btn-sm" style="background:#F5F3FF;color:#7C3AED;border:1px solid #DDD6FE" onclick="abrirEspelhoPontoComAssinatura('${eid}',${_mesSel.mes},${_mesSel.ano})">📋 Espelho c/ Assinatura</button>`:''}
     <span id="bio-offline-badge" style="display:none;align-items:center;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;cursor:pointer" onclick="BioOffline.flush()">📵 Offline</span>
   </div>
 
@@ -9642,8 +9826,13 @@ function punchOrigemBadge(p) {
   const fotoThumb = _fotoSrc
     ? `<a href="${p.fotoUrl || '#'}" ${p.fotoUrl ? 'target="_blank"' : 'onclick="return false"'} title="Ver foto do registro" style="display:inline-block;vertical-align:middle;margin-left:3px"><img src="${_fotoSrc}" style="width:22px;height:22px;border-radius:4px;object-fit:cover;border:1.5px solid #10B981;vertical-align:middle" onerror="this.style.display='none'"></a>`
     : '';
+  // Indicador de edição pelo RH (sem trocar o badge de origem)
+  const editadoTag = (p.editadoRH && o !== 'rh_manual')
+    ? `<span title="Horário ajustado pelo RH" style="font-size:8px;color:#94A3B8;margin-left:2px">✏</span>`
+    : '';
   let badge = '';
-  if (o === 'rh_manual' || p.editadoRH) {
+  // Origem determina o badge — editadoRH sozinho NÃO troca a origem (só adiciona o ✏ tag)
+  if (o === 'rh_manual') {
     badge = `<span style="background:#EFF6FF;color:#2563EB;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;white-space:nowrap">✏️ RH</span>`;
   } else if (o === 'portal_funcionario') {
     if (m === 'manual_sem_biometria') {
@@ -9653,8 +9842,11 @@ function punchOrigemBadge(p) {
     }
   } else if (o === 'portal_biometrico') {
     badge = `<span style="background:#F0FDF4;color:#059669;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;white-space:nowrap">🔬 Bio ✓</span>`;
+  } else if (!o && p.editadoRH) {
+    // Sem origem definida e editadoRH=true → foi criado pelo RH
+    badge = `<span style="background:#EFF6FF;color:#2563EB;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;white-space:nowrap">✏️ RH</span>`;
   }
-  return badge + fotoThumb;
+  return badge + editadoTag + fotoThumb;
 }
 
 // BUG-M2 FIX: cache de memoização para bioCalc
@@ -9718,9 +9910,23 @@ async function bioLoadData() {
     BIO_DATA.punches     = pSnap.docs.map(d=>d.data()).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
     BIO_DATA.adjustments = aSnap.docs.map(d=>d.data()).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
     BIO_DATA.bioUsers    = uSnap.docs.map(d=>d.data());
+    // Persiste bioUsers no localStorage como cache de segurança
+    try{ localStorage.setItem('fcrh_bio_users', JSON.stringify(BIO_DATA.bioUsers)); }catch(_){}
+    console.log('[bioLoadData] ✅ '+BIO_DATA.bioUsers.length+' colaboradores biométricos carregados');
   } catch(e){
-    console.warn('bioLoadData:', e);
-    if(MOD==='biometrico') toast('⚠ Erro ao carregar dados biométricos: '+e.message,'err');
+    console.warn('[bioLoadData] Erro Firebase:', e.code || e.message);
+    // FIX: nunca zera bioUsers — restaura do cache localStorage se disponível
+    const cached = localStorage.getItem('fcrh_bio_users');
+    if(cached){
+      try{
+        const parsed = JSON.parse(cached);
+        if(Array.isArray(parsed) && parsed.length > 0){
+          BIO_DATA.bioUsers = parsed;
+          console.log('[bioLoadData] ✅ Restaurado do cache local: '+parsed.length+' colaboradores biométricos');
+        }
+      }catch(_){}
+    }
+    if(MOD==='biometrico') toast('⚠ Erro ao carregar biométrico da nuvem — usando cache local.','warn');
   }
   // Reinicia listener em tempo real DEPOIS dos dados carregados — mês correto garantido
   bioStartRealtimeListener();
@@ -9980,6 +10186,9 @@ async function bioSyncToPonto(){
 // Chamado imediatamente após salvar no portal do colaborador ou biométrico.
 // ── Sincroniza TODAS as batidas do mês atual do Firebase → APP.pontos ──
 // Chamado uma vez ao conectar e toda vez que o polling detectar novidades.
+// Debounce: evita múltiplas execuções simultâneas (boot + polling + listener)
+let _bioSyncDebounceTimer = null;
+let _bioSyncPending = null;
 async function _bioSyncAllPontosDoMes(monthKey){
   if(!FBASE||!APP.employees||APP.employees.length===0)return;
   // Usa o mês explicitamente passado; fallback para BIO_ANO/BIO_MES quando disponíveis,
@@ -10026,7 +10235,7 @@ async function _bioSyncAllPontosDoMes(monthKey){
       if(!APP.pontos[k][d].status||APP.pontos[k][d].status==='normal')
         APP.pontos[k][d].status=todasDoDia.length>0?'normal':'';
     });
-    save('pontos');
+    save('pontos'); // debounced 8s — múltiplas chamadas viram 1 write
     console.log('[bioSync] Sync completo — '+punches.length+' batidas do mês '+month+' → APP.pontos');
   }catch(e){console.warn('[_bioSyncAllPontosDoMes]',e);}
 }
@@ -10092,6 +10301,8 @@ function bioAplicarBatidaLocal(punch){
 // Solução: bioStartPolling() verifica o store do IntervalManager, não a var local.
 let _bioPollInterval=null;
 let _bioLastPollMs=0;
+let _bioQuotaEsgotada=false; // flag global: para o polling quando Firestore esgota cota
+let _bioQuotaRetryAt=0;      // timestamp para tentar de novo (1h depois)
 function bioStartPolling(){
   // FIX F3b: clearScreen() agora reseta _bioPollInterval=null automaticamente,
   // então este guard só bloqueia se o intervalo está genuinamente ativo.
@@ -10099,6 +10310,11 @@ function bioStartPolling(){
   const POLL_MS=30000; // 30 segundos
   async function _poll(){
     if(!FBASE)return;
+    // Se cota esgotada, pausa por 1h antes de tentar de novo
+    if(_bioQuotaEsgotada){
+      if(Date.now()<_bioQuotaRetryAt)return;
+      _bioQuotaEsgotada=false; // tenta de novo após 1h
+    }
     const now=Date.now();
     if(now-_bioLastPollMs<POLL_MS-1000)return;
     _bioLastPollMs=now;
@@ -10121,7 +10337,7 @@ function bioStartPolling(){
       });
       if(hasNew){
         _bioCalcCacheClear();
-        // Sincroniza o mês visualizado e, se diferente, o mês atual também
+        // Sincroniza apenas quando há batidas novas — evita save desnecessário a cada poll
         await _bioSyncAllPontosDoMes(monthVis);
         if(monthVis!==monthAtual) await _bioSyncAllPontosDoMes(monthAtual);
         // NÃO faz navigate se modal estiver aberto — evita fechar modal e reverter edições do usuário
@@ -10131,7 +10347,22 @@ function bioStartPolling(){
         }
         console.log('[Bio Polling] Sincronizado — '+fresh.length+' batidas ('+mesesParaBuscar.join(', ')+')');
       }
-    }catch(e){console.warn('[Bio Polling] Erro:',e);}
+    }catch(e){
+      if(e?.code==='resource-exhausted'||e?.message?.includes('Quota exceeded')||e?.message?.includes('resource-exhausted')){
+        _bioQuotaEsgotada=true;
+        _bioQuotaRetryAt=Date.now()+60*60*1000; // tenta de novo em 1h
+        console.warn('[Bio Polling] ⚠ Cota do Firestore esgotada — polling pausado por 1h.');
+        if(!document.getElementById('_quotaBanner')){
+          const b=document.createElement('div');
+          b.id='_quotaBanner';
+          b.style.cssText='position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:#FEF2F2;color:#991B1B;border:1.5px solid #FECACA;border-radius:10px;padding:10px 18px;font-size:12px;font-weight:700;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.12);display:flex;align-items:center;gap:10px';
+          b.innerHTML='⚠️ Cota diária do Firebase esgotada. Dados salvos localmente. Sincronização retoma amanhã. <span style="cursor:pointer;font-size:16px" onclick="this.parentNode.remove()">×</span>';
+          document.body.appendChild(b);
+        }
+      } else {
+        console.warn('[Bio Polling] Erro:',e);
+      }
+    }
   }
   _poll(); // executa imediatamente
   _bioPollInterval = IntervalManager.register('bioPoll', _poll, POLL_MS);
@@ -10141,6 +10372,10 @@ function bioStartPolling(){
 // ── Listener em tempo real: aplica batida no APP.pontos automaticamente ──
 let BIO_REALTIME_UNSUB      = null; // listener bio_punches
 let BIO_REALTIME_UNSUB_JUST = null; // listener bio_justificativas
+// FLAG: bloqueia saves do listener durante a carga inicial (primeiros 12s)
+// O onSnapshot dispara 'added' para TODOS os docs na 1ª carga — sem isso,
+// cada batida existente no mês gera 1 save individual = dezenas de writes no boot
+let _bioListenerSilenceUntil = Date.now() + 12000;
 function bioStartRealtimeListener(){
   if(!FBASE)return;
   // Em file:// o WebChannel está bloqueado — usa polling automático a cada 30s
@@ -10218,7 +10453,10 @@ function bioStartRealtimeListener(){
             }
 
             // 5. Salva e re-renderiza a tela ativa
-            save('pontos');
+            // Ignora saves durante carga inicial (flag _bioListenerSilenceUntil)
+            // para evitar dezenas de writes simultâneos quando onSnapshot dispara
+            // 'added' para todos os docs existentes no primeiro carregamento
+            if(Date.now() > _bioListenerSilenceUntil) save('pontos');
             // Notifica sincronização automática
             const _tipoMsg=p.type==='in'?'entrada':'saída';
             const _horaBatida=p.time||'—';
@@ -10232,6 +10470,8 @@ function bioStartRealtimeListener(){
 
             // 6. Atualiza Banco de Horas automaticamente a partir de 18/05/2026
             try{
+              // FIX-BUG4: v19 patch ativo = ele cuida do BH; sem dupla contagem
+              if(typeof window.bhSyncPatchV19!=='function'){
               const _mesKeyBH=p.date?p.date.slice(0,7):'';
               if(_mesKeyBH>='2026-05'){
                 const _TAG=`[biometrico-${_mesKeyBH}]`;
@@ -10278,10 +10518,11 @@ function bioStartRealtimeListener(){
                       criadoEm:new Date().toISOString(),
                       _syncAuto:true
                     });
-                    save('bancohoras');
+                    if(Date.now() > _bioListenerSilenceUntil) save('bancohoras');
                   }
                 }
               }
+              } // fecha if(typeof window.bhSyncPatchV19!=='function')
             }catch(_bhErr){console.warn('[BH auto-sync]',_bhErr);}
           }
         });
@@ -10726,6 +10967,10 @@ function rBioHoje(){
   const empStatus=empNames.map(name=>{
     const ps=todayPunches.filter(p=>p.empName===name).sort((a,b)=>a.time.localeCompare(b.time));
     const psCorrigidos=fixPunchTypes(ps);
+    // Resolve empId e fotoPerfil pelo nome (para avatar com foto do cadastro)
+    const _empRec=APP.employees.find(e=>(e.nome||'').trim().toLowerCase()===name.trim().toLowerCase())||(APP.employees.find(e=>(e.nome||'').toLowerCase().includes(name.split(' ')[0].toLowerCase())));
+    const empId=_empRec?.id||('bio'+name);
+    const fotoPerfil=_empRec?.fotoPerfil||null;
     const last=psCorrigidos[psCorrigidos.length-1];
     const adj=BIO_DATA.adjustments.find(a=>a.empName===name&&a.date===today);
     let statusCalc=psCorrigidos.length===0?'absent':last.type==='in'?'in':'out';
@@ -10740,7 +10985,7 @@ function rBioHoje(){
       if(minutosDesdeUltimaBatida>180 && nowMin>=(17*60+50)) statusCalc='out';
     }
     let status=adj?'adj':statusCalc;
-    return{name,ps:psCorrigidos,last,status,adj};
+    return{name,ps:psCorrigidos,last,status,adj,empId,fotoPerfil};
   });
   const present=empStatus.filter(e=>e.status==='in').length;
   const saiu=empStatus.filter(e=>e.status==='out').length;
@@ -10757,9 +11002,11 @@ function rBioHoje(){
   <div class="card" style="padding:0;overflow:hidden">
     <div style="padding:12px 16px;font-size:13px;font-weight:700;border-bottom:1px solid var(--border)">Status em tempo real</div>
     ${empStatus.length===0?'<div style="padding:30px;text-align:center;color:var(--mt)">Nenhum colaborador cadastrado no sistema biométrico</div>':
-    empStatus.map(({name,ps,status,adj})=>`
+    empStatus.map(({name,ps,status,adj,empId,fotoPerfil})=>`
     <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border)">
-      ${av(name,'bio'+name)}
+      ${fotoPerfil
+        ? `<div style="width:38px;height:38px;border-radius:50%;background:url('${fotoPerfil}') center/cover no-repeat;border:2px solid #E2E8F0;flex-shrink:0"></div>`
+        : av(name,empId,38)}
       <div style="flex:1;min-width:0">
         <div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(name)}</div>
         <div style="font-size:11px;color:var(--mt)">${ps.map(p=>`${p.type==='in'?'▶':'■'} ${p.time} ${punchOrigemBadge(p)}`).join('&nbsp;&nbsp;')||'Sem registro hoje'}</div>
@@ -10931,9 +11178,8 @@ async function bioDeletePunchHoje(punchId){
 async function bioSalvarEdicaoHoje(){
   if(!FBASE){toast('Firebase não conectado.','err');return;}
   // Garante que o RH está autenticado no Firebase antes de tentar salvar.
-  // Em file:// o signInAnonymously falha no login — tenta novamente aqui.
   try{
-    const _fbAuth = typeof firebase!=='undefined' ? firebase.auth(firebase.apps?.[0]) : null;
+    const _fbAuth = typeof firebase!=='undefined' && typeof firebase.auth==='function' ? firebase.auth() : null;
     if(_fbAuth && !_fbAuth.currentUser){
       await _fbAuth.signInAnonymously();
       console.log('[bioSalvarEdicaoHoje] Auth anônimo refeito antes de salvar.');
@@ -10979,13 +11225,21 @@ async function bioSalvarEdicaoHoje(){
     const resultados = await Promise.allSettled(batch);
     const erros = resultados.filter(r=>r.status==='rejected');
     if(erros.length>0){
+      const primeiroErro = erros[0].reason;
+      const isQuota = primeiroErro?.code==='resource-exhausted'
+        || (primeiroErro?.message||''). includes('Quota exceeded')
+        || (primeiroErro?.message||''). includes('resource-exhausted');
       console.error('[bioSalvarEdicaoHoje] Erros ao salvar:', erros.map(e=>e.reason?.message||e.reason));
-      // Se TODOS falharam, mostra erro claro
+      if(isQuota){
+        _bioQuotaEsgotada=true;
+        _bioQuotaRetryAt=Date.now()+60*60*1000;
+        toast('⚠️ Cota Firebase esgotada. Ponto salvo localmente — sincroniza amanhã.','warn',6000);
+        closeModal(); navigate('biometrico'); return;
+      }
       if(erros.length===batch.length){
-        toast('❌ Erro ao salvar: '+( erros[0].reason?.message||'Permissão negada. Verifique as regras do Firestore.'),'err');
+        toast('❌ Erro ao salvar: '+(primeiroErro?.message||'Permissão negada. Verifique as regras do Firestore.'),'err');
         return;
       }
-      // Se só alguns falharam, avisa mas fecha
       toast(`⚠️ Salvo com ${erros.length} erro(s). Verifique o console.`,'warn');
     } else {
       toast('✅ Ponto salvo com sucesso!');
@@ -10994,8 +11248,15 @@ async function bioSalvarEdicaoHoje(){
     await bioLoadData();
     navigate('biometrico');
   }catch(e){
-    console.error('[bioSalvarEdicaoHoje]', e);
-    toast('❌ Erro ao salvar: '+e.message,'err');
+    const isQuota=e?.code==='resource-exhausted'||(e?.message||''). includes('Quota exceeded')||(e?.message||''). includes('resource-exhausted');
+    if(isQuota){
+      _bioQuotaEsgotada=true; _bioQuotaRetryAt=Date.now()+60*60*1000;
+      toast('⚠️ Cota Firebase esgotada. Ponto salvo localmente — sincroniza amanhã.','warn',6000);
+      closeModal(); navigate('biometrico');
+    } else {
+      console.error('[bioSalvarEdicaoHoje]', e);
+      toast('❌ Erro ao salvar: '+e.message,'err');
+    }
   }
 }
 
@@ -12434,17 +12695,24 @@ async function bioAprovarJustificativa(id,tipo,date,empId,empNome){
       const novoAtestado={
         id:id+'_ates',empId,empNome:empNome||emp?.nome||'',
         data:date,tipo:tipo==='atestado'?'atestado_medico':'saida_antecipada',
-        diasAfastamento:j?.dias||j?.diasAfastamento||1,cid:j?.cid||'',medico:j?.medico||'',crm:j?.crm||'',
+        dias:j?.dias||j?.diasAfastamento||1,diasAfastamento:j?.dias||j?.diasAfastamento||1,cid:j?.cid||'',medico:j?.medico||'',crm:j?.crm||'',
         obs:(j?.obs||j?.descricao||'')+'  Registrado automaticamente via justificativa aprovada no portal.',
         arquivoId:fotoBase?fid:'',arquivoNome:fotoBase?fname:'',arquivoType:fotoBase?ftype:'',
         arquivoBase64:fotoBase||'',
         criadoEm:new Date().toISOString(),origemPortal:true
       };
       // Evitar duplicata
+      // Deduplicação: verifica memória E Firestore (evita duplicata entre sessões)
       const jaExiste=APP.atestados.find(a=>a.id===novoAtestado.id);
       if(!jaExiste){
         APP.atestados.push(novoAtestado);
         save('atestados');
+        // Persiste no Firestore para deduplicação entre sessões
+        if(FBASE){
+          try{
+            await FBASE.collection('atestados').doc(novoAtestado.id).set(novoAtestado);
+          }catch(fsErr){console.warn('[bioAprovar] atestados Firestore:',fsErr);}
+        }
         toast('✅ Justificativa aprovada + registrada em Atestados!','ok',4500);
       } else {
         toast('✅ Justificativa aprovada! (atestado já existia)','ok');
@@ -13153,7 +13421,7 @@ td,th{font-size:15px!important;}
     <input type="hidden" id="binIdInput" />
     <div id="reconectMsg" style="display:none;margin-top:8px;padding:9px 12px;border-radius:7px;font-size:12px;line-height:1.6"></div>
     <div class="err-box" id="setupErr" style="margin-top:10px">Erro de conexão. Verifique as regras e tente novamente.</div>
-    <a href="https://console.firebase.google.com/project/facilitacell/database/facilitacell-default-rtdb/rules" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px;background:#e65100;border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;margin-top:12px;font-family:inherit">🔗 Abrir Firebase Rules direto</a>
+    <a href="https://console.firebase.google.com/project/rh-facilitacell/firestore/rules" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px;background:#e65100;border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;margin-top:12px;font-family:inherit">🔗 Abrir Firestore Rules direto</a>
     <button class="btn btn-outline" onclick="closeSetup()" style="width:100%;margin-top:10px;justify-content:center;padding:11px;font-size:14px;font-weight:600;border-radius:9px">Usar dados locais (sem nuvem)</button>
     <p style="font-size:11px;color:#aab;text-align:center;margin-top:10px">Dados locais ficam apenas neste dispositivo.</p>
   </div>
@@ -13935,22 +14203,26 @@ td,th{font-size:15px!important;}
 
 <script>
 // ════════════════════════════════════════════════════
-// FIREBASE — DUAL DATABASE CONFIG (v7)
-// Banco 1: Firestore (rh-facilitacell) — dados de RH, funcionários, holerite, etc.
-// Banco 2: Realtime Database (facilitacell-default-rtdb) — ponto biométrico em tempo real
+// FIREBASE — CONFIG (v8 — Firestore only)
+// Banco único: Firestore (rh-facilitacell) — todos os dados do sistema
+// Realtime Database removido — tudo unificado no Firestore
 // ════════════════════════════════════════════════════
 var FB_CONFIG = {
   apiKey:            'AIzaSyAucORaywW7Dl-v1PB-lMtEA-5tl_uCqug',
   projectId:         'rh-facilitacell',
   storageBucket:     'rh-facilitacell.firebasestorage.app',
   messagingSenderId: '98798741381',
-  appId:             '1:98798741381:web:f441b922d1c968880a46ec',
-  // Realtime Database URL para o 2º banco (ponto biométrico)
-  databaseURL:       'https://facilitacell-default-rtdb.firebaseio.com'
+  appId:             '1:98798741381:web:f441b922d1c968880a46ec'
 };
 if(window.location.protocol !== 'file:'){
   FB_CONFIG.authDomain = 'rh-facilitacell.firebaseapp.com';
 }
+
+
+
+
+
+
 
 // Carrega script dinamicamente (com deduplicação)
 function loadScript(src){
@@ -14014,35 +14286,37 @@ async function connectFirebase(){
     }
   }
   try{
-    // Remove instância anterior do HR para evitar erro "already initialized"
-    if(firebase.apps && firebase.apps.length){
-      const hrApp=firebase.apps.find(a=>a.name==='[DEFAULT]');
-      if(hrApp) await hrApp.delete().catch(()=>{});
-    }
+    // Reutiliza instância existente se já inicializada — evita "already started"
+    let app = firebase.apps && firebase.apps.find(a=>a.name==='[DEFAULT]');
+    const _jaExistia = !!app;
+    if(!app) app = firebase.initializeApp(FB_CONFIG);
+    if(!FBASE) FBASE = firebase.firestore(app);
 
-    // 1. Inicializa o app
-    const app = firebase.initializeApp(FB_CONFIG);
-    FBASE = firebase.firestore(app);
-
-    // ── BANCO 2: Realtime Database — ponto biométrico em tempo real ──
-    // Usa o mesmo app mas instância separada do RTDB
-    try{
-      if(window.location.protocol !== 'file:' && FB_CONFIG.databaseURL){
-        window.FBASE_RTDB = firebase.database(app);
-        console.log('[Firebase] ✅ Realtime Database conectado:', FB_CONFIG.databaseURL);
+    // AUTH ANÔNIMO — obrigatório para regras do Firestore (bio, chat, hr)
+    try {
+      const _auth = firebase.auth(app);
+      if (!_auth.currentUser) {
+        await _auth.signInAnonymously();
+        console.log('[Firebase] ✅ Auth anônimo OK — uid:', _auth.currentUser?.uid);
       } else {
-        console.log('[Firebase] ⚠ Realtime Database desabilitado (file:// ou sem databaseURL)');
+        console.log('[Firebase] ✅ Auth já ativo — uid:', _auth.currentUser.uid);
       }
-    }catch(rtdbErr){
-      console.warn('[Firebase] RTDB init erro (não crítico):', rtdbErr.message);
+    } catch(authErr) {
+      console.warn('[Firebase] Auth anônimo falhou:', authErr.code, authErr.message);
     }
 
-    // 2. settings com cache persistente (API moderna — evita warning de deprecação)
-    FBASE.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED, merge: true });
+    // settings só pode ser chamado ANTES do primeiro uso — pula se já existia
+    if(!_jaExistia){
+      try{
+        FBASE.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED, merge: true });
+      }catch(se){
+        if(!se.message||!se.message.includes('already been started')) console.warn('[Firebase] settings erro:',se.message);
+      }
+    }
 
-    // 3. enablePersistence — desabilitada em file:// (cria workers/iframes)
+    // 3. enablePersistence — só na primeira inicialização e fora de file://
     var _isFileProto = window.location.protocol === 'file:';
-    if(!_isFileProto){
+    if(!_isFileProto && !_jaExistia){
       try{
         await FBASE.enablePersistence({ synchronizeTabs: false });
         console.log('[Firebase] ✅ Persistência offline ativa (single-tab)');
@@ -14059,6 +14333,9 @@ async function connectFirebase(){
 
     updateFbUI('connecting');
     console.log('[Firebase] ✅ Inicializado — projeto:', FB_CONFIG.projectId);
+
+
+
     // Garante que 'contratos' existe no Firebase (fix 15/16)
     setTimeout(async()=>{
       try{
@@ -14187,7 +14464,11 @@ function enviarLinkWpp(empId){
 // Recalcula o BH do mês atual automaticamente ao iniciar o sistema,
 // sem precisar de intervenção manual (sem modal, sem toast excessivo).
 // Chamado após loadCloud() para garantir que pontos estão carregados.
+// Controle: roda no máximo 1x por sessão (não a cada visibilitychange/reconexão)
+let _autoSyncBHFeito = false;
 function _autoSyncBHSilencioso(){
+  if(_autoSyncBHFeito){ console.log('[AutoSyncBH] Já rodou nesta sessão — pulando'); return; }
+  _autoSyncBHFeito = true;
   try{
     const hoje=new Date();
     const ano=hoje.getFullYear();
@@ -14347,7 +14628,7 @@ async function initApp(){
         // mesmo sem permissão de escrita, o cache offline pode conter dados úteis
       }
       // Carrega dados da nuvem
-      try{ await loadCloud(); }catch(e){ console.error('[loadCloud] erro:',e); toast('⚠ Erro ao carregar nuvem: '+e.message,'err'); }
+      try{ await loadCloud(); _lastLoadCloudTs = Date.now(); }catch(e){ console.error('[loadCloud] erro:',e); toast('⚠ Erro ao carregar nuvem: '+e.message,'err'); }
       // Auto-sync silencioso do Banco de Horas após carregar dados — recalcula mês atual
       // sem precisar de intervenção manual do RH
       try{ _autoSyncBHSilencioso(); }catch(e){ console.warn('[AutoSyncBH] erro:',e); }
@@ -14377,8 +14658,8 @@ async function initApp(){
         const q=window._bioPunchQueue.splice(0);
         q.forEach(p=>{try{bioAplicarBatidaLocal(p);}catch(_){} });
       }
-      // Garante sync imediato dos pontos já no Firebase → APP.pontos
-      try{ _bioSyncAllPontosDoMes(); }catch(_){}
+      // _bioSyncAllPontosDoMes removido daqui — bioLoadData() já faz o sync completo
+      // Chamar os dois em sequência gera save('pontos') duplicado no boot
       // BUG-13 FIX: dispara todos os callbacks registrados em _firebaseReadyCallbacks
       if(Array.isArray(window._firebaseReadyCallbacks)){
         window._firebaseReadyCallbacks.forEach(function(cb){ try{ cb(); }catch(e){ console.warn('[firebaseReady cb]',e); } });
@@ -14393,14 +14674,14 @@ async function initApp(){
 
   // Timeout de segurança — se Firebase travar, remove banner e segue após 12s
   const timeoutPromise = new Promise(resolve=>setTimeout(()=>{
-    console.warn('[initApp] Timeout Firebase de 12s atingido — sistema já aberto normalmente.');
+    console.warn('[initApp] Timeout Firebase de 25s atingido — sistema já aberto normalmente.');
     if(window._fbSyncBanner){
       window._fbSyncBanner.style.background='#92400E';
       window._fbSyncBanner.innerHTML='⚠ Sem resposta da nuvem — modo local ativo';
       setTimeout(()=>{if(window._fbSyncBanner&&window._fbSyncBanner.parentNode)window._fbSyncBanner.parentNode.removeChild(window._fbSyncBanner);window._fbSyncBanner=null;},3000);
     }
     resolve();
-  },12000));
+  },25000));
 
   // ── Supabase: inicia em paralelo com Firebase (não bloqueia UI) ──
   _sbUpdateUI('loading');
@@ -14428,17 +14709,33 @@ window.addEventListener('beforeunload', function(e){
 // Recarrega dados quando a aba volta ao foco (ex: abriu em outro navegador e voltou)
 // Aguarda 3s para garantir que fbSave pendente já foi concluído antes de sobrescrever
 let _visibilityReloadTid = null;
+let _lastLoadCloudTs = 0;
+const _LOAD_CLOUD_MIN_INTERVAL = 5 * 60 * 1000; // 5 minutos entre reloads por visibilitychange
 document.addEventListener('visibilitychange',function(){
   if(document.visibilityState==='visible'&&FBASE){
     clearTimeout(_visibilityReloadTid);
     _visibilityReloadTid = setTimeout(function(){
-      if(FB_SAVING) return; // save ainda em andamento, não sobrescreve
+      if(FB_SAVING) return;
+      const agora = Date.now();
+      if(agora - _lastLoadCloudTs < _LOAD_CLOUD_MIN_INTERVAL) return; // muito cedo — ignora
       loadCloud().then(()=>{
+        _lastLoadCloudTs = Date.now();
         try{ navigate(MOD); }catch(e){}
       }).catch(()=>{});
     }, 3000);
   }
 });
+
+// Sync periódico a cada 5 minutos (enquanto visível e Firebase conectado)
+setInterval(function(){
+  if(!FBASE||FB_SAVING||document.visibilityState!=='visible') return;
+  const agora = Date.now();
+  if(agora - _lastLoadCloudTs < _LOAD_CLOUD_MIN_INTERVAL) return;
+  loadCloud().then(()=>{
+    _lastLoadCloudTs = Date.now();
+    try{ navigate(MOD); }catch(e){}
+  }).catch(()=>{});
+}, 5 * 60 * 1000);
 
 // ════════════════════════════════════════════════════
 // MÓDULO: ADVERTÊNCIAS E SUSPENSÕES
@@ -15923,7 +16220,7 @@ async function forceSaveBH(){
   if(btn){ btn.disabled=true; btn.textContent='⏳ Salvando...'; }
   try{
     // Tenta auth anônimo antes de salvar
-    const _fbA = typeof firebase!=='undefined' ? firebase.auth(firebase.apps?.[0]) : null;
+    const _fbA = typeof firebase!=='undefined' && typeof firebase.auth==='function' ? firebase.auth() : null;
     if(_fbA && !_fbA.currentUser){
       await _fbA.signInAnonymously();
     }
@@ -16145,7 +16442,7 @@ async function saveBH(){
   lsSave('bancohoras');
   // Tenta garantir auth antes de salvar na nuvem
   try{
-    const _fbA=typeof firebase!=='undefined'?firebase.auth(firebase.apps?.[0]):null;
+    const _fbA=typeof firebase!=='undefined'&&typeof firebase.auth==='function'?firebase.auth():null;
     if(_fbA&&!_fbA.currentUser) await _fbA.signInAnonymously();
   }catch(_){}
   save('bancohoras');
@@ -16200,7 +16497,7 @@ async function saveEditBH(empId, id){
   lsSave('bancohoras');
   // Tenta auth antes de salvar na nuvem
   try{
-    const _fbA=typeof firebase!=='undefined'?firebase.auth(firebase.apps?.[0]):null;
+    const _fbA=typeof firebase!=='undefined'&&typeof firebase.auth==='function'?firebase.auth():null;
     if(_fbA&&!_fbA.currentUser) await _fbA.signInAnonymously();
   }catch(_){}
   save('bancohoras');
@@ -16980,7 +17277,6 @@ function normStr(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0
 // Chave protegida — não editável diretamente
 // ★★★ FIREBASE — banco de dados Google, gratuito e confiável ★★★
 // Firebase Realtime DB — desabilitado em file:// para evitar ERR_NAME_NOT_RESOLVED
-const FB_URL = window.location.protocol === 'file:' ? null : 'https://facilitacell-default-rtdb.firebaseio.com';
 let JB_ACTIVE = false;
 
 // ★★★ 18 CANDIDATOS FIXADOS — aparecem em QUALQUER dispositivo, sem internet ★★★
@@ -17037,53 +17333,26 @@ function setDb(state,text){
   }
 }
 
-// -------- FIREBASE --------
+// -------- FIREBASE (Firestore) --------
 async function jbLoad(){
-  if(!FB_URL){ setDb('error','Firebase Realtime DB desabilitado em arquivo local.'); carregarCandidatosFixos(); return false; }
+  if(!FBASE){ setDb('error','Firestore não disponível.'); carregarCandidatosFixos(); return false; }
   setDb('syncing', 'Conectando Firebase...');
   try {
-    // Timeout de 9s para não travar indefinidamente
-    const r = await fetch(FB_URL + '/candidatos.json', {
-      signal: AbortSignal.timeout ? AbortSignal.timeout(9000) : (() => { const c=new AbortController(); setTimeout(()=>c.abort(),9000); return c.signal; })()
-    });
-    // Regras do Firebase bloqueando (403/401)
-    if (r.status === 401 || r.status === 403) {
-      const body = await r.json().catch(()=>({}));
-      setDb('error', '🔒 Firebase: permissão negada — abra o sistema pelo Netlify e corrija as Rules');
-      carregarCandidatosFixos();
-      return false;
-    }
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const data = await r.json();
-    // Firebase retorna {"error":"..."} quando rules bloqueiam
-    if (data && data.error) {
-      setDb('error', '🔒 Firebase bloqueado: ' + data.error);
-      carregarCandidatosFixos();
-      return false;
-    }
-    const remotos = Array.isArray(data) ? data : (data && typeof data==='object' ? Object.values(data).filter(x=>x&&x.id) : []);
+    const snap = await FBASE.collection('candidatos').get();
+    const remotos = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(x => x && x.id);
     candidates = _mergeCandidatos(remotos);
-    // BUG-21 FIX: mantém APP.candidates sincronizado com window.REC_candidates
-    // Antes: o módulo de recrutamento atualizava apenas a var local `candidates`
-    // (alias de window.REC_candidates), nunca refletindo em APP.candidates.
-    // Agora: após cada load do Firebase, APP.candidates recebe a mesma lista,
-    // eliminando a dessincronização entre os dois storages.
     APP.candidates = candidates.slice();
     saveLocal();
     renderAll();
     setDb('online', '☁️ Firebase • online');
     JB_ACTIVE = true;
-    // Fecha setup overlay se estiver aberto (conexão automática ao iniciar)
     const overlay = document.getElementById('setupOverlay');
     if(overlay && overlay.classList.contains('show')) closeSetup();
     return true;
   } catch(e) {
     const isLocal = location.protocol === 'file:';
-    const isTimeout = e.name === 'AbortError' || e.name === 'TimeoutError';
     if (isLocal) {
       setDb('error', '🚫 Abra pelo Netlify — não como arquivo local');
-    } else if (isTimeout) {
-      setDb('error', '⏱️ Firebase sem resposta — verifique internet');
     } else {
       setDb('error', '⚠️ Sem nuvem — dados locais ativos');
     }
@@ -17095,21 +17364,16 @@ async function jbLoad(){
 
 async function jbSave(){
   saveLocal(); // salva local SEMPRE — nunca perde dados
-  if (!JB_ACTIVE || !FB_URL) return;
+  if (!JB_ACTIVE || !FBASE) return;
   try {
-    const resp = await fetch(FB_URL + '/candidatos.json', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(candidates),
-      signal: AbortSignal.timeout ? AbortSignal.timeout(10000) : (() => { const c=new AbortController(); setTimeout(()=>c.abort(),10000); return c.signal; })()
+    const batch = FBASE.batch();
+    candidates.forEach(c => {
+      const ref = FBASE.collection('candidatos').doc(c.id);
+      batch.set(ref, c);
     });
-    if (resp.status === 401 || resp.status === 403) {
-      setDb('error', '🔒 Firebase: sem permissão para salvar');
-      JB_ACTIVE = false;
-      return;
-    }
-    if (resp.ok) { setDb('online', '☁️ Firebase • online'); JB_ACTIVE = true; }
-    else { setDb('error', '⚠️ Erro ao salvar (HTTP ' + resp.status + ')'); }
+    await batch.commit();
+    setDb('online', '☁️ Firebase • online');
+    JB_ACTIVE = true;
   } catch(e) {
     console.error('[Firebase] Erro ao salvar:', e);
     setDb('error', '⚠️ Offline — salvo localmente');
@@ -17167,7 +17431,7 @@ async function testarFirebase(){
 
   // ETAPA 1 — Verifica internet geral
   try {
-    await fetch('https://www.google.com/generate_204', { mode:'no-cors', signal: AbortSignal.timeout ? AbortSignal.timeout(4000) : (() => { const c=new AbortController(); setTimeout(()=>c.abort(),4000); return c.signal; })() });
+    await fetch('https://www.google.com/generate_204', { mode:'no-cors', signal: (() => { const c=new AbortController(); setTimeout(()=>c.abort(),4000); return c.signal; })() });
   } catch(e) {
     setMsg('#fde8e8','#c0392b','❌ <strong>Sem conexão com a internet.</strong><br>Verifique seu Wi-Fi ou cabo de rede e tente novamente.');
     setDb('error','❌ Sem internet');
@@ -17186,52 +17450,28 @@ async function testarFirebase(){
     return false;
   }
 
-  // ETAPA 3 — Testa Firebase diretamente
-  let r, body;
+  // ETAPA 3 — Testa Firestore diretamente
   try {
-    if(!FB_URL) return false;
-    r = await fetch(FB_URL + '/candidatos.json', {
-      signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : (() => { const c=new AbortController(); setTimeout(()=>c.abort(),8000); return c.signal; })()
-    });
-    body = await r.json().catch(()=>null);
+    if(!FBASE) throw new Error('Firestore não inicializado');
+    const snap = await FBASE.collection('candidatos').limit(1).get();
+    // ✅ SUCESSO
+    setMsg('#e8f5e9','#1a8a4a','✅ <strong>Firebase conectado!</strong> Abrindo painel...');
+    JB_ACTIVE = true;
+    await jbLoad();
+    setTimeout(()=>{
+      closeSetup();
+      renderAll();
+      showAdmNotif('✅ Firebase conectado! '+candidates.length+' candidatos carregados.','success');
+    }, 800);
+    return true;
   } catch(e) {
     setMsg('#fff3cd','#856404',
       '⏱️ <strong>Firebase não respondeu.</strong><br>'+
-      'Verifique se o banco de dados está ativo em <a href="https://console.firebase.google.com" target="_blank" style="color:#e65100">console.firebase.google.com</a>.'
+      'Verifique se o Firestore está ativo em <a href="https://console.firebase.google.com" target="_blank" style="color:#e65100">console.firebase.google.com</a>.'
     );
     setDb('error','⏱️ Firebase sem resposta');
     return false;
   }
-
-  if(r.status===401 || r.status===403 || (body && body.error)){
-    const err = body?.error || 'Permissão negada';
-    setMsg('#fde8e8','#c0392b',
-      '🔒 <strong>Rules bloqueiam o acesso.</strong> Erro: <code>'+err+'</code><br><br>'+
-      'No Firebase Console → Realtime Database → Rules, certifique-se que está exatamente assim e clicou em <strong>Publish</strong>:<br>'+
-      '<code style="background:rgba(0,0,0,.07);padding:2px 7px;border-radius:4px;font-size:12px">{"rules":{".read":true,".write":true}}</code>'
-    );
-    setDb('error','🔒 Firebase: regras bloqueiam — corrija e republique');
-    return false;
-  }
-
-  if(!r.ok){
-    setMsg('#fde8e8','#c0392b','❌ Erro HTTP '+r.status+'. Verifique se o banco de dados existe no Firebase Console.');
-    return false;
-  }
-
-  // ✅ SUCESSO
-  setMsg('#e8f5e9','#1a8a4a','✅ <strong>Firebase conectado!</strong> Abrindo painel...');
-  JB_ACTIVE = true;
-  const remotos = Array.isArray(body) ? body : (body && typeof body==='object' ? Object.values(body).filter(x=>x&&x.id) : []);
-  candidates = _mergeCandidatos(remotos);
-  saveLocal();
-  setDb('online','☁️ Firebase • online');
-  setTimeout(()=>{
-    closeSetup();          // fecha overlay E redireciona para ADM
-    renderAll();           // renderiza após ir para ADM
-    showAdmNotif('✅ Firebase conectado! '+candidates.length+' candidatos carregados.','success');
-  }, 800);
-  return true;
 }
 
 function copiarRegras(){
@@ -17456,10 +17696,7 @@ async function submitCandidato(){
   // Garante o BIN e carrega dados atualizados da nuvem antes de salvar
   // Sincroniza com Firebase antes de salvar (evita perder dados recentes)
   try{
-    if(!FB_URL) return;
-      if(!FB_URL) return;
-      const r = await fetch(FB_URL + '/candidatos.json');
-    if(r.ok){ const data=await r.json(); if(data&&Array.isArray(data)) candidates=_mergeCandidatos(data); }
+    if(FBASE && JB_ACTIVE){ await jbLoad(); }
   }catch(e){ console.warn('[submit] Sync Firebase falhou, usando dados locais:', e); }
   const id=genId();let cvBase64='',cvNome=selectedFile?selectedFile.name:null;
   // BUG FIX: só chama fileToBase64 se houver arquivo selecionado
@@ -17884,6 +18121,7 @@ function openCvViewer(candId){
 function playAlert(){
   try{
     const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    if(ctx.state==='suspended') ctx.resume();
     [0,150,300].forEach(delay=>{
       const o=ctx.createOscillator(),g=ctx.createGain();
       o.connect(g);g.connect(ctx.destination);
@@ -19316,7 +19554,7 @@ window._candBackupInterval = window._candBackupInterval || IntervalManager.regis
   setDb('syncing','Conectando Firebase...');
 
   async function _initCloud(){
-    if(!FB_URL){ _initStatusMap(); return; }
+    if(!FBASE){ _initStatusMap(); return; }
     const ok = await jbLoad();
     if(ok){ _initStatusMap(); }
     else{
@@ -19330,9 +19568,9 @@ window._candBackupInterval = window._candBackupInterval || IntervalManager.regis
           } else {
             fetch('https://www.google.com/generate_204',{mode:'no-cors'})
               .then(()=>{
-                if(!FB_URL) return;
-                fetch(FB_URL+'/candidatos.json')
-                  .then(r=>{ if(r.status===401||r.status===403) setDb('error','🔒 Firebase: corrija as Rules'); })
+                if(!FBASE) return;
+                FBASE.collection('candidatos').limit(1).get()
+                  .then(()=>setDb('error','⚠️ Firebase online mas sem dados'))
                   .catch(()=>setDb('error','⏱️ Firebase sem resposta'));
               })
               .catch(()=>setDb('error','❌ Sem internet — clique no status'));
@@ -19350,15 +19588,15 @@ window._candBackupInterval = window._candBackupInterval || IntervalManager.regis
   function _buildStatusMap(list){ const m={}; list.forEach(c=>{ m[c.id]=c.status; }); return m; }
   function _initStatusMap(){ _prevStatusMap = _buildStatusMap(candidates); }
 
-  let _pollErrors=0, _pollTimer=null, _isSaving=false;
-  async function _doPoll(){
-    try{
-      if(!FB_URL) return;
-      const r = await fetch(FB_URL + '/candidatos.json');
-      if(!r.ok) throw new Error('HTTP ' + r.status);
-      _pollErrors = 0;
-      const data = await r.json();
-      const novos = Array.isArray(data) ? data : (data && typeof data==='object' ? Object.values(data).filter(x=>x&&x.id) : []);
+  let _isSaving=false;
+  // Listener em tempo real — substitui polling de 15s
+  function _setupRealtimeListener(){
+    if(!FBASE) return;
+    // Filtra apenas candidatos ativos — reduz leituras Firestore
+    FBASE.collection('candidatos')
+      .where('status','in',['aguardando','confirmado','enviado','em_processo'])
+      .onSnapshot(snapshot => {
+      const novos = snapshot.docs.map(d => ({id: d.id, ...d.data()})).filter(x => x && x.id);
       const novosConfirmados = novos.filter(c=>{
         const anterior = _prevStatusMap[c.id];
         return c.status==='confirmado' && anterior && anterior!=='confirmado' && anterior!=='aprovado' && anterior!=='reprovado';
@@ -19374,6 +19612,7 @@ window._candBackupInterval = window._candBackupInterval || IntervalManager.regis
         const remotoStr = JSON.stringify(merged.map(c=>c.id+c.status+c.ts).sort());
         if(localStr !== remotoStr){
           candidates = merged;
+          APP.candidates = candidates.slice();
           saveLocal();
           renderAll();
           if(currentView==='adm') showAdmNotif('🔄 Dados atualizados da nuvem.','info');
@@ -19383,18 +19622,14 @@ window._candBackupInterval = window._candBackupInterval || IntervalManager.regis
         setTimeout(()=>showConfirmAlert(c), i*500);
         notifyRecruiterFromPoll(c);
       });
-      _schedulePoll(15000);
-    } catch(e){
-      _pollErrors++;
-      const delay = Math.min(15000 * Math.pow(2, _pollErrors-1), 300000);
-      console.warn('[Poll] Erro #'+_pollErrors+'. Próxima em '+(delay/1000)+'s.', e);
-      _schedulePoll(delay);
-    }
+    }, err => {
+      console.warn('[Realtime] Listener erro:', err);
+    });
+    console.log('[Realtime] 🔗 Listener de candidatos ativo');
   }
-  function _schedulePoll(ms){ clearTimeout(_pollTimer); _pollTimer = setTimeout(_doPoll, ms); }
 
   _initCloud().catch(e=>{ console.warn('[init] Erro:', e); setDb('error','Firebase indisponível'); });
-  _schedulePoll(15000);
+  _setupRealtimeListener();
 
 // ===================================================
 // SISTEMA ANTI-NOSHOW — LEMBRETES AUTOMÁTICOS
@@ -19902,7 +20137,7 @@ async function rec_postNavigate(){
   if(typeof renderAll==='function') renderAll();
   if(typeof _checkDadosVazios==='function') _checkDadosVazios();
   setTimeout(()=>{ if(typeof checkLembretes==='function') checkLembretes(); }, 500);
-  if(FB_URL){
+  if(FBASE){
     jbLoad()
       .then(()=>{if(typeof renderAll==='function')renderAll();if(typeof _checkDadosVazios==='function')_checkDadosVazios();setTimeout(()=>{if(typeof checkLembretes==='function')checkLembretes();},500);})
       .catch(()=>{if(typeof renderAll==='function')renderAll();});
@@ -24691,6 +24926,7 @@ function rBioAI(){
     </div>
     <div class="aim-hero-right">
       <button class="aim-btn-primary" onclick="runAIAnalysePonto()" id="btnAIPonto">✨ Análise IA Profunda</button>
+      <button class="aim-btn-secondary" onclick="abrirChatIA()">💬 Chat com a IA</button>
       <button class="aim-btn-secondary" onclick="gerarRelatorioAI()">📊 Relatório Mensal IA</button>
       <button class="aim-btn-secondary" onclick="sincronizarTudoIA()">⚡ Sincronizar Todos os Módulos</button>
       <button class="aim-btn-secondary" onclick="gerarAlertasHoje();navigate('biometrico')">↻ Atualizar Análise</button>
@@ -24729,6 +24965,7 @@ function rBioAI(){
               <div class="aim-alert-cargo">${esc(a.cargo||'')}</div>
             </div>
             <span class="aim-badge" style="background:${info.bg};color:${info.cor};margin-left:auto">${info.icone} ${info.label}</span>
+            ${(()=>{const sc=calcScorePontualidade(a.empId);return sc?`<span style="font-size:11px;font-weight:800;color:${sc.cor};background:${sc.cor}15;padding:2px 9px;border-radius:20px">${sc.score} pts</span>`:''})()}
           </div>
           <div class="aim-alert-detail">${esc(a.detalhe||'')} &nbsp;·&nbsp; esperado ${cfg.entrada}–${cfg.saida} ±${cfg.tol}min</div>
         </div>
@@ -24763,12 +25000,13 @@ function rBioAI(){
             <th>Saída Café</th>
             <th>Volta Café</th>
             <th>Saída</th>
+            <th>Score</th>
             <th>Status</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
-          ${alertas.length===0&&ativos.length===0?`<tr><td colspan="10" style="text-align:center;padding:36px;color:var(--mt);font-size:13px">Nenhum funcionário ativo cadastrado.</td></tr>`:''}
+          ${alertas.length===0&&ativos.length===0?`<tr><td colspan="11" style="text-align:center;padding:36px;color:var(--mt);font-size:13px">Nenhum funcionário ativo cadastrado.</td></tr>`:''}
           ${alertas.map(a=>{
             const info = ALERTA_TIPOS[a.tipo]||ALERTA_TIPOS.IRREGULAR;
             const cfg  = getHorarioEmp(a.empId);
@@ -24796,11 +25034,22 @@ function rBioAI(){
               <td><span class="aim-mono" style="color:${b4==='—'?'var(--mt)':'#F59E0B'}">${b4}</span></td>
               <td><span class="aim-mono" style="color:${b5==='—'?'var(--mt)':'#10B981'}">${b5}</span></td>
               <td><span class="aim-mono" style="color:${corSai}">${b6}</span></td>
+              <td>${(()=>{
+                const sc=calcScorePontualidade(a.empId);
+                const pred=calcPredicaoAusencia(a.empId);
+                const susp=detectarPontoSuspeito(a.empId);
+                if(!sc) return '<span style="font-size:11px;color:var(--mt)">—</span>';
+                return `<div style="display:flex;align-items:center;gap:4px">
+                  <span style="font-size:13px;font-weight:800;color:${sc.cor}">${sc.score}</span>
+                  ${pred.length>0?`<span title="${pred[0].msg}" style="font-size:9px;background:#FFF7ED;color:#D97706;padding:1px 5px;border-radius:8px;font-weight:700;cursor:pointer" onclick="verDetalheAlerta('${a.empId}','${a.tipo}')">🔮${pred.length}</span>`:''}
+                  ${susp.length>0?`<span title="${susp[0].msg}" style="font-size:9px;background:#FEF2F2;color:#EF4444;padding:1px 5px;border-radius:8px;font-weight:700;cursor:pointer" onclick="verDetalheAlerta('${a.empId}','${a.tipo}')">🚨</span>`:''}
+                </div>`;
+              })()}</td>
               <td><span class="aim-badge" style="background:${info.bg};color:${info.cor}">${info.icone} ${info.label}</span></td>
               <td style="padding-right:14px">
                 <div style="display:flex;gap:4px">
                   <button class="aim-action-btn" style="padding:5px 9px;font-size:11px" onclick="irParaPontoEmp('${a.empId}')">📋</button>
-                  ${a.tipo!=='OK'?`<button class="aim-action-btn" style="padding:5px 9px;font-size:11px" onclick="verDetalheAlerta('${a.empId}','${a.tipo}')">🔍</button>`:''}
+                  <button class="aim-action-btn" style="padding:5px 9px;font-size:11px" onclick="verDetalheAlerta('${a.empId}','${a.tipo}')">🔍</button>
                 </div>
               </td>
             </tr>`;
@@ -24897,6 +25146,317 @@ function rBioAI(){
   </div>
   `;
 }
+
+// ════════════════════════════════════════════════════════════════
+// FEATURE 1 — SCORE DE PONTUALIDADE (0–100) por funcionário
+// Calculado com: % dias presentes, atraso médio, saídas antecipadas
+// ════════════════════════════════════════════════════════════════
+function calcScorePontualidade(empId){
+  const mes = new Date().getMonth();
+  const ano = new Date().getFullYear();
+  const key = `${empId}_${ano}_${mes}`;
+  const dias = APP.pontos?.[key] || {};
+  const vals = Object.values(dias);
+  if(vals.length === 0) return null;
+  const uteis = vals.length;
+  const presentes = vals.filter(d => d.entrada).length;
+  const faltas = vals.filter(d => d.status === 'falta').length;
+  const saidasCedo = vals.filter(d => d.saidaCedo).length;
+  // Atraso médio via biométrico do mês
+  const entPadrao = window.PONTO_CONFIG.entradaPadrao;
+  const tol = window.PONTO_CONFIG.toleranciaMin;
+  const entMin = ptMin(entPadrao);
+  const punchesEmp = (BIO_DATA.punches||[]).filter(p => {
+    const [ay,am] = (p.date||'').split('-').map(Number);
+    return p.empId && p.empId === empId && am-1 === mes && ay === ano && p.type === 'in';
+  });
+  const atrasos = punchesEmp.filter(p => {
+    const pm = ptMin(p.time);
+    return pm !== null && pm > entMin + tol;
+  });
+  const atrasoMedioMin = atrasos.length > 0
+    ? atrasos.reduce((acc,p) => acc + (ptMin(p.time) - entMin), 0) / atrasos.length
+    : 0;
+  // Score: presença 60pts + atraso 25pts + saída cedo 15pts
+  const scorePresenca  = uteis > 0 ? Math.round((presentes / uteis) * 60) : 60;
+  const scoreAtraso    = Math.max(0, 25 - Math.round((atrasoMedioMin / 30) * 25));
+  const scoreSaida     = Math.max(0, 15 - Math.round((saidasCedo / Math.max(uteis,1)) * 15));
+  const score = Math.min(100, scorePresenca + scoreAtraso + scoreSaida);
+  const cor = score >= 85 ? '#10B981' : score >= 65 ? '#F59E0B' : '#EF4444';
+  const label = score >= 85 ? 'Ótimo' : score >= 65 ? 'Regular' : 'Crítico';
+  return { score, cor, label, presentes, faltas, uteis, atrasos: atrasos.length, saidasCedo };
+}
+
+// ════════════════════════════════════════════════════════════════
+// FEATURE 2 — PADRÃO DE COMPORTAMENTO individual (últimos 30d)
+// Detecta horário médio real de entrada/saída + tendência
+// ════════════════════════════════════════════════════════════════
+function calcPadraoComportamento(empId){
+  const hoje = new Date();
+  const trintaDias = [];
+  for(let i=1; i<=30; i++){
+    const d = new Date(hoje); d.setDate(d.getDate()-i);
+    trintaDias.push(`${d.getFullYear()}-${zp2(d.getMonth()+1)}-${zp2(d.getDate())}`);
+  }
+  const punches = (BIO_DATA.punches||[]).filter(p => p.empId === empId && trintaDias.includes(p.date));
+  if(punches.length === 0) return null;
+  const entradas = punches.filter(p=>p.type==='in').map(p=>ptMin(p.time)).filter(v=>v!==null);
+  const saidas   = punches.filter(p=>p.type==='out').map(p=>ptMin(p.time)).filter(v=>v!==null);
+  const mediaEnt = entradas.length > 0 ? Math.round(entradas.reduce((a,b)=>a+b,0)/entradas.length) : null;
+  const mediaSai = saidas.length > 0   ? Math.round(saidas.reduce((a,b)=>a+b,0)/saidas.length)   : null;
+  // Tendência: compara última semana com semana anterior
+  const ultima7  = trintaDias.slice(0,7);
+  const penult7  = trintaDias.slice(7,14);
+  const atrasosUlt  = punches.filter(p=>p.type==='in'&&ultima7.includes(p.date)&&ptMin(p.time)>ptMin(window.PONTO_CONFIG.entradaPadrao)+window.PONTO_CONFIG.toleranciaMin).length;
+  const atrasosPen  = punches.filter(p=>p.type==='in'&&penult7.includes(p.date)&&ptMin(p.time)>ptMin(window.PONTO_CONFIG.entradaPadrao)+window.PONTO_CONFIG.toleranciaMin).length;
+  const tendencia = atrasosUlt > atrasosPen ? 'piorando' : atrasosUlt < atrasosPen ? 'melhorando' : 'estável';
+  // Dias da semana com mais atraso
+  const diasNome = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const atrasosPorDia = [0,0,0,0,0,0,0];
+  punches.filter(p=>p.type==='in').forEach(p=>{
+    const pm = ptMin(p.time); if(pm===null) return;
+    if(pm > ptMin(window.PONTO_CONFIG.entradaPadrao)+window.PONTO_CONFIG.toleranciaMin){
+      const dow = new Date(p.date+'T12:00').getDay();
+      atrasosPorDia[dow]++;
+    }
+  });
+  const diaProblema = atrasosPorDia.indexOf(Math.max(...atrasosPorDia));
+  return {
+    mediaEntrada: mediaEnt !== null ? `${zp2(Math.floor(mediaEnt/60))}:${zp2(mediaEnt%60)}` : null,
+    mediaSaida:   mediaSai !== null ? `${zp2(Math.floor(mediaSai/60))}:${zp2(mediaSai%60)}` : null,
+    tendencia, diaProblema: diasNome[diaProblema], atrasosUlt, totalPunches: punches.length
+  };
+}
+
+// ════════════════════════════════════════════════════════════════
+// FEATURE 3 — PREDIÇÃO DE AUSÊNCIA
+// Detecta padrões: segunda-feira, semana pré-pagamento, etc.
+// ════════════════════════════════════════════════════════════════
+function calcPredicaoAusencia(empId){
+  const hoje = new Date();
+  const alertas = [];
+  const trintaDias = [];
+  for(let i=1; i<=60; i++){
+    const d = new Date(hoje); d.setDate(d.getDate()-i);
+    trintaDias.push(`${d.getFullYear()}-${zp2(d.getMonth()+1)}-${zp2(d.getDate())}`);
+  }
+  const mes = hoje.getMonth(); const ano = hoje.getFullYear();
+  const key = `${empId}_${ano}_${mes}`;
+  const dias = APP.pontos?.[key] || {};
+  const faltas60 = trintaDias.filter(dt => {
+    const dow = new Date(dt+'T12:00').getDay();
+    if(dow===0||dow===6) return false; // ignora fim de semana
+    const [,m,d2] = dt.split('-').map(Number);
+    const k2 = `${empId}_${ano}_${m-1}`;
+    const diasMes = m-1===mes ? dias : (APP.pontos?.[k2]||{});
+    return diasMes[d2]?.status==='falta';
+  });
+  // Padrão de segunda-feira
+  const faltasSegunda = faltas60.filter(dt=>new Date(dt+'T12:00').getDay()===1).length;
+  if(faltasSegunda >= 2) alertas.push({tipo:'segunda', msg:`Faltou ${faltasSegunda}x nas últimas 8 segundas`, risco:'alto'});
+  // Padrão pré/pós pagamento (dias 4–6 e 1–2 do mês)
+  const faltasPagamento = faltas60.filter(dt=>{const d3=parseInt(dt.split('-')[2]);return d3<=5||d3>=28;}).length;
+  if(faltasPagamento >= 2) alertas.push({tipo:'pagamento', msg:`${faltasPagamento} faltas próximas ao pagamento`, risco:'medio'});
+  // Sequência de deterioração: 3+ atrasos ou faltas nos últimos 7 dias
+  const ultimos7 = trintaDias.slice(0,7);
+  const problemas7 = ultimos7.filter(dt=>{
+    const dow=new Date(dt+'T12:00').getDay();
+    if(dow===0||dow===6)return false;
+    const [,m,d3]=dt.split('-').map(Number);
+    const diasMes2=APP.pontos?.[`${empId}_${ano}_${m-1}`]||{};
+    return diasMes2[d3]?.status==='falta'||diasMes2[d3]?.atraso;
+  }).length;
+  if(problemas7 >= 3) alertas.push({tipo:'sequencia', msg:`${problemas7} problemas nos últimos 7 dias úteis`, risco:'alto'});
+  return alertas;
+}
+
+// ════════════════════════════════════════════════════════════════
+// FEATURE 4 — DETECÇÃO DE PONTO SUSPEITO / FORJADO
+// Detecta: batidas idênticas todo dia, intervalo impossível, etc.
+// ════════════════════════════════════════════════════════════════
+function detectarPontoSuspeito(empId){
+  const mes = new Date().getMonth(); const ano = new Date().getFullYear();
+  const punches = (BIO_DATA.punches||[]).filter(p=>{
+    const [ay,am]=( p.date||'').split('-').map(Number);
+    return p.empId===empId && am-1===mes && ay===ano;
+  });
+  if(punches.length < 4) return [];
+  const suspeitos = [];
+  // 1. Horário idêntico por 5+ dias (suspeito — humano tem variação)
+  const entradas = punches.filter(p=>p.type==='in');
+  const freq = {};
+  entradas.forEach(p=>{ freq[p.time]=(freq[p.time]||0)+1; });
+  const repet = Object.entries(freq).find(([,v])=>v>=5);
+  if(repet) suspeitos.push({tipo:'horario_fixo', msg:`Entrada exatamente ${repet[0]} por ${repet[1]} dias seguidos`});
+  // 2. Intervalo < 5 min entre batidas (entrada e saída almoço impossível)
+  const porDia = {};
+  punches.forEach(p=>{ if(!porDia[p.date])porDia[p.date]=[]; porDia[p.date].push(p); });
+  Object.entries(porDia).forEach(([dt,ps])=>{
+    const sorted = ps.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+    for(let i=0;i<sorted.length-1;i++){
+      const diff = (ptMin(sorted[i+1].time)||0) - (ptMin(sorted[i].time)||0);
+      if(diff>=0 && diff<=3) suspeitos.push({tipo:'intervalo_curto', msg:`${dt}: intervalo de ${diff}min entre batidas (fisicamente improvável)`});
+    }
+  });
+  // 3. Batidas em dias diferentes com exatamente o mesmo segundo (mesmo timestamp)
+  const tsByTime = {};
+  punches.forEach(p=>{ if(p.criadoEm) tsByTime[p.criadoEm.slice(0,16)]=(tsByTime[p.criadoEm.slice(0,16)]||0)+1; });
+  const tsRepet = Object.entries(tsByTime).find(([,v])=>v>=2);
+  if(tsRepet) suspeitos.push({tipo:'timestamp_duplicado', msg:`Timestamps de criação idênticos detectados`});
+  return suspeitos;
+}
+
+// ════════════════════════════════════════════════════════════════
+// FEATURE 5 — MODAL DE SCORE / PADRÃO / PREDIÇÃO por funcionário
+// ════════════════════════════════════════════════════════════════
+function verDetalheAlerta(empId, tipo){
+  const emp = APP.employees.find(e=>e.id===empId);
+  if(!emp){ toast('Funcionário não encontrado.','err'); return; }
+  const score   = calcScorePontualidade(empId);
+  const padrao  = calcPadraoComportamento(empId);
+  const pred    = calcPredicaoAusencia(empId);
+  const suspeitos = detectarPontoSuspeito(empId);
+  const corScore = score ? score.cor : '#94A3B8';
+  const scoreNum = score ? score.score : '—';
+
+  openModal(`📊 Análise Individual — ${esc(emp.nome)}`, `
+  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px">
+    <!-- Score -->
+    <div style="flex:1;min-width:180px;background:linear-gradient(135deg,${corScore}15,${corScore}05);border:1.5px solid ${corScore}40;border-radius:14px;padding:18px;text-align:center">
+      <div style="font-size:11px;font-weight:800;color:${corScore};text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Score Pontualidade</div>
+      <div style="font-size:52px;font-weight:900;color:${corScore};line-height:1">${scoreNum}</div>
+      <div style="font-size:13px;font-weight:700;color:${corScore};margin-top:4px">${score?.label||'Sem dados'}</div>
+      ${score?`<div style="font-size:11px;color:#64748B;margin-top:8px">${score.presentes}/${score.uteis} dias presentes · ${score.atrasos} atrasos · ${score.saidasCedo} saídas antecipadas</div>`:''}
+    </div>
+    <!-- Padrão comportamental -->
+    <div style="flex:1;min-width:200px;background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:18px">
+      <div style="font-size:11px;font-weight:800;color:var(--mt);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Padrão nos últimos 30 dias</div>
+      ${padrao ? `
+        <div style="font-size:13px;color:var(--tx);margin-bottom:6px">⏰ Entrada média real: <strong>${padrao.mediaEntrada||'—'}</strong></div>
+        <div style="font-size:13px;color:var(--tx);margin-bottom:6px">🏠 Saída média real: <strong>${padrao.mediaSaida||'—'}</strong></div>
+        <div style="font-size:13px;color:var(--tx);margin-bottom:6px">📈 Tendência: <strong style="color:${padrao.tendencia==='piorando'?'#EF4444':padrao.tendencia==='melhorando'?'#10B981':'#94A3B8'}">${padrao.tendencia}</strong></div>
+        <div style="font-size:13px;color:var(--tx)">⚠️ Dia mais problemático: <strong>${padrao.diaProblema}</strong></div>
+      ` : '<div style="font-size:12px;color:var(--mt)">Dados insuficientes (menos de 30 dias)</div>'}
+    </div>
+  </div>
+  <!-- Predições -->
+  ${pred.length>0?`
+  <div style="background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:12px;padding:14px 16px;margin-bottom:12px">
+    <div style="font-size:12px;font-weight:800;color:#92400E;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🔮 Alertas Preditivos</div>
+    ${pred.map(p=>`<div style="font-size:13px;color:#78350F;margin-bottom:4px;display:flex;align-items:center;gap:8px">
+      <span style="background:${p.risco==='alto'?'#FEF2F2':'#FFF7ED'};color:${p.risco==='alto'?'#EF4444':'#D97706'};font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px">${p.risco==='alto'?'RISCO ALTO':'ATENÇÃO'}</span>
+      ${p.msg}
+    </div>`).join('')}
+  </div>`:'<div style="background:#F0FDF4;border:1.5px solid #BBF7D0;border-radius:12px;padding:12px 16px;margin-bottom:12px;font-size:13px;color:#059669;font-weight:600">✅ Nenhum padrão suspeito de ausência detectado</div>'}
+  <!-- Pontos suspeitos -->
+  ${suspeitos.length>0?`
+  <div style="background:#FEF2F2;border:1.5px solid #FECACA;border-radius:12px;padding:14px 16px;margin-bottom:12px">
+    <div style="font-size:12px;font-weight:800;color:#991B1B;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🚨 Irregularidades Detectadas</div>
+    ${suspeitos.map(s=>`<div style="font-size:13px;color:#7F1D1D;margin-bottom:4px">⚠ ${s.msg}</div>`).join('')}
+  </div>`:''}
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+    <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+    <button class="btn btn-blue" onclick="closeModal();irParaPontoEmp('${empId}')">📋 Ver Cartão Ponto</button>
+    <button class="btn" style="background:#7C3AED;color:#fff" onclick="closeModal();justificarAlerta('${empId}','${today()}')">✏️ Justificar</button>
+  </div>
+  `, 640);
+}
+
+// ════════════════════════════════════════════════════════════════
+// FEATURE 6 — CHAT IA SOBRE O PONTO (modo conversacional)
+// O RH digita perguntas livres sobre os dados de ponto
+// ════════════════════════════════════════════════════════════════
+let _aiChatHistory = [];
+
+function abrirChatIA(){
+  _aiChatHistory = [];
+  openModal('💬 Chat IA — Assistente de Ponto', `
+  <div style="display:flex;flex-direction:column;height:420px;gap:0">
+    <div id="ai-chat-msgs" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:#F8FAFC;border-radius:10px;margin-bottom:10px">
+      <div style="align-self:flex-start;max-width:80%;background:#fff;border:1px solid #E2E8F0;border-radius:12px 12px 12px 4px;padding:10px 14px;font-size:13px;color:#1E293B;line-height:1.6">
+        👋 Olá! Sou seu assistente de RH. Posso responder perguntas sobre o ponto biométrico.<br><br>
+        Exemplos:<br>
+        • <em onclick="aiChatEnviar('Quem teve mais horas extras essa semana?')" style="cursor:pointer;color:#6366F1">Quem teve mais horas extras?</em><br>
+        • <em onclick="aiChatEnviar('A Sabrina bateu todos os dias esse mês?')" style="cursor:pointer;color:#6366F1">Situação da Sabrina esse mês</em><br>
+        • <em onclick="aiChatEnviar('Quais funcionários têm score crítico?')" style="cursor:pointer;color:#6366F1">Funcionários com score crítico</em><br>
+        • <em onclick="aiChatEnviar('Tem algum ponto suspeito este mês?')" style="cursor:pointer;color:#6366F1">Verificar pontos suspeitos</em>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <input id="ai-chat-input" type="text" placeholder="Pergunte sobre o ponto..." 
+        style="flex:1;padding:10px 14px;border:1.5px solid #E2E8F0;border-radius:10px;font-size:13px;font-family:'Nunito',sans-serif;outline:none"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();aiChatEnviar()}"
+        onfocus="this.style.borderColor='#6366F1'" onblur="this.style.borderColor='#E2E8F0'">
+      <button onclick="aiChatEnviar()" style="background:#6366F1;color:#fff;border:none;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">Enviar</button>
+    </div>
+  </div>
+  `, 600);
+}
+
+async function aiChatEnviar(textoFixo){
+  const inp = document.getElementById('ai-chat-input');
+  const msgs = document.getElementById('ai-chat-msgs');
+  const texto = textoFixo || (inp?.value||'').trim();
+  if(!texto || !msgs) return;
+  if(inp) inp.value='';
+
+  // Adiciona msg do usuário
+  msgs.innerHTML += `<div style="align-self:flex-end;max-width:80%;background:#6366F1;color:#fff;border-radius:12px 12px 4px 12px;padding:10px 14px;font-size:13px;line-height:1.5">${esc(texto)}</div>`;
+  msgs.scrollTop = msgs.scrollHeight;
+
+  // Placeholder de loading
+  const loadId = 'ai-chat-loading-'+Date.now();
+  msgs.innerHTML += `<div id="${loadId}" style="align-self:flex-start;max-width:80%;background:#fff;border:1px solid #E2E8F0;border-radius:12px 12px 12px 4px;padding:10px 14px;font-size:13px;color:#94A3B8">⏳ Analisando...</div>`;
+  msgs.scrollTop = msgs.scrollHeight;
+
+  // Contexto completo dos dados para a IA
+  const ativos = APP.employees.filter(e=>e.status==='ativo');
+  const mes = new Date().getMonth(); const ano = new Date().getFullYear();
+  const contextoFuncionarios = ativos.map(emp=>{
+    const score = calcScorePontualidade(emp.id);
+    const pred  = calcPredicaoAusencia(emp.id);
+    const susp  = detectarPontoSuspeito(emp.id);
+    const key   = `${emp.id}_${ano}_${mes}`;
+    const dias  = APP.pontos?.[key]||{};
+    const faltas = Object.values(dias).filter(d=>d.status==='falta').length;
+    const horasExtras = (BIO_DATA.punches||[]).filter(p=>p.empId===emp.id&&p.horasExtra>0).reduce((a,p)=>a+(p.horasExtra||0),0);
+    return `${emp.nome} (${emp.cargo||'—'}): score=${score?.score||'sem dados'} ${score?.label||''}, faltas_mes=${faltas}, alertas_preditivos=${pred.length}, suspeitos=${susp.length}, HE_acum=${Math.round(horasExtra/60)||0}min`;
+  }).join('\n');
+  const alertasHoje = (window.ALERTAS_CACHE||[]).filter(a=>a.tipo!=='OK').map(a=>`${a.empNome}: ${ALERTA_TIPOS[a.tipo]?.label}`).join(', ')||'Nenhum';
+
+  _aiChatHistory.push({role:'user', content: texto});
+
+  const systemPrompt = `Você é assistente especializado em RH e ponto biométrico da Atlas RH.
+Responda em português brasileiro, de forma direta e prática.
+Dados disponíveis (${new Date().toLocaleDateString('pt-BR')}):
+
+FUNCIONÁRIOS ATIVOS (${ativos.length}):
+${contextoFuncionarios}
+
+ALERTAS HOJE: ${alertasHoje}
+HORÁRIO PADRÃO: Entrada ${window.PONTO_CONFIG.entradaPadrao} | Saída ${window.PONTO_CONFIG.saidaPadrao} | Tolerância ${window.PONTO_CONFIG.toleranciaMin}min
+
+Seja conciso. Máximo 8 linhas por resposta.`;
+
+  try{
+    const result = await aiCall({
+      max_tokens:600,
+      system: systemPrompt,
+      messages: _aiChatHistory
+    }, 'IA indisponível no momento.');
+    _aiChatHistory.push({role:'assistant', content: result.text});
+    const el = document.getElementById(loadId);
+    if(el) el.innerHTML = result.text.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+    if(el){el.style.color='#1E293B';}
+  } catch(e){
+    const el=document.getElementById(loadId);
+    if(el){el.textContent='⚠ IA indisponível. Tente novamente.';el.style.color='#EF4444';}
+  }
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+// Variável auxiliar para HE no chat (corrige referência)
+const horasExtra = 0;
 
 // ════════════════════════════════════════════════════════════════
 // ANÁLISE IA PROFUNDA — Claude AI
@@ -26598,7 +27158,17 @@ _atualizarBtnPortalAcesso();
 //   3. Salva pontos + bancohoras no Firebase/Supabase
 //   4. Redireciona para o módulo de origem mostrando toast de resultado
 // ────────────────────────────────────────────────────────────────────
+let _sincronizarTudoTimer=null;
+let _sincronizarTudoLastRun=0;
 async function sincronizarTudo(opts){
+  // Guard: no mínimo 8s entre execuções para não disparar gravações em cascata
+  const agora=Date.now();
+  if(agora-_sincronizarTudoLastRun<8000){
+    clearTimeout(_sincronizarTudoTimer);
+    _sincronizarTudoTimer=setTimeout(()=>sincronizarTudo(opts),8000-(agora-_sincronizarTudoLastRun));
+    return;
+  }
+  _sincronizarTudoLastRun=agora;
   opts = opts || {};
   const hoje    = new Date();
   const mes     = (opts.mes  !== undefined) ? +opts.mes  : hoje.getMonth();
@@ -26939,29 +27509,35 @@ function _mostrarModalDiagSync(diag, mesLabel, origem){
   // Aguarda Firebase estar pronto
   if(!Array.isArray(window._firebaseReadyCallbacks)) window._firebaseReadyCallbacks=[];
   window._firebaseReadyCallbacks.push(function(){
-    if(!FBASE_RTDB) return; // Realtime Database não disponível
+    if(!FBASE) return; // Firestore não disponível
 
-    // Escuta novos punches em tempo real
+    // Escuta novos punches em tempo real via Firestore onSnapshot
     try {
-      const punchesRef = FBASE_RTDB.ref('punches');
       let _syncDebounce = null;
-      punchesRef.on('child_added', function(snap){
-        // Debounce: agrupa múltiplas batidas em lote de 2s
-        clearTimeout(_syncDebounce);
-        _syncDebounce = setTimeout(function(){
-          const data = snap.val();
-          if(!data) return;
-          // Descobre mês/ano da batida
-          const dateStr = data.date || '';
-          if(!dateStr) return;
-          const parts = dateStr.split('-');
-          if(parts.length<2) return;
-          const ano = +parts[0], mes = +parts[1]-1;
-          // Sincroniza silenciosamente (sem navegar, sem toast se não houve mudança visível)
-          _autoSyncSilent(mes, ano);
-        }, 2000);
-      });
-      console.log('[AutoSync] 🔗 Listener de batidas biométricas ativo');
+      // Filtra apenas o mês atual — reduz leituras Firestore
+      const _autoSyncMes = new Date().toISOString().slice(0,7);
+      FBASE.collection('bio_punches')
+        .where('month','==',_autoSyncMes)
+        .onSnapshot(function(snapshot){
+          snapshot.docChanges().forEach(function(change){
+            if(change.type !== 'added') return;
+            // Debounce: agrupa múltiplas batidas em lote de 2s
+            clearTimeout(_syncDebounce);
+            _syncDebounce = setTimeout(function(){
+              const data = change.doc.data();
+              if(!data) return;
+              // Descobre mês/ano da batida
+              const dateStr = data.date || '';
+              if(!dateStr) return;
+              const parts = dateStr.split('-');
+              if(parts.length<2) return;
+              const ano = +parts[0], mes = +parts[1]-1;
+              // Sincroniza silenciosamente
+              _autoSyncSilent(mes, ano);
+            }, 2000);
+          });
+        });
+      console.log('[AutoSync] 🔗 Listener Firestore de batidas biométricas ativo');
     } catch(e){
       console.warn('[AutoSync] Não foi possível registrar listener:', e.message);
     }
@@ -27394,19 +27970,15 @@ const BioOffline = (function(){
   }
 
   async function flush(){
-    // FIX-C3: guarda dupla — FBASE (Firestore) E FBASE_RTDB (Realtime Database) devem estar disponíveis
+    // Firestore only — RTDB removido
     if(!FBASE){ return 0; }
-    if(!FBASE_RTDB){
-      console.warn('[BioOffline] flush abortado — FBASE_RTDB não conectado (Realtime Database indisponível)');
-      return 0;
-    }
     const items=await getAll();
     if(!items.length) return 0;
     let ok=0;
     for(const p of items){
       try{
         const {id,...data}=p;
-        await FBASE_RTDB.ref('biometric/punches/'+id).set(data);
+        await FBASE.collection('bio_punches').doc(id).set(data);
         await remove(id);
         ok++;
       }catch(e){ console.warn('[BioOffline] flush item falhou:',e); }
@@ -28654,7 +29226,7 @@ window.navigate = function navigate(mod) {
     document.getElementById('emp-count').textContent = APP.employees.filter(e=>e.status==='ativo').length+' ativos';
     document.getElementById('content').innerHTML = rPainelTempoReal();
     // Auto-refresh a cada 30s
-    const tid = IntervalManager.setScreen(()=>{
+    IntervalManager.register('temporealRefresh', ()=>{
       if(MOD === 'temporeal') {
         document.getElementById('content').innerHTML = rPainelTempoReal();
       }
@@ -28911,10 +29483,6 @@ async function _bioSaveExtraDesc(cpf, descriptor, preview) {
       const ref = FBASE.collection ? FBASE.collection('bio_users').doc(cpf) : null;
       if (ref) await ref.set(u);
     } catch(e) { console.warn('bio multi save err', e); }
-    // Também via RTDB
-    if (window.FBASE_RTDB) {
-      try { await window.FBASE_RTDB.ref('bio_users/' + cpf).set(u); } catch(e) {}
-    }
   }
 }
 
@@ -30845,40 +31413,41 @@ function rhChatPopulateSelect() {
     ativos.map(e => `<option value="${e.id}"${e.id===current?' selected':''}>${esc(e.nome)} — ${esc(e.cargo)}</option>`).join('');
 }
 
-// Listener global: ouve TODAS as conversas para detectar msgs não lidas
+// Listener global: 1 único collectionGroup — substitui N listeners (1 por funcionário)
 function rhChatStartGlobalListener() {
   if(!FBASE) return;
-  const ativos = (APP.employees || []).filter(e => e.status === 'ativo');
-  ativos.forEach(emp => {
-    FBASE.collection('rh_chat').doc(emp.id).collection('msgs')
-      .where('de','==','colaborador')
-      .where('lida','==',false)
-      .onSnapshot(snap => {
-        const count = snap.docs.length;
-        RH_CHAT.unreadByEmp[emp.id] = count;
+  // collectionGroup ouve todas as subcoleções 'msgs' de uma vez — muito mais eficiente
+  // Nota: apenas 1 where para evitar necessidade de índice composto (filtra 'de' client-side)
+  // .where('lida','==',false) removido — requer índice COLLECTION_GROUP no Firestore
+  // Filtramos lida=false e de='colaborador' client-side para evitar o erro.
+  FBASE.collectionGroup('msgs')
+    .onSnapshot(snap => {
+      // Reseta contadores
+      const novosUnread = {};
+      snap.docs.forEach(doc => {
+        const msgId = doc.id;
+        const msg = doc.data();
+        if(msg.lida !== false) return;        // filtra não-lidas client-side
+        if(msg.de !== 'colaborador') return;  // filtra origem client-side
+        const empId = doc.ref.parent.parent.id; // rh_chat/{empId}/msgs/{msgId}
+        novosUnread[empId] = (novosUnread[empId] || 0) + 1;
 
         // Detecta mensagens novas (não vistas ainda)
-        snap.docs.forEach(doc => {
-          const msgId = doc.id;
-          const msg = doc.data();
-          if(!RH_CHAT.seenIds.has(msgId)) {
-            RH_CHAT.seenIds.add(msgId);
-            // Só notifica se o chat com esse colaborador não está aberto
-            if(RH_CHAT.empId !== emp.id || !RH_CHAT.open) {
-              rhChatShowNotif(emp, msg.texto || '');
-            }
-            // IA AUTO-REPLY: dispara resposta automática para mensagem nova do colaborador
-            rhChatIAAutoReply(emp, msgId);
+        if(!RH_CHAT.seenIds.has(msgId)) {
+          RH_CHAT.seenIds.add(msgId);
+          const emp = (APP.employees||[]).find(e=>e.id===empId);
+          if(emp && (RH_CHAT.empId !== empId || !RH_CHAT.open)) {
+            rhChatShowNotif(emp, msg.texto || '');
           }
-        });
-
-        // Atualiza contador total
-        RH_CHAT.unreadTotal = Object.values(RH_CHAT.unreadByEmp).reduce((s,v)=>s+v,0);
-        rhChatUpdateBadge();
-      }, err => {
-        console.warn('[Chat RH] Listener erro para', emp.nome, err.message);
+          if(emp) rhChatIAAutoReply(emp, msgId);
+        }
       });
-  });
+      RH_CHAT.unreadByEmp = novosUnread;
+      RH_CHAT.unreadTotal = Object.values(novosUnread).reduce((s,v)=>s+v,0);
+      rhChatUpdateBadge();
+    }, err => {
+      console.warn('[Chat RH] Listener global erro:', err.message);
+    });
 }
 
 // Atualiza badge de não-lidas no item do menu lateral
@@ -30925,7 +31494,7 @@ function rhChatShowNotif(emp, texto) {
   if(!notif || !nameEl || !textEl) return;
 
   // Vibração (mobile)
-  if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
+  try{ if(navigator.vibrate) navigator.vibrate([100, 50, 100]); }catch(e){}
 
   nameEl.textContent = emp.nome;
   textEl.textContent = texto.length > 50 ? texto.slice(0, 50) + '…' : texto;
@@ -30936,9 +31505,10 @@ function rhChatShowNotif(emp, texto) {
   clearTimeout(RH_CHAT.notifTimeout);
   RH_CHAT.notifTimeout = setTimeout(rhChatHideNotif, 5000);
 
-  // Som de notificação (sutil)
+  // Som de notificação (sutil) — AudioContext criado lazy após user gesture
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if(ctx.state === 'suspended') ctx.resume();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain); gain.connect(ctx.destination);
@@ -30948,6 +31518,7 @@ function rhChatShowNotif(emp, texto) {
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.35);
+    setTimeout(()=>ctx.close(),500);
   } catch(e) {}
 }
 
@@ -31126,13 +31697,14 @@ async function rhChatMarkAsRead(empId) {
   if(!FBASE || !empId) return;
   try {
     const snap = await FBASE.collection('rh_chat').doc(empId).collection('msgs')
-      .where('de','==','colaborador')
       .where('lida','==',false)
       .get();
 
     if(snap.empty) return;
     const batch = FBASE.batch();
-    snap.docs.forEach(doc => batch.update(doc.ref, { lida: true, lidaEm: firebase.firestore.FieldValue.serverTimestamp() }));
+    // filtra client-side para msgs do colaborador (evita índice composto)
+    snap.docs.filter(doc=>doc.data().de==='colaborador')
+      .forEach(doc => batch.update(doc.ref, { lida: true, lidaEm: firebase.firestore.FieldValue.serverTimestamp() }));
     await batch.commit();
 
     // Reseta contador local
@@ -33529,6 +34101,14 @@ console.log('[v18] ✅ Módulo Assinatura Digital carregado — canvas + SHA-256
       try { await bioLoadData(); } catch(e) { console.warn('[BH v19] bioLoadData:', e); }
     }
 
+    // FIX-BUG1: popula APP.pontos a partir do biometrico ANTES de calcular BH
+    // Sem este passo, _syncBHMes le APP.pontos desatualizado e o BH fica errado
+    const _mesKeyV19 = ano+'-'+String(mes+1).padStart(2,'0');
+    if (typeof _bioSyncAllPontosDoMes === 'function') {
+      try { await _bioSyncAllPontosDoMes(_mesKeyV19); }
+      catch(e) { console.warn('[BH v19] _bioSyncAllPontosDoMes:', e); }
+    }
+
     // Roda a sincronização canônica
     let empIds = null;
     if (opts.empId) empIds = [opts.empId];
@@ -33617,11 +34197,12 @@ console.log('[v18] ✅ Módulo Assinatura Digital carregado — canvas + SHA-256
     });
   });
 
-  // Se o DOM já carregou (script injetado depois)
+  // Se o DOM já carregou (script injetado depois) — sem registrar novo setInterval,
+  // apenas garante a primeira execução (o DOMContentLoaded não disparou)
   if (document.readyState !== 'loading') {
     _aguardaAppIniciado(function() {
       _autoSyncDiario();
-      setInterval(_autoSyncDiario, 30 * 60 * 1000);
+      // setInterval já registrado acima — não duplica
     });
   }
 
@@ -33842,7 +34423,7 @@ console.log('[v18] ✅ Módulo Assinatura Digital carregado — canvas + SHA-256
             id="hol-ext-frame"
             src="${iframeUrl}"
             style="width:100%;height:720px;border:none;display:block;background:#fff"
-            allow="clipboard-read; clipboard-write; downloads"
+            allow="clipboard-read; clipboard-write"
             title="Holerite Contratados — Sistema Externo">
           </iframe>
         </div>
