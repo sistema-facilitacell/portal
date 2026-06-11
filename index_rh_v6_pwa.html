@@ -1474,6 +1474,29 @@ td,th{font-size:15px!important;}
         navigator.serviceWorker.register('./sw_rh.js').catch(()=>{});
       });
     }
+  // ── AudioContext compartilhado + proteção de interação ───────────────────
+  // Chrome bloqueia AudioContext e navigator.vibrate sem gesto do usuário.
+  // Solução: contexto lazy criado na 1ª interação e reutilizado depois.
+  window._audioCtx = null;
+  window._userInteracted = false;
+  function _getAudioCtx() {
+    if (!window._userInteracted) return null; // ainda sem gesto
+    if (!window._audioCtx || window._audioCtx.state === 'closed') {
+      try { window._audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(_) { return null; }
+    }
+    if (window._audioCtx.state === 'suspended') window._audioCtx.resume();
+    return window._audioCtx;
+  }
+  ['click','keydown','touchstart','pointerdown'].forEach(ev =>
+    document.addEventListener(ev, function _ui() {
+      window._userInteracted = true;
+      if (!window._audioCtx) {
+        try { window._audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(_) {}
+      }
+      if (window._audioCtx && window._audioCtx.state === 'suspended') window._audioCtx.resume();
+      document.removeEventListener(ev, _ui);
+    }, { once: true, passive: true })
+  );
     // Banner "Adicionar à tela inicial" automático
     let _deferredPrompt;
     window.addEventListener('beforeinstallprompt', e => {
@@ -9824,7 +9847,7 @@ function punchOrigemBadge(p) {
   // Thumbnail da foto do punch (fotoUrl = Cloudinary; fotoBase64 = fallback direto no Firestore)
   const _fotoSrc = p.fotoUrl || p.fotoBase64 || null;
   const fotoThumb = _fotoSrc
-    ? `<a href="${p.fotoUrl || '#'}" ${p.fotoUrl ? 'target="_blank"' : 'onclick="return false"'} title="Ver foto do registro" style="display:inline-block;vertical-align:middle;margin-left:3px"><img src="${_fotoSrc}" style="width:22px;height:22px;border-radius:4px;object-fit:cover;border:1.5px solid #10B981;vertical-align:middle" onerror="this.style.display='none'"></a>`
+    ? `<a href="javascript:void(0)" onclick="_bioFotoLightbox(this)" data-src="${_fotoSrc}" data-label="${(p.empName||'').replace(/"/g,'&quot;')} · ${p.date||''} ${p.time||''}" title="Ver foto do registro biométrico" style="display:inline-block;vertical-align:middle;margin-left:3px"><img src="${_fotoSrc}" style="width:22px;height:22px;border-radius:4px;object-fit:cover;border:1.5px solid #10B981;vertical-align:middle;cursor:zoom-in" onerror="this.parentElement.style.display='none'"></a>`
     : '';
   // Indicador de edição pelo RH (sem trocar o badge de origem)
   const editadoTag = (p.editadoRH && o !== 'rh_manual')
@@ -18120,8 +18143,8 @@ function openCvViewer(candId){
 // -------- SOM DE ALERTA (escopo global) --------
 function playAlert(){
   try{
-    const ctx=new(window.AudioContext||window.webkitAudioContext)();
-    if(ctx.state==='suspended') ctx.resume();
+    const ctx=_getAudioCtx(); if(!ctx) return;
+    // ctx já resumido pelo _getAudioCtx()
     [0,150,300].forEach(delay=>{
       const o=ctx.createOscillator(),g=ctx.createGain();
       o.connect(g);g.connect(ctx.destination);
@@ -22438,7 +22461,7 @@ td,th{font-size:15px!important;}
 
   function pPlayAlarmSound(){
     try{
-      const ctx=new(window.AudioContext||window.webkitAudioContext)();
+      const ctx=_getAudioCtx(); if(!ctx) return;
       function beep(freq,start,dur){
         const o=ctx.createOscillator();const g=ctx.createGain();
         o.connect(g);g.connect(ctx.destination);
@@ -31494,7 +31517,7 @@ function rhChatShowNotif(emp, texto) {
   if(!notif || !nameEl || !textEl) return;
 
   // Vibração (mobile)
-  try{ if(navigator.vibrate) navigator.vibrate([100, 50, 100]); }catch(e){}
+  try{ if(window._userInteracted && navigator.vibrate) navigator.vibrate([100, 50, 100]); }catch(e){}
 
   nameEl.textContent = emp.nome;
   textEl.textContent = texto.length > 50 ? texto.slice(0, 50) + '…' : texto;
@@ -31505,10 +31528,10 @@ function rhChatShowNotif(emp, texto) {
   clearTimeout(RH_CHAT.notifTimeout);
   RH_CHAT.notifTimeout = setTimeout(rhChatHideNotif, 5000);
 
-  // Som de notificação (sutil) — AudioContext criado lazy após user gesture
+  // Som de notificação (sutil) — AudioContext compartilhado (criado na 1ª interação)
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    if(ctx.state === 'suspended') ctx.resume();
+    const ctx = _getAudioCtx(); if(!ctx) throw new Error('no ctx');
+    // ctx já resumido pelo _getAudioCtx()
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain); gain.connect(ctx.destination);
@@ -37095,6 +37118,46 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => {
     if (typeof buildNav === 'function') buildNav();
   }, 500);
+});
+</script>
+
+<!-- ── Lightbox foto biométrica ─────────────────────────────────────────── -->
+<div id="_bioFotoLightboxModal" onclick="if(event.target===this)this.style.display='none'"
+  style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.88);
+         align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:20px">
+  <div style="position:relative;max-width:520px;width:100%">
+    <img id="_bioFotoLightboxImg" src="" alt="Foto do registro"
+      style="width:100%;border-radius:12px;border:2px solid #10B981;box-shadow:0 8px 32px rgba(0,0,0,0.6)">
+    <div id="_bioFotoLightboxLabel"
+      style="margin-top:10px;text-align:center;color:#E2E8F0;font-size:13px;font-family:monospace;
+             background:rgba(0,0,0,0.5);border-radius:8px;padding:6px 12px"></div>
+    <button onclick="document.getElementById('_bioFotoLightboxModal').style.display='none'"
+      style="position:absolute;top:-12px;right:-12px;background:#EF4444;color:#fff;border:none;
+             border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;
+             display:flex;align-items:center;justify-content:center;font-weight:700">×</button>
+    <a id="_bioFotoLightboxLink" href="#" target="_blank"
+      style="display:block;margin-top:8px;text-align:center;color:#60A5FA;font-size:12px;
+             text-decoration:underline">↗ Abrir em nova aba</a>
+  </div>
+</div>
+<script>
+function _bioFotoLightbox(el) {
+  const src   = el.dataset.src   || '';
+  const label = el.dataset.label || '';
+  const modal = document.getElementById('_bioFotoLightboxModal');
+  document.getElementById('_bioFotoLightboxImg').src   = src;
+  document.getElementById('_bioFotoLightboxLabel').textContent = label;
+  const link = document.getElementById('_bioFotoLightboxLink');
+  if (src.startsWith('data:')) {
+    link.style.display = 'none'; // base64 não abre em nova aba
+  } else {
+    link.href = src;
+    link.style.display = 'block';
+  }
+  modal.style.display = 'flex';
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('_bioFotoLightboxModal').style.display = 'none';
 });
 </script>
 </body>
