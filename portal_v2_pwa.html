@@ -9,6 +9,22 @@
 <link rel="apple-touch-icon" sizes="192x192" href="icone-portal-192.png"/>
 <link rel="apple-touch-icon" sizes="512x512" href="icone-portal-512.png"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<script>
+// Suprime warnings ruidosos do Firebase/TensorFlow ANTES do SDK carregar
+// Firebase usa console.warn com objetos — intercepta warn + error + log
+(function(){
+  const _SUPPRESS = [/enableIndexedDbPersistence/i, /webgl/i, /initialization of backend/i, /FirestoreSettings\.cache/i, /Unsafe attempt to load URL/i];
+  function _filter(orig) {
+    return function(...a) {
+      const msg = a.map(x => String(x==null?"":x)).join(" ");
+      if (_SUPPRESS.some(r => r.test(msg))) return;
+      orig.apply(console, a);
+    };
+  }
+  console.warn  = _filter(console.warn.bind(console));
+  console.error = _filter(console.error.bind(console));
+})();
+</script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <style>
@@ -336,9 +352,21 @@ body{background:var(--bg);color:var(--tx);}
 }
 </style>
 <!-- face-api.js: reconhecimento de identidade facial (128 descritores únicos por pessoa) -->
-<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js" crossorigin="anonymous"></script>
-  <!-- PWA -->
-  <link rel="manifest" href="manifest_portal.json">
+<!-- unpkg não gera erro 404 de hts_manifest.json (ao contrário do jsdelivr) -->
+<script src="https://unpkg.com/face-api.js@0.22.2/dist/face-api.min.js" crossorigin="anonymous"></script>
+  <!-- PWA: manifest só injetado em HTTPS/HTTP — file:// bloqueia por CORS (origin null) -->
+  <script>
+    if (location.protocol !== 'file:') {
+      const _ml = document.createElement('link');
+      _ml.rel = 'manifest'; _ml.href = 'manifest_portal.json';
+      document.head.appendChild(_ml);
+    } else if ('serviceWorker' in navigator) {
+      // Desregistra SW residual imediatamente — evita "Unsafe attempt to load URL file://"
+      navigator.serviceWorker.getRegistrations()
+        .then(function(regs){ regs.forEach(function(r){ r.unregister(); }); })
+        .catch(function(){});
+    }
+  </script>
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -403,6 +431,8 @@ body{background:var(--bg);color:var(--tx);}
           const { _offline, ...docLimpo } = p;
           const ref = DB.collection('bio_punches').doc(docLimpo.id);
           await ref.set(docLimpo);
+          // [FB2] Espelha punch offline sincronizado no atlas-pontos
+          if (DB2) DB2.collection('bio_punches').doc(docLimpo.id).set(docLimpo, {merge:true}).catch(() => {});
           await _idbDelete(p.id);
           ok++;
         } catch(e) { console.warn('[OfflineSync] Falhou:', p.id, e); }
@@ -410,23 +440,38 @@ body{background:var(--bg);color:var(--tx);}
       if (ok > 0) toast(`✅ ${ok} ponto(s) sincronizado(s) com sucesso!`, 'ok');
     }
 
-    // Sincroniza ao reconectar
+    // Sincroniza ao reconectar + reativa rede do Firestore
     window.addEventListener('online', () => {
+      // Reativa conexão Firestore ao recuperar internet (evita WebChannel spam)
+      if (DB)  DB.enableNetwork().catch(() => {});
+      if (DB2) DB2.enableNetwork().catch(() => {});
       if (DB && EMP?.id) _syncOfflinePunches();
     });
 
-    // SW só funciona em HTTPS ou localhost — ignora file://
-    if('serviceWorker' in navigator && location.protocol !== 'file:'){
-      window.addEventListener('load', async () => {
-        try {
-          _SW_REG = await navigator.serviceWorker.register('./sw_portal.js');
-          navigator.serviceWorker.addEventListener('message', e => {
-            if (e.data && e.data.type === 'NOTIF_CLICK') {
-              _pushNavegar(e.data.tipo);
-            }
-          });
-        } catch(e) { /* SW indisponível — sem notificações push */ }
-      });
+    // Desativa conexão Firestore ao perder internet (elimina spam de WebChannel)
+    window.addEventListener('offline', () => {
+      if (DB)  DB.disableNetwork().catch(() => {});
+      if (DB2) DB2.disableNetwork().catch(() => {});
+    });
+
+    // SW só funciona em HTTPS/localhost — file://: desregistra SW residual (evita 'Unsafe attempt')
+    if ('serviceWorker' in navigator) {
+      if (location.protocol === 'file:') {
+        navigator.serviceWorker.getRegistrations()
+          .then(regs => regs.forEach(r => r.unregister()))
+          .catch(() => {});
+      } else {
+        window.addEventListener('load', async () => {
+          try {
+            _SW_REG = await navigator.serviceWorker.register('./sw_portal.js');
+            navigator.serviceWorker.addEventListener('message', e => {
+              if (e.data && e.data.type === 'NOTIF_CLICK') {
+                _pushNavegar(e.data.tipo);
+              }
+            });
+          } catch(e) { /* SW indisponível — sem notificações push */ }
+        });
+      }
     }
 
     // LOG-1: única declaração canônica de _pushNavegar — o módulo PortalPush
@@ -798,6 +843,43 @@ const FB_CFG = {
   authDomain: 'rh-facilitacell.firebaseapp.com'
 };
 
+// ── FIREBASE 2: atlas-pontos ───────────────────────────────────────────────────
+// Banco dedicado: ponto biométrico, atestados, cartão ponto, banco de horas
+const FB_CFG2 = {
+  apiKey: 'AIzaSyDyOceiyHT8gt28E0olrsK15DKhBRCob6M',
+  projectId: 'atlas-pontos',
+  storageBucket: 'atlas-pontos.firebasestorage.app',
+  messagingSenderId: '914498737573',
+  appId: '1:914498737573:web:6f0373fd32318c4ddc044c',
+  authDomain: 'atlas-pontos.firebaseapp.com'
+};
+
+// DB2 = instância Firestore do atlas-pontos
+let DB2 = null;
+
+// ── Helper: lê de DB2 com fallback para DB ─────────────────────────────
+async function db2Get(colecao, docId) {
+  if (DB2) {
+    try {
+      const snap = await DB2.collection(colecao).doc(docId).get();
+      if (snap.exists) return snap;
+    } catch(e) { console.warn('[DB2] read '+colecao+'/'+docId+':', e.message); }
+  }
+  return DB ? DB.collection(colecao).doc(docId).get() : null;
+}
+async function db2HrGet(docKey) {
+  return db2Get('hr', docKey);
+}
+// Grava em ambos os bancos (fire-and-forget no DB2)
+async function db2Set(colecao, docId, dados) {
+  if (DB) await DB.collection(colecao).doc(docId).set(dados, {merge:true});
+  if (DB2) DB2.collection(colecao).doc(docId).set(dados, {merge:true}).catch(e => console.warn('[DB2] write '+colecao+':', e.message));
+}
+async function db2HrSet(docKey, dados) {
+  if (DB) await DB.collection('hr').doc(docKey).set(dados, {merge:true});
+  if (DB2) DB2.collection('hr').doc(docKey).set(dados, {merge:true}).catch(e => console.warn('[DB2] hr/'+docKey+':', e.message));
+}
+
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const MONTHS_S = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
@@ -841,7 +923,7 @@ async function exportarExtratoBHPortalPDF() {
   let lancamentos = [];
   if (DB) {
     try {
-      const snap = await DB.collection('hr').doc('bancohoras').get();
+      const snap = await db2HrGet('bancohoras'); // [FB2] lê atlas-pontos com fallback rh-facilitacell
       if (snap.exists) {
         const d = snap.data();
         const all = d.d ? JSON.parse(d.d) : d;
@@ -1075,7 +1157,7 @@ function showErr(msg) {
   el.style.display = msg ? 'block' : 'none';
 }
 
-// ── Firebase ─────────────────────────────────────────────────
+    // ── Firebase ─────────────────────────────────────────────────
 async function initFirebase() {
   if (DB) return true;
   try {
@@ -1086,14 +1168,35 @@ async function initFirebase() {
     const existing = firebase.apps.find(a => a.name === 'portal') || firebase.apps.find(a => a.name === '[DEFAULT]');
     const app = existing || firebase.initializeApp(FB_CFG, 'portal');
     DB = firebase.firestore(app);
-    // Habilita cache offline — permite login mesmo com internet instável
+    // Cache offline — synchronizeTabs:false evita erro failed-precondition em múltiplas abas
     try {
       await DB.enablePersistence({ synchronizeTabs: false });
     } catch (pe) {
-      // code 'failed-precondition': múltiplas abas abertas (ignora)
-      // code 'unimplemented': browser não suporta (ignora)
-      console.warn('[Portal] Persistência offline não disponível:', pe.code);
+      if (pe.code !== 'failed-precondition' && pe.code !== 'unimplemented') {
+        console.warn('[Portal] Persistência offline não disponível:', pe.code);
+      }
+      // 'failed-precondition' = múltiplas abas (normal), 'unimplemented' = browser sem suporte (normal)
     }
+
+    // ── Firebase 2: atlas-pontos ──────────────────────────────────────
+    try {
+      const _ex2 = firebase.apps.find(a => a.name === 'atlas-pontos');
+      const _app2 = _ex2 || firebase.initializeApp(FB_CFG2, 'atlas-pontos');
+      DB2 = firebase.firestore(_app2);
+      try { await DB2.enablePersistence({ synchronizeTabs: false }); } catch(pe2) { /* ignora */ }
+      console.log('[Portal] ✅ atlas-pontos (DB2) conectado');
+    } catch(e2) {
+      console.warn('[Portal] ⚠ atlas-pontos não conectou (não crítico):', e2.message);
+      DB2 = null;
+    }
+
+    // ── Gerenciamento de rede: evita spam de WebChannelConnection quando offline ──
+    // Se já estiver offline ao iniciar, desliga a rede do Firestore imediatamente
+    if (!navigator.onLine) {
+      try { await DB.disableNetwork(); } catch(_) {}
+      try { if (DB2) await DB2.disableNetwork(); } catch(_) {}
+    }
+
     return true;
   } catch (e) {
     console.error('[Portal Firebase]', e);
@@ -1487,7 +1590,8 @@ function afterLogin() {
 
   // Pré-carrega modelos do face-api em segundo plano logo após o login,
   // para que o reconhecimento facial seja instantâneo quando o modal abrir.
-  setTimeout(() => { initFaceAPI(null).catch(() => {}); }, 200);
+  // Sem setTimeout: inicia imediatamente para minimizar espera ao abrir o modal.
+  initFaceAPI(null).catch(() => {});
 
   // ── Web Push: inicia listener de notificações ──────────────
   setTimeout(() => {
@@ -1767,7 +1871,7 @@ async function loadPonto() {
 
   // ── 1. Dados legados (hr/pontos) ─────────────────────────────────────────────
   try {
-    const snap = await DB.collection('hr').doc('pontos').get();
+    const snap = await db2HrGet('pontos'); // [FB2] lê atlas-pontos com fallback rh-facilitacell
     if (snap.exists) {
       const all = JSON.parse(snap.data().d || '{}');
       Object.entries(all).forEach(([k, v]) => { if (k.startsWith(EMP.id + '_')) PONTOS[k] = v; });
@@ -4083,7 +4187,7 @@ async function salvarJustif(ds) {
 
     // Firestore: salva todos em paralelo
     await Promise.all(batch.map(doc =>
-      DB.collection('bio_justificativas').doc(doc.id).set(doc)
+      db2Set('bio_justificativas', doc.id, doc)
     ));
 
     // Atualiza cache local
@@ -6465,16 +6569,25 @@ window.addEventListener('DOMContentLoaded', () => {
 //   5. Após 8s sem aprovação direta → Claude analisa melhor frame capturado
 // ──────────────────────────────────────────────────────────────────────────────
 
-const FACEAPI_CDN_OPTIONS = [
-  'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights',
-  'https://unpkg.com/face-api.js@0.22.2/weights',
-  'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/0.22.2/weights',
-];
+// raw.githubusercontent.com tem CORS wildcard (*) — funciona de file:// e HTTPS
+// cdn.jsdelivr.net gera erro 404 de hts_manifest.json ao servir pesos — removido
+// unpkg.com rejeita origin 'null' (file://) com erro CORS
+const _isFileProto = (window.location.protocol === 'file:');
+const FACEAPI_CDN_OPTIONS = _isFileProto
+  ? [
+      // file:// → só raw.github (CORS wildcard); unpkg/jsdelivr bloqueiam origin null
+      'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/0.22.2/weights',
+    ]
+  : [
+      // HTTPS → unpkg primeiro (sem hts_manifest 404), raw como fallback
+      'https://unpkg.com/face-api.js@0.22.2/weights',
+      'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/0.22.2/weights',
+    ];
 
 // ── Thresholds calibrados ──────────────────────────────────────────────────────
 let MATCH_THRESHOLD   = 0.60; // face-api: configurável via Firestore (hr/config → bioThreshold)
-const CLAUDE_ZONA_INICIO = 0.52; // abaixo = aprovação direta pelo face-api (era 0.45 — muito restrito)
-const CLAUDE_ZONA_FIM    = 0.68; // acima  = negação direta pelo face-api (era 0.65)
+const CLAUDE_ZONA_INICIO = 0.60; // abaixo = aprovação direta pelo face-api (aumentado 0.52→0.60: condições reais de iluminação)
+const CLAUDE_ZONA_FIM    = 0.72; // acima  = negação direta pelo face-api (aumentado 0.68→0.72)
 const CLAUDE_APOS_MS     = 4000; // após Xs sem aprovação direta → Claude assume
 
 // ── Chave Groq ────────────────────────────────────────────────────────────────
@@ -6568,6 +6681,7 @@ let BIO_REGISTRANDO  = false;
 let BIO_MODAL_ABERTO = false;
 let BIO_ETAPA        = 0;
 let BIO_BLINK_OK     = false;
+
 
 // ── EAR (Eye Aspect Ratio) — liveness básico ──────────────────────────────────
 const BLINK_EAR_THRESHOLD = 0.21;
@@ -6698,6 +6812,8 @@ async function registrarPontoNoBanco(method, extra) {
     const punchRef = DB.collection('bio_punches').doc();
     punchDoc.id = punchRef.id;
     await punchRef.set(punchDoc);
+    // [FB2] Espelha batida no atlas-pontos
+    if (DB2) DB2.collection('bio_punches').doc(punchDoc.id).set(punchDoc, {merge:true}).catch(e => console.warn('[DB2] bio_punches:', e.message));
   } else {
     punchDoc.id = 'offline_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
     punchDoc._offline = true;
@@ -7143,13 +7259,13 @@ async function abrirBioPonto() {
     let somaDistancias   = 0;        // acumulador para média ponderada (segurança extra)
     let totalFramesOk    = 0;        // total de frames com rosto detectado
     window._bioFramesDuvidosos = 0;  // FIX: reseta contador de frames na zona duvidosa
-    const ACERTOS_NECES  = 3;        // exige 3 frames consecutivos (era 2 — muito rápido, causava falso positivo ou miss)
-    const BIO_TIMEOUT    = 20000;    // timeout máximo: 20s (era 15s — muito curto para condições ruins de luz)
+    const ACERTOS_NECES  = 2;        // 2 frames consecutivos — equilíbrio entre segurança e velocidade
+    const BIO_TIMEOUT    = 25000;    // timeout máximo: 25s
     const BIO_START      = Date.now();
-    const FRAME_INTERVAL = 100;      // processa a cada 100ms (era 80ms — CPU mais folgada, menos queda de frame)
+    const FRAME_INTERVAL = 100;      // processa a cada 100ms
     // Fallback: aceita se a melhor leitura estiver abaixo do threshold após frames suficientes
-    const FALLBACK_LIMIT = MATCH_THRESHOLD + 0.04; // = 0.64 (era threshold+0.05=0.65, mas fallback ativava antes de ter frames)
-    const FALLBACK_MIN_FRAMES = 5;   // NOVO: só ativa fallback após ao menos 5 frames processados
+    const FALLBACK_LIMIT = MATCH_THRESHOLD + 0.12; // = 0.72 (cobre zona duvidosa inteira)
+    const FALLBACK_MIN_FRAMES = 4;   // ativa fallback após 4 frames processados
     let ultimoFrame      = 0;
     const camCanvas      = document.createElement('canvas');
     camCanvas.width = 320; camCanvas.height = 240;
@@ -7208,9 +7324,7 @@ async function abrirBioPonto() {
               <span style="font-size:12px;color:#94A3B8">Ponto <strong style="color:#F87171">não registrado</strong>.</span>`;
             setTimeout(() => { bioFecharModal(); }, 2500);
           } else {
-            // FIX: ERRO na API Groq (network/rate-limit/foto inacessível) no fallback
-            // Aprova diretamente pela distância, pois o fallback já confirmou proximidade suficiente
-            console.warn('[Bio Fallback] Groq ERRO — aprovando por distância do fallback:', melhorDistancia);
+            // Groq ERRO (network/rate-limit/foto inacessível) — aprova por distância
             bioSetRing(1, '#10B981');
             if (icon) icon.style.display = 'flex';
             const method = empData.descriptor && empData.descriptor.length >= 128
@@ -7341,11 +7455,18 @@ async function abrirBioPonto() {
               <span style="font-size:12px;color:#94A3B8">Ponto <strong style="color:#F87171">não registrado</strong>. Contate o RH.</span>`;
             setTimeout(() => { bioFecharModal(); }, 2500);
           } else {
-            // FIX: ERRO na API Groq (network, rate limit, foto inacessível) — NÃO bloqueia, retoma loop
-            BIO_REGISTRANDO = false;
-            const _restanteAtual = Math.ceil((BIO_TIMEOUT - (Date.now() - BIO_START)) / 1000);
-            statusEl.innerHTML = `⚠ Verificação extra falhou, continuando análise... <span style="font-size:10px;color:#64748B">(${_restanteAtual}s)</span>`;
-            BIO_AUTO_LOOP = requestAnimationFrame(bioLoop);
+            // Groq ERRO (network/rate-limit) — se distância já está abaixo do threshold, aprova direto
+            if (distance <= MATCH_THRESHOLD) {
+              bioSetRing(1, '#10B981');
+              if (icon) icon.style.display = 'flex';
+              await aprovar('faceapi_128d_groq_erro_aprovado', { faceDistance: distance.toFixed(4), liveness: 'faceapi_zona_segura_groq_offline' });
+            } else {
+              // Distância ainda alta — retoma loop
+              BIO_REGISTRANDO = false;
+              const _restanteAtual = Math.ceil((BIO_TIMEOUT - (Date.now() - BIO_START)) / 1000);
+              statusEl.innerHTML = `🔄 Continuando análise... <span style="font-size:10px;color:#64748B">(${_restanteAtual}s)</span>`;
+              BIO_AUTO_LOOP = requestAnimationFrame(bioLoop);
+            }
           }
           processando = false; return;
 
