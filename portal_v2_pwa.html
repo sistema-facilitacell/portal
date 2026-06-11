@@ -1632,34 +1632,50 @@ function startPontoListener() {
     const now   = new Date();
     const today = localDateStr(now);
     const cpfClean = (EMP.cpf || '').replace(/\D/g, '');
-    // Escuta por empId (campo correto) — batidas novas do RH agora salvam empId
+
+    // Função que processa snapshot de batidas (aceita ambas as queries)
+    const _processSnap = (snap) => {
+      if (snap.empty) return;
+      let mudou = false;
+      snap.docs.forEach(d => {
+        const b = { ...d.data(), _docId: d.id };
+        // Filtra pelo colaborador (necessário quando a query é apenas por 'date')
+        if (b.empId !== EMP.id && b.cpf !== cpfClean && b.hrEmpId !== EMP.id) return;
+        const key = `${b.type}_${b.time}`;
+        const existe = TODAY_PUNCHES.some(p => `${p.type}_${p.time}` === key);
+        if (!existe) {
+          TODAY_PUNCHES.push(b);
+          TODAY_PUNCHES.sort((a, b2) => a.time.localeCompare(b2.time));
+          const existeMes = MONTH_PUNCHES.some(p => p.date === b.date && `${p.type}_${p.time}` === key);
+          if (!existeMes) {
+            MONTH_PUNCHES.push(b);
+            MONTH_PUNCHES.sort((a, b2) => (a.date + a.time).localeCompare(b2.date + b2.time));
+          }
+          mudou = true;
+        }
+      });
+      if (mudou && CURRENT_TAB === 'ponto') {
+        const c = document.getElementById('content');
+        if (c) { c.innerHTML = renderPonto(); startClock(); }
+      }
+    };
+
+    // Tenta query composta (empId + date); se o índice composto não existir no Firestore,
+    // o onSnapshot dispara o erro e fazemos fallback para query simples (date apenas)
+    // com filtragem client-side — evita tela vazia por índice faltante.
     _pontoListenerUnsub = DB.collection('bio_punches')
       .where('empId', '==', EMP.id)
       .where('date', '==', today)
-      .onSnapshot(snap => {
-        if (snap.empty) return;
-        let mudou = false;
-        snap.docs.forEach(d => {
-          const b = { ...d.data(), _docId: d.id };
-          const key = `${b.type}_${b.time}`;
-          const existe = TODAY_PUNCHES.some(p => `${p.type}_${p.time}` === key);
-          if (!existe) {
-            TODAY_PUNCHES.push(b);
-            TODAY_PUNCHES.sort((a, b2) => a.time.localeCompare(b2.time));
-            const existeMes = MONTH_PUNCHES.some(p => p.date === b.date && `${p.type}_${p.time}` === key);
-            if (!existeMes) {
-              MONTH_PUNCHES.push(b);
-              MONTH_PUNCHES.sort((a, b2) => (a.date + a.time).localeCompare(b2.date + b2.time));
-            }
-            mudou = true;
-          }
-        });
-        if (mudou && CURRENT_TAB === 'ponto') {
-          // Re-renderiza silenciosamente para mostrar nova batida do RH
-          const c = document.getElementById('content');
-          if (c) { c.innerHTML = renderPonto(); startClock(); }
-        }
-      }, err => { console.warn('Listener ponto:', err); });
+      .onSnapshot(_processSnap, _err => {
+        console.warn('Listener ponto (composto):', _err.message || _err);
+        // Fallback: query por campo único 'date' — não requer índice composto
+        _pontoListenerUnsub = null;
+        try {
+          _pontoListenerUnsub = DB.collection('bio_punches')
+            .where('date', '==', today)
+            .onSnapshot(_processSnap, _err2 => console.warn('Listener ponto (fallback):', _err2));
+        } catch(_fe) { console.warn('startPontoListener fallback:', _fe); }
+      });
   } catch(e) { console.warn('startPontoListener:', e); }
 }
 function stopPontoListener() {
@@ -1889,15 +1905,23 @@ async function loadPonto() {
   };
 
   try {
-    let docs = [];
-    try       { docs = await tryBioMonth('empId', EMP.id); }
-    catch (e) {
-      try     { docs = await tryBioMonth('cpf', cpfClean); }
-      catch (e2) {
-        try   { docs = await tryBioMonth('hrEmpId', EMP.id); }
-        catch (e3) { docs = []; }
-      }
-    }
+    // ── FIX: roda as 3 queries em PARALELO; fallback sequencial perdia batidas
+    // quando empId retornava vazio mas cpf/hrEmpId teriam encontrado o documento
+    const [_r1, _r2, _r3] = await Promise.allSettled([
+      tryBioMonth('empId',   EMP.id),
+      tryBioMonth('cpf',     cpfClean),
+      tryBioMonth('hrEmpId', EMP.id),
+    ]);
+    const _seenMonth = new Set();
+    const docs = [];
+    [_r1, _r2, _r3].forEach(r => {
+      if (r.status !== 'fulfilled') return;
+      r.value.forEach(d => {
+        // Chave de dedup: prefere id do doc; fallback: data+tipo+hora+empId
+        const _k = d.id || `${d.date}_${d.type}_${d.time}_${d.empId || d.cpf || ''}`;
+        if (!_seenMonth.has(_k)) { _seenMonth.add(_k); docs.push(d); }
+      });
+    });
 
     MONTH_PUNCHES = docs.sort((a, b) =>
       (a.date + a.time).localeCompare(b.date + b.time)
@@ -2877,7 +2901,14 @@ function renderTab(tab) {
   if (tab !== 'chat' && CHAT_UNSUB) { CHAT_UNSUB(); CHAT_UNSUB = null; }
   if (tab === 'avisos') { renderAvisos(c); return; }
   if (tab === 'hol') { c.innerHTML = renderHol(); const _bh=document.getElementById('hol-badge'); if(_bh) _bh.style.display='none'; return; }
-  if (tab === 'ponto') { c.innerHTML = renderPonto(); startClock(); startPontoListener(); return; }
+  if (tab === 'ponto') {
+    c.innerHTML = renderPonto(); startClock(); startPontoListener();
+    // ── FIX: sempre recarrega batidas ao abrir a aba para evitar estado vazio após idle/reload
+    loadPonto().then(() => {
+      if (CURRENT_TAB === 'ponto') { const _c = document.getElementById('content'); if (_c) { _c.innerHTML = renderPonto(); startClock(); } }
+    }).catch(() => {});
+    return;
+  }
   if (tab === 'ferias') { renderFerias(c); return; }
   if (tab === 'docs') {
     c.innerHTML = renderDocs();
@@ -6782,6 +6813,13 @@ async function registrarPontoNoBanco(method, extra) {
   const now     = new Date();
   const today   = localDateStr(now);
   const timeStr = now.toTimeString().slice(0, 5);
+
+  // ── FIX: se TODAY_PUNCHES estiver vazio (sessão idle/reload), recarrega do Firestore
+  // antes de definir o tipo para não registrar entrada dupla por engano
+  if (TODAY_PUNCHES.length === 0) {
+    try { await loadPonto(); } catch(_) {}
+  }
+
   const lastType = TODAY_PUNCHES.length > 0 ? TODAY_PUNCHES[TODAY_PUNCHES.length - 1].type : null;
   const newType  = lastType === 'in' ? 'out' : 'in';
 
@@ -6791,7 +6829,7 @@ async function registrarPontoNoBanco(method, extra) {
     const [lh, lm] = (last.time || '00:00').split(':').map(Number);
     const [nh, nm] = timeStr.split(':').map(Number);
     const diffMin  = (nh * 60 + nm) - (lh * 60 + lm);
-    if (diffMin >= 0 && diffMin < 3) {
+    if (Math.abs(diffMin) < 3) {
       throw new Error(`Ponto já registrado às ${last.time}. Aguarde pelo menos 3 minutos.`);
     }
   }
@@ -6807,13 +6845,26 @@ async function registrarPontoNoBanco(method, extra) {
     ...extra
   };
 
-  // ── Tenta salvar no Firebase; se offline, salva no IDB ───────────────
+  // ── Tenta salvar no Firebase; se offline OU Firestore inacessível, salva no IDB ─────
+  // FIX CRÍTICO: navigator.onLine=true não garante que o Firestore responda
+  // (rede instável, rate-limit, timeout). Ponto NÃO pode ser perdido silenciosamente.
   if (navigator.onLine) {
-    const punchRef = DB.collection('bio_punches').doc();
-    punchDoc.id = punchRef.id;
-    await punchRef.set(punchDoc);
-    // [FB2] Espelha batida no atlas-pontos
-    if (DB2) DB2.collection('bio_punches').doc(punchDoc.id).set(punchDoc, {merge:true}).catch(e => console.warn('[DB2] bio_punches:', e.message));
+    try {
+      const punchRef = DB.collection('bio_punches').doc();
+      punchDoc.id = punchRef.id;
+      await punchRef.set(punchDoc);
+      // [FB2] Espelha batida no atlas-pontos
+      if (DB2) DB2.collection('bio_punches').doc(punchDoc.id).set(punchDoc, {merge:true}).catch(e => console.warn('[DB2] bio_punches:', e.message));
+    } catch (_fbErr) {
+      // Firebase falhou apesar de online (timeout, rede instável, regras Firestore)
+      // Salva no IDB para não perder o ponto — será sincronizado quando a conexão normalizar
+      console.warn('[Ponto] Firestore falhou, salvando no IDB:', _fbErr.message);
+      punchDoc.id = 'offline_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+      punchDoc._offline = true;
+      punchDoc._fbErr   = _fbErr.message;
+      await _idbSavePunch(punchDoc);
+      toast('⚠️ Conexão instável — ponto salvo localmente e será sincronizado em breve.', 'aviso', 6000);
+    }
   } else {
     punchDoc.id = 'offline_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
     punchDoc._offline = true;
@@ -6891,6 +6942,12 @@ if (!window._bioListenersAttached) {
 // ORQUESTRADOR PRINCIPAL — abrirBioPonto
 // ══════════════════════════════════════════════════════════════════════════════
 async function abrirBioPonto() {
+  // FIX: guard contra duplo-clique / dupla abertura
+  if (BIO_MODAL_ABERTO) return;
+  // Desabilita botão imediatamente para evitar cliques adicionais
+  const _btnPonto = document.getElementById('btn-bater-ponto');
+  if (_btnPonto) _btnPonto.disabled = true;
+
   bioStopStream();
   BIO_REGISTRANDO  = false;
   BIO_BLINK_OK     = false;
@@ -7046,9 +7103,11 @@ async function abrirBioPonto() {
           ${isIA ? '🤖 Verificado por Groq + biometria' : '🛡️ Verificação facial concluída'}
         </span>${geoTag}`;
     } catch(e) {
-      statusEl.innerHTML = `<span style="color:#FCA5A5">❌ Erro ao registrar ponto. Tente novamente.</span>`;
+      // FIX: mostra o motivo real do erro (ex: "Aguarde 3 min", "Sem conexão", etc.)
+      const _errMsg = e && e.message ? e.message : 'Erro desconhecido. Tente novamente.';
+      statusEl.innerHTML = `<span style="color:#FCA5A5;font-size:13px;font-weight:700">❌ ${_errMsg}</span>`;
     }
-    setTimeout(() => { bioFecharModal(); atualizarBotaoPonto(); }, 1800);
+    setTimeout(() => { bioFecharModal(); atualizarBotaoPonto(); }, 2200);
   }
 
   // ── Detecção de plataforma ───────────────────────────────────────────────────
@@ -7509,6 +7568,9 @@ function bioFecharModal() {
   document.getElementById('bio-ponto-modal').style.display = 'none';
   bioShowBlink(false);
   bioStopStream();
+  // FIX: re-habilita o botão de bater ponto após fechar o modal
+  const _btnP = document.getElementById('btn-bater-ponto');
+  if (_btnP) _btnP.disabled = false;
 }
 
 
