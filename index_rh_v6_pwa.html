@@ -37163,10 +37163,7 @@ document.addEventListener('keydown', e => {
 });
 </script>
 
-<!-- ═══════════════════════════════════════════════════
-     MÓDULO: SUSPENSÃO DISCIPLINAR v2.0
-     Integrado ao Atlas RH — índice principal
-     ═══════════════════════════════════════════════════ -->
+<!-- MÓDULO: SUSPENSÃO DISCIPLINAR v2.0 — Atlas RH -->
 <style>
 /* ═══════════════════════════════════════════════════════
    ATLAS RH — SUSPENSÃO DISCIPLINAR v2.0 — DESIGN SYSTEM
@@ -38430,7 +38427,33 @@ const suspensao = (() => {
   async function _carregar() {
     if (!_suspDb) return [];
     const snap = await _col().orderBy('criadoEm','desc').limit(200).get();
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    let lista = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Sincroniza status do portal (hr/assinaturas) de volta para a lista do RH
+    try {
+      const snapAssin = await _suspDb.collection('hr').doc('assinaturas').get();
+      if (snapAssin.exists) {
+        const assinMap = {};
+        const all = JSON.parse(snapAssin.data().d || '[]');
+        all.filter(a => a.origem === 'rh_suspensoes').forEach(a => { assinMap[a.id] = a; });
+        lista = lista.map(item => {
+          const portal = assinMap[item.id];
+          if (portal && portal.status !== 'pendente' && item.status === 'pendente') {
+            // Colaborador já assinou/recusou no portal — atualiza status local
+            return { ...item,
+              status:         portal.status === 'assinado' ? 'assinada' : 'recusada',
+              assinadoEm:     portal.assinaturaData || portal.assinadoEm || '',
+              bioTimestamp:   portal.assinadoEm_br  || '',
+              sigDataURL:     portal.assinaturaPNG  || '',
+              motivoRecusa:   portal.motivoRecusa   || ''
+            };
+          }
+          return item;
+        });
+      }
+    } catch(e) { /* sincronização não crítica */ }
+
+    return lista;
   }
 
 
@@ -38963,17 +38986,47 @@ const suspensao = (() => {
   async function confirmarEnvio() {
     if (!_docAtual) return;
     const hash = await _sha256(JSON.stringify(_docAtual) + Date.now());
+    const agora = new Date();
     const dados = { ..._docAtual, status:'pendente', hash,
-      criadoEm: firebase.firestore?.FieldValue?.serverTimestamp?.() || new Date() };
+      criadoEm: firebase.firestore?.FieldValue?.serverTimestamp?.() || agora };
     try {
+      // 1. Salva na subcoleção interna do módulo (histórico RH)
       const id = await _salvar(dados);
-      if (_suspDb && id) {
-        await _suspDb.collection('hr').doc('_notif_portal').collection('docs').add({
-                  tipo: 'suspensao', colaboradorId: dados.colaboradorId,
-                  suspensaoId: id, lida: false,
-                  criadoEm: firebase.firestore.FieldValue.serverTimestamp()
-                });
+
+      // 2. Grava em hr/assinaturas — mesmo caminho que o portal lê
+      if (_suspDb && id && dados.colaboradorId) {
+        const snapAssin = await _suspDb.collection('hr').doc('assinaturas').get();
+        let allAssin = snapAssin.exists ? JSON.parse(snapAssin.data().d || '[]') : [];
+
+        // Remove entrada anterior do mesmo id para não duplicar
+        allAssin = allAssin.filter(x => x.id !== id);
+
+        allAssin.push({
+          id,
+          empId:        dados.colaboradorId,
+          empNome:      dados.colaboradorNome  || '',
+          titulo:       'Suspensão Disciplinar — ' + (dados.nDoc || id),
+          tipoLabel:    'Suspensão Disciplinar',
+          tipo:         'suspensao',
+          origem:       'rh_suspensoes',
+          status:       'pendente',
+          motivo_resumo: MOTIVOS[dados.motivoTipo] || dados.motivoTipo || '',
+          descricao:    dados.descricao || '',
+          diasSuspensao: dados.diasSuspensao || 0,
+          dataInicio:   dados.dataInicio   || '',
+          dataFim:      dados.dataFim      || '',
+          nDoc:         dados.nDoc         || '',
+          responsavelRH: dados.responsavelRH || '',
+          hash,
+          criadoEm:     agora.toISOString(),
+          historicoStatus: [{ status:'pendente', ts: agora.toISOString(), origem:'rh_suspensoes' }]
+        });
+
+        await _suspDb.collection('hr').doc('assinaturas').set({
+          d: JSON.stringify(allAssin), ts: Date.now(), k: 'assinaturas'
+        });
       }
+
       fecharModal('modal-preview-susp');
       await init();
       _spToast('Suspensão enviada ao portal do colaborador!', 'success');
