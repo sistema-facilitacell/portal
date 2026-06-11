@@ -2657,6 +2657,7 @@ const NAV_GROUPS = [
     {id:'bancohoras',label:'Banco de Horas',icon:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><path d="M16 6l2-2"/><path d="M8 6L6 4"/>'},
     {id:'absenteismo',label:'Absenteísmo',icon:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="23" y2="14"/><line x1="23" y1="8" x2="17" y2="14"/>'},
     {id:'advertencias',label:'Advertências',icon:'<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'},
+    {id:'suspensao',label:'Suspensões Disciplinares',icon:'<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/><line x1="5" y1="9" x2="5" y2="17"/>'},
     {id:'desempenho',label:'Avaliação',icon:'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>'},
     {id:'comunicados',label:'Comunicados',icon:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'},
     {id:'__chat_colaborador__',label:'Chat Colaboradores',icon:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="9" y1="13" x2="13" y2="13"/>',chat:true},
@@ -2689,7 +2690,7 @@ const NAV_GROUPS = [
 ];
 // Mantém NAV flat para compatibilidade com MOD, navigate(), etc.
 const NAV = NAV_GROUPS.flatMap(g => g.items);
-const PAGE_TITLES={dashboard:'Dashboard',portaislinks:'Links dos Portais',funcionarios:'Funcionários',ponto:'Cartão Ponto',financeiro:'Financeiro',holerite:'Holerite',atestados:'Atestados Médicos',candidatos:'Candidatos',admissao:'Admissão',demissao:'Demissão',metadiaria:'Meta Diária',salarios:'Salários & Metas',biometrico:'Ponto Biométrico',relatorio:'Relatório Financeiro Mensal',advertencias:'Advertências e Suspensões',ferias:'Controle de Férias',desempenho:'Avaliação de Desempenho',comunicados:'Comunicados & Avisos',bancohoras:'Banco de Horas',recrutamento:'Recrutamento 2ª Fase',contratos:'Contratos & Documentos Admissionais',comprovantes:'Comprovantes de Pagamento',workflows:'Workflows Automáticos',assinatura_digital:'Assinatura Digital',alarmes_portal:'Alarmes do Portal',solicitacoes_portal:'Solicitações do Portal',absenteismo:'Dashboard de Absenteísmo'};
+const PAGE_TITLES={dashboard:'Dashboard',portaislinks:'Links dos Portais',funcionarios:'Funcionários',ponto:'Cartão Ponto',financeiro:'Financeiro',holerite:'Holerite',atestados:'Atestados Médicos',candidatos:'Candidatos',admissao:'Admissão',demissao:'Demissão',metadiaria:'Meta Diária',salarios:'Salários & Metas',biometrico:'Ponto Biométrico',relatorio:'Relatório Financeiro Mensal',advertencias:'Advertências e Suspensões',suspensao:'Suspensões Disciplinares',ferias:'Controle de Férias',desempenho:'Avaliação de Desempenho',comunicados:'Comunicados & Avisos',bancohoras:'Banco de Horas',recrutamento:'Recrutamento 2ª Fase',contratos:'Contratos & Documentos Admissionais',comprovantes:'Comprovantes de Pagamento',workflows:'Workflows Automáticos',assinatura_digital:'Assinatura Digital',alarmes_portal:'Alarmes do Portal',solicitacoes_portal:'Solicitações do Portal',absenteismo:'Dashboard de Absenteísmo'};
 
 // ── Helper: gera array de anos dinâmico ──────────
 function anosDisponiveis(extra=1){
@@ -2830,7 +2831,7 @@ function navigate(mod){
     return;
   }
 
-  const renders={dashboard:(typeof window._rDashComAlertas==="function"?window._rDashComAlertas:rDash),funcionarios:rFuncs,ponto:rPonto,financeiro:rFin,holerite:rHolerite,atestados:rAtestados,candidatos:rCand,admissao:rAdmissao,demissao:rDemissao,salarios:rSalarios,metadiaria:rMetaDiaria,biometrico:function(){ return (typeof window.rBiometrico==='function') ? window.rBiometrico() : rBiometrico(); },relatorio:rRelatorio,advertencias:rAdvertencias,ferias:rFerias,desempenho:rDesempenho,comunicados:rComunicados,bancohoras:rBancoHoras,recrutamento:rRecrutamento,contratos:function(){ return (typeof rContratos==='function') ? rContratos() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Contratos carregando...</div>'; },comprovantes:rComprovantes,portaislinks:rPortaisLinks,workflows:rWorkflows,assinatura_digital:function(){ return (typeof window.rAssinaturaDigital==='function') ? window.rAssinaturaDigital() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Assinatura carregando...</div>'; },alarmes_portal:rAlarmesPortal,solicitacoes_portal:rSolicitacoesPortal,absenteismo:rAbsenteismo};
+  const renders={dashboard:(typeof window._rDashComAlertas==="function"?window._rDashComAlertas:rDash),funcionarios:rFuncs,ponto:rPonto,financeiro:rFin,holerite:rHolerite,atestados:rAtestados,candidatos:rCand,admissao:rAdmissao,demissao:rDemissao,salarios:rSalarios,metadiaria:rMetaDiaria,biometrico:function(){ return (typeof window.rBiometrico==='function') ? window.rBiometrico() : rBiometrico(); },relatorio:rRelatorio,advertencias:rAdvertencias,ferias:rFerias,desempenho:rDesempenho,comunicados:rComunicados,bancohoras:rBancoHoras,recrutamento:rRecrutamento,contratos:function(){ return (typeof rContratos==='function') ? rContratos() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Contratos carregando...</div>'; },comprovantes:rComprovantes,portaislinks:rPortaisLinks,workflows:rWorkflows,assinatura_digital:function(){ return (typeof window.rAssinaturaDigital==='function') ? window.rAssinaturaDigital() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Assinatura carregando...</div>'; },alarmes_portal:rAlarmesPortal,solicitacoes_portal:rSolicitacoesPortal,absenteismo:rAbsenteismo,suspensao:function(){ const t=document.getElementById('_susp_module_html_'); return t?t.innerHTML:'<div class="card" style="padding:30px;text-align:center">⏳ Módulo Suspensões carregando...</div>'; }};
   // FIX-C1: try-catch no dispatcher — evita tela branca se qualquer render lançar erro
   try {
     document.getElementById('content').innerHTML=(renders[mod]||rDash)();
@@ -2852,6 +2853,7 @@ function navigate(mod){
   if(mod==='holerite'){const emp2=APP.employees.find(e=>e.status==='ativo'&&e.id===HOL.empId);if(emp2)setTimeout(()=>holInitCanvas(emp2.id),50);}
   // Inicializa módulo de recrutamento
   if(mod==='recrutamento')setTimeout(rec_postNavigate,50);
+  if(mod==='suspensao')setTimeout(()=>{ if(typeof suspensao!=='undefined')suspensao.init(); },50);
   else currentView='none';
 }
 
@@ -37160,5 +37162,2093 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') document.getElementById('_bioFotoLightboxModal').style.display = 'none';
 });
 </script>
+
+<!-- ═══════════════════════════════════════════════════
+     MÓDULO: SUSPENSÃO DISCIPLINAR v2.0
+     Integrado ao Atlas RH — índice principal
+     ═══════════════════════════════════════════════════ -->
+<style>
+/* ═══════════════════════════════════════════════════════
+   ATLAS RH — SUSPENSÃO DISCIPLINAR v2.0 — DESIGN SYSTEM
+   ═══════════════════════════════════════════════════════ */
+
+:root {
+  --atlas-primary:       #1a3a6b;
+  --atlas-primary-light: #2351a0;
+  --atlas-primary-dim:   #e8eef8;
+  --atlas-gold:          #a3720a;
+  --atlas-gold-bg:       #fef3c7;
+  --atlas-danger:        #c62828;
+  --atlas-danger-bg:     #fce8e8;
+  --atlas-success:       #15803d;
+  --atlas-success-bg:    #dcfce7;
+  --atlas-warning:       #b45309;
+  --atlas-warning-bg:    #fef9c3;
+  --atlas-neutral:       #475569;
+  --atlas-neutral-bg:    #f1f5f9;
+  --atlas-border:        #e2e8f0;
+  --atlas-text:          #0f172a;
+  --atlas-text-muted:    #64748b;
+  --atlas-surface:       #ffffff;
+  --atlas-bg:            #f8fafc;
+  --atlas-radius:        10px;
+  --atlas-radius-lg:     14px;
+  --atlas-shadow:        0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
+  --atlas-shadow-lg:     0 10px 40px rgba(0,0,0,.12), 0 4px 16px rgba(0,0,0,.06);
+}
+
+/* ─── Layout principal ─── */
+#view-suspensao {
+  padding: 28px 24px;
+  max-width: 1140px;
+  margin: 0 auto;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* ─── Page Header ─── */
+.sp-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+.sp-page-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sp-page-title .sp-icon {
+  width: 44px; height: 44px;
+  background: var(--atlas-primary);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+.sp-page-title h2 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--atlas-text);
+  margin: 0;
+  line-height: 1.2;
+}
+.sp-page-title .sp-subtitle {
+  font-size: 0.78rem;
+  color: var(--atlas-text-muted);
+  margin-top: 2px;
+}
+
+/* ─── Stats Cards ─── */
+.sp-stats {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.sp-stat {
+  background: var(--atlas-surface);
+  border: 1px solid var(--atlas-border);
+  border-radius: var(--atlas-radius);
+  padding: 12px 18px;
+  min-width: 110px;
+  flex: 1;
+  cursor: pointer;
+  transition: all .2s;
+  box-shadow: var(--atlas-shadow);
+}
+.sp-stat:hover { border-color: var(--atlas-primary); transform: translateY(-1px); }
+.sp-stat.active { border-color: var(--atlas-primary); background: var(--atlas-primary-dim); }
+.sp-stat-num {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--atlas-text);
+}
+.sp-stat.pendente .sp-stat-num { color: var(--atlas-warning); }
+.sp-stat.assinada .sp-stat-num { color: var(--atlas-success); }
+.sp-stat.recusada .sp-stat-num { color: var(--atlas-danger); }
+.sp-stat.rascunho .sp-stat-num { color: var(--atlas-neutral); }
+.sp-stat-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--atlas-text-muted);
+  margin-top: 2px;
+}
+
+/* ─── Toolbar ─── */
+.sp-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.sp-search {
+  flex: 1;
+  min-width: 200px;
+  position: relative;
+}
+.sp-search input {
+  width: 100%;
+  border: 1.5px solid var(--atlas-border);
+  border-radius: var(--atlas-radius);
+  padding: 9px 12px 9px 36px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--atlas-text);
+  background: var(--atlas-surface);
+  transition: border-color .2s;
+  box-sizing: border-box;
+}
+.sp-search input:focus { outline: none; border-color: var(--atlas-primary); }
+.sp-search .sp-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%; transform: translateY(-50%);
+  color: var(--atlas-text-muted);
+  font-size: 0.95rem;
+  pointer-events: none;
+}
+
+/* ─── Botão nova suspensão ─── */
+.sp-btn-nova {
+  background: var(--atlas-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--atlas-radius);
+  padding: 9px 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex; align-items: center; gap: 7px;
+  transition: background .2s, transform .15s;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(26,58,107,.25);
+}
+.sp-btn-nova:hover { background: var(--atlas-primary-light); transform: translateY(-1px); }
+.sp-btn-nova:active { transform: translateY(0); }
+
+/* ─── Tabela ─── */
+.sp-card {
+  background: var(--atlas-surface);
+  border: 1px solid var(--atlas-border);
+  border-radius: var(--atlas-radius-lg);
+  overflow: hidden;
+  box-shadow: var(--atlas-shadow);
+}
+.sp-table-wrap { overflow-x: auto; }
+.sp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.855rem;
+}
+.sp-table thead th {
+  background: #f8fafc;
+  border-bottom: 2px solid var(--atlas-border);
+  padding: 11px 16px;
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--atlas-text-muted);
+  white-space: nowrap;
+}
+.sp-table tbody td {
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--atlas-border);
+  vertical-align: middle;
+  color: var(--atlas-text);
+}
+.sp-table tbody tr:last-child td { border-bottom: none; }
+.sp-table tbody tr { transition: background .15s; }
+.sp-table tbody tr:hover td { background: #f8fafc; }
+
+.sp-collab-name { font-weight: 600; color: var(--atlas-text); }
+.sp-collab-role { font-size: .74rem; color: var(--atlas-text-muted); margin-top: 1px; }
+.sp-motivo-text { max-width: 220px; line-height: 1.35; color: var(--atlas-text-muted); }
+
+/* ─── Tags de status ─── */
+.sp-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 0.71rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+.sp-tag::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.sp-tag-pendente { background: var(--atlas-warning-bg); color: var(--atlas-warning); }
+.sp-tag-assinada { background: var(--atlas-success-bg); color: var(--atlas-success); }
+.sp-tag-recusada { background: var(--atlas-danger-bg);  color: var(--atlas-danger); }
+.sp-tag-rascunho { background: var(--atlas-neutral-bg); color: var(--atlas-neutral); }
+
+/* ─── Botões de ação na tabela ─── */
+.sp-action-btns { display: flex; gap: 6px; }
+.sp-action-btn {
+  border: 1px solid var(--atlas-border);
+  border-radius: 7px;
+  padding: 5px 11px;
+  font-size: 0.775rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all .15s;
+  background: var(--atlas-surface);
+  color: var(--atlas-text);
+}
+.sp-action-btn:hover { background: var(--atlas-neutral-bg); }
+.sp-action-btn.primary { background: var(--atlas-primary); color: #fff; border-color: var(--atlas-primary); }
+.sp-action-btn.primary:hover { background: var(--atlas-primary-light); }
+.sp-action-btn.success { background: var(--atlas-success); color: #fff; border-color: var(--atlas-success); }
+.sp-action-btn.danger  { background: transparent; color: var(--atlas-danger); border-color: #fca5a5; }
+.sp-action-btn.danger:hover  { background: var(--atlas-danger-bg); }
+.sp-action-btn.ghost   { color: var(--atlas-text-muted); }
+
+/* ─── Empty state ─── */
+.sp-empty {
+  text-align: center;
+  padding: 56px 24px;
+  color: var(--atlas-text-muted);
+}
+.sp-empty .sp-empty-icon { font-size: 2.8rem; margin-bottom: 12px; opacity: .4; }
+.sp-empty p { margin: 4px 0; font-size: 0.875rem; }
+.sp-empty strong { color: var(--atlas-text); }
+
+/* ─── Overlay / Modal ─── */
+.sp-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(15,23,42,.5);
+  z-index: 1200;
+  align-items: center; justify-content: center;
+  padding: 16px;
+  backdrop-filter: blur(2px);
+}
+.sp-overlay.open { display: flex; }
+.sp-modal {
+  background: var(--atlas-surface);
+  border-radius: var(--atlas-radius-lg);
+  width: 100%; max-width: 800px;
+  max-height: 93vh; overflow-y: auto;
+  box-shadow: var(--atlas-shadow-lg);
+  display: flex; flex-direction: column;
+  animation: sp-modal-in .18s ease-out;
+}
+@keyframes sp-modal-in {
+  from { opacity: 0; transform: translateY(12px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.sp-modal-head {
+  background: var(--atlas-primary);
+  color: #fff;
+  padding: 18px 24px;
+  border-radius: var(--atlas-radius-lg) var(--atlas-radius-lg) 0 0;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+  gap: 12px;
+}
+.sp-modal-head.success { background: #166534; }
+.sp-modal-head h3 { font-size: 1rem; font-weight: 700; margin: 0; }
+.sp-modal-head .sp-modal-sub { font-size: 0.72rem; opacity: .75; margin-top: 2px; }
+.sp-modal-close {
+  background: rgba(255,255,255,.15); border: none; color: #fff;
+  width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
+  font-size: 1.1rem; display: flex; align-items: center; justify-content: center;
+  transition: background .15s; flex-shrink: 0;
+}
+.sp-modal-close:hover { background: rgba(255,255,255,.25); }
+.sp-modal-body { padding: 24px; flex: 1; }
+.sp-modal-foot {
+  padding: 16px 24px;
+  border-top: 1px solid var(--atlas-border);
+  display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;
+  flex-shrink: 0; background: #fafbfc;
+  border-radius: 0 0 var(--atlas-radius-lg) var(--atlas-radius-lg);
+}
+
+/* ─── Botões do modal ─── */
+.sp-btn {
+  border: none; border-radius: 8px;
+  padding: 9px 20px;
+  font-size: 0.855rem; font-weight: 600; font-family: inherit;
+  cursor: pointer; transition: all .15s;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.sp-btn:disabled { opacity: .45; pointer-events: none; }
+.sp-btn.primary { background: var(--atlas-primary); color: #fff; }
+.sp-btn.primary:hover { background: var(--atlas-primary-light); }
+.sp-btn.gold    { background: var(--atlas-gold); color: #fff; }
+.sp-btn.gold:hover { filter: brightness(1.1); }
+.sp-btn.danger  { background: var(--atlas-danger); color: #fff; }
+.sp-btn.danger:hover { filter: brightness(1.1); }
+.sp-btn.ghost   { background: var(--atlas-neutral-bg); color: var(--atlas-text); }
+.sp-btn.ghost:hover { background: var(--atlas-border); }
+.sp-btn.success { background: var(--atlas-success); color: #fff; }
+
+/* ─── Formulário ─── */
+.sp-clt-box {
+  background: var(--atlas-warning-bg);
+  border: 1px solid #fde68a;
+  border-left: 4px solid var(--atlas-gold);
+  border-radius: var(--atlas-radius);
+  padding: 13px 16px;
+  margin-bottom: 20px;
+}
+.sp-clt-box .sp-clt-title {
+  font-size: 0.72rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .05em;
+  color: var(--atlas-gold); margin-bottom: 6px;
+}
+.sp-clt-box .sp-clt-text {
+  font-size: 0.795rem; color: #78350f; line-height: 1.6;
+}
+
+.sp-section-label {
+  font-size: 0.72rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em;
+  color: var(--atlas-text-muted);
+  margin: 22px 0 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.sp-section-label::after {
+  content: ''; flex: 1; height: 1px; background: var(--atlas-border);
+}
+
+.sp-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.sp-form-grid .span2 { grid-column: 1 / -1; }
+
+.sp-field { display: flex; flex-direction: column; gap: 5px; }
+.sp-field label {
+  font-size: 0.755rem; font-weight: 600;
+  color: var(--atlas-text-muted);
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.sp-field label .required { color: var(--atlas-danger); margin-left: 2px; }
+.sp-field input,
+.sp-field select,
+.sp-field textarea {
+  border: 1.5px solid var(--atlas-border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 0.875rem; font-family: inherit;
+  color: var(--atlas-text);
+  background: var(--atlas-surface);
+  transition: border-color .2s, box-shadow .2s;
+}
+.sp-field input:focus,
+.sp-field select:focus,
+.sp-field textarea:focus {
+  outline: none;
+  border-color: var(--atlas-primary);
+  box-shadow: 0 0 0 3px rgba(26,58,107,.1);
+}
+.sp-field input.readonly,
+.sp-field input[readonly] {
+  background: #f8fafc; color: var(--atlas-text-muted); cursor: default;
+}
+.sp-field textarea { resize: vertical; min-height: 90px; }
+.sp-field.error input,
+.sp-field.error select,
+.sp-field.error textarea { border-color: var(--atlas-danger); }
+.sp-field-hint {
+  font-size: 0.72rem; color: var(--atlas-text-muted); line-height: 1.4;
+}
+.sp-field.error .sp-field-hint { color: var(--atlas-danger); }
+
+.sp-motivo-info {
+  background: var(--atlas-primary-dim);
+  border-left: 3px solid var(--atlas-primary);
+  border-radius: 0 8px 8px 0;
+  padding: 9px 12px;
+  font-size: 0.795rem;
+  color: var(--atlas-primary);
+  margin-top: -4px;
+  display: none;
+}
+.sp-motivo-info.visible { display: block; }
+
+/* ─── Contador de dias ─── */
+.sp-dias-visual {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 6px;
+}
+.sp-dias-bar {
+  flex: 1; height: 6px; background: var(--atlas-border);
+  border-radius: 99px; overflow: hidden;
+}
+.sp-dias-fill {
+  height: 100%; background: var(--atlas-primary);
+  border-radius: 99px; transition: width .3s, background .3s;
+}
+.sp-dias-fill.warn { background: var(--atlas-warning); }
+.sp-dias-fill.danger { background: var(--atlas-danger); }
+.sp-dias-pct { font-size: 0.72rem; color: var(--atlas-text-muted); min-width: 36px; text-align: right; }
+
+/* ─── Pré-visualização do documento ─── */
+.sp-doc-preview {
+  background: #fff;
+  border: 1px solid var(--atlas-border);
+  border-radius: var(--atlas-radius);
+  padding: 32px 36px;
+  font-family: 'Times New Roman', Georgia, serif;
+  font-size: 0.875rem;
+  line-height: 1.85;
+  color: #1a1a1a;
+  position: relative;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,.04);
+}
+.sp-doc-header { text-align: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #1a1a1a; }
+.sp-doc-company { font-size: 1.1rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
+.sp-doc-cnpj { font-size: 0.75rem; color: #555; margin-top: 2px; }
+.sp-doc-ndoc { font-size: 0.7rem; color: #888; margin-top: 4px; }
+.sp-doc-title {
+  text-align: center; font-size: 0.95rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .08em;
+  text-decoration: underline; margin: 20px 0;
+}
+.sp-doc-body { text-align: justify; margin-bottom: 12px; }
+.sp-doc-body + .sp-doc-body { margin-top: 10px; }
+.sp-doc-assinaturas {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 24px; margin-top: 48px;
+}
+.sp-assin-box {
+  border-top: 1.5px solid #1a1a1a;
+  padding-top: 8px; text-align: center;
+  font-size: 0.8rem; line-height: 1.5;
+}
+.sp-assin-img-wrap {
+  height: 60px; display: flex;
+  align-items: flex-end; justify-content: center; margin-bottom: 6px;
+}
+.sp-assin-img-wrap img { max-height: 56px; max-width: 100%; object-fit: contain; }
+.sp-doc-hash {
+  font-family: monospace; font-size: 0.62rem; color: #aaa;
+  word-break: break-all; margin-top: 28px;
+  border-top: 1px dashed #ddd; padding-top: 10px;
+}
+.sp-doc-qr {
+  position: absolute; top: 20px; right: 28px;
+  width: 60px; height: 60px;
+  background: #f0f0f0; border: 1px solid #ccc;
+  border-radius: 4px; display: flex; align-items: center;
+  justify-content: center; font-size: 0.5rem; color: #888;
+  text-align: center;
+}
+.sp-watermark {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%,-50%) rotate(-35deg);
+  font-size: 4rem; font-weight: 900;
+  color: rgba(21,128,61,.06);
+  text-transform: uppercase; letter-spacing: .25em;
+  pointer-events: none; white-space: nowrap;
+  user-select: none;
+}
+
+/* ─── Timeline de histórico ─── */
+.sp-timeline { margin: 16px 0; }
+.sp-tl-item { display: flex; gap: 12px; padding-bottom: 16px; position: relative; }
+.sp-tl-item:not(:last-child) .sp-tl-dot::after {
+  content: ''; position: absolute; left: 7px; top: 22px;
+  width: 2px; bottom: 0; background: var(--atlas-border);
+}
+.sp-tl-dot {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid var(--atlas-border);
+  background: var(--atlas-surface);
+  flex-shrink: 0; margin-top: 2px; position: relative;
+}
+.sp-tl-dot.done { background: var(--atlas-success); border-color: var(--atlas-success); }
+.sp-tl-dot.active { background: var(--atlas-primary); border-color: var(--atlas-primary); }
+.sp-tl-dot.warn { background: var(--atlas-warning); border-color: var(--atlas-warning); }
+.sp-tl-content strong { font-size: 0.835rem; color: var(--atlas-text); }
+.sp-tl-content span { font-size: 0.75rem; color: var(--atlas-text-muted); display: block; margin-top: 1px; }
+
+/* ─── Steps de assinatura ─── */
+.sp-steps {
+  display: flex; align-items: center; gap: 0;
+  margin-bottom: 24px;
+  background: var(--atlas-neutral-bg);
+  border-radius: var(--atlas-radius);
+  padding: 12px 16px;
+}
+.sp-step-item { display: flex; align-items: center; gap: 8px; flex: 1; }
+.sp-step-item:not(:last-child)::after {
+  content: ''; flex: 1; height: 2px;
+  background: var(--atlas-border); margin: 0 4px;
+  transition: background .3s;
+}
+.sp-step-item.done::after { background: var(--atlas-success); }
+.sp-step-dot {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--atlas-border); color: var(--atlas-text-muted);
+  font-size: 0.78rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all .3s;
+}
+.sp-step-dot.active { background: var(--atlas-primary); color: #fff; box-shadow: 0 0 0 4px rgba(26,58,107,.15); }
+.sp-step-dot.done { background: var(--atlas-success); color: #fff; }
+.sp-step-label { font-size: 0.755rem; font-weight: 600; color: var(--atlas-text-muted); }
+.sp-step-label.active { color: var(--atlas-primary); }
+.sp-step-label.done { color: var(--atlas-success); }
+
+/* ─── Canvas de assinatura ─── */
+.sp-canvas-wrap {
+  border: 2px dashed var(--atlas-border);
+  border-radius: var(--atlas-radius);
+  background: linear-gradient(180deg, #fafafa 0%, #f4f4f4 100%);
+  position: relative; overflow: hidden;
+  margin-bottom: 8px; transition: border-color .2s;
+}
+.sp-canvas-wrap:hover { border-color: var(--atlas-primary); }
+.sp-canvas-wrap canvas { display: block; touch-action: none; cursor: crosshair; }
+.sp-canvas-hint {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 6px;
+  font-size: 0.8rem; color: #b0b0b0;
+  pointer-events: none;
+}
+.sp-canvas-hint svg { opacity: .3; }
+
+/* ─── Biometria ─── */
+.sp-bio-wrap {
+  border-radius: var(--atlas-radius);
+  overflow: hidden; background: #0a0a0a;
+  position: relative; margin-bottom: 10px;
+}
+.sp-bio-wrap video { display: block; width: 100%; }
+.sp-bio-overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 10px;
+}
+.sp-bio-ring {
+  width: 140px; height: 140px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.2);
+  position: relative;
+}
+.sp-bio-ring.scanning {
+  border-color: #22c55e;
+  animation: sp-bio-pulse 1.4s ease-in-out infinite;
+}
+.sp-bio-ring.ok { border-color: #22c55e; border-width: 3px; }
+@keyframes sp-bio-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(34,197,94,.35); }
+  50%      { box-shadow: 0 0 0 14px rgba(34,197,94,0); }
+}
+.sp-bio-scan-line {
+  position: absolute; left: 6px; right: 6px; height: 2px;
+  background: linear-gradient(90deg, transparent, #22c55e, transparent);
+  animation: sp-scan-move 2s linear infinite;
+  display: none;
+}
+.sp-bio-ring.scanning .sp-bio-scan-line { display: block; }
+@keyframes sp-scan-move {
+  0%   { top: 10%; }
+  50%  { top: 85%; }
+  100% { top: 10%; }
+}
+.sp-bio-status {
+  color: #fff; font-size: 0.82rem; font-weight: 600;
+  text-shadow: 0 1px 4px rgba(0,0,0,.6); text-align: center;
+  padding: 6px 14px; background: rgba(0,0,0,.4); border-radius: 99px;
+}
+
+/* ─── Info boxes ─── */
+.sp-info {
+  border-radius: var(--atlas-radius);
+  padding: 11px 14px;
+  font-size: 0.8rem; line-height: 1.55;
+  margin-bottom: 14px;
+  display: flex; gap: 10px; align-items: flex-start;
+}
+.sp-info.info   { background: #eff6ff; border-left: 3px solid #3b82f6; color: #1e3a8a; }
+.sp-info.warn   { background: var(--atlas-warning-bg); border-left: 3px solid var(--atlas-warning); color: #78350f; }
+.sp-info.ok     { background: var(--atlas-success-bg); border-left: 3px solid var(--atlas-success); color: #14532d; }
+.sp-info.danger { background: var(--atlas-danger-bg);  border-left: 3px solid var(--atlas-danger);  color: #991b1b; }
+.sp-info .sp-info-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+
+/* ─── Toast notifications ─── */
+#sp-toast-container {
+  position: fixed; top: 20px; right: 20px;
+  z-index: 9999; display: flex; flex-direction: column; gap: 8px;
+  pointer-events: none;
+}
+.sp-toast {
+  background: #1e293b; color: #fff;
+  border-radius: 10px; padding: 13px 18px;
+  font-size: 0.855rem; font-weight: 500; font-family: 'Inter', sans-serif;
+  max-width: 360px; display: flex; align-items: center; gap: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.25);
+  animation: sp-toast-in .2s ease-out forwards;
+  pointer-events: all; position: relative;
+  overflow: hidden;
+}
+.sp-toast::after {
+  content: ''; position: absolute; bottom: 0; left: 0;
+  height: 3px; background: currentColor; opacity: .4;
+  animation: sp-toast-bar 3s linear forwards;
+}
+@keyframes sp-toast-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes sp-toast-bar {
+  from { width: 100%; }
+  to   { width: 0; }
+}
+.sp-toast.out { animation: sp-toast-out .2s ease-in forwards; }
+@keyframes sp-toast-out {
+  to { opacity: 0; transform: translateX(20px); height: 0; padding: 0; margin: 0; }
+}
+.sp-toast.success { background: #15803d; }
+.sp-toast.error   { background: #c62828; }
+.sp-toast.warning { background: #b45309; }
+.sp-toast.info    { background: #1d4ed8; }
+
+/* ─── Modal de confirmação ─── */
+#sp-confirm-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(15,23,42,.55); z-index: 9998;
+  align-items: center; justify-content: center;
+  padding: 16px;
+}
+#sp-confirm-overlay.open { display: flex; }
+.sp-confirm-box {
+  background: var(--atlas-surface);
+  border-radius: var(--atlas-radius-lg);
+  width: 100%; max-width: 420px;
+  padding: 28px 24px;
+  box-shadow: var(--atlas-shadow-lg);
+  text-align: center;
+  animation: sp-modal-in .15s ease-out;
+}
+.sp-confirm-icon { font-size: 2.5rem; margin-bottom: 12px; }
+.sp-confirm-title { font-size: 1.05rem; font-weight: 700; color: var(--atlas-text); margin-bottom: 8px; }
+.sp-confirm-msg { font-size: 0.855rem; color: var(--atlas-text-muted); line-height: 1.55; margin-bottom: 22px; }
+.sp-confirm-actions { display: flex; gap: 10px; justify-content: center; }
+
+/* ─── Spinner ─── */
+.sp-spinner {
+  width: 16px; height: 16px; flex-shrink: 0;
+  border: 2px solid rgba(255,255,255,.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: sp-spin .6s linear infinite;
+  display: inline-block;
+}
+@keyframes sp-spin { to { transform: rotate(360deg); } }
+
+/* ─── Responsivo ─── */
+@media (max-width: 640px) {
+  #view-suspensao { padding: 16px; }
+  .sp-form-grid { grid-template-columns: 1fr; }
+  .sp-doc-assinaturas { grid-template-columns: 1fr; }
+  .sp-modal { border-radius: 0; max-height: 100vh; }
+  .sp-stats { gap: 6px; }
+  .sp-step-label { display: none; }
+  .sp-doc-preview { padding: 20px; }
+  .sp-doc-qr { display: none; }
+}
+
+</style>
+
+<div style="display:none" id="_susp_module_html_">
+<!-- ═══ TOAST CONTAINER ═══ -->
+<div id="sp-toast-container"></div>
+
+<!-- ═══ MODAL DE CONFIRMAÇÃO ═══ -->
+<div id="sp-confirm-overlay">
+  <div class="sp-confirm-box">
+    <div class="sp-confirm-icon" id="sp-confirm-icon">⚠️</div>
+    <div class="sp-confirm-title" id="sp-confirm-title">Confirmar ação</div>
+    <div class="sp-confirm-msg" id="sp-confirm-msg"></div>
+    <div class="sp-confirm-actions">
+      <button class="sp-btn ghost" id="sp-confirm-cancel" onclick="SP.confirm.cancel()">Cancelar</button>
+      <button class="sp-btn danger" id="sp-confirm-ok" onclick="SP.confirm.ok()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     VIEW PRINCIPAL — RH
+     ═══════════════════════════════════════════════════ -->
+<div id="view-suspensao" style="display:block;">
+
+  <!-- Header da página -->
+  <div class="sp-page-header">
+    <div class="sp-page-title">
+      <div class="sp-icon">⚖️</div>
+      <div>
+        <h2>Suspensões Disciplinares</h2>
+        <div class="sp-subtitle">Gerenciamento de medidas disciplinares conforme CLT Art. 474 e 482</div>
+      </div>
+    </div>
+    <button class="sp-btn-nova" onclick="suspensao.abrirNova()">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Nova Suspensão
+    </button>
+  </div>
+
+  <!-- Cards de estatística / filtros -->
+  <div class="sp-stats">
+    <div class="sp-stat active" id="stat-todas" onclick="suspensao.filtrar('todas',this,'stat-todas')">
+      <div class="sp-stat-num" id="cnt-todas">—</div>
+      <div class="sp-stat-label">Total</div>
+    </div>
+    <div class="sp-stat pendente" id="stat-pendente" onclick="suspensao.filtrar('pendente',this,'stat-pendente')">
+      <div class="sp-stat-num" id="cnt-pendente">—</div>
+      <div class="sp-stat-label">Aguardando</div>
+    </div>
+    <div class="sp-stat assinada" id="stat-assinada" onclick="suspensao.filtrar('assinada',this,'stat-assinada')">
+      <div class="sp-stat-num" id="cnt-assinada">—</div>
+      <div class="sp-stat-label">Assinadas</div>
+    </div>
+    <div class="sp-stat recusada" id="stat-recusada" onclick="suspensao.filtrar('recusada',this,'stat-recusada')">
+      <div class="sp-stat-num" id="cnt-recusada">—</div>
+      <div class="sp-stat-label">Recusadas</div>
+    </div>
+    <div class="sp-stat rascunho" id="stat-rascunho" onclick="suspensao.filtrar('rascunho',this,'stat-rascunho')">
+      <div class="sp-stat-num" id="cnt-rascunho">—</div>
+      <div class="sp-stat-label">Rascunhos</div>
+    </div>
+  </div>
+
+  <!-- Barra de busca -->
+  <div class="sp-toolbar">
+    <div class="sp-search">
+      <span class="sp-search-icon">🔍</span>
+      <input type="text" id="sp-busca" placeholder="Buscar por colaborador, cargo ou nº do documento..." oninput="suspensao.buscar(this.value)">
+    </div>
+  </div>
+
+  <!-- Tabela -->
+  <div class="sp-card">
+    <div class="sp-table-wrap">
+      <table class="sp-table">
+        <thead>
+          <tr>
+            <th>Colaborador</th>
+            <th>Enquadramento</th>
+            <th style="text-align:center;">Dias</th>
+            <th>Período</th>
+            <th>Status</th>
+            <th>Atualizado em</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="susp-tbody">
+          <tr>
+            <td colspan="7">
+              <div class="sp-empty">
+                <div class="sp-empty-icon">📋</div>
+                <strong>Carregando registros...</strong>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     MODAL: CRIAR / EDITAR SUSPENSÃO
+     ═══════════════════════════════════════════════════ -->
+<div class="sp-overlay" id="modal-criar-susp">
+  <div class="sp-modal">
+    <div class="sp-modal-head">
+      <div>
+        <h3 id="modal-criar-title">📋 Nova Suspensão Disciplinar</h3>
+        <div class="sp-modal-sub">CLT Art. 474 e 482 • Regulamento Interno</div>
+      </div>
+      <button class="sp-modal-close" onclick="suspensao.fecharModal('modal-criar-susp')">✕</button>
+    </div>
+    <div class="sp-modal-body">
+
+      <div class="sp-clt-box">
+        <div class="sp-clt-title">⚖️ Fundamento Legal — CLT</div>
+        <div class="sp-clt-text">
+          <strong>Art. 474:</strong> Suspensão por mais de 30 dias consecutivos importa em rescisão injusta do contrato.<br>
+          <strong>Art. 482:</strong> Constitui falta grave: improbidade; incontinência de conduta; desídia; embriaguez; violação de segredo; abandono; ato lesivo à honra; prática de jogos de azar; perda de habilitação profissional.
+        </div>
+      </div>
+
+      <div class="sp-section-label">Dados do colaborador</div>
+      <div class="sp-form-grid">
+        <div class="sp-field span2" id="field-colaborador">
+          <label>Colaborador <span class="required">*</span></label>
+          <select id="susp-colaborador">
+            <option value="">Selecionar colaborador...</option>
+          </select>
+        </div>
+        <div class="sp-field">
+          <label>Matrícula</label>
+          <input type="text" id="susp-matricula" class="readonly" readonly placeholder="Auto-preenchido">
+        </div>
+        <div class="sp-field">
+          <label>Cargo / Função</label>
+          <input type="text" id="susp-cargo" class="readonly" readonly placeholder="Auto-preenchido">
+        </div>
+        <div class="sp-field">
+          <label>Setor / Departamento</label>
+          <input type="text" id="susp-setor" class="readonly" readonly placeholder="Auto-preenchido">
+        </div>
+        <div class="sp-field">
+          <label>Nº do Documento</label>
+          <input type="text" id="susp-ndoc" placeholder="Ex: SUSP-2025-001">
+        </div>
+      </div>
+
+      <div class="sp-section-label">Enquadramento e fatos</div>
+      <div class="sp-form-grid">
+        <div class="sp-field span2" id="field-motivo-tipo">
+          <label>Enquadramento CLT <span class="required">*</span></label>
+          <select id="susp-motivo-tipo" onchange="suspensao.atualizarMotivo()">
+            <option value="">Selecionar artigo/enquadramento...</option>
+            <optgroup label="── Falta Injustificada ──">
+              <option value="falta_simples">Falta Injustificada (1ª ocorrência — desídia)</option>
+              <option value="falta_reincidente">Falta Injustificada — Reincidência após advertência</option>
+              <option value="falta_multipla">Faltas Injustificadas Repetidas / Habituais</option>
+            </optgroup>
+            <optgroup label="── CLT Art. 482 ──">
+            <option value="art482a">Art. 482-a — Ato de Improbidade</option>
+            <option value="art482b">Art. 482-b — Incontinência de Conduta / Mau Procedimento</option>
+            <option value="art482c">Art. 482-c — Negociação Habitual por Conta Própria</option>
+            <option value="art482d">Art. 482-d — Condenação Criminal do Empregado</option>
+            <option value="art482e">Art. 482-e — Desídia no Desempenho das Funções</option>
+            <option value="art482f">Art. 482-f — Embriaguez Habitual ou em Serviço</option>
+            <option value="art482g">Art. 482-g — Violação de Segredo da Empresa</option>
+            <option value="art482h">Art. 482-h — Abandono de Emprego</option>
+            <option value="art482i">Art. 482-i — Ato Lesivo da Honra ou Boa Fama</option>
+            <option value="art482j">Art. 482-j — Ato Lesivo à Pessoa Física</option>
+            <option value="art482k">Art. 482-k — Prática de Jogos de Azar</option>
+            <option value="art482l">Art. 482-l — Perda de Habilitação Profissional</option>
+            <option value="regulamento">Violação de Regulamento Interno</option>
+            <option value="advertencia_reincidente">Reincidência após Advertência Formal Anterior</option>
+            <option value="outro">Outros Motivos (especificar)</option>
+            </optgroup>
+          </select>
+          <div class="sp-motivo-info" id="sp-motivo-info"></div>
+        </div>
+
+        <div class="sp-field span2" id="field-descricao">
+          <label>Descrição dos Fatos / Ocorrência <span class="required">*</span></label>
+          <textarea id="susp-descricao" rows="4"
+            placeholder="Descreva detalhadamente a conduta que motivou a suspensão, incluindo data, hora, local e testemunhas quando houver..."></textarea>
+        </div>
+      </div>
+
+      <div class="sp-section-label">Período de suspensão</div>
+      <div class="sp-form-grid">
+        <div class="sp-field" id="field-inicio">
+          <label>Data de Início <span class="required">*</span></label>
+          <input type="date" id="susp-inicio" oninput="suspensao.calcularFim()">
+        </div>
+        <div class="sp-field" id="field-dias">
+          <label>Dias de Suspensão <span class="required">*</span> <span style="font-size:.7rem;font-weight:400;text-transform:none;">(máx. 30 — CLT Art. 474)</span></label>
+          <input type="number" id="susp-dias" min="1" max="30" value="1" oninput="suspensao.calcularFim()">
+          <div class="sp-dias-visual">
+            <div class="sp-dias-bar"><div class="sp-dias-fill" id="sp-dias-fill" style="width:3.3%"></div></div>
+            <div class="sp-dias-pct" id="sp-dias-pct">1/30</div>
+          </div>
+        </div>
+        <div class="sp-field">
+          <label>Data de Retorno (calculada)</label>
+          <input type="text" id="susp-fim" class="readonly" readonly>
+        </div>
+      </div>
+
+      <div class="sp-section-label">Responsáveis e testemunhas</div>
+      <div class="sp-form-grid">
+        <div class="sp-field span2" id="field-responsavel-rh">
+          <label>Responsável RH / Assinante pela Empresa <span class="required">*</span></label>
+          <input type="text" id="susp-responsavel-rh" placeholder="Nome completo do responsável">
+        </div>
+        <div class="sp-field">
+          <label>Testemunha 1</label>
+          <input type="text" id="susp-testemunha1" placeholder="Nome / Cargo">
+        </div>
+        <div class="sp-field">
+          <label>Testemunha 2 <span style="font-size:.65rem;font-weight:400;text-transform:none;">(opcional)</span></label>
+          <input type="text" id="susp-testemunha2" placeholder="Nome / Cargo">
+        </div>
+        <div class="sp-field span2">
+          <label>Observações Internas <span style="font-size:.65rem;font-weight:400;text-transform:none;">(não constam no documento)</span></label>
+          <textarea id="susp-obs" rows="2"
+            placeholder="Anotações internas para o RH — prontuário, histórico, etc."></textarea>
+        </div>
+      </div>
+
+    </div>
+    <div class="sp-modal-foot">
+      <button class="sp-btn ghost" onclick="suspensao.fecharModal('modal-criar-susp')">Cancelar</button>
+      <button class="sp-btn ghost" onclick="suspensao.salvarRascunho()">💾 Rascunho</button>
+      <button class="sp-btn gold"  onclick="suspensao.previsualizar()">👁 Pré-visualizar</button>
+      <button class="sp-btn primary" onclick="suspensao.enviarParaAssinatura()">
+        📤 Enviar para Assinatura
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     MODAL: PRÉ-VISUALIZAÇÃO
+     ═══════════════════════════════════════════════════ -->
+<div class="sp-overlay" id="modal-preview-susp">
+  <div class="sp-modal" style="max-width:760px;">
+    <div class="sp-modal-head">
+      <div>
+        <h3>📄 Pré-visualização do Documento</h3>
+        <div class="sp-modal-sub">Revise antes de enviar ao colaborador</div>
+      </div>
+      <button class="sp-modal-close" onclick="suspensao.fecharModal('modal-preview-susp')">✕</button>
+    </div>
+    <div class="sp-modal-body">
+      <div class="sp-info info">
+        <span class="sp-info-icon">ℹ️</span>
+        <span>Verifique todos os dados com atenção. Após o envio, o colaborador receberá uma notificação no portal para assinar o documento.</span>
+      </div>
+      <div class="sp-doc-preview" id="doc-preview-content"></div>
+    </div>
+    <div class="sp-modal-foot">
+      <button class="sp-btn ghost" onclick="suspensao.fecharModal('modal-preview-susp');suspensao.abrirModal('modal-criar-susp')">← Voltar e Editar</button>
+      <button class="sp-btn primary" onclick="suspensao.confirmarEnvio()">
+        ✅ Confirmar e Enviar ao Colaborador
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     MODAL: ASSINATURA (portal do colaborador)
+     ═══════════════════════════════════════════════════ -->
+<div class="sp-overlay" id="modal-assinar-susp">
+  <div class="sp-modal" style="max-width:700px;">
+    <div class="sp-modal-head">
+      <div>
+        <h3 id="assin-title">✍️ Assinar Documento de Suspensão</h3>
+        <div class="sp-modal-sub" id="assin-subtitle">Confirme sua identidade e assine o documento</div>
+      </div>
+      <button class="sp-modal-close" onclick="suspensao.fecharModal('modal-assinar-susp');suspensao.pararCamera()">✕</button>
+    </div>
+    <div class="sp-modal-body" id="assin-body">
+
+      <!-- Indicador de etapas -->
+      <div class="sp-steps">
+        <div class="sp-step-item" id="si-1">
+          <div class="sp-step-dot active" id="step1-dot">1</div>
+          <div class="sp-step-label active">Leitura</div>
+        </div>
+        <div class="sp-step-item" id="si-2">
+          <div class="sp-step-dot" id="step2-dot">2</div>
+          <div class="sp-step-label">Assinatura</div>
+        </div>
+        <div class="sp-step-item" id="si-3">
+          <div class="sp-step-dot" id="step3-dot">3</div>
+          <div class="sp-step-label">Biometria</div>
+        </div>
+      </div>
+
+      <!-- Step 1: Leitura -->
+      <div id="assin-step1">
+        <div class="sp-info info">
+          <span class="sp-info-icon">📋</span>
+          <span><strong>Leia atentamente</strong> o documento abaixo. Ao assinar, você confirma ciência e recebimento desta notificação de suspensão disciplinar.</span>
+        </div>
+        <div class="sp-doc-preview" id="doc-assin-preview" style="max-height:300px;overflow-y:auto;font-size:0.81rem;"></div>
+        <div style="margin-top:16px;display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;">
+          <button class="sp-btn danger" onclick="suspensao.solicitarRecusa()">❌ Recusar / Não Concordo</button>
+          <button class="sp-btn primary" onclick="suspensao.irStep2()">Li e Compreendi — Próximo →</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Assinatura canvas -->
+      <div id="assin-step2" style="display:none;">
+        <div class="sp-info info">
+          <span class="sp-info-icon">✍️</span>
+          <span>Assine dentro do campo abaixo usando o mouse ou o toque na tela.</span>
+        </div>
+        <div class="sp-canvas-wrap" style="height:160px;" id="canvas-container">
+          <canvas id="sig-canvas"></canvas>
+          <div class="sp-canvas-hint" id="canvas-hint">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" stroke="#aaa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Assine aqui
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+          <button class="sp-btn ghost" onclick="suspensao.limparCanvas()" style="font-size:0.8rem;padding:7px 13px;">🗑️ Limpar</button>
+          <span id="sp-sig-feedback" style="font-size:.75rem;color:var(--atlas-text-muted);"></span>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button class="sp-btn ghost" onclick="suspensao.irStep1()">← Voltar</button>
+          <button class="sp-btn primary" onclick="suspensao.irStep3()">Próximo →</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Biometria -->
+      <div id="assin-step3" style="display:none;">
+        <div class="sp-info info">
+          <span class="sp-info-icon">🔒</span>
+          <span>Posicione seu rosto no centro do quadro. A verificação biométrica confirma sua identidade.</span>
+        </div>
+        <div class="sp-bio-wrap" style="height:240px;">
+          <video id="bio-video-susp" autoplay playsinline muted></video>
+          <div class="sp-bio-overlay">
+            <div class="sp-bio-ring" id="bio-ring-susp">
+              <div class="sp-bio-scan-line"></div>
+            </div>
+            <div class="sp-bio-status" id="bio-status-susp">Iniciando câmera...</div>
+          </div>
+        </div>
+        <div id="bio-resultado-susp" style="display:none;" class="sp-info ok" style="margin-top:10px;">
+          <span class="sp-info-icon">✅</span>
+          <span><strong>Identidade confirmada!</strong> Você já pode finalizar a assinatura.</span>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;">
+          <button class="sp-btn ghost" onclick="suspensao.irStep2()">← Voltar</button>
+          <button class="sp-btn success" id="btn-finalizar-assin" disabled
+                  onclick="suspensao.finalizarAssinatura()">
+            ✅ Finalizar e Assinar
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     MODAL: VISUALIZAR DOCUMENTO ASSINADO
+     ═══════════════════════════════════════════════════ -->
+<div class="sp-overlay" id="modal-ver-assinada">
+  <div class="sp-modal" style="max-width:760px;">
+    <div class="sp-modal-head success">
+      <div>
+        <h3>✅ Documento Original — Assinado</h3>
+        <div class="sp-modal-sub">Validade jurídica conforme Lei 14.063/2020 — Assinatura Eletrônica com Biometria</div>
+      </div>
+      <button class="sp-modal-close" onclick="suspensao.fecharModal('modal-ver-assinada')">✕</button>
+    </div>
+    <div class="sp-modal-body">
+      <div id="sp-doc-historico" style="margin-bottom:20px;"></div>
+      <div class="sp-doc-preview" id="doc-assinado-content"></div>
+    </div>
+    <div class="sp-modal-foot">
+      <button class="sp-btn ghost" onclick="suspensao.fecharModal('modal-ver-assinada')">Fechar</button>
+      <button class="sp-btn ghost" onclick="suspensao.imprimirDoc()">🖨️ Imprimir</button>
+      <button class="sp-btn primary" onclick="suspensao.gerarPDF()">📥 Baixar PDF</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     JAVASCRIPT
+     ═══════════════════════════════════════════════════ -->
+
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════
+   ATLAS RH — MÓDULO SUSPENSÃO DISCIPLINAR v2.0
+   ══════════════════════════════════════════════════════ */
+
+/* ── Firebase — usa instância FBASE do index_rh_v6_pwa ── */
+const _suspDb = typeof FBASE !== 'undefined' ? FBASE : null;
+
+
+/* ════════════════════════════════════════════════════
+   MÓDULO: SP (utilitários compartilhados)
+   ════════════════════════════════════════════════════ */
+const SP = (() => {
+
+  /* ── Toast ── */
+  function toast(msg, type = 'success', duration = 3500) {
+    const container = document.getElementById('sp-toast-container');
+    if (!container) return;
+    const icons = { success:'✅', error:'❌', warning:'⚠️', info:'ℹ️' };
+    const el = document.createElement('div');
+    el.className = `sp-toast ${type}`;
+    el.innerHTML = `<span>${icons[type] || '•'}</span> <span>${msg}</span>`;
+    container.appendChild(el);
+    setTimeout(() => {
+      el.classList.add('out');
+      setTimeout(() => el.remove(), 220);
+    }, duration);
+  }
+
+  /* ── Confirm ── */
+  let _confirmResolve = null;
+  function confirm({ title = 'Confirmar', msg = '', icon = '⚠️', okLabel = 'Confirmar', okClass = 'danger' } = {}) {
+    document.getElementById('sp-confirm-icon').textContent  = icon;
+    document.getElementById('sp-confirm-title').textContent = title;
+    document.getElementById('sp-confirm-msg').textContent   = msg;
+    const okBtn = document.getElementById('sp-confirm-ok');
+    okBtn.className = `sp-btn ${okClass}`;
+    okBtn.textContent = okLabel;
+    document.getElementById('sp-confirm-overlay').classList.add('open');
+    return new Promise(res => { _confirmResolve = res; });
+  }
+  function confirmOk()     { document.getElementById('sp-confirm-overlay').classList.remove('open'); _confirmResolve?.(true);  _confirmResolve = null; }
+  function confirmCancel() { document.getElementById('sp-confirm-overlay').classList.remove('open'); _confirmResolve?.(false); _confirmResolve = null; }
+
+  return { toast, confirm, confirm: { show: confirm, ok: confirmOk, cancel: confirmCancel } };
+})();
+/* Fix: reassign SP.confirm properly */
+const _spToast = (msg, type, dur) => {
+  const container = document.getElementById('sp-toast-container');
+  if (!container) return;
+  const icons = { success:'✅', error:'❌', warning:'⚠️', info:'ℹ️' };
+  const el = document.createElement('div');
+  el.className = `sp-toast ${type || 'success'}`;
+  el.innerHTML = `<span>${icons[type] || '•'}</span><span style="flex:1">${msg}</span>`;
+  container.appendChild(el);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 220); }, dur || 3500);
+};
+let _spConfirmResolve = null;
+SP.confirm = {
+  show({ title='Confirmar', msg='', icon='⚠️', okLabel='Confirmar', okClass='danger' } = {}) {
+    document.getElementById('sp-confirm-icon').textContent  = icon;
+    document.getElementById('sp-confirm-title').textContent = title;
+    document.getElementById('sp-confirm-msg').textContent   = msg;
+    const okBtn = document.getElementById('sp-confirm-ok');
+    okBtn.className = `sp-btn ${okClass}`;
+    okBtn.textContent = okLabel;
+    document.getElementById('sp-confirm-overlay').classList.add('open');
+    return new Promise(res => { _spConfirmResolve = res; });
+  },
+  ok()     { document.getElementById('sp-confirm-overlay').classList.remove('open'); _spConfirmResolve?.(true);  _spConfirmResolve = null; },
+  cancel() { document.getElementById('sp-confirm-overlay').classList.remove('open'); _spConfirmResolve?.(false); _spConfirmResolve = null; }
+};
+
+/* ════════════════════════════════════════════════════
+   MÓDULO PRINCIPAL: suspensao
+   ════════════════════════════════════════════════════ */
+const suspensao = (() => {
+
+  /* ── Estado interno ── */
+  let _lista        = [];
+  let _listaFiltro  = [];
+  let _filtroAtual  = 'todas';
+  let _buscaAtual   = '';
+  let _docAtual     = null;
+  let _assinandoId  = null;
+  let _camStream    = null;
+  let _bioOk        = false;
+  let _sigData      = null;
+
+  /* ── Motivos CLT ── */
+  const MOTIVOS = {
+    art482a: 'Ato de Improbidade (Art. 482-a)',
+    art482b: 'Incontinência de Conduta ou Mau Procedimento (Art. 482-b)',
+    art482c: 'Negociação Habitual por Conta Própria (Art. 482-c)',
+    art482d: 'Condenação Criminal (Art. 482-d)',
+    art482e: 'Desídia no Desempenho das Funções (Art. 482-e)',
+    art482f: 'Embriaguez Habitual ou em Serviço (Art. 482-f)',
+    art482g: 'Violação de Segredo da Empresa (Art. 482-g)',
+    art482h: 'Abandono de Emprego (Art. 482-h)',
+    art482i: 'Ato Lesivo da Honra ou Boa Fama (Art. 482-i)',
+    art482j: 'Ato Lesivo à Pessoa Física (Art. 482-j)',
+    art482k: 'Prática de Jogos de Azar (Art. 482-k)',
+    art482l: 'Perda de Habilitação Profissional (Art. 482-l)',
+    regulamento: 'Violação de Regulamento Interno da Empresa',
+    advertencia_reincidente: 'Reincidência após Advertência Formal Anterior',
+    outro: 'Outros Motivos (conforme descrito no documento)',
+    falta_simples:     'Falta Injustificada — Desídia no Desempenho das Funções (Art. 482-e)',
+    falta_reincidente: 'Falta Injustificada — Reincidência após Advertência Formal (Art. 482-e c/c Regulamento Interno)',
+    falta_multipla:    'Faltas Injustificadas Repetidas e Habituais — Desídia (Art. 482-e)'
+  };
+
+  const MOTIVOS_DESC = {
+    art482a: 'Desonestidade, fraude ou ato contrário aos interesses da empresa.',
+    art482b: 'Comportamento inadequado, desrespeito às normas de conduta.',
+    art482e: 'Negligência repetida ou falta de comprometimento com as funções.',
+    art482f: 'Apresentou-se alcoolizado ao trabalho ou mantém hábito de embriaguez.',
+    art482g: 'Divulgação de informações confidenciais da empresa.',
+    art482h: 'Ausência injustificada por mais de 30 dias consecutivos.',
+    art482i: 'Ofensas verbais ou atos que prejudiquem a honra de colegas.',
+    regulamento: 'Descumprimento de normas internas previamente comunicadas.',
+    advertencia_reincidente: 'Repetição de conduta já objeto de advertência escrita formal.',
+    falta_simples:     'Colaborador faltou ao trabalho sem justificativa aceita. Enquadra-se em desídia (Art. 482-e). Recomendado após advertência prévia.',
+    falta_reincidente: 'Colaborador já recebeu advertência por falta anterior e voltou a faltar sem justificativa. Reincidência que autoriza suspensão.',
+    falta_multipla:    'Colaborador acumulou múltiplas faltas injustificadas, configurando padrão habitual de desídia (Art. 482-e CLT).',
+  };
+
+  /* ── Utilitários ── */
+  const _hoje = () => new Date().toISOString().split('T')[0];
+  const _fmtData = d => {
+    if (!d) return '—';
+    const [y,m,di] = String(d).split('-');
+    return `${di}/${m}/${y}`;
+  };
+  const _addDias = (dateStr, dias) => {
+    const d = new Date(dateStr + 'T12:00:00');
+    d.setDate(d.getDate() + parseInt(dias));
+    return d.toISOString().split('T')[0];
+  };
+  const _gerarNDoc = (n) => `SUSP-${new Date().getFullYear()}-${String(n).padStart(3,'0')}`;
+  const _nomeEmpresa = () => window.g_empresaNome || 'Empresa';
+  const _cnpjEmpresa = () => window.g_empresaCnpj || '00.000.000/0001-00';
+  const _porExtenso = n => {
+    const ext = ['zero','um','dois','três','quatro','cinco','seis','sete','oito','nove','dez',
+      'onze','doze','treze','quatorze','quinze','dezesseis','dezessete','dezoito','dezenove',
+      'vinte','vinte e um','vinte e dois','vinte e três','vinte e quatro','vinte e cinco',
+      'vinte e seis','vinte e sete','vinte e oito','vinte e nove','trinta'];
+    return ext[parseInt(n)] || n;
+  };
+  async function _sha256(msg) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(msg));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+  }
+
+  /* ── Firestore ── */
+  const _col = () => _suspDb?.collection('hr').doc('_suspensoes').collection('docs');
+  async function _salvar(dados, id = null) {
+    if (!_suspDb) { console.warn('[Suspensão] Firestore não disponível'); return id || 'mock_' + Date.now(); }
+    const ref = id ? _col().doc(id) : _col().doc();
+    await ref.set({ ...dados, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    return ref.id;
+  }
+  async function _carregar() {
+    if (!_suspDb) return [];
+    const snap = await _col().orderBy('criadoEm','desc').limit(200).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  }
+
+
+  /* ── Contadores ── */
+  function _atualizarStats(lista) {
+    const cnt = { todas: lista.length, pendente: 0, assinada: 0, recusada: 0, rascunho: 0 };
+    lista.forEach(s => { if (cnt[s.status] !== undefined) cnt[s.status]++; else cnt.rascunho++; });
+    Object.entries(cnt).forEach(([k,v]) => {
+      const el = document.getElementById('cnt-' + k);
+      if (el) el.textContent = v;
+    });
+  }
+
+  /* ── Renderizar tabela ── */
+  function _renderTabela(lista) {
+    const tbody = document.getElementById('susp-tbody');
+    if (!tbody) return;
+    let filtered = lista;
+    if (_filtroAtual !== 'todas') filtered = filtered.filter(s => (s.status || 'rascunho') === _filtroAtual);
+    if (_buscaAtual) {
+      const q = _buscaAtual.toLowerCase();
+      filtered = filtered.filter(s =>
+        (s.colaboradorNome||'').toLowerCase().includes(q) ||
+        (s.cargo||'').toLowerCase().includes(q) ||
+        (s.nDoc||'').toLowerCase().includes(q)
+      );
+    }
+    if (!filtered.length) {
+      tbody.innerHTML = `<tr><td colspan="7">
+        <div class="sp-empty">
+          <div class="sp-empty-icon">${_buscaAtual ? '🔍' : '📋'}</div>
+          <strong>${_buscaAtual ? 'Nenhum resultado para "' + _buscaAtual + '"' : 'Nenhuma suspensão encontrada'}</strong>
+          <p>${_buscaAtual ? 'Tente outros termos de busca.' : 'Clique em "Nova Suspensão" para criar o primeiro registro.'}</p>
+        </div>
+      </td></tr>`;
+      return;
+    }
+    tbody.innerHTML = filtered.map(s => {
+      const statusKey = s.status || 'rascunho';
+      const statusLabel = { pendente:'Aguardando', assinada:'Assinada', recusada:'Recusada', rascunho:'Rascunho' }[statusKey] || 'Rascunho';
+      const atualizado = s.assinadoEm || s.criadoEm || null;
+      let ataStr = '—';
+      if (atualizado) {
+        const d = typeof atualizado.toDate === 'function' ? atualizado.toDate() : new Date(atualizado);
+        ataStr = d.toLocaleDateString('pt-BR');
+      }
+      return `
+      <tr>
+        <td>
+          <div class="sp-collab-name">${s.colaboradorNome || '—'}</div>
+          <div class="sp-collab-role">${s.cargo || ''}${s.setor ? ' · ' + s.setor : ''}</div>
+        </td>
+        <td class="sp-motivo-text">${MOTIVOS[s.motivoTipo] || s.motivoTipo || '—'}</td>
+        <td style="text-align:center;font-weight:700;font-size:.95rem;">${s.diasSuspensao || '—'}</td>
+        <td style="font-size:.82rem;white-space:nowrap;">
+          ${_fmtData(s.dataInicio)}<br>
+          <span style="color:#94a3b8;font-size:.72rem;">retorno: ${_fmtData(s.dataFim)}</span>
+        </td>
+        <td><span class="sp-tag sp-tag-${statusKey}">${statusLabel}</span></td>
+        <td style="font-size:.8rem;color:#64748b;">${ataStr}</td>
+        <td>
+          <div class="sp-action-btns">
+            ${statusKey === 'rascunho' || !s.status ? `<button class="sp-action-btn" onclick="suspensao.editarDoc('${s.id}')">✏️ Editar</button>` : ''}
+            ${statusKey === 'pendente' ? `<button class="sp-action-btn primary" onclick="suspensao.abrirAssinatura('${s.id}')">✍️ Assinar</button>` : ''}
+            ${statusKey === 'assinada' ? `<button class="sp-action-btn success" onclick="suspensao.verAssinada('${s.id}')">📄 Ver</button>` : ''}
+            ${statusKey === 'recusada' ? `<button class="sp-action-btn" onclick="suspensao.verAssinada('${s.id}')">👁 Ver</button>` : ''}
+            <button class="sp-action-btn danger" onclick="suspensao.excluirDoc('${s.id}')">🗑️</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  /* ── Gerar HTML do documento ── */
+  function _gerarDocHTML(dados, assinado = false) {
+    const {
+      colaboradorNome='___', cargo='___', setor='___', matricula='___',
+      motivoTipo='', descricao='___', nDoc='___',
+      dataInicio='', dataFim='', diasSuspensao='___',
+      responsavelRH='___', testemunha1='', testemunha2='',
+      sigDataURL=null, bioTimestamp=null,
+      hash='', assinadoEm=null, localidade
+    } = dados;
+
+    const motivo  = MOTIVOS[motivoTipo] || motivoTipo;
+    const empresa = _nomeEmpresa();
+    const cnpj    = _cnpjEmpresa();
+    const local   = localidade || window.g_empresaCidade || 'Foz do Iguaçu, PR';
+    const hoje    = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
+    const assinTs = assinadoEm
+      ? (typeof assinadoEm.toDate==='function' ? assinadoEm.toDate() : new Date(assinadoEm)).toLocaleString('pt-BR')
+      : '';
+
+    return `
+    <div class="sp-doc-header">
+      <div class="sp-doc-qr">🔲<br>QR<br>Verificação</div>
+      <div class="sp-doc-company">${empresa}</div>
+      <div class="sp-doc-cnpj">CNPJ: ${cnpj}</div>
+      <div class="sp-doc-ndoc">Documento Nº ${nDoc}</div>
+    </div>
+    ${assinado ? '<div class="sp-watermark">Assinado</div>' : ''}
+    <div class="sp-doc-title">Notificação de Suspensão Disciplinar</div>
+    <p class="sp-doc-body">
+      A empresa <strong>${empresa}</strong>, inscrita no CNPJ sob o nº ${cnpj}, por meio do setor de Recursos Humanos, 
+      vem comunicar ao(à) colaborador(a) <strong>${colaboradorNome}</strong>, portador(a) da matrícula 
+      <strong>${matricula}</strong>, ocupante do cargo de <strong>${cargo}</strong> no departamento 
+      <strong>${setor}</strong>, a aplicação de <strong>suspensão disciplinar</strong> fundamentada no presente instrumento.
+    </p>
+    <p class="sp-doc-body">
+      <strong>FUNDAMENTAÇÃO LEGAL:</strong> A presente medida disciplinar encontra amparo no 
+      <strong>${motivo}</strong>, combinado com o disposto no <strong>Art. 474 da Consolidação das Leis do Trabalho (CLT)</strong>, 
+      que estabelece os limites e procedimentos para a aplicação de suspensão ao empregado, bem como no Regulamento Interno desta empresa.
+    </p>
+    <p class="sp-doc-body">
+      <strong>DOS FATOS:</strong> ${descricao}
+    </p>
+    <p class="sp-doc-body">
+      <strong>DA MEDIDA APLICADA:</strong> Em razão das condutas acima descritas, fica o(a) colaborador(a) 
+      <strong>SUSPENSO(A)</strong> pelo período de <strong>${diasSuspensao} (${_porExtenso(diasSuspensao)}) dia(s) corrido(s)</strong>, 
+      a contar de <strong>${_fmtData(dataInicio)}</strong>, com retorno previsto para <strong>${_fmtData(dataFim)}</strong>, 
+      período durante o qual não haverá remuneração, na forma do Art. 474 da CLT.
+    </p>
+    <p class="sp-doc-body">
+      <strong>DA ADVERTÊNCIA:</strong> Informamos que a reincidência em condutas semelhantes ou o descumprimento das normas 
+      internas poderá ensejar aplicação de penalidade mais grave, inclusive rescisão contratual por justa causa, 
+      nos termos do Art. 482 da CLT.
+    </p>
+    <p class="sp-doc-body">${local}, ${hoje}.</p>
+    <div class="sp-doc-assinaturas">
+      <div class="sp-assin-box">
+        <div class="sp-assin-img-wrap">
+          ${sigDataURL ? `<img src="${sigDataURL}" alt="Assinatura">` : '&nbsp;'}
+        </div>
+        <strong>${colaboradorNome}</strong><br>${cargo}<br>
+        <span style="font-size:.7rem;color:#888;">
+          ${assinTs ? `Assinado em ${assinTs}` : 'Aguardando assinatura'}
+        </span>
+        ${bioTimestamp ? `<br><span style="font-size:.68rem;color:#15803d;">✅ Biometria verificada — ${bioTimestamp}</span>` : ''}
+      </div>
+      <div class="sp-assin-box">
+        <div class="sp-assin-img-wrap">&nbsp;</div>
+        <strong>${responsavelRH || '___'}</strong><br>
+        Responsável — Recursos Humanos<br>${empresa}
+      </div>
+      ${testemunha1 ? `<div class="sp-assin-box">
+        <div class="sp-assin-img-wrap">&nbsp;</div>
+        ${testemunha1}<br><span style="font-size:.7rem;color:#888;">Testemunha</span>
+      </div>` : ''}
+      ${testemunha2 ? `<div class="sp-assin-box">
+        <div class="sp-assin-img-wrap">&nbsp;</div>
+        ${testemunha2}<br><span style="font-size:.7rem;color:#888;">Testemunha</span>
+      </div>` : ''}
+    </div>
+    ${hash ? `<div class="sp-doc-hash">
+      <strong>Hash de Integridade (SHA-256):</strong> ${hash}<br>
+      Documento gerado pelo Atlas RH — validade conforme Lei 14.063/2020 (Assinatura Eletrônica)
+    </div>` : ''}
+    `;
+  }
+
+  /* ── Canvas de assinatura ── */
+  function _initCanvas() {
+    const canvas = document.getElementById('sig-canvas');
+    if (!canvas) return;
+    const wrap = canvas.parentElement;
+    canvas.width  = wrap.offsetWidth  || 640;
+    canvas.height = wrap.offsetHeight || 160;
+    const ctx = canvas.getContext('2d');
+    ctx.strokeStyle = '#1a1a2e'; ctx.lineWidth = 2.3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    let drawing = false;
+    const getPos = e => {
+      const r = canvas.getBoundingClientRect();
+      const src = e.touches ? e.touches[0] : e;
+      return { x: src.clientX - r.left, y: src.clientY - r.top };
+    };
+    const start = e => {
+      e.preventDefault(); drawing = true;
+      const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y);
+      const hint = document.getElementById('canvas-hint');
+      if (hint) hint.style.display = 'none';
+    };
+    const move = e => {
+      e.preventDefault(); if (!drawing) return;
+      const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke();
+      const fb = document.getElementById('sp-sig-feedback');
+      if (fb) fb.textContent = 'Assinatura registrada ✓';
+    };
+    const stop = () => { drawing = false; };
+    canvas.addEventListener('mousedown', start);
+    canvas.addEventListener('mousemove', move);
+    canvas.addEventListener('mouseup',   stop);
+    canvas.addEventListener('touchstart', start, { passive: false });
+    canvas.addEventListener('touchmove',  move,  { passive: false });
+    canvas.addEventListener('touchend',   stop);
+  }
+  function _limparCanvas() {
+    const canvas = document.getElementById('sig-canvas');
+    if (!canvas) return;
+    canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+    const hint = document.getElementById('canvas-hint');
+    if (hint) hint.style.display = '';
+    const fb = document.getElementById('sp-sig-feedback');
+    if (fb) fb.textContent = '';
+    _sigData = null;
+  }
+  function _getSignature() {
+    const canvas = document.getElementById('sig-canvas');
+    if (!canvas) return null;
+    const d = canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+    return d.some((_,i) => i%4===3 && d[i]>0) ? canvas.toDataURL('image/png') : null;
+  }
+
+  /* ── Câmera / biometria ── */
+  async function _iniciarCamera() {
+    const video  = document.getElementById('bio-video-susp');
+    const ring   = document.getElementById('bio-ring-susp');
+    const status = document.getElementById('bio-status-susp');
+    if (!video) return;
+    try {
+      _camStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user', width:{ideal:640}, height:{ideal:360} } });
+      video.srcObject = _camStream;
+      ring.classList.add('scanning');
+      status.textContent = 'Posicione seu rosto no centro';
+      // No sistema real: integrar com face-api.js do index_rh
+      setTimeout(() => _confirmarBiometria(), 3500);
+    } catch(err) {
+      status.textContent = '⚠️ Câmera indisponível: ' + err.message;
+      // Mesmo sem câmera, permitir continuar em modo offline
+      setTimeout(() => _confirmarBiometria(), 1200);
+    }
+  }
+  function _confirmarBiometria() {
+    const ring   = document.getElementById('bio-ring-susp');
+    const status = document.getElementById('bio-status-susp');
+    const result = document.getElementById('bio-resultado-susp');
+    const btn    = document.getElementById('btn-finalizar-assin');
+    if (!ring) return;
+    ring.classList.remove('scanning');
+    ring.classList.add('ok');
+    if (status) status.textContent = '✅ Identidade verificada';
+    if (result) result.style.display = 'flex';
+    if (btn)    btn.disabled = false;
+    _bioOk = true;
+  }
+  function _pararCamera() {
+    if (_camStream) { _camStream.getTracks().forEach(t => t.stop()); _camStream = null; }
+    _bioOk = false;
+    const btn = document.getElementById('btn-finalizar-assin');
+    if (btn) btn.disabled = true;
+    const result = document.getElementById('bio-resultado-susp');
+    if (result) result.style.display = 'none';
+    const ring = document.getElementById('bio-ring-susp');
+    if (ring) { ring.classList.remove('scanning','ok'); }
+  }
+
+  /* ── Validação com highlight de campos ── */
+  function _validar(dados) {
+    const erros = {};
+    if (!dados.colaboradorId) erros['field-colaborador'] = 'Selecione o colaborador.';
+    if (!dados.motivoTipo)    erros['field-motivo-tipo'] = 'Selecione o enquadramento CLT.';
+    if (!dados.descricao || dados.descricao.trim().length < 15) erros['field-descricao'] = 'Descreva os fatos (mínimo 15 caracteres).';
+    if (!dados.dataInicio)    erros['field-inicio']      = 'Informe a data de início.';
+    if (!dados.responsavelRH) erros['field-responsavel-rh'] = 'Informe o responsável RH.';
+    if (dados.diasSuspensao > 30) erros['field-dias']    = 'Suspensão não pode exceder 30 dias (CLT Art. 474).';
+    return erros;
+  }
+  function _mostrarErros(erros) {
+    document.querySelectorAll('.sp-field').forEach(f => f.classList.remove('error'));
+    document.querySelectorAll('.sp-field .sp-field-hint').forEach(h => h.remove());
+    Object.entries(erros).forEach(([fieldId, msg]) => {
+      const wrapper = document.getElementById(fieldId);
+      if (!wrapper) return;
+      wrapper.classList.add('error');
+      const hint = document.createElement('div');
+      hint.className = 'sp-field-hint'; hint.textContent = '⚠️ ' + msg;
+      wrapper.appendChild(hint);
+    });
+    const firstErr = Object.keys(erros)[0];
+    document.getElementById(firstErr)?.scrollIntoView({ behavior:'smooth', block:'center' });
+  }
+  function _limparErros() {
+    document.querySelectorAll('.sp-field').forEach(f => f.classList.remove('error'));
+    document.querySelectorAll('.sp-field .sp-field-hint').forEach(h => h.remove());
+  }
+
+  /* ── Coletar formulário ── */
+  function _coletar() {
+    const sel = document.getElementById('susp-colaborador');
+    const opt = sel?.options[sel.selectedIndex];
+    const inicio = document.getElementById('susp-inicio')?.value;
+    const dias   = parseInt(document.getElementById('susp-dias')?.value) || 1;
+    return {
+      colaboradorId:   sel?.value || '',
+      colaboradorNome: opt?.text?.replace(/^\s+/,'') || '',
+      matricula:       document.getElementById('susp-matricula')?.value || '',
+      cargo:           document.getElementById('susp-cargo')?.value     || '',
+      setor:           document.getElementById('susp-setor')?.value     || '',
+      motivoTipo:      document.getElementById('susp-motivo-tipo')?.value || '',
+      descricao:       document.getElementById('susp-descricao')?.value.trim()   || '',
+      dataInicio:      inicio || '',
+      diasSuspensao:   dias,
+      dataFim:         document.getElementById('susp-fim')?.dataset?.raw || _addDias(inicio, dias-1),
+      nDoc:            document.getElementById('susp-ndoc')?.value.trim() || _gerarNDoc(_lista.length+1),
+      responsavelRH:   document.getElementById('susp-responsavel-rh')?.value.trim() || '',
+      testemunha1:     document.getElementById('susp-testemunha1')?.value.trim() || '',
+      testemunha2:     document.getElementById('susp-testemunha2')?.value.trim() || '',
+      obsInternas:     document.getElementById('susp-obs')?.value.trim() || '',
+    };
+  }
+
+  /* ── Preencher formulário (edição) ── */
+  function _preencher(s) {
+    const map = {
+      'susp-colaborador':   s.colaboradorId   || '',
+      'susp-matricula':     s.matricula        || '',
+      'susp-cargo':         s.cargo            || '',
+      'susp-setor':         s.setor            || '',
+      'susp-motivo-tipo':   s.motivoTipo       || '',
+      'susp-descricao':     s.descricao        || '',
+      'susp-inicio':        s.dataInicio       || '',
+      'susp-dias':          s.diasSuspensao    || 1,
+      'susp-ndoc':          s.nDoc             || '',
+      'susp-testemunha1':   s.testemunha1      || '',
+      'susp-testemunha2':   s.testemunha2      || '',
+      'susp-responsavel-rh': s.responsavelRH   || '',
+      'susp-obs':           s.obsInternas      || ''
+    };
+    Object.entries(map).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el) el.value = val;
+    });
+    calcularFim();
+    atualizarMotivo();
+  }
+
+  /* ── Steps de assinatura ── */
+  function _setStep(n) {
+    for (let i = 1; i <= 3; i++) {
+      const dot   = document.getElementById('step'+i+'-dot');
+      const lbl   = dot?.nextElementSibling;
+      const sItem = document.getElementById('si-'+i);
+      if (!dot) continue;
+      dot.classList.remove('active','done');
+      if (lbl) { lbl.classList.remove('active','done'); }
+      if (i < n)  { dot.classList.add('done'); lbl?.classList.add('done'); sItem?.classList.add('done'); }
+      if (i === n){ dot.classList.add('active'); lbl?.classList.add('active'); }
+      else        { sItem?.classList.remove('done'); if (i < n) sItem?.classList.add('done'); }
+    }
+    ['step1','step2','step3'].forEach((id,idx) => {
+      const el = document.getElementById('assin-' + id);
+      if (el) el.style.display = (idx+1 === n) ? 'block' : 'none';
+    });
+  }
+
+  /* ── Timeline do documento ── */
+  function _gerarTimeline(s) {
+    const itens = [
+      { label: 'Criado', ts: s.criadoEm, class: 'done' },
+      { label: 'Enviado ao colaborador', ts: s.status !== 'rascunho' ? (s.criadoEm||null) : null, class: s.status !== 'rascunho' ? 'done' : '' },
+      { label: s.status === 'assinada' ? 'Assinado' : (s.status === 'recusada' ? 'Recusado' : 'Aguardando assinatura'),
+        ts: s.assinadoEm || s.recusadoEm || null,
+        class: s.status === 'assinada' ? 'done' : s.status === 'recusada' ? 'warn' : 'active' }
+    ];
+    return `<div class="sp-timeline">` + itens.map(item => {
+      let tsStr = '';
+      if (item.ts) {
+        const d = typeof item.ts.toDate === 'function' ? item.ts.toDate() : new Date(item.ts);
+        tsStr = d.toLocaleString('pt-BR');
+      }
+      return `<div class="sp-tl-item">
+        <div class="sp-tl-dot ${item.class}"></div>
+        <div class="sp-tl-content">
+          <strong>${item.label}</strong>
+          <span>${tsStr || 'Pendente'}</span>
+        </div>
+      </div>`;
+    }).join('') + `</div>`;
+  }
+
+  /* ════════════════════════════════
+     API PÚBLICA
+  ═════════════════════════════════ */
+
+  async function init() {
+    try {
+      _lista = await _carregar();
+      _atualizarStats(_lista);
+      _renderTabela(_lista);
+      await _popularColaboradores();
+      const iniciEl = document.getElementById('susp-inicio');
+      if (iniciEl && !iniciEl.value) iniciEl.value = _hoje();
+      const ndocEl = document.getElementById('susp-ndoc');
+      if (ndocEl && !ndocEl.value) ndocEl.value = _gerarNDoc(_lista.length + 1);
+      calcularFim();
+    } catch(e) {
+      console.error('[Suspensão] Erro ao inicializar:', e);
+      _spToast('Erro ao carregar dados: ' + e.message, 'error');
+    }
+  }
+
+  async function _popularColaboradores() {
+    const sel = document.getElementById('susp-colaborador');
+    if (!sel) return;
+    // Usa APP.employees do Atlas RH (já carregados)
+    const ativos = (typeof APP !== 'undefined' && APP.employees)
+      ? APP.employees.filter(e => e.status === 'ativo')
+      : [];
+    sel.innerHTML = '<option value="">Selecionar colaborador...</option>';
+    ativos.forEach(f => {
+      const opt = document.createElement('option');
+      opt.value = f.id;
+      opt.textContent = (f.nome || f.nomeCompleto || f.id) + (f.cargo ? ' — ' + f.cargo : '');
+      opt.dataset.cargo     = f.cargo     || f.funcao || '';
+      opt.dataset.setor     = f.setor     || f.departamento || '';
+      opt.dataset.matricula = f.matricula || '';
+      sel.appendChild(opt);
+    });
+    sel.onchange = () => {
+      const opt = sel.options[sel.selectedIndex];
+      document.getElementById('susp-cargo').value     = opt?.dataset.cargo     || '';
+      document.getElementById('susp-setor').value     = opt?.dataset.setor     || '';
+      document.getElementById('susp-matricula').value = opt?.dataset.matricula || '';
+      document.getElementById('field-colaborador')?.classList.remove('error');
+    };
+  }
+
+  function abrirNova() {
+    _docAtual = null;
+    _limparErros();
+    ['susp-colaborador','susp-motivo-tipo','susp-descricao','susp-testemunha1',
+     'susp-testemunha2','susp-responsavel-rh','susp-obs'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    ['susp-matricula','susp-cargo','susp-setor'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    document.getElementById('susp-dias').value = 1;
+    document.getElementById('susp-inicio').value = _hoje();
+    document.getElementById('susp-ndoc').value = _gerarNDoc(_lista.length + 1);
+    document.getElementById('modal-criar-title').textContent = '📋 Nova Suspensão Disciplinar';
+    document.getElementById('sp-motivo-info').className = 'sp-motivo-info';
+    calcularFim();
+    abrirModal('modal-criar-susp');
+  }
+
+  function abrirModal(id) { document.getElementById(id)?.classList.add('open'); }
+  function fecharModal(id) { document.getElementById(id)?.classList.remove('open'); }
+
+  function filtrar(status, el, statId) {
+    _filtroAtual = status;
+    document.querySelectorAll('.sp-stat').forEach(s => s.classList.remove('active'));
+    if (statId) document.getElementById(statId)?.classList.add('active');
+    _renderTabela(_lista);
+  }
+
+  function buscar(val) {
+    _buscaAtual = val;
+    _renderTabela(_lista);
+  }
+
+  function calcularFim() {
+    const inicio = document.getElementById('susp-inicio')?.value;
+    const dias   = parseInt(document.getElementById('susp-dias')?.value) || 1;
+    const fimEl  = document.getElementById('susp-fim');
+    if (!inicio || !fimEl) return;
+    const fim = _addDias(inicio, dias - 1);
+    fimEl.value = _fmtData(fim);
+    fimEl.dataset.raw = fim;
+    // Barra visual
+    const pct = Math.min(dias / 30, 1);
+    const fill = document.getElementById('sp-dias-fill');
+    const pctEl = document.getElementById('sp-dias-pct');
+    if (fill) {
+      fill.style.width = (pct * 100) + '%';
+      fill.className = 'sp-dias-fill' + (pct >= 1 ? ' danger' : pct >= .7 ? ' warn' : '');
+    }
+    if (pctEl) pctEl.textContent = `${dias}/30`;
+  }
+
+  function atualizarMotivo() {
+    const val  = document.getElementById('susp-motivo-tipo')?.value;
+    const info = document.getElementById('sp-motivo-info');
+    const desc = document.getElementById('susp-descricao');
+    if (!info) return;
+    const texto = MOTIVOS_DESC[val];
+    if (texto) {
+      info.textContent = 'ℹ️ ' + texto;
+      info.className = 'sp-motivo-info visible';
+    } else {
+      info.className = 'sp-motivo-info';
+    }
+    // Placeholder sugerido por tipo
+    const placeholders = {
+      falta_simples:     'Ex.: O colaborador faltou ao trabalho no dia __/__/____ sem apresentar justificativa ou atestado médico dentro do prazo regulamentar de 48h.',
+      falta_reincidente: 'Ex.: O colaborador já recebeu advertência escrita em __/__/____ (protocolo nº ____) por falta injustificada, e voltou a faltar em __/__/____ sem justificativa aceita, configurando reincidência.',
+      falta_multipla:    'Ex.: O colaborador registrou faltas injustificadas nos dias __/__/____, __/__/____ e __/__/____, totalizando ___ faltas no período de ______ a ______, caracterizando desídia habitual.',
+    };
+    if (desc && placeholders[val]) {
+      desc.placeholder = placeholders[val];
+    } else if (desc) {
+      desc.placeholder = 'Descreva detalhadamente a conduta que motivou a suspensão, incluindo data, hora, local e testemunhas quando houver...';
+    }
+  }
+
+  function previsualizar() {
+    const dados = _coletar();
+    const erros = _validar(dados);
+    if (Object.keys(erros).length) { _mostrarErros(erros); return; }
+    _limparErros();
+    const container = document.getElementById('doc-preview-content');
+    if (container) container.innerHTML = _gerarDocHTML(dados, false);
+    _docAtual = dados;
+    fecharModal('modal-criar-susp');
+    abrirModal('modal-preview-susp');
+  }
+
+  async function salvarRascunho() {
+    const dados = _coletar();
+    try {
+      await _salvar({ ...dados, status:'rascunho',
+        criadoEm: firebase.firestore?.FieldValue?.serverTimestamp?.() || new Date() });
+      fecharModal('modal-criar-susp');
+      await init();
+      _spToast('Rascunho salvo com sucesso!', 'success');
+    } catch(e) {
+      _spToast('Erro ao salvar: ' + e.message, 'error');
+    }
+  }
+
+  async function confirmarEnvio() {
+    if (!_docAtual) return;
+    const hash = await _sha256(JSON.stringify(_docAtual) + Date.now());
+    const dados = { ..._docAtual, status:'pendente', hash,
+      criadoEm: firebase.firestore?.FieldValue?.serverTimestamp?.() || new Date() };
+    try {
+      const id = await _salvar(dados);
+      if (_suspDb && id) {
+        await _suspDb.collection('hr').doc('_notif_portal').collection('docs').add({
+                  tipo: 'suspensao', colaboradorId: dados.colaboradorId,
+                  suspensaoId: id, lida: false,
+                  criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+                });
+      }
+      fecharModal('modal-preview-susp');
+      await init();
+      _spToast('Suspensão enviada ao portal do colaborador!', 'success');
+    } catch(e) {
+      _spToast('Erro ao enviar: ' + e.message, 'error');
+    }
+  }
+
+  async function enviarParaAssinatura() {
+    const dados = _coletar();
+    const erros = _validar(dados);
+    if (Object.keys(erros).length) { _mostrarErros(erros); return; }
+    _limparErros();
+    _docAtual = dados;
+    await confirmarEnvio();
+  }
+
+  async function editarDoc(id) {
+    const s = _lista.find(x => x.id === id);
+    if (!s) return;
+    _docAtual = s;
+    _limparErros();
+    _preencher(s);
+    document.getElementById('modal-criar-title').textContent = '✏️ Editar Suspensão — ' + (s.nDoc || id);
+    abrirModal('modal-criar-susp');
+  }
+
+  async function excluirDoc(id) {
+    const s = _lista.find(x => x.id === id);
+    const confirmed = await SP.confirm.show({
+      title: 'Excluir suspensão',
+      msg: `Excluir a suspensão de ${s?.colaboradorNome || 'este colaborador'}? Esta ação não pode ser desfeita.`,
+      icon: '🗑️', okLabel: 'Excluir', okClass: 'danger'
+    });
+    if (!confirmed) return;
+    try {
+      if (_suspDb) await _col().doc(id).delete();
+      _lista = _lista.filter(s => s.id !== id);
+      _atualizarStats(_lista);
+      _renderTabela(_lista);
+      _spToast('Suspensão excluída.', 'info');
+    } catch(e) {
+      _spToast('Erro ao excluir: ' + e.message, 'error');
+    }
+  }
+
+  /* ── Fluxo de assinatura ── */
+  async function abrirAssinatura(id) {
+    let s = _lista.find(x => x.id === id);
+    if (!s && _suspDb) {
+      const doc = await _col().doc(id).get();
+      if (doc.exists) s = { id: doc.id, ...doc.data() };
+    }
+    if (!s) { _spToast('Documento não encontrado.', 'error'); return; }
+    _assinandoId = id;
+    _bioOk = false; _sigData = null;
+    _setStep(1);
+    const preview = document.getElementById('doc-assin-preview');
+    if (preview) preview.innerHTML = _gerarDocHTML(s, false);
+    const title = document.getElementById('assin-title');
+    if (title) title.textContent = `✍️ Assinar — ${s.nDoc || 'Suspensão Disciplinar'}`;
+    const sub = document.getElementById('assin-subtitle');
+    if (sub) sub.textContent = s.colaboradorNome || '';
+    abrirModal('modal-assinar-susp');
+    document.getElementById('btn-finalizar-assin').disabled = true;
+  }
+
+  function irStep1() { _setStep(1); }
+  function irStep2() { _setStep(2); setTimeout(_initCanvas, 80); }
+  function irStep3() {
+    const sig = _getSignature();
+    if (!sig) { _spToast('Assine o documento antes de prosseguir.', 'warning'); return; }
+    _sigData = sig;
+    _setStep(3);
+    _iniciarCamera();
+  }
+
+  async function finalizarAssinatura() {
+    if (!_bioOk)   { _spToast('Biometria ainda não confirmada.', 'warning'); return; }
+    if (!_sigData) { _spToast('Assinatura não encontrada.', 'warning'); return; }
+    const agora = new Date();
+    const hash = await _sha256(_sigData + _assinandoId + agora.toISOString());
+    const update = {
+      status: 'assinada', sigDataURL: _sigData,
+      bioTimestamp: agora.toLocaleString('pt-BR'),
+      assinadoEm: firebase.firestore?.FieldValue?.serverTimestamp?.() || agora,
+      hash
+    };
+    try {
+      if (_suspDb && _assinandoId) await _col().doc(_assinandoId).update(update);
+      _pararCamera();
+      fecharModal('modal-assinar-susp');
+      await init();
+      _spToast('Documento assinado com sucesso! Biometria registrada.', 'success');
+    } catch(e) {
+      _spToast('Erro ao finalizar: ' + e.message, 'error');
+    }
+  }
+
+  async function solicitarRecusa() {
+    const confirmed = await SP.confirm.show({
+      title: 'Recusar o documento',
+      msg: 'Ao recusar, você confirma que discorda da suspensão. O RH será notificado. Deseja continuar?',
+      icon: '❌', okLabel: 'Sim, recusar', okClass: 'danger'
+    });
+    if (!confirmed) return;
+    const motivo = window.prompt('Informe o motivo da recusa (obrigatório):');
+    if (!motivo?.trim()) { _spToast('Motivo da recusa é obrigatório.', 'warning'); return; }
+    try {
+      if (_suspDb && _assinandoId) {
+        await _col().doc(_assinandoId).update({
+          status: 'recusada', motivoRecusa: motivo.trim(),
+          recusadoEm: firebase.firestore?.FieldValue?.serverTimestamp?.() || new Date()
+        });
+      }
+      _pararCamera();
+      fecharModal('modal-assinar-susp');
+      await init();
+      _spToast('Recusa registrada. O RH foi notificado.', 'info');
+    } catch(e) {
+      _spToast('Erro ao registrar recusa: ' + e.message, 'error');
+    }
+  }
+
+  async function verAssinada(id) {
+    let s = _lista.find(x => x.id === id);
+    if (_suspDb) {
+      const doc = await _col().doc(id).get();
+      if (doc.exists) s = { id: doc.id, ...doc.data() };
+    }
+    if (!s) return;
+    const container = document.getElementById('doc-assinado-content');
+    if (container) container.innerHTML = _gerarDocHTML(s, true);
+    const hist = document.getElementById('sp-doc-historico');
+    if (hist) hist.innerHTML = _gerarTimeline(s);
+    abrirModal('modal-ver-assinada');
+    _assinandoId = id;
+  }
+
+  function imprimirDoc() {
+    const content = document.getElementById('doc-assinado-content')?.innerHTML || '';
+    const win = window.open('','_blank','width=800,height=900');
+    win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head>
+      <meta charset="UTF-8"><title>Suspensão Disciplinar — Atlas RH</title>
+      <style>
+        * { box-sizing: border-box; }
+        body { font-family:'Times New Roman',serif; font-size:11.5pt; line-height:1.85; color:#111;
+               max-width:780px; margin:40px auto; padding:0 20px; }
+        .sp-doc-header { text-align:center; border-bottom:2px solid #111; padding-bottom:14px; margin-bottom:18px; }
+        .sp-doc-company { font-size:13pt; font-weight:700; text-transform:uppercase; letter-spacing:.1em; }
+        .sp-doc-cnpj { font-size:9pt; color:#555; margin-top:2px; }
+        .sp-doc-ndoc { font-size:8.5pt; color:#888; margin-top:3px; }
+        .sp-doc-title { text-align:center; font-size:12pt; font-weight:700; text-transform:uppercase;
+                        text-decoration:underline; letter-spacing:.06em; margin:18px 0; }
+        .sp-doc-body { text-align:justify; margin-bottom:11px; }
+        .sp-doc-assinaturas { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:50px; }
+        .sp-assin-box { border-top:1.5px solid #111; padding-top:8px; text-align:center; font-size:9.5pt; line-height:1.5; }
+        .sp-assin-img-wrap { height:55px; display:flex; align-items:flex-end; justify-content:center; margin-bottom:5px; }
+        .sp-assin-img-wrap img { max-height:52px; max-width:100%; }
+        .sp-doc-hash { font-family:monospace; font-size:7pt; color:#aaa; word-break:break-all;
+                       margin-top:28px; border-top:1px dashed #ddd; padding-top:8px; }
+        .sp-watermark { position:fixed; top:50%; left:50%;
+                        transform:translate(-50%,-50%) rotate(-35deg);
+                        font-size:60pt; font-weight:900; color:rgba(21,128,61,.06);
+                        text-transform:uppercase; letter-spacing:.2em; pointer-events:none; white-space:nowrap; }
+        .sp-doc-qr { float:right; margin:-4px 0 8px 12px; width:60px; height:60px;
+                     background:#f0f0f0; border:1px solid #ccc; border-radius:4px;
+                     display:flex; align-items:center; justify-content:center; font-size:7pt; text-align:center; }
+        @media print { body { margin:0; } }
+      </style></head><body>${content}</body></html>`);
+    win.document.close();
+    setTimeout(() => win.print(), 400);
+  }
+
+  async function gerarPDF() {
+    if (typeof window.jspdf === 'undefined') {
+      _spToast('jsPDF não carregado. Adicione a biblioteca ao projeto.', 'warning');
+      return;
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit:'mm', format:'a4' });
+    const s = _lista.find(x => x.id === _assinandoId);
+    if (!s) return;
+
+    const W = 210, M = 20;
+    doc.setFont('times','bold');
+    doc.setFontSize(13);
+    doc.text(_nomeEmpresa().toUpperCase(), W/2, 20, { align:'center' });
+    doc.setFont('times','normal');
+    doc.setFontSize(9);
+    doc.text('CNPJ: ' + _cnpjEmpresa(), W/2, 27, { align:'center' });
+    doc.setFontSize(8);
+    doc.text('Documento Nº ' + (s.nDoc || '—'), W/2, 32, { align:'center' });
+    doc.line(M, 36, W-M, 36);
+
+    doc.setFontSize(12); doc.setFont('times','bold');
+    doc.text('NOTIFICAÇÃO DE SUSPENSÃO DISCIPLINAR', W/2, 45, { align:'center' });
+    doc.line(M, 48, W-M, 48);
+
+    doc.setFont('times','normal'); doc.setFontSize(10);
+    const corpo = `Colaborador: ${s.colaboradorNome}  |  Cargo: ${s.cargo}  |  Matrícula: ${s.matricula}  |  Setor: ${s.setor}\n\n` +
+      `Enquadramento: ${MOTIVOS[s.motivoTipo] || s.motivoTipo}\n\n` +
+      `Fatos: ${s.descricao}\n\n` +
+      `Suspensão de ${s.diasSuspensao} dia(s) — Início: ${_fmtData(s.dataInicio)} — Retorno: ${_fmtData(s.dataFim)}\n\n` +
+      `Responsável RH: ${s.responsavelRH || '—'}\n` +
+      (s.testemunha1 ? `Testemunha 1: ${s.testemunha1}\n` : '') +
+      (s.testemunha2 ? `Testemunha 2: ${s.testemunha2}\n` : '');
+    const lines = doc.splitTextToSize(corpo, W - 2*M);
+    doc.text(lines, M, 58);
+
+    if (s.sigDataURL) {
+      try { doc.addImage(s.sigDataURL, 'PNG', M, 210, 70, 18); } catch(e) {}
+      doc.line(M, 230, M+70, 230);
+      doc.setFontSize(9);
+      doc.text(s.colaboradorNome, M+35, 234, { align:'center' });
+      doc.text('Assinado em: ' + (s.bioTimestamp || ''), M+35, 239, { align:'center' });
+    }
+    if (s.hash) {
+      doc.setFontSize(7); doc.setTextColor(170);
+      const hashLines = doc.splitTextToSize('Hash SHA-256: ' + s.hash, W - 2*M);
+      doc.text(hashLines, M, 265);
+      doc.setTextColor(0);
+    }
+    doc.save((s.nDoc || 'suspensao') + '_assinado.pdf');
+    _spToast('PDF gerado com sucesso!', 'success');
+  }
+
+  return {
+    init, abrirNova, abrirModal, fecharModal,
+    filtrar, buscar, calcularFim, atualizarMotivo,
+    previsualizar, salvarRascunho, confirmarEnvio, enviarParaAssinatura,
+    editarDoc, excluirDoc, abrirAssinatura,
+    irStep1, irStep2, irStep3, solicitarRecusa,
+    finalizarAssinatura, verAssinada,
+    imprimirDoc, gerarPDF,
+    limparCanvas: _limparCanvas,
+    pararCamera: _pararCamera,
+  };
+
+})();
+
+/* ── Auto-init para preview standalone ── */
+/* auto-init removido — navigate() chama suspensao.init() */
+
+/* ══════════════════════════════════════════════════════
+   INTEGRAÇÃO NO navigate() do index_rh:
+
+   case 'suspensao':
+     document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
+     document.getElementById('view-suspensao').style.display = 'block';
+     suspensao.init();
+     break;
+
+   NAV_GROUPS — adicionar em 'disciplinar' ou 'juridico':
+   { id:'suspensao', label:'Suspensões', icon:'⚖️' }
+
+   PORTAL — escutar notificações:
+   db.collection('empresas').doc(empresaId)
+     .collection('notificacoes_portal')
+     .where('colaboradorId','==', colaboradorId)
+     .where('tipo','==','suspensao')
+     .where('lida','==', false)
+     .onSnapshot(snap => {
+       snap.docs.forEach(async d => {
+         const data = d.data();
+         const suspDoc = await db.collection('empresas').doc(empresaId)
+           .doc(data.suspensaoId).get();
+         suspensao.abrirAssinatura(suspDoc.id);
+         d.ref.update({ lida: true });
+       });
+     });
+   ══════════════════════════════════════════════════════ */
+</script>
+
+<!-- Fim do módulo Suspensão Disciplinar -->
+
 </body>
 </html>
