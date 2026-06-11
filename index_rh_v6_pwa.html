@@ -38518,8 +38518,10 @@ const suspensao = (() => {
           <div class="sp-action-btns">
             ${statusKey === 'rascunho' || !s.status ? `<button class="sp-action-btn" onclick="suspensao.editarDoc('${s.id}')">✏️ Editar</button>` : ''}
             ${statusKey === 'pendente' ? `<button class="sp-action-btn primary" onclick="suspensao.abrirAssinatura('${s.id}')">✍️ Assinar</button>` : ''}
+            ${statusKey === 'pendente' ? `<button class="sp-action-btn" title="Reenviar notificação ao colaborador" onclick="suspensao.reenviarSuspensao('${s.id}')">🔄 Reenviar</button>` : ''}
             ${statusKey === 'assinada' ? `<button class="sp-action-btn success" onclick="suspensao.verAssinada('${s.id}')">📄 Ver</button>` : ''}
             ${statusKey === 'recusada' ? `<button class="sp-action-btn" onclick="suspensao.verAssinada('${s.id}')">👁 Ver</button>` : ''}
+            ${statusKey === 'recusada' ? `<button class="sp-action-btn" title="Reenviar documento para nova assinatura" onclick="suspensao.reenviarSuspensao('${s.id}')">🔄 Reenviar</button>` : ''}
             <button class="sp-action-btn danger" onclick="suspensao.excluirDoc('${s.id}')">🗑️</button>
           </div>
         </td>
@@ -39254,11 +39256,80 @@ const suspensao = (() => {
     _spToast('PDF gerado com sucesso!', 'success');
   }
 
+  /* ── Reenviar Suspensão ao Portal ── */
+  async function reenviarSuspensao(id) {
+    const s = _lista.find(x => x.id === id);
+    if (!s) { _spToast('Documento não encontrado.', 'error'); return; }
+
+    const confirmed = await SP.confirm.show({
+      title: 'Reenviar Suspensão',
+      msg: `Reenviar a suspensão de <strong>${s.colaboradorNome || 'este colaborador'}</strong> ao portal para nova assinatura?`,
+      icon: '🔄', okLabel: 'Reenviar', okClass: 'primary'
+    });
+    if (!confirmed) return;
+
+    try {
+      const agora = new Date();
+      const novoHash = await _sha256(JSON.stringify(s) + Date.now());
+
+      // Atualiza o documento principal com novo hash e status pendente
+      const dadosAtualizados = { ...s, status: 'pendente', hash: novoHash };
+      if (_suspDb) {
+        await _col().doc(id).set(dadosAtualizados);
+      }
+
+      // Regrava em hr/assinaturas substituindo a entrada anterior
+      if (_suspDb) {
+        const snapAssin = await _suspDb.collection('hr').doc('assinaturas').get();
+        let allAssin = snapAssin.exists ? JSON.parse(snapAssin.data().d || '[]') : [];
+        allAssin = allAssin.filter(x => x.id !== id);
+        allAssin.push({
+          id,
+          empId:         s.colaboradorId,
+          empNome:       s.colaboradorNome  || '',
+          titulo:        'Suspensão Disciplinar — ' + (s.nDoc || id),
+          tipoLabel:     'Suspensão Disciplinar',
+          tipo:          'suspensao',
+          origem:        'rh_suspensoes',
+          status:        'pendente',
+          motivo_resumo: MOTIVOS[s.motivoTipo] || s.motivoTipo || '',
+          descricao:     s.descricao || '',
+          diasSuspensao: s.diasSuspensao || 0,
+          dataInicio:    s.dataInicio   || '',
+          dataFim:       s.dataFim      || '',
+          nDoc:          s.nDoc         || '',
+          responsavelRH: s.responsavelRH || '',
+          hash:          novoHash,
+          criadoEm:      agora.toISOString(),
+          reenviado:     true,
+          reenvioEm:     agora.toISOString(),
+          historicoStatus: [
+            ...(s.historicoStatus || []),
+            { status: 'pendente', ts: agora.toISOString(), origem: 'reenvio_rh' }
+          ]
+        });
+        await _suspDb.collection('hr').doc('assinaturas').set({
+          d: JSON.stringify(allAssin), ts: Date.now(), k: 'assinaturas'
+        });
+      }
+
+      // Atualiza lista local
+      const idx = _lista.findIndex(x => x.id === id);
+      if (idx >= 0) _lista[idx] = dadosAtualizados;
+      _atualizarStats(_lista);
+      _renderTabela(_lista);
+      _spToast('Suspensão reenviada ao portal do colaborador!', 'success');
+    } catch(e) {
+      _spToast('Erro ao reenviar: ' + e.message, 'error');
+    }
+  }
+
   return {
     init, abrirNova, abrirModal, fecharModal,
     filtrar, buscar, calcularFim, atualizarMotivo,
     previsualizar, salvarRascunho, confirmarEnvio, enviarParaAssinatura,
     editarDoc, excluirDoc, abrirAssinatura,
+    reenviarSuspensao,
     irStep1, irStep2, irStep3, solicitarRecusa,
     finalizarAssinatura, verAssinada,
     imprimirDoc, gerarPDF,
