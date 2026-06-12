@@ -2197,8 +2197,10 @@ const _saveDebounceTimers = {};
 // pontos e bancohoras têm debounce alto — o listener biométrico dispara saves
 // para cada batida individual; sem debounce, cada sync de 7 funcionários gera
 // 14+ writes simultâneos no Firestore. 8s agrupa todos em 1 único write.
-const _SAVE_DEBOUNCE_KEYS = new Set(['pontos','bancohoras']);
-const _SAVE_DEBOUNCE_MS   = 8000; // 8 segundos — agrupa saves em rajada do listener bio
+const _SAVE_DEBOUNCE_KEYS = new Set(['pontos','bancohoras','employees','financeiro','salarios','holRascunho','contratos','advertencias','admissoes','demissoes','ferias','atestados']);
+const _SAVE_DEBOUNCE_MS       = 8000; // 8 segundos — agrupa saves em rajada do listener bio
+const _SAVE_DEBOUNCE_MS_FAST  = 1200; // 1.2s — chaves de edição manual (employees, ferias etc.)
+const _SAVE_DEBOUNCE_FAST_KEYS = new Set(['employees','financeiro','salarios','holRascunho','contratos','advertencias','admissoes','demissoes','ferias','atestados']);
 
 function save(k){
   if(!_VALID_KEYS.has(k)){ console.error('[save] Chave inválida:',k); return; }
@@ -2208,15 +2210,19 @@ function save(k){
   if(FBASE){
     if(_SAVE_DEBOUNCE_KEYS.has(k)){
       clearTimeout(_saveDebounceTimers[k]);
-      _saveDebounceTimers[k] = setTimeout(()=>{ fbSave(k); }, _SAVE_DEBOUNCE_MS);
+      const _ms = _SAVE_DEBOUNCE_FAST_KEYS.has(k) ? _SAVE_DEBOUNCE_MS_FAST : _SAVE_DEBOUNCE_MS;
+      _saveDebounceTimers[k] = setTimeout(()=>{ fbSave(k); }, _ms);
     } else {
       fbSave(k);
     }
   } else { FB_SAVE_QUEUE[k]=true; console.debug('[save] Firebase na fila:',k); }
-  // 3. Supabase PostgreSQL (dados sensíveis — espelho seguro)
+  // 3. Supabase PostgreSQL (dados sensíveis — espelho seguro, com debounce para não bloquear UI)
   if(typeof SB_SENSITIVE_KEYS !== 'undefined' && SB_SENSITIVE_KEYS.has(k)){
     if(typeof SB_READY !== 'undefined' && SB_READY && typeof sbSave === 'function'){
-      sbSave(k);
+      // Debounce Supabase igual ao Firebase — evita double-save e travamento da UI
+      if(!window._sbDebounceTimers) window._sbDebounceTimers = {};
+      clearTimeout(window._sbDebounceTimers[k]);
+      window._sbDebounceTimers[k] = setTimeout(()=>{ sbSave(k); }, _SAVE_DEBOUNCE_MS_FAST);
     } else if(typeof SB_SAVE_QUEUE !== 'undefined'){
       SB_SAVE_QUEUE[k] = true;
     }
@@ -2687,10 +2693,14 @@ const NAV_GROUPS = [
     {id:'workflows',label:'Workflows Automáticos',icon:'<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>'},
     {id:'alarmes_portal',label:'Alarmes do Portal',icon:'<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="12" y1="2" x2="12" y2="4"/>'},
   ]},
+  { label: 'Ferramentas', items: [
+    {id:'agenda_rh',label:'Agenda de RH',icon:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>'},
+    {id:'doc_templates',label:'Templates de Documentos',icon:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>'},
+  ]},
 ];
 // Mantém NAV flat para compatibilidade com MOD, navigate(), etc.
 const NAV = NAV_GROUPS.flatMap(g => g.items);
-const PAGE_TITLES={dashboard:'Dashboard',portaislinks:'Links dos Portais',funcionarios:'Funcionários',ponto:'Cartão Ponto',financeiro:'Financeiro',holerite:'Holerite',atestados:'Atestados Médicos',candidatos:'Candidatos',admissao:'Admissão',demissao:'Demissão',metadiaria:'Meta Diária',salarios:'Salários & Metas',biometrico:'Ponto Biométrico',relatorio:'Relatório Financeiro Mensal',advertencias:'Advertências e Suspensões',suspensao:'Suspensões Disciplinares',ferias:'Controle de Férias',desempenho:'Avaliação de Desempenho',comunicados:'Comunicados & Avisos',bancohoras:'Banco de Horas',recrutamento:'Recrutamento 2ª Fase',contratos:'Contratos & Documentos Admissionais',comprovantes:'Comprovantes de Pagamento',workflows:'Workflows Automáticos',assinatura_digital:'Assinatura Digital',alarmes_portal:'Alarmes do Portal',solicitacoes_portal:'Solicitações do Portal',absenteismo:'Dashboard de Absenteísmo'};
+const PAGE_TITLES={dashboard:'Dashboard',portaislinks:'Links dos Portais',funcionarios:'Funcionários',ponto:'Cartão Ponto',financeiro:'Financeiro',holerite:'Holerite',atestados:'Atestados Médicos',candidatos:'Candidatos',admissao:'Admissão',demissao:'Demissão',metadiaria:'Meta Diária',salarios:'Salários & Metas',biometrico:'Ponto Biométrico',relatorio:'Relatório Financeiro Mensal',advertencias:'Advertências e Suspensões',suspensao:'Suspensões Disciplinares',ferias:'Controle de Férias',desempenho:'Avaliação de Desempenho',comunicados:'Comunicados & Avisos',bancohoras:'Banco de Horas',recrutamento:'Recrutamento 2ª Fase',contratos:'Contratos & Documentos Admissionais',comprovantes:'Comprovantes de Pagamento',workflows:'Workflows Automáticos',assinatura_digital:'Assinatura Digital',alarmes_portal:'Alarmes do Portal',solicitacoes_portal:'Solicitações do Portal',absenteismo:'Dashboard de Absenteísmo',agenda_rh:'Agenda de RH',doc_templates:'Templates de Documentos'};
 
 // ── Helper: gera array de anos dinâmico ──────────
 function anosDisponiveis(extra=1){
@@ -2783,20 +2793,40 @@ function navigate(mod){
   document.getElementById('emp-count').textContent=APP.employees.filter(e=>e.status==='ativo').length+' ativos';
 
   // FIX: Ponto Biométrico — carrega dados do Firebase na primeira abertura
-  if(mod==='biometrico' && !_bioDataLoaded && FBASE){
-    _bioDataLoaded=true;
-    // FIX-PERF4: feedback dinâmico de progresso — mostra etapas enquanto carrega
+  if(mod==='biometrico' && !_bioDataLoaded){
+    // FIX-LOADING: Se Firebase ainda nao conectou, renderiza com cache local imediatamente
+    if(!FBASE){
+      _bioDataLoaded=true;
+      MOD='biometrico';
+      buildNav();
+      document.getElementById('content').innerHTML=(typeof window.rBiometrico==='function'?window.rBiometrico():rBiometrico());
+      return;
+    }
+    // FIX-PERF4: feedback dinamico de progresso — mostra etapas enquanto carrega
+    // IMPORTANTE: _bioDataLoaded so vai para true DENTRO do .then() para permitir retry correto
     const _bioProgressEl=()=>document.getElementById('bio-load-progress');
     document.getElementById('content').innerHTML='<div class="card" style="text-align:center;padding:40px"><div style="font-size:36px;margin-bottom:12px">⏳</div><div id="bio-load-progress" style="font-size:15px;font-weight:700;color:var(--mt)">Conectando ao Firebase...</div></div>';
     const _steps=['Conectando ao Firebase...','Buscando registros de ponto...','Carregando colaboradores...','Quase pronto...'];
     let _si=0;
     const _stTimer=setInterval(()=>{_si=Math.min(_si+1,_steps.length-1);const el=_bioProgressEl();if(el)el.textContent=_steps[_si];},900);
-    bioLoadData().then(()=>{
+    // Timeout de seguranca: se bioLoadData travar por mais de 15s, abre com cache
+    const _bioTimeout=setTimeout(()=>{
       clearInterval(_stTimer);
+      _bioDataLoaded=true;
+      MOD='biometrico';
+      buildNav();
+      document.getElementById('content').innerHTML=(typeof window.rBiometrico==='function'?window.rBiometrico():rBiometrico());
+      toast('⚠ Carregamento demorou — exibindo dados em cache.','warn');
+    },15000);
+    bioLoadData().then(()=>{
+      clearTimeout(_bioTimeout);
+      clearInterval(_stTimer);
+      _bioDataLoaded=true;
       MOD='biometrico';
       buildNav();
       document.getElementById('content').innerHTML=(typeof window.rBiometrico==='function'?window.rBiometrico():rBiometrico());
     }).catch(e=>{
+      clearTimeout(_bioTimeout);
       clearInterval(_stTimer);
       _bioDataLoaded=false;
       document.getElementById('content').innerHTML='<div class="card" style="text-align:center;padding:40px"><div style="font-size:36px;margin-bottom:12px">⚠️</div><div style="font-size:15px;font-weight:700;color:var(--red)">Erro ao carregar dados: '+_escHtml(e.message)+'</div><br><button class="btn btn-blue" onclick="_bioDataLoaded=false;navigate(&apos;biometrico&apos;)">🔄 Tentar novamente</button></div>'; // FIX-BUG2
@@ -2831,7 +2861,7 @@ function navigate(mod){
     return;
   }
 
-  const renders={dashboard:(typeof window._rDashComAlertas==="function"?window._rDashComAlertas:rDash),funcionarios:rFuncs,ponto:rPonto,financeiro:rFin,holerite:rHolerite,atestados:rAtestados,candidatos:rCand,admissao:rAdmissao,demissao:rDemissao,salarios:rSalarios,metadiaria:rMetaDiaria,biometrico:function(){ return (typeof window.rBiometrico==='function') ? window.rBiometrico() : rBiometrico(); },relatorio:rRelatorio,advertencias:rAdvertencias,ferias:rFerias,desempenho:rDesempenho,comunicados:rComunicados,bancohoras:rBancoHoras,recrutamento:rRecrutamento,contratos:function(){ return (typeof rContratos==='function') ? rContratos() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Contratos carregando...</div>'; },comprovantes:rComprovantes,portaislinks:rPortaisLinks,workflows:rWorkflows,assinatura_digital:function(){ return (typeof window.rAssinaturaDigital==='function') ? window.rAssinaturaDigital() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Assinatura carregando...</div>'; },alarmes_portal:rAlarmesPortal,solicitacoes_portal:rSolicitacoesPortal,absenteismo:rAbsenteismo,suspensao:function(){ const t=document.getElementById('_susp_module_html_'); return t?t.innerHTML:'<div class="card" style="padding:30px;text-align:center">⏳ Módulo Suspensões carregando...</div>'; }};
+  const renders={dashboard:(typeof window._rDashComAlertas==="function"?window._rDashComAlertas:rDash),funcionarios:rFuncs,ponto:rPonto,financeiro:rFin,holerite:rHolerite,atestados:rAtestados,candidatos:rCand,admissao:rAdmissao,demissao:rDemissao,salarios:rSalarios,metadiaria:rMetaDiaria,biometrico:function(){ return (typeof window.rBiometrico==='function') ? window.rBiometrico() : rBiometrico(); },relatorio:rRelatorio,advertencias:rAdvertencias,ferias:rFerias,desempenho:rDesempenho,comunicados:rComunicados,bancohoras:rBancoHoras,recrutamento:rRecrutamento,contratos:function(){ return (typeof rContratos==='function') ? rContratos() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Contratos carregando...</div>'; },comprovantes:rComprovantes,portaislinks:rPortaisLinks,workflows:rWorkflows,assinatura_digital:function(){ return (typeof window.rAssinaturaDigital==='function') ? window.rAssinaturaDigital() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Assinatura carregando...</div>'; },alarmes_portal:rAlarmesPortal,solicitacoes_portal:rSolicitacoesPortal,absenteismo:rAbsenteismo,suspensao:function(){ const t=document.getElementById('_susp_module_html_'); return t?t.innerHTML:'<div class="card" style="padding:30px;text-align:center">⏳ Módulo Suspensões carregando...</div>'; },agenda_rh:rAgendaRH,doc_templates:rDocTemplates};
   // FIX-C1: try-catch no dispatcher — evita tela branca se qualquer render lançar erro
   try {
     document.getElementById('content').innerHTML=(renders[mod]||rDash)();
@@ -3615,11 +3645,133 @@ function rDash(){
   return _dashHtml;
 }
 // ════════════════════════════════════════════════════
+// ── SELEÇÃO EM LOTE — estado global ─────────────────────────────────────────
+window._batchSelected = window._batchSelected || new Set();
+
+function _batchToggle(id){
+  if(window._batchSelected.has(id)) window._batchSelected.delete(id);
+  else window._batchSelected.add(id);
+  _batchBarUpdate();
+  // atualiza visual da linha
+  const row = document.querySelector(`tr[data-emp-id="${id}"]`);
+  if(row) row.style.background = window._batchSelected.has(id) ? '#EFF6FF' : '';
+  const chk = document.querySelector(`input[data-batch-chk="${id}"]`);
+  if(chk) chk.checked = window._batchSelected.has(id);
+}
+function _batchToggleAll(checked){
+  document.querySelectorAll('[data-batch-chk]').forEach(chk=>{
+    const id = chk.dataset.batchChk;
+    if(checked){ window._batchSelected.add(id); chk.checked=true; }
+    else{ window._batchSelected.delete(id); chk.checked=false; }
+    const row = document.querySelector(`tr[data-emp-id="${id}"]`);
+    if(row) row.style.background = checked ? '#EFF6FF' : '';
+  });
+  _batchBarUpdate();
+}
+function _batchBarUpdate(){
+  const n = window._batchSelected.size;
+  const bar = document.getElementById('_batch-bar');
+  if(!bar) return;
+  if(n === 0){ bar.style.display='none'; return; }
+  bar.style.display='flex';
+  const lbl = bar.querySelector('#_batch-count');
+  if(lbl) lbl.textContent = `${n} funcionário${n>1?'s':''} selecionado${n>1?'s':''}`;
+}
+function _batchClear(){
+  window._batchSelected.clear();
+  document.querySelectorAll('[data-batch-chk]').forEach(c=>{ c.checked=false; });
+  document.querySelectorAll('tr[data-emp-id]').forEach(r=>{ r.style.background=''; });
+  _batchBarUpdate();
+}
+
+function openBatchAction(tipo){
+  const ids = [...window._batchSelected];
+  if(!ids.length){ toast('Selecione ao menos um funcionário.','warn'); return; }
+  const nomes = ids.map(id=>{ const e=APP.employees.find(x=>x.id===id); return e?esc(e.nome):'?'; });
+
+  if(tipo==='comunicado'){
+    openModal(`<div class="mhd"><h3>📢 Comunicado em Lote</h3><button onclick="closeModal()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mbd">
+      <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#1E40AF">
+        <strong>${ids.length} destinatário${ids.length>1?'s':''}:</strong> ${nomes.slice(0,5).join(', ')}${nomes.length>5?` +${nomes.length-5} mais`:''}
+      </div>
+      <div class="fld"><label>Título do Comunicado</label><input id="bc-titulo" placeholder="Ex: Reunião obrigatória, Mudança de horário..."></div>
+      <div class="fld"><label>Mensagem</label><textarea id="bc-msg" rows="5" placeholder="Digite o comunicado completo aqui..."></textarea></div>
+      <div class="fld"><label>Prioridade</label><select id="bc-prio"><option value="normal">Normal</option><option value="importante">⚠️ Importante</option><option value="urgente">🔴 Urgente</option></select></div>
+    </div>
+    <div class="mft">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-blue" onclick="_batchEnviarComunicado()">📢 Publicar para ${ids.length} funcionário${ids.length>1?'s':''}</button>
+    </div>`);
+  } else if(tipo==='ferias'){
+    openModal(`<div class="mhd"><h3>🏖️ Férias Coletivas em Lote</h3><button onclick="closeModal()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mbd">
+      <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#1E40AF">
+        <strong>${ids.length} funcionário${ids.length>1?'s':''}:</strong> ${nomes.slice(0,5).join(', ')}${nomes.length>5?` +${nomes.length-5} mais`:''}
+      </div>
+      <div class="g2">
+        <div class="fld"><label>Início das Férias</label><input id="bf-inicio" type="date" value="${today()}"></div>
+        <div class="fld"><label>Fim das Férias</label><input id="bf-fim" type="date"></div>
+      </div>
+      <div class="g2">
+        <div class="fld"><label>Tipo</label><select id="bf-tipo"><option value="ferias">Férias Normais</option><option value="abono">Abono Pecuniário</option></select></div>
+        <div class="fld"><label>Dias</label><input id="bf-dias" type="number" min="1" max="30" placeholder="30"></div>
+      </div>
+      <div class="fld"><label>Observação</label><input id="bf-obs" placeholder="Ex: Férias coletivas de fim de ano"></div>
+    </div>
+    <div class="mft">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-blue" onclick="_batchMarcarFerias()">🏖️ Marcar para ${ids.length} funcionário${ids.length>1?'s':''}</button>
+    </div>`);
+  }
+}
+
+function _batchEnviarComunicado(){
+  const titulo = document.getElementById('bc-titulo')?.value?.trim();
+  const msg = document.getElementById('bc-msg')?.value?.trim();
+  const prio = document.getElementById('bc-prio')?.value || 'normal';
+  if(!titulo || !msg){ toast('Preencha título e mensagem.','warn'); return; }
+  const ids = [...window._batchSelected];
+  const rec = {id:uid(), titulo, texto:msg, prioridade:prio, destinatarios:ids, data:today(), autor:'RH', arquivado:false};
+  APP.comunicados.push(rec);
+  save('comunicados');
+  closeModal();
+  _batchClear();
+  toast(`✅ Comunicado enviado para ${ids.length} funcionário${ids.length>1?'s':''}!`);
+  navigate('comunicados');
+}
+
+function _batchMarcarFerias(){
+  const inicio = document.getElementById('bf-inicio')?.value;
+  const fim = document.getElementById('bf-fim')?.value;
+  const tipo = document.getElementById('bf-tipo')?.value || 'ferias';
+  const dias = parseInt(document.getElementById('bf-dias')?.value) || 30;
+  const obs = document.getElementById('bf-obs')?.value || 'Férias coletivas';
+  if(!inicio || !fim){ toast('Informe início e fim das férias.','warn'); return; }
+  const ids = [...window._batchSelected];
+  ids.forEach(empId=>{
+    APP.ferias.push({id:uid(), empId, inicio, fim, dias, tipo, status:'programada', obs, criadoEm:new Date().toISOString()});
+  });
+  save('ferias');
+  closeModal();
+  _batchClear();
+  toast(`✅ Férias marcadas para ${ids.length} funcionário${ids.length>1?'s':''}!`);
+  navigate('ferias');
+}
+
 function rFuncs(){
   if(EMP_VIEW)return rEmpView();
   const _srch=EMP_SEARCH.toLowerCase();
   const fil=APP.employees.filter(e=>!_srch||(e.nome||'').toLowerCase().includes(_srch)||(e.cargo||'').toLowerCase().includes(_srch)||(e.cpf||'').includes(_srch));
+  const n=window._batchSelected?window._batchSelected.size:0;
   return `
+  <!-- BARRA DE AÇÃO EM LOTE -->
+  <div id="_batch-bar" style="display:${n>0?'flex':'none'};align-items:center;gap:10px;background:#1E3A5F;color:#fff;border-radius:10px;padding:10px 16px;margin-bottom:12px;flex-wrap:wrap">
+    <span id="_batch-count" style="font-weight:700;font-size:14px;flex:1">${n} funcionário${n!==1?'s':''} selecionado${n!==1?'s':''}</span>
+    <button class="btn btn-sm" style="background:#3B82F6;color:#fff" onclick="openBatchAction('comunicado')">📢 Comunicado</button>
+    <button class="btn btn-sm" style="background:#059669;color:#fff" onclick="openBatchAction('ferias')">🏖️ Férias Coletivas</button>
+    <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff" onclick="_batchClear()">✕ Limpar seleção</button>
+  </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px">
     <div style="position:relative">
       <input value="${esc(EMP_SEARCH)}" oninput="EMP_SEARCH=this.value;navigateDebounced('funcionarios')" placeholder="🔍  Buscar funcionário..." style="width:280px;padding:8px 12px">
@@ -3634,8 +3786,11 @@ function rFuncs(){
         <button class="btn btn-blue" onclick="openEmpForm(null)">+ Adicionar Primeiro Funcionário</button>
       </div>`
     : `<div class="card">
-        <table><thead><tr><th>Funcionário</th><th>Cargo</th><th>Departamento</th><th>Salário</th><th>Status</th><th>Ações</th></tr></thead><tbody>
-          ${fil.map(e=>`<tr>
+        <table><thead><tr>
+          <th style="width:32px"><input type="checkbox" id="_batch-all-chk" onchange="_batchToggleAll(this.checked)" title="Selecionar todos" style="width:15px;height:15px;accent-color:var(--blue);cursor:pointer"></th>
+          <th>Funcionário</th><th>Cargo</th><th>Departamento</th><th>Salário</th><th>Status</th><th>Ações</th></tr></thead><tbody>
+          ${fil.map(e=>`<tr data-emp-id="${e.id}" style="${window._batchSelected&&window._batchSelected.has(e.id)?'background:#EFF6FF':''}">
+            <td><input type="checkbox" data-batch-chk="${e.id}" ${window._batchSelected&&window._batchSelected.has(e.id)?'checked':''} onchange="_batchToggle('${e.id}')" style="width:15px;height:15px;accent-color:var(--blue);cursor:pointer"></td>
             <td><div style="display:flex;align-items:center;gap:10px">${av(e.nome,e.id,32)}<div><p style="margin:0;font-weight:600;font-size:14px">${esc(e.nome)}</p><p style="margin:0;font-size:12px;color:var(--mt)">${esc(e.email)}</p></div></div></td>
             <td>${esc(e.cargo)}</td><td>${esc(e.departamento)}</td>
             <td style="font-weight:700">${fBRL(e.salario)}</td>
@@ -3643,6 +3798,7 @@ function rFuncs(){
             <td><div style="display:flex;gap:5px">
               <button class="btn btn-sm btn-icon-blue" onclick="EMP_VIEW='${e.id}';navigate('funcionarios')">👁 Ver</button>
               <button class="btn btn-sm btn-icon-green" onclick="openEmpForm('${e.id}')">✏️ Editar</button>
+              <button class="btn btn-sm" style="background:#EFF6FF;color:#2563EB;border:1px solid #BFDBFE;font-size:11px" onclick="verAuditLog('${e.id}')" title="Histórico de alterações deste funcionário">📋 Hist.</button>
               <button class="btn btn-sm" style="background:${e.portalBloqueado?'#F0FDF4':'#FEF2F2'};color:${e.portalBloqueado?'#059669':'#DC2626'}" onclick="rhTogglePortalBlock('${e.id}')">${e.portalBloqueado?'🔓':'🔒'}</button>
               <button class="btn btn-sm btn-icon-red" onclick="confirmarExclusaoEmp('${e.id}')">🗑 Excluir</button>
             </div></td>
@@ -3986,7 +4142,7 @@ function _finalizarSaveEmp(emp){
   } else {
     APP.employees.push(emp);
   }
-  save('employees');closeModal();toast('Funcionário salvo!');navigate('funcionarios');
+  save('employees');closeModal();toast('Funcionário salvo!');requestAnimationFrame(()=>navigate('funcionarios'));
 }
 // UX-04 FIX: exibe modal de confirmação detalhado antes de excluir funcionário
 function confirmarExclusaoEmp(id){
@@ -4862,7 +5018,7 @@ function rFin(){
     </div>`;}).join('')}`;
 }
 
-function toggleSal(eid){const r=gFinRec(eid);r.salarioPago=!r.salarioPago;save('financeiro');toast(r.salarioPago?'Salário marcado como pago!':'Desmarcado.');navigate('financeiro');}
+function toggleSal(eid){const r=gFinRec(eid);r.salarioPago=!r.salarioPago;save('financeiro');toast(r.salarioPago?'Salário marcado como pago!':'Desmarcado.');requestAnimationFrame(()=>navigate('financeiro'));}
 function toggleBon(eid,bid){
   const r=gFinRec(eid);
   const b=(r.bonificacoes||[]).find(x=>x.id===bid);
@@ -4873,7 +5029,7 @@ async function delBon(eid,bid){
   if(!await confirmDialog('Excluir esta bonificação?'))return;
   const r=gFinRec(eid);
   r.bonificacoes=(r.bonificacoes||[]).filter(b=>b.id!==bid);
-  save('financeiro');navigate('financeiro');
+  save('financeiro');requestAnimationFrame(()=>navigate('financeiro'));
 }
 function openAddBon(eid){
   openModal('Nova Bonificação',`
@@ -4892,7 +5048,7 @@ function saveAddBon(eid){
   const r=gFinRec(eid);
   if(!r.bonificacoes)r.bonificacoes=[];
   r.bonificacoes.push({id:uid(),desc,valor,pago:false});
-  save('financeiro');closeModal();toast('Bonificação adicionada!');navigate('financeiro');
+  save('financeiro');closeModal();toast('Bonificação adicionada!');requestAnimationFrame(()=>navigate('financeiro'));
 }
 
 // ════════════════════════════════════════════════════
@@ -6402,7 +6558,7 @@ function saveAt(){
   const eid=document.getElementById('at-e')?.value;if(!eid){toast('Selecione o funcionário','err');return;}
   const diasVal=parseInt(document.getElementById('at-dias')?.value)||1;
   const rec={id:uid(),empId:eid,data:document.getElementById('at-d')?.value||today(),dias:diasVal,medico:document.getElementById('at-m')?.value||'',crm:document.getElementById('at-c')?.value||'',obs:document.getElementById('at-o')?.value||'',arquivoId:'',arquivoNome:'',arquivoType:'',arquivoBase64:''};
-  const done=()=>{APP.atestados.push(rec);save('atestados');closeModal();toast('Atestado salvo!');navigate('atestados');};
+  const done=()=>{APP.atestados.push(rec);save('atestados');closeModal();toast('Atestado salvo!');requestAnimationFrame(()=>navigate('atestados'));};
   if(window._atFile){
     // BUG-5 FIX: validação de tamanho (10MB) e tipo de arquivo
     const allowed=['image/jpeg','image/png','image/gif','image/webp','application/pdf'];
@@ -6411,7 +6567,7 @@ function saveAt(){
     const r=new FileReader();r.onload=()=>{const fid=uid();const b64=r.result;saveFile(fid,b64);rec.arquivoId=fid;rec.arquivoNome=window._atFile.name;rec.arquivoType=window._atFile.type;rec.arquivoBase64=b64;window._atFile=null;done();};r.readAsDataURL(window._atFile);
   }else done();
 }
-function delAt(id){APP.atestados=APP.atestados.filter(a=>a.id!==id);save('atestados');navigate('atestados');}
+function delAt(id){APP.atestados=APP.atestados.filter(a=>a.id!==id);save('atestados');requestAnimationFrame(()=>navigate('atestados'));}
 function _resolveFile(fid){
   let b64=loadFile(fid);
   if(!b64){
@@ -14827,12 +14983,29 @@ td,th{font-size:15px!important;}
     </div>
   </div>
 
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
     <div style="font-size:13px;color:var(--mt)">📋 Documentos disciplinares com validade jurídica — CLT Arts. 474 e 482</div>
-    <button class="btn btn-red" onclick="openAdvForm()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Nova Advertência / Suspensão
-    </button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" style="background:#F0FDF4;color:#059669;border:1px solid #BBF7D0;font-size:12px" onclick="exportarCSVAdvertencias()" title="Exportar tabela filtrada para planilha CSV">📥 Exportar CSV</button>
+      <button class="btn btn-red" onclick="openAdvForm()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Nova Advertência / Suspensão
+      </button>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:10px 12px">
+    <span style="font-size:12px;font-weight:700;color:var(--mt);white-space:nowrap">🔍 Filtrar:</span>
+    <input type="text" id="adv-filter-nome" placeholder="Nome do funcionário..." style="height:32px;padding:0 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;flex:1;min-width:160px" oninput="aplicarFiltroAdv()">
+    <select id="adv-filter-status" style="height:32px;padding:0 8px;border:1px solid var(--border);border-radius:8px;font-size:12px" onchange="aplicarFiltroAdv()">
+      <option value="">Todos os status</option>
+      <option value="pendente">⏳ Aguard. Assinatura</option>
+      <option value="assinado">✅ Assinado</option>
+      <option value="recusado">❌ Recusado</option>
+      <option value="testemunha">✍️ Testemunha</option>
+    </select>
+    <button class="btn btn-ghost btn-sm" onclick="document.getElementById('adv-filter-nome').value='';document.getElementById('adv-filter-status').value='';aplicarFiltroAdv()" style="height:32px;font-size:11px">✕ Limpar</button>
+    <span id="adv-filter-count" style="font-size:11px;color:var(--mt)">${lista.length} registro(s)</span>
   </div>
 
   <div class="card">
@@ -14852,7 +15025,7 @@ td,th{font-size:15px!important;}
         <th>Status</th>
         <th>Ações</th>
       </tr></thead>
-      <tbody>
+      <tbody id="adv-tbody">
         ${lista.map(a => {
           const emp = APP.employees.find(e=>e.id===a.empId)||{nome:'Desconhecido'};
           const tipo = ADV_TIPOS[a.tipo] || ADV_TIPOS.advertencia_escrita;
@@ -15661,8 +15834,10 @@ function rFerias(){
       <h2 style="font-size:20px;font-weight:800;margin:0">🏖️ Controle de Férias</h2>
       <p style="font-size:13px;color:var(--mt);margin:4px 0 0">Período aquisitivo, programação e saldos por funcionário</p>
     </div>
-    <button class="btn btn-blue" onclick="openFeriasForm(null)">+ Programar Férias</button>
-  </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn" style="background:#F0FDF4;color:#059669;border:1px solid #BBF7D0;font-size:12px" onclick="exportarCSVFerias()" title="Exportar todos os registros de férias para CSV">📥 Exportar CSV</button>
+      <button class="btn btn-blue" onclick="openFeriasForm(null)">+ Programar Férias</button>
+    </div>
 
   ${ativos.some(e=>{const c=calcFerias(e);return c&&c.vencido;})?`
   <div style="background:#FEF2F2;border:1.5px solid #FECACA;border-left:5px solid #DC2626;border-radius:10px;padding:14px 18px;margin-bottom:16px">
@@ -15764,8 +15939,40 @@ function saveFerias(){const rec={id:uid(),empId:v('fer-emp'),tipo:v('fer-tipo'),
       if(dIni<dAdm){toast('As férias não podem começar antes da data de admissão do funcionário.','err');return;}
     }
   }
-  APP.ferias.push(rec);save('ferias');if(typeof fbSave==='function')fbSave('ferias');closeModal();toast('✅ Férias registradas!');navigate('ferias');}
-function atualizarStatusFerias(id,novoStatus){const f=APP.ferias.find(x=>x.id===id);if(!f)return;f.status=novoStatus;save('ferias');if(typeof fbSave==='function')fbSave('ferias');toast('Status atualizado!');navigate('ferias');}
+  APP.ferias.push(rec);save('ferias');closeModal();toast('✅ Férias registradas!');requestAnimationFrame(()=>navigate('ferias'));}
+function atualizarStatusFerias(id,novoStatus){
+  const f=APP.ferias.find(x=>x.id===id);
+  if(!f)return;
+  f.status=novoStatus;
+  save('ferias');
+  toast('Status atualizado!');
+  // ── NOTIFICAÇÃO DE COMPROVANTE DE FÉRIAS NO PORTAL ──
+  if(novoStatus==='aprovada'&&FBASE){
+    const emp=APP.employees.find(e=>e.id===f.empId);
+    if(emp){
+      const fmtD=d=>d?new Date(d+'T00:00:00').toLocaleDateString('pt-BR'):'—';
+      const empresa=(APP.empresaCfg?.nomeEmpresa||APP.empresaCfg?.nome||'FacilitaCell');
+      const notifId='ferias_aprov_'+f.id+'_'+Date.now().toString(36);
+      FBASE.collection('portal_notificacoes').doc(notifId).set({
+        empId:emp.id,
+        empNome:emp.nome,
+        tipo:'ferias_aprovada',
+        titulo:'🏖️ Férias Aprovadas',
+        mensagem:`Suas férias foram aprovadas pelo RH: ${fmtD(f.inicio)} a ${fmtD(f.fim)} (${f.dias} dias). O comprovante está disponível na aba Férias do portal.`,
+        lido:false,
+        criadoEm:new Date().toISOString(),
+        // dados do comprovante (usados para gerar o PDF no portal)
+        comprovante:{
+          feriasId:f.id, empId:emp.id, empNome:emp.nome, empCargo:emp.cargo||'',
+          empCpf:emp.cpf||'', empresa, dataAdmissao:emp.dataAdmissao||'',
+          inicio:f.inicio, fim:f.fim, dias:f.dias, tipo:f.tipo||'ferias',
+          obs:f.obs||'', aprovadoEm:new Date().toISOString()
+        }
+      }).catch(e=>console.warn('[Ferias comprovante notif]',e));
+    }
+  }
+  requestAnimationFrame(()=>navigate('ferias'));
+}
 
 // ── RECIBO CONTÁBIL DE FÉRIAS ──────────────────────────────────────────────
 function gerarAvisoFeriasContabil(fId){
@@ -16189,10 +16396,10 @@ function openComunicadoForm(){
 function saveComunicado(){
   const rec={id:uid(),titulo:v('co-titulo'),tipo:v('co-tipo'),mensagem:v('co-msg'),dataEvento:v('co-evento'),destinatarios:v('co-dest'),autor:v('co-autor'),arquivado:false,criadoEm:new Date().toISOString()};
   if(!rec.titulo||!rec.mensagem){toast('Preencha título e mensagem','err');return;}
-  APP.comunicados.push(rec);save('comunicados');closeModal();toast('✅ Comunicado publicado!');navigate('comunicados');
+  APP.comunicados.push(rec);save('comunicados');closeModal();toast('✅ Comunicado publicado!');requestAnimationFrame(()=>navigate('comunicados'));
 }
-function arquivarComunicado(id){const c=APP.comunicados.find(x=>x.id===id);if(c){c.arquivado=true;save('comunicados');navigate('comunicados');}}
-function desarquivarComunicado(id){const c=APP.comunicados.find(x=>x.id===id);if(c){c.arquivado=false;save('comunicados');navigate('comunicados');}}
+function arquivarComunicado(id){const c=APP.comunicados.find(x=>x.id===id);if(c){c.arquivado=true;save('comunicados');requestAnimationFrame(()=>navigate('comunicados'));}}
+function desarquivarComunicado(id){const c=APP.comunicados.find(x=>x.id===id);if(c){c.arquivado=false;save('comunicados');requestAnimationFrame(()=>navigate('comunicados'));}}
 // EDITAR comunicado — abre modal pré-preenchido
 function editarComunicado(id){
   const c=APP.comunicados.find(x=>x.id===id);
@@ -16224,7 +16431,7 @@ function salvarEdicaoComunicado(id){
   c.titulo=titulo; c.tipo=v('co-tipo'); c.mensagem=mensagem;
   c.dataEvento=v('co-evento'); c.destinatarios=v('co-dest'); c.autor=v('co-autor');
   c.editadoEm=new Date().toISOString();
-  save('comunicados'); closeModal(); toast('✅ Comunicado atualizado!'); navigate('comunicados');
+  save('comunicados'); closeModal(); toast('✅ Comunicado atualizado!'); requestAnimationFrame(()=>navigate('comunicados'));
 }
 // EXCLUIR comunicado permanentemente
 async function excluirComunicado(id){
@@ -16232,7 +16439,7 @@ async function excluirComunicado(id){
   if(!c){toast('Comunicado não encontrado','err');return;}
   if(!await confirmDialog('Excluir permanentemente o comunicado "'+c.titulo+'"?\n\nEsta ação não pode ser desfeita.')) return;
   APP.comunicados=APP.comunicados.filter(x=>x.id!==id);
-  save('comunicados'); toast('🗑 Comunicado excluído.'); navigate('comunicados');
+  save('comunicados'); toast('🗑 Comunicado excluído.'); requestAnimationFrame(()=>navigate('comunicados'));
 }
 
 // ════════════════════════════════════════════════════
@@ -16326,6 +16533,7 @@ function rBancoHoras(){
       <button class="btn" style="background:#EFF6FF;color:#2563EB;border:1px solid #BFDBFE" onclick="syncBHdoBiometrico()" title="Importa somente créditos do Ponto Biométrico">🔄 Importar do Biométrico</button>
       <button class="btn btn-blue" onclick="openBHForm(null)">+ Lançar Horas</button>
       <button class="btn" style="background:#059669;color:#fff;font-weight:700;border:2px solid #047857" onclick="forceSaveBH()" title="Salva todos os lançamentos do Banco de Horas no Firebase agora">💾 Salvar Banco de Horas</button>
+      <button class="btn" style="background:#F0FDF4;color:#059669;border:1px solid #BBF7D0;font-weight:700" onclick="exportarCSVBancoHoras()" title="Exporta todos os lançamentos individuais do banco de horas em CSV">📥 Exportar CSV</button>
       <button class="btn" style="background:#F0FDF4;color:#059669;border:1px solid #BBF7D0;font-weight:700" onclick="exportarCSVFolhaDominio()" title="Exporta saldo de todos os colaboradores em CSV compatível com Domínio Sistemas e eSocial S-1200">📤 Exportar CSV Folha</button>
       <button class="btn" style="background:#FFF7ED;color:#D97706;border:1px solid #FDE68A" onclick="limparDebitosAutomaticosBH()" title="Remove débitos automáticos incorretos gerados pelo biométrico antes da correção">🧹 Limpar Débitos Incorretos</button>
     </div>
@@ -20403,6 +20611,16 @@ td,th{font-size:15px!important;}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
       Contratos
     </button>
+    <button class="p-tab" id="p-tab-chat" onclick="pShowTab('chat')" style="position:relative">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Chat RH
+      <span id="p-chat-badge" style="display:none;position:absolute;top:6px;right:2px;background:#DC2626;color:#fff;border-radius:50%;min-width:16px;height:16px;font-size:10px;font-weight:800;align-items:center;justify-content:center;line-height:1;padding:0 3px;animation:pulse-badge 1.5s infinite">!</span>
+    </button>
+    <button class="p-tab" id="p-tab-solicitacoes" onclick="pShowTab('solicitacoes')" style="position:relative">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Solicitações
+      <span id="p-solic-badge" style="display:none;position:absolute;top:6px;right:2px;background:#D97706;color:#fff;border-radius:50%;width:16px;height:16px;font-size:10px;font-weight:800;align-items:center;justify-content:center;line-height:1">!</span>
+    </button>
   </div>
   <div class="p-content" id="p-content"></div>
 </div>
@@ -20903,6 +21121,7 @@ td,th{font-size:15px!important;}
       Promise.all([pLoadHol(db),pLoadPonto(db),pLoadAdvs(db),pLoadComunicado(db),pLoadJustificativas(db),pLoadAssinaturas(db),pLoadContratos(db)]).then(()=>{
         pRenderTab(P_TAB);
         pIniciarListenerNotif(db);
+        pIniciarListenerChat(db);
         // Badge: conta comunicados + verifica alertas de ponto pendentes
         (async()=>{
           const cpfClean=(P_EMP?.cpf||'').replace(/\D/g,'');
@@ -20929,6 +21148,7 @@ td,th{font-size:15px!important;}
         await Promise.all([pLoadHol(db),pLoadPonto(db),pLoadAdvs(db),pLoadComunicado(db),pLoadJustificativas(db),pLoadAssinaturas(db),pLoadContratos(db)]);
         pRenderTab(P_TAB);
         pIniciarListenerNotif(db);
+        pIniciarListenerChat(db);
         (async()=>{
           const cpfClean=(P_EMP?.cpf||'').replace(/\D/g,'');
           let nPonto=0;
@@ -20953,6 +21173,7 @@ td,th{font-size:15px!important;}
   window.pLogout=function(){
     sessionStorage.removeItem('p_emp');sessionStorage.removeItem('p_emp_at');P_EMP=null;clearInterval(P_CLK);
     pPararListenerNotif();
+    pPararListenerChat();
     var _app=document.getElementById('p-app');if(_app)_app.style.display='none';
     var _spl=document.getElementById('p-loading-splash');if(_spl){_spl.style.display='none';_spl.classList.add('hidden');}
     var _login=document.getElementById('p-login');if(_login)_login.style.display='flex';
@@ -21073,6 +21294,8 @@ td,th{font-size:15px!important;}
     if(tab==='ferias')      { pRenderFerias(c); return; }
     if(tab==='assinaturas') { pRenderAssinaturas(c); return; }
     if(tab==='contratos')   { pRenderContratos(c); return; }
+    if(tab==='chat')        { pRenderChat(c); return; }
+    if(tab==='solicitacoes'){ pRenderSolicitacoes(c); return; }
     c.innerHTML=pRenderPerfil();
   }
 
@@ -22728,6 +22951,7 @@ td,th{font-size:15px!important;}
     ${ferias.length===0?`<div class="p-empty"><div class="p-empty-icon">🏖️</div><div style="font-size:16px;font-weight:700;color:#1E293B;margin-bottom:6px">Nenhuma férias registrada</div><div style="font-size:13px">Entre em contato com o RH para programar suas férias.</div></div>`:
     ferias.map(f=>{
       const st=statusMap[f.status]||statusMap.programada;
+      const isAprovada=f.status==='aprovada'||f.status==='programada';
       return `<div class="p-card" style="margin-bottom:10px">
         <div style="display:flex;align-items:center;gap:12px">
           <div style="font-size:28px">🏖️</div>
@@ -22738,6 +22962,10 @@ td,th{font-size:15px!important;}
           </div>
           <span style="background:${st.bg};color:${st.cor};padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap">${st.l}</span>
         </div>
+        ${isAprovada?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid #F1F5F9;display:flex;gap:8px">
+          <button onclick="pVerComprovanteFeriasPortal('${f.id}')" style="background:#EFF6FF;color:#2563EB;border:1.5px solid #BFDBFE;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;flex:1">📄 Ver Comprovante</button>
+          <button onclick="pImprimirComprovanteFeriasPortal('${f.id}')" style="background:#F0FDF4;color:#059669;border:1.5px solid #BBF7D0;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;flex:1">🖨️ Imprimir</button>
+        </div>`:''}
       </div>`;
     }).join('')}
     <div style="margin-top:16px;background:#F8FAFC;border-radius:10px;padding:12px 14px;font-size:12px;color:#64748B">
@@ -22802,6 +23030,310 @@ td,th{font-size:15px!important;}
   window.pTrocarFotoPerfil=pTrocarFotoPerfil;
   window.pPreviewFoto=pPreviewFoto;
   window.pSalvarJustificativa=pSalvarJustificativa;
+
+  // ══════════════════════════════════════════════════════════════════
+  // FEATURE 1: LISTENER DE CHAT EM TEMPO REAL — BADGE NO SINO
+  // ══════════════════════════════════════════════════════════════════
+  let _P_CHAT_UNSUB = null;
+  let _P_CHAT_MSGS  = [];       // cache local das msgs
+  let _P_CHAT_UNREAD = 0;       // msgs não lidas do RH
+  let _P_CHAT_SEEN_IDS = new Set(); // IDs já vistos (evita duplicar badge)
+
+  function pIniciarListenerChat(db){
+    if(!P_EMP?.id||!db)return;
+    if(_P_CHAT_UNSUB){_P_CHAT_UNSUB();_P_CHAT_UNSUB=null;}
+    try{
+      _P_CHAT_UNSUB=db.collection('rh_chat').doc(P_EMP.id).collection('msgs')
+        .orderBy('ts','desc').limit(60)
+        .onSnapshot(snap=>{
+          const msgs=[];
+          snap.docs.forEach(d=>{msgs.push({id:d.id,...d.data()});});
+          _P_CHAT_MSGS=msgs.reverse();
+          // Conta não lidas (enviadas pelo RH, não pelo colaborador)
+          let unread=0;
+          msgs.forEach(m=>{
+            if(m.de==='rh'&&!m.lidoPortal&&!_P_CHAT_SEEN_IDS.has(m.id)){
+              unread++;
+            }
+          });
+          _P_CHAT_UNREAD=unread;
+          // Atualiza badge no tab Chat
+          const badge=document.getElementById('p-chat-badge');
+          if(badge){
+            if(unread>0){badge.textContent=unread>9?'9+':String(unread);badge.style.display='inline-flex';}
+            else{badge.style.display='none';}
+          }
+          // Re-renderiza chat se a aba estiver aberta
+          if(P_TAB==='chat'){
+            const c=document.getElementById('p-content');
+            if(c) pRenderChat(c);
+          }
+        });
+    }catch(e){console.warn('[Portal Chat listener]',e);}
+  }
+
+  function pPararListenerChat(){
+    if(_P_CHAT_UNSUB){_P_CHAT_UNSUB();_P_CHAT_UNSUB=null;}
+  }
+
+  async function pRenderChat(c){
+    const db=P_DB||FBASE;
+    if(!db||!P_EMP?.id){
+      c.innerHTML=`<div class="p-empty"><div class="p-empty-icon">💬</div><div style="font-size:15px;font-weight:700">Chat não disponível</div><div style="font-size:13px;margin-top:4px">Sem conexão com o servidor.</div></div>`;
+      return;
+    }
+    // Marca todas como lidas no Firestore
+    const unlidadas=_P_CHAT_MSGS.filter(m=>m.de==='rh'&&!m.lidoPortal&&!_P_CHAT_SEEN_IDS.has(m.id));
+    unlidadas.forEach(m=>{
+      _P_CHAT_SEEN_IDS.add(m.id);
+      db.collection('rh_chat').doc(P_EMP.id).collection('msgs').doc(m.id)
+        .update({lidoPortal:true}).catch(()=>{});
+    });
+    _P_CHAT_UNREAD=0;
+    const badge=document.getElementById('p-chat-badge');
+    if(badge)badge.style.display='none';
+
+    const fmtTime=iso=>{try{const d=new Date(iso||Date.now());return d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';}};
+    const fmtDate=iso=>{try{const d=new Date(iso||Date.now());const hoje=new Date();const ontem=new Date();ontem.setDate(hoje.getDate()-1);if(d.toDateString()===hoje.toDateString())return 'Hoje';if(d.toDateString()===ontem.toDateString())return 'Ontem';return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});}catch(e){return '';}};
+
+    const msgs=_P_CHAT_MSGS;
+    let lastDate='';
+    const bubbles=msgs.map(m=>{
+      const de=m.de==='rh'?'rh':'eu';
+      const d=fmtDate(m.ts?.toDate?.()||m.ts);
+      let dateSep='';
+      if(d!==lastDate){lastDate=d;dateSep=`<div style="text-align:center;margin:10px 0"><span style="background:#E2E8F0;color:#64748B;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px">${d}</span></div>`;}
+      if(de==='rh'){
+        return `${dateSep}<div style="display:flex;align-items:flex-end;gap:8px;margin-bottom:8px">
+          <div style="width:28px;height:28px;border-radius:50%;background:#0B1E35;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#C9A84C;flex-shrink:0">RH</div>
+          <div style="max-width:78%">
+            <div style="background:#fff;border:1px solid #E2E8F0;border-radius:12px 12px 12px 0;padding:10px 12px;font-size:13px;color:#1E293B;line-height:1.5;word-break:break-word">${pEsc(m.texto||m.text||'')}</div>
+            <div style="font-size:10px;color:#94A3B8;margin-top:3px;padding-left:4px">${fmtTime(m.ts?.toDate?.()||m.ts)}</div>
+          </div>
+        </div>`;
+      }else{
+        return `${dateSep}<div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+          <div style="max-width:78%">
+            <div style="background:#2563EB;border-radius:12px 12px 0 12px;padding:10px 12px;font-size:13px;color:#fff;line-height:1.5;word-break:break-word">${pEsc(m.texto||m.text||'')}</div>
+            <div style="font-size:10px;color:#94A3B8;margin-top:3px;text-align:right;padding-right:4px">${fmtTime(m.ts?.toDate?.()||m.ts)} ${m.lidoRH?'✓✓':'✓'}</div>
+          </div>
+        </div>`;
+      }
+    }).join('');
+
+    c.innerHTML=`
+    <div style="display:flex;flex-direction:column;height:calc(100vh - 140px);min-height:400px">
+      <div class="p-sh" style="flex-shrink:0">💬 Chat com RH <span style="font-size:12px;font-weight:400;color:#94A3B8;margin-left:8px">Mensagens vistas pelo RH em tempo real</span></div>
+      <div id="p-chat-body" style="flex:1;overflow-y:auto;padding:12px 16px;background:#F8FAFC;border-radius:10px;margin:0 0 12px">
+        ${msgs.length===0?`<div class="p-empty" style="padding:40px 20px"><div class="p-empty-icon">💬</div><div style="font-size:15px;font-weight:700">Nenhuma mensagem ainda</div><div style="font-size:13px;margin-top:4px">Envie uma mensagem para o RH.</div></div>`:bubbles}
+      </div>
+      <div style="display:flex;gap:8px;flex-shrink:0;padding:0 0 8px">
+        <textarea id="p-chat-input" placeholder="Escreva sua mensagem para o RH..." style="flex:1;padding:10px 13px;border:1.5px solid #CBD5E1;border-radius:10px;font-size:13px;resize:none;height:52px;font-family:inherit;outline:none;color:#1E293B;background:#fff" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();pChatEnviar();}"></textarea>
+        <button onclick="pChatEnviar()" style="background:#2563EB;color:#fff;border:none;border-radius:10px;padding:0 18px;font-size:20px;cursor:pointer;flex-shrink:0" title="Enviar">➤</button>
+      </div>
+    </div>`;
+    // Scroll para o final
+    setTimeout(()=>{const b=document.getElementById('p-chat-body');if(b)b.scrollTop=b.scrollHeight;},50);
+  }
+
+  window.pChatEnviar=async function(){
+    const input=document.getElementById('p-chat-input');
+    const texto=(input?.value||'').trim();
+    if(!texto)return;
+    const db=P_DB||FBASE;
+    if(!db){pToast('Sem conexão.','err');return;}
+    input.value='';
+    try{
+      await db.collection('rh_chat').doc(P_EMP.id).collection('msgs').add({
+        texto, de:'colaborador', empId:P_EMP.id, empNome:P_EMP.nome,
+        ts:firebase.firestore.FieldValue.serverTimestamp(),
+        lidoRH:false, lidoPortal:true
+      });
+      await db.collection('rh_chat').doc(P_EMP.id).set({
+        empId:P_EMP.id, empNome:P_EMP.nome,
+        ultimaMsg:texto, ultimaMsgTs:firebase.firestore.FieldValue.serverTimestamp(),
+        ultimaMsgDe:'colaborador', atualizadoEm:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+    }catch(e){pToast('Erro ao enviar: '+e.message,'err');}
+  };
+
+  // ══════════════════════════════════════════════════════════════════
+  // FEATURE 2: COMPROVANTE DE FÉRIAS NO PORTAL
+  // ══════════════════════════════════════════════════════════════════
+  window.pVerComprovanteFeriasPortal=async function(feriasId){
+    const db=P_DB||FBASE;
+    if(!db||!P_EMP?.id)return;
+    // Tenta buscar dados da notificação do comprovante
+    let compr=null;
+    try{
+      const snap=await db.collection('portal_notificacoes')
+        .where('empId','==',P_EMP.id)
+        .where('tipo','==','ferias_aprovada').get();
+      const doc=snap.docs.find(d=>d.data()?.comprovante?.feriasId===feriasId);
+      if(doc)compr=doc.data().comprovante;
+    }catch(e){}
+    // Se não há notificação, usa os dados do próprio registro de férias
+    if(!compr){
+      // Tenta carregar do hr/ferias
+      try{
+        const snap=await db.collection('hr').doc('ferias').get();
+        if(snap.exists){
+          const lista=JSON.parse(snap.data().d||'[]');
+          const f=lista.find(x=>x.id===feriasId&&(x.empId===P_EMP.id||x.empNome===P_EMP.nome));
+          if(f){
+            compr={feriasId:f.id,empId:P_EMP.id,empNome:P_EMP.nome,empCargo:P_EMP.cargo||'',
+              empCpf:P_EMP.cpf||'',empresa:'FacilitaCell',dataAdmissao:P_EMP.dataAdmissao||'',
+              inicio:f.inicio||f.dataInicio,fim:f.fim||f.dataFim,dias:f.dias,tipo:f.tipo||'ferias',obs:f.obs||'',aprovadoEm:f.atualizadoEm||new Date().toISOString()};
+          }
+        }
+      }catch(e){}
+    }
+    if(!compr){pToast('Comprovante não encontrado.','err');return;}
+    const fmtD=d=>{try{return new Date((d||'').includes('T')?d:d+'T00:00:00').toLocaleDateString('pt-BR');}catch(e){return d||'—';}};
+    const fmtDt=iso=>{try{return new Date(iso).toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});}catch(e){return '—';}};
+    const ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto';
+    ov.id='p-compr-ferias-ov';
+    ov.innerHTML=`
+      <div id="p-compr-ferias-doc" style="background:#fff;border-radius:16px;width:100%;max-width:520px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.35);font-family:Georgia,serif">
+        <div style="background:#0B1E35;padding:22px 24px;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:#C9A84C;letter-spacing:.12em;text-transform:uppercase;margin-bottom:4px">Comprovante Oficial</div>
+            <div style="font-size:18px;font-weight:800;color:#fff">🏖️ Aviso de Férias</div>
+          </div>
+          <button onclick="document.getElementById('p-compr-ferias-ov').remove()" style="background:rgba(255,255,255,.12);border:none;color:#fff;cursor:pointer;border-radius:8px;padding:6px 10px;font-size:15px">✕</button>
+        </div>
+        <div style="padding:24px">
+          <div style="background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:10px;padding:16px;margin-bottom:18px;text-align:center">
+            <div style="font-size:11px;font-weight:700;color:#2563EB;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Período de Gozo</div>
+            <div style="font-size:22px;font-weight:900;color:#0B1E35">${fmtD(compr.inicio)} → ${fmtD(compr.fim)}</div>
+            <div style="font-size:14px;color:#2563EB;font-weight:700;margin-top:4px">${compr.dias} dias · ${compr.tipo==='abono'?'Abono Pecuniário':'Férias Normais'}</div>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:18px">
+            ${[['Colaborador',compr.empNome],['Cargo',compr.empCargo],['CPF',compr.empCpf||'—'],['Admissão',fmtD(compr.dataAdmissao)],['Aprovado em',fmtDt(compr.aprovadoEm)]].map(([l,v])=>`
+            <tr><td style="padding:7px 0;color:#64748B;font-weight:600;width:42%;border-bottom:1px solid #F1F5F9">${l}</td><td style="padding:7px 0;color:#1E293B;border-bottom:1px solid #F1F5F9;font-weight:700">${pEsc(v||'—')}</td></tr>`).join('')}
+          </table>
+          ${compr.obs?`<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:10px 12px;font-size:12px;color:#92400E;margin-bottom:16px"><strong>Obs:</strong> ${pEsc(compr.obs)}</div>`:''}
+          <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:10px 12px;font-size:11px;color:#065F46;margin-bottom:18px;line-height:1.6">
+            ⚖️ Férias concedidas nos termos do <strong>Art. 129 da CLT</strong>. O pagamento deverá ser feito com antecedência mínima de 2 dias úteis do início do período.
+          </div>
+          <div style="display:flex;gap:8px">
+            <button onclick="pImprimirComprovanteFeriasPortal('${feriasId}')" style="flex:1;background:#2563EB;color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer">🖨️ Imprimir / Salvar PDF</button>
+            <button onclick="document.getElementById('p-compr-ferias-ov').remove()" style="background:#F1F5F9;color:#475569;border:none;border-radius:8px;padding:11px 16px;font-size:13px;font-weight:600;cursor:pointer">Fechar</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+  };
+
+  window.pImprimirComprovanteFeriasPortal=async function(feriasId){
+    // Abre o comprovante e dispara impressão
+    await window.pVerComprovanteFeriasPortal(feriasId);
+    setTimeout(()=>{window.print();},400);
+  };
+
+  // ══════════════════════════════════════════════════════════════════
+  // FEATURE 3: SOLICITAÇÕES EM TEMPO REAL — LINHA DO TEMPO
+  // ══════════════════════════════════════════════════════════════════
+  let _P_SOLIC_UNSUB=null;
+  let _P_SOLIC=[]; // cache das solicitações
+
+  async function pRenderSolicitacoes(c){
+    const db=P_DB||FBASE;
+    if(!db||!P_EMP?.id){
+      c.innerHTML=`<div class="p-empty"><div class="p-empty-icon">📋</div><div style="font-size:15px;font-weight:700">Sem conexão</div></div>`;
+      return;
+    }
+    c.innerHTML=`<div style="text-align:center;padding:40px 20px;color:#94A3B8"><div style="font-size:28px;margin-bottom:8px">⏳</div><div style="font-size:14px">Carregando solicitações...</div></div>`;
+
+    // Carrega do Firestore portalSolicitacoes
+    try{
+      if(_P_SOLIC_UNSUB){_P_SOLIC_UNSUB();_P_SOLIC_UNSUB=null;}
+      _P_SOLIC_UNSUB=db.collection('portal_solicitacoes')
+        .where('empId','==',P_EMP.id)
+        .orderBy('criadoEm','desc')
+        .limit(30)
+        .onSnapshot(snap=>{
+          _P_SOLIC=snap.docs.map(d=>({id:d.id,...d.data()}));
+          // Badge do tab
+          const pendentes=_P_SOLIC.filter(s=>s.status==='pendente'||s.status==='em_analise').length;
+          const badge=document.getElementById('p-solic-badge');
+          if(badge){badge.textContent=pendentes;badge.style.display=pendentes>0?'inline-flex':'none';}
+          if(P_TAB==='solicitacoes'){
+            const cont=document.getElementById('p-content');
+            if(cont)_pRenderSolicContent(cont);
+          }
+        });
+    }catch(e){
+      console.warn('[Portal Solicitações]',e);
+      _pRenderSolicContent(c);
+    }
+  }
+
+  function _pRenderSolicContent(c){
+    const STATUS_MAP={
+      pendente:     {cor:'#D97706',bg:'#FFF7ED',l:'Aguardando',ico:'⏳'},
+      em_analise:   {cor:'#2563EB',bg:'#EFF6FF',l:'Em Análise',ico:'🔍'},
+      aprovado:     {cor:'#059669',bg:'#F0FDF4',l:'Aprovado',  ico:'✅'},
+      aprovada:     {cor:'#059669',bg:'#F0FDF4',l:'Aprovado',  ico:'✅'},
+      concluido:    {cor:'#64748B',bg:'#F8FAFC',l:'Concluído', ico:'✔'},
+      concluida:    {cor:'#64748B',bg:'#F8FAFC',l:'Concluído', ico:'✔'},
+      rejeitado:    {cor:'#DC2626',bg:'#FEF2F2',l:'Recusado',  ico:'✕'},
+      cancelado:    {cor:'#DC2626',bg:'#FEF2F2',l:'Cancelado', ico:'✕'},
+    };
+    const TIPO_LABEL={
+      justificativa:'📝 Justificativa de Ponto',banco_horas:'⏱️ Banco de Horas',
+      ferias:'🏖️ Férias',atestado:'🏥 Atestado',folga:'🔵 Folga',
+      outro:'📩 Outra Solicitação',assinatura:'✍️ Assinatura',
+    };
+    const fmtDt=iso=>{try{return new Date(iso).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return '—';}};
+
+    const lista=_P_SOLIC;
+    c.innerHTML=`
+    <div class="p-sh">📋 Minhas Solicitações <span style="font-size:12px;font-weight:400;color:#94A3B8;margin-left:8px">Atualizado em tempo real</span></div>
+    ${lista.length===0?`<div class="p-empty"><div class="p-empty-icon">📋</div><div style="font-size:16px;font-weight:700;color:#1E293B;margin-bottom:6px">Nenhuma solicitação</div><div style="font-size:13px">Suas solicitações enviadas ao RH aparecerão aqui com status atualizado.</div></div>`:
+    lista.map(s=>{
+      const st=STATUS_MAP[s.status]||STATUS_MAP.pendente;
+      const hist=Array.isArray(s.historico)?s.historico:[];
+      const passos=[
+        {k:'pendente',    l:'Enviada',    ico:'📤'},
+        {k:'em_analise',  l:'Em Análise', ico:'🔍'},
+        {k:'aprovado',    l:'Aprovado',   ico:'✅'},
+        {k:'concluido',   l:'Concluído',  ico:'✔'},
+      ];
+      const statusOrdem=['pendente','em_analise','aprovado','aprovada','concluido','concluida'];
+      const statusIdx=statusOrdem.indexOf(s.status);
+      const isCancelado=s.status==='rejeitado'||s.status==='cancelado';
+      return `<div class="p-card" style="margin-bottom:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div>
+            <div style="font-size:14px;font-weight:700">${TIPO_LABEL[s.tipo]||s.tipo||'Solicitação'}</div>
+            <div style="font-size:11px;color:#94A3B8;margin-top:2px">Enviada em ${fmtDt(s.criadoEm)}</div>
+          </div>
+          <span style="background:${st.bg};color:${st.cor};padding:5px 12px;border-radius:20px;font-size:12px;font-weight:800;white-space:nowrap">${st.ico} ${st.l}</span>
+        </div>
+        ${s.descricao?`<div style="font-size:13px;color:#475569;background:#F8FAFC;border-radius:8px;padding:8px 10px;margin-bottom:12px;line-height:1.5">${pEsc(s.descricao)}</div>`:''}
+        <!-- Linha do tempo -->
+        ${isCancelado?`<div style="background:#FEF2F2;border-radius:8px;padding:10px 12px;font-size:12px;color:#DC2626;font-weight:700;text-align:center">✕ Solicitação ${STATUS_MAP[s.status]?.l||s.status}</div>`:
+        `<div style="display:flex;align-items:center;gap:0;margin:4px 0 2px;position:relative">
+          ${passos.map((p,i)=>{
+            const done=statusIdx>=statusOrdem.indexOf(p.k)||(i===0&&statusIdx>=0);
+            const isActive=p.k===s.status||(p.k==='aprovado'&&s.status==='aprovada')||(p.k==='concluido'&&s.status==='concluida');
+            const histEntry=hist.find(h=>h.status===p.k||(p.k==='aprovado'&&h.status==='aprovada')||(p.k==='concluido'&&h.status==='concluida'));
+            return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;position:relative">
+              ${i>0?`<div style="position:absolute;top:14px;left:-50%;width:100%;height:2px;background:${done?'#059669':'#E2E8F0'};z-index:0"></div>`:''}
+              <div style="width:28px;height:28px;border-radius:50%;background:${isActive?'#2563EB':done?'#059669':'#E2E8F0'};display:flex;align-items:center;justify-content:center;font-size:12px;z-index:1;position:relative;${isActive?'animation:pulse-badge 1.5s infinite;':''}border:2px solid ${isActive?'#2563EB':done?'#059669':'#CBD5E1'}">${done?p.ico:'·'}</div>
+              <div style="font-size:10px;font-weight:700;color:${done?'#1E293B':'#94A3B8'};margin-top:4px;text-align:center;max-width:60px;line-height:1.2">${p.l}</div>
+              ${histEntry?.ts?`<div style="font-size:9px;color:#94A3B8;text-align:center;margin-top:1px">${fmtDt(histEntry.ts)}</div>`:''}
+            </div>`;
+          }).join('')}
+        </div>`}
+        ${s.respostaRH?`<div style="margin-top:10px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:8px 10px;font-size:12px;color:#065F46"><strong>📬 RH respondeu:</strong> ${pEsc(s.respostaRH)}</div>`:''}
+      </div>`;
+    }).join('')}`;
+  }
+
+  window.pRenderSolicitacoes=pRenderSolicitacoes;
 
   // Inicia portal — garante execução independente do estado do DOM
   window.__pBoot=pBoot;
@@ -35526,18 +36058,31 @@ async function _solResponder(id, novoStatus, respostaRH) {
     // FIX v13: rota para a coleção correta conforme origem da solicitação
     const _sSol = _SOLIC_LISTA.find(x => x.id === id);
     const _sColecao = _sSol && _sSol._origem === 'bh' ? 'bh_solicitacoes' : 'portal_solicitacoes';
+    const agora = new Date().toISOString();
+    // Monta novo histórico com todos os passos registrados
+    const histAtual = Array.isArray(_sSol?.historico) ? _sSol.historico : [];
+    // Garante que 'em_analise' foi registrado antes de aprovar/recusar
+    const novosPassos = [];
+    if (!histAtual.find(h => h.status === 'em_analise')) {
+      novosPassos.push({ status: 'em_analise', ts: agora, por: 'RH' });
+    }
+    novosPassos.push({ status: novoStatus, ts: agora, por: 'RH', resposta: respostaRH || '' });
+    if (novoStatus === 'aprovado' || novoStatus === 'aprovada') {
+      novosPassos.push({ status: 'concluido', ts: agora, por: 'Sistema' });
+    }
+    const historicoFinal = [...histAtual, ...novosPassos];
     await FBASE.collection(_sColecao).doc(id).update({
-      status: novoStatus,
+      status: (novoStatus === 'aprovado' || novoStatus === 'aprovada') ? 'concluido' : novoStatus,
       respostaRH: respostaRH || '',
-      respondidoEm: new Date().toISOString(),
+      respondidoEm: agora,
       respondidoEm_br: new Date().toLocaleString('pt-BR'),
       motivoRecusa: novoStatus === 'recusado' ? (respostaRH || '') : '',
+      historico: historicoFinal,
     });
     const s = _SOLIC_LISTA.find(x => x.id === id);
-    if (s) { s.status = novoStatus; s.respostaRH = respostaRH; }
+    if (s) { s.status = novoStatus; s.respostaRH = respostaRH; s.historico = historicoFinal; }
     // Notificar colaborador via portal_notificacoes
     if (s && s.empId) {
-      const tipoNotif = novoStatus === 'aprovado' ? 'solicitacao' : 'solicitacao';
       const tipoTxt = { ferias:'Férias', ajuste_ponto:'Ajuste de Ponto', troca_turno:'Troca de Turno', compensacao_bh:'Compensação de Banco de Horas', banco_horas:'Banco de Horas' };
       const titulo = novoStatus === 'aprovado'
         ? `✅ Solicitação de ${tipoTxt[s.tipo]||s.tipo} aprovada`
@@ -35545,10 +36090,11 @@ async function _solResponder(id, novoStatus, respostaRH) {
       try {
         await FBASE.collection('portal_notificacoes').add({
           empId: s.empId, empCpf: s.empCpf || '',
-          tipo: tipoNotif, titulo,
-          corpo: respostaRH || (novoStatus === 'aprovado' ? 'Sua solicitação foi aprovada.' : 'Sua solicitação foi recusada.'),
-          lida: false,
-          criadoEm: new Date().toISOString(),
+          tipo: 'solicitacao', titulo,
+          corpo: respostaRH || (novoStatus === 'aprovado' ? 'Sua solicitação foi aprovada e concluída.' : 'Sua solicitação foi recusada.'),
+          mensagem: respostaRH || (novoStatus === 'aprovado' ? 'Sua solicitação foi aprovada e concluída.' : 'Sua solicitação foi recusada.'),
+          lido: false, lida: false,
+          criadoEm: agora,
           solicitacaoId: id,
         });
       } catch(_) {}
@@ -35556,7 +36102,7 @@ async function _solResponder(id, novoStatus, respostaRH) {
     const c = document.getElementById('content');
     if (c) c.innerHTML = _htmlSolicRH();
     _solAtualizarBadgeNav();
-    if (typeof toast === 'function') toast(novoStatus === 'aprovado' ? '✅ Solicitação aprovada!' : 'Solicitação recusada.', novoStatus === 'aprovado' ? 'ok' : '');
+    if (typeof toast === 'function') toast(novoStatus === 'aprovado' ? '✅ Solicitação aprovada e concluída!' : 'Solicitação recusada.', novoStatus === 'aprovado' ? 'ok' : '');
   } catch(e) { alert('Erro: ' + e.message); }
 }
 
@@ -39351,11 +39897,456 @@ const suspensao = (() => {
      suspensao.init();
      break;
 
-   NAV_GROUPS — adicionar em 'disciplinar' ou 'juridico':
-   { id:'suspensao', label:'Suspensões', icon:'⚖️' }
+// ══════════════════════════════════════════════════════════════════════════════
+// ATLAS RH v12 — 4 novos recursos
+// 1. Notificação RH quando colaborador assina/recusa documento
+// 2. Card de pendências no dashboard
+// 3. Audit log de alterações por funcionário (Firestore hr_audit)
+// 4. Exportação CSV + filtros em Advertências, Férias e Banco de Horas
+// ══════════════════════════════════════════════════════════════════════════════
 
-   PORTAL — escutar notificações:
-   db.collection('empresas').doc(empresaId)
+// ─── FEATURE 1: Listener onSnapshot — notifica RH ao receber assinatura ─────
+(function _instalarListenerAssinatura() {
+  let _prevAssinStatus = {};
+  let _prevAdvStatus   = {};
+  let _iniciado        = false;
+
+  function _snapshotStatus(lista, prevMap) {
+    (lista || []).forEach(a => { prevMap[a.id] = prevMap[a.id] ?? a.status; });
+  }
+
+  function _checar(lista, prevMap, labelFn) {
+    (lista || []).forEach(a => {
+      const prev = prevMap[a.id];
+      if (!prev || prev === a.status) { prevMap[a.id] = a.status; return; }
+      if (prev === 'pendente' && (a.status === 'assinado' || a.status === 'recusado')) {
+        const emp = APP.employees.find(e => e.id === a.empId) || {};
+        const nome = emp.nome || 'Colaborador';
+        const doc  = labelFn(a);
+        const ok   = a.status === 'assinado';
+        const icon = ok ? '✅' : '❌';
+        const verb = ok ? 'assinou' : 'recusou';
+        // Toast visível no RH
+        toast(`${icon} ${nome} ${verb}: ${doc}`, ok ? 'ok' : 'err', 6000);
+        // Browser Notification (pede permissão na 1ª vez)
+        _browserNotif(`Atlas RH — ${icon} ${nome} ${verb}`, `Documento: ${doc}`);
+        // Grava no audit log
+        _logAuditoria(ok ? 'assinatura_recebida' : 'assinatura_recusada', 'assinatura', a.id, a.empId,
+          { status: 'pendente' }, { status: a.status, motivoRecusa: a.motivoRecusa || null });
+      }
+      prevMap[a.id] = a.status;
+    });
+  }
+
+  function _browserNotif(titulo, corpo) {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'granted') {
+      try { new Notification(titulo, { body: corpo, icon: 'icone-192.png', tag: 'rh-assin-' + Date.now() }); } catch {}
+    } else if (Notification.permission === 'default') {
+      Notification.requestPermission().then(p => {
+        if (p === 'granted') try { new Notification(titulo, { body: corpo, icon: 'icone-192.png' }); } catch {}
+      });
+    }
+  }
+
+  function _iniciar() {
+    if (_iniciado || !FBASE) return;
+    _iniciado = true;
+
+    // Snapshot inicial dos status para evitar falsos positivos no boot
+    _snapshotStatus(APP.assinaturas || [], _prevAssinStatus);
+    _snapshotStatus(APP.advertencias || [], _prevAdvStatus);
+
+    // Listener em hr/assinaturas
+    FBASE.collection('hr').doc('assinaturas').onSnapshot(snap => {
+      if (!snap.exists) return;
+      try {
+        const nova = JSON.parse(snap.data().d || '[]');
+        _checar(nova, _prevAssinStatus, a => a.tipoLabel || a.tipo || 'Documento');
+        APP.assinaturas = nova;
+      } catch(e) {}
+    });
+
+    // Listener em hr/advertencias — detecta quando colaborador assina/recusa pelo portal
+    FBASE.collection('hr').doc('advertencias').onSnapshot(snap => {
+      if (!snap.exists) return;
+      try {
+        const nova = JSON.parse(snap.data().d || '[]');
+        const ADV = (typeof ADV_TIPOS !== 'undefined') ? ADV_TIPOS : {};
+        _checar(nova, _prevAdvStatus, a => (ADV[a.tipo]?.label || a.tipo || 'Advertência'));
+        APP.advertencias = nova;
+        // Atualiza badge visual se estiver na tela de advertências
+        if (typeof MOD !== 'undefined' && MOD === 'advertencias') {
+          const el = document.getElementById('adv-tbody');
+          if (el) aplicarFiltroAdv();
+        }
+      } catch(e) {}
+    });
+  }
+
+  // Aguarda Firebase estar pronto
+  if (window._firebaseReadyCallbacks) window._firebaseReadyCallbacks.push(_iniciar);
+  setTimeout(_iniciar, 4000); // fallback
+})();
+
+// ─── FEATURE 2: Card de pendências no Dashboard ───────────────────────────────
+(function _instalarCardPendencias() {
+  const _prev = window._rDashComAlertas || window.rDash;
+  window._rDashComAlertas = function () {
+    const base = _prev();
+
+    // Conta pendências
+    const assinsPend = (APP.assinaturas  || []).filter(a => a.status === 'pendente').length;
+    const advPend    = (APP.advertencias || []).filter(a => a.status === 'pendente').length;
+    const totalAssin = assinsPend + advPend;
+    const atestPend  = (APP.atestados || []).filter(a => !a.validado && !a.rejeitado && a.status !== 'aprovado').length;
+    const solicPend  = (APP.portalSolicitacoes || []).filter(s => !s.respondido && (!s.status || s.status === 'pendente')).length;
+    const total      = totalAssin + atestPend + solicPend;
+
+    if (!total) return base;
+
+    function _item(icon, label, count, cor, bg, mod) {
+      if (!count) return `<div style="background:#F8FAFC;border-radius:10px;padding:16px;text-align:center;border:1px solid #E2E8F0">
+        <div style="font-size:22px;margin-bottom:4px">${icon}</div>
+        <div style="font-size:22px;font-weight:900;color:#059669">✓</div>
+        <div style="font-size:11px;color:#6B7280;margin-top:2px">${label}</div>
+      </div>`;
+      return `<div style="background:${bg};border-radius:10px;padding:16px;text-align:center;border:1px solid ${cor}40;cursor:pointer;transition:box-shadow .15s" onmouseover="this.style.boxShadow='0 4px 16px ${cor}30'" onmouseout="this.style.boxShadow=''" onclick="navigate('${mod}')">
+        <div style="font-size:22px;margin-bottom:4px">${icon}</div>
+        <div style="font-size:30px;font-weight:900;color:${cor}">${count}</div>
+        <div style="font-size:11px;font-weight:700;color:${cor};margin-top:3px">${label}</div>
+        <div style="font-size:10px;color:${cor}99;margin-top:4px">Clique para ver →</div>
+      </div>`;
+    }
+
+    const html = `
+    <div class="card" style="margin-bottom:16px;border-left:4px solid #7C3AED;padding-bottom:4px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:22px">📋</span>
+          <div>
+            <div style="font-size:14px;font-weight:800;color:#4C1D95">Pendências — Ação Necessária</div>
+            <div style="font-size:11px;color:#6D28D9;margin-top:2px">${total} item(ns) aguardando resposta do RH</div>
+          </div>
+        </div>
+        <span style="background:#7C3AED;color:#fff;font-size:13px;font-weight:800;padding:4px 12px;border-radius:14px">${total}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+        ${_item('✍️','Assinaturas Aguardando', totalAssin, '#D97706','#FFFBEB','assinatura_digital')}
+        ${_item('🩺','Atestados sem Validação', atestPend, '#2563EB','#EFF6FF','atestados')}
+        ${_item('📬','Solicitações do Portal',  solicPend, '#059669','#F0FDF4','solicitacoes_portal')}
+      </div>
+    </div>`;
+
+    return html + base;
+  };
+})();
+
+// ─── FEATURE 3: Audit Log por funcionário — Firestore hr_audit ───────────────
+async function _logAuditoria(acao, entidade, entidadeId, empId, dadosAntigos, dadosNovos) {
+  if (!FBASE) return;
+  try {
+    const rhUser = (typeof _rhU !== 'undefined' ? _rhU : null)
+      || localStorage.getItem('fcrh_rh_user') || 'RH';
+    const entry = {
+      ts:         new Date().toISOString(),
+      acao:       acao       || 'edit',
+      entidade:   entidade   || '—',
+      entidadeId: entidadeId || null,
+      empId:      empId      || null,
+      por:        rhUser,
+      dadosAntigos: dadosAntigos ? JSON.stringify(dadosAntigos).slice(0, 600) : null,
+      dadosNovos:   dadosNovos   ? JSON.stringify(dadosNovos).slice(0, 600)   : null,
+    };
+    const docId = `log_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 5)}`;
+    await FBASE.collection('hr_audit').doc(docId).set(entry);
+  } catch(e) { console.warn('[audit]', e.message); }
+}
+
+async function verAuditLog(empId) {
+  const emp = APP.employees.find(e => e.id === empId) || { nome: empId };
+  if (!FBASE) { toast('Firebase necessário para o audit log', 'err'); return; }
+
+  let snaps = [];
+  try {
+    const q = await FBASE.collection('hr_audit')
+      .where('empId', '==', empId)
+      .orderBy('ts', 'desc')
+      .limit(100)
+      .get();
+    snaps = q.docs.map(d => d.data());
+  } catch(e) {
+    // Pode falhar se o índice composto não existir — tenta sem orderBy
+    try {
+      const q2 = await FBASE.collection('hr_audit').where('empId', '==', empId).limit(100).get();
+      snaps = q2.docs.map(d => d.data()).sort((a, b) => (b.ts || '').localeCompare(a.ts || ''));
+    } catch(e2) { snaps = []; }
+  }
+
+  const _fmtTs = ts => { try { return new Date(ts).toLocaleString('pt-BR'); } catch { return ts || '—'; } };
+  const _acaoLabel = {
+    create:               '➕ Criado',
+    edit:                 '✏️ Editado',
+    delete:               '🗑 Excluído',
+    status_change:        '🔄 Status alterado',
+    assinatura_recebida:  '✅ Assinatura recebida',
+    assinatura_recusada:  '❌ Assinatura recusada',
+    ferias_salvas:        '🏖️ Férias salvas',
+    ferias_status:        '🏖️ Status férias alterado',
+    adv_emitida:          '⚖️ Advertência emitida',
+    bh_lancamento:        '⏰ Lançamento BH',
+    bh_debito:            '➖ Débito BH',
+    portal_solic:         '📬 Solicitação portal',
+  };
+
+  openModal(`📋 Histórico de Alterações — ${esc(emp.nome)}`, `
+    <div style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12px;color:var(--mt)">${snaps.length} registro(s) encontrado(s)</span>
+      <button class="btn btn-sm" style="background:#F0FDF4;color:#059669;border:1px solid #BBF7D0;font-size:11px" onclick="exportarAuditCSV('${empId}')">📥 Exportar CSV</button>
+    </div>
+    <div style="max-height:440px;overflow-y:auto;border-radius:8px;border:1px solid var(--border)">
+      ${!snaps.length
+        ? `<div style="text-align:center;padding:48px 20px;color:var(--mt)">
+            <div style="font-size:36px;margin-bottom:12px">📋</div>
+            <div style="font-size:14px;font-weight:700">Nenhuma alteração registrada</div>
+            <div style="font-size:12px;margin-top:6px">As próximas edições deste funcionário aparecerão aqui.</div>
+           </div>`
+        : `<table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead style="position:sticky;top:0;background:#F8FAFC;z-index:1">
+              <tr>
+                <th style="padding:8px 12px;text-align:left;font-weight:700;color:var(--mt);white-space:nowrap">Data/Hora</th>
+                <th style="padding:8px 12px;text-align:left;font-weight:700;color:var(--mt)">Ação</th>
+                <th style="padding:8px 12px;text-align:left;font-weight:700;color:var(--mt)">Módulo</th>
+                <th style="padding:8px 12px;text-align:left;font-weight:700;color:var(--mt)">Por</th>
+                <th style="padding:8px 12px;text-align:left;font-weight:700;color:var(--mt)">Detalhe</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${snaps.map((s, i) => `
+              <tr style="border-top:1px solid var(--border);background:${i % 2 === 0 ? '#fff' : '#FAFAFA'}">
+                <td style="padding:8px 12px;white-space:nowrap;color:var(--mt);font-size:11px">${_fmtTs(s.ts)}</td>
+                <td style="padding:8px 12px">${_acaoLabel[s.acao] || s.acao || '—'}</td>
+                <td style="padding:8px 12px;font-size:11px;color:#4C1D95;font-weight:600">${esc(s.entidade || '—')}</td>
+                <td style="padding:8px 12px;font-weight:600;font-size:11px">${esc(s.por || '—')}</td>
+                <td style="padding:8px 12px;font-size:11px;color:var(--mt);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(s.dadosNovos||'')}">
+                  ${s.dadosNovos ? esc(s.dadosNovos.slice(0, 90)) + (s.dadosNovos.length > 90 ? '…' : '') : '—'}
+                </td>
+              </tr>`).join('')}
+            </tbody>
+           </table>`}
+    </div>
+    <div style="margin-top:12px;text-align:right">
+      <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+    </div>
+  `, 760);
+}
+
+async function exportarAuditCSV(empId) {
+  const emp = APP.employees.find(e => e.id === empId) || { nome: empId };
+  if (!FBASE) { toast('Firebase necessário', 'err'); return; }
+  let snaps = [];
+  try {
+    const q = await FBASE.collection('hr_audit').where('empId','==',empId).orderBy('ts','desc').limit(500).get();
+    snaps = q.docs.map(d => d.data());
+  } catch {
+    try {
+      const q2 = await FBASE.collection('hr_audit').where('empId','==',empId).limit(500).get();
+      snaps = q2.docs.map(d => d.data()).sort((a,b)=>(b.ts||'').localeCompare(a.ts||''));
+    } catch {}
+  }
+  const rows = [['Data/Hora','Ação','Módulo','Por','Dados Anteriores','Dados Novos']];
+  snaps.forEach(s => rows.push([
+    s.ts ? new Date(s.ts).toLocaleString('pt-BR') : '',
+    s.acao || '', s.entidade || '', s.por || '',
+    (s.dadosAntigos || '').replace(/"/g,"'"),
+    (s.dadosNovos   || '').replace(/"/g,"'"),
+  ]));
+  _downloadCSV(rows, `audit_${(emp.nome||empId).replace(/\s+/g,'_')}_${today()}.csv`);
+  toast(`📥 Audit log de ${emp.nome} exportado!`);
+}
+
+// Hook automático em save() para registrar alterações em advertências e férias
+(function _hookSaveAudit() {
+  const _origSave = window.save || save;
+  // Re-define apenas se save for uma função global
+  if (typeof save !== 'function') return;
+  const _savePrev = save;
+  window.save = function(k, ...args) {
+    // Chama save original
+    _savePrev(k, ...args);
+    // Registra audit apenas para keys com impacto individual
+    if (k === 'advertencias') {
+      (APP.advertencias || []).forEach(a => {
+        if (a._auditPendente) {
+          _logAuditoria(a._auditAcao || 'edit', 'advertencias', a.id, a.empId, null, { tipo: a.tipo, status: a.status, motivo: (a.motivo_resumo||'').slice(0,120) });
+          delete a._auditPendente; delete a._auditAcao;
+        }
+      });
+    }
+    if (k === 'ferias') {
+      (APP.ferias || []).forEach(f => {
+        if (f._auditPendente) {
+          _logAuditoria(f._auditAcao || 'ferias_salvas', 'ferias', f.id, f.empId, null, { inicio: f.inicio, fim: f.fim, dias: f.dias, status: f.status });
+          delete f._auditPendente; delete f._auditAcao;
+        }
+      });
+    }
+  };
+})();
+
+// ─── FEATURE 4: CSV + Filtros ─────────────────────────────────────────────────
+
+/** Utilitário central de download CSV (BOM UTF-8, separador ponto-e-vírgula) */
+function _downloadCSV(rows, filename) {
+  const BOM = '\uFEFF';
+  const csv = BOM + rows.map(r =>
+    r.map(cell => `"${String(cell == null ? '' : cell).replace(/"/g, '""')}"`).join(';')
+  ).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename; a.style.display = 'none';
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1500);
+}
+
+// ── CSV Advertências (respeita filtro ativo) ──────────────────────────────────
+function exportarCSVAdvertencias() {
+  const lista = _filtrarAdv(_advFilter);
+  const rows = [['Funcionário','CPF','Cargo','Tipo','Motivo Resumo','Data Emissão','Status','Data Assinatura','Testemunha']];
+  lista.forEach(a => {
+    const emp  = APP.employees.find(e => e.id === a.empId) || { nome:'—', cargo:'—', cpf:'—' };
+    const ADV  = (typeof ADV_TIPOS !== 'undefined') ? ADV_TIPOS : {};
+    const tipo = ADV[a.tipo]?.label || a.tipo || '—';
+    rows.push([
+      emp.nome, emp.cpf || '—', emp.cargo || '—', tipo,
+      (a.motivo_resumo || a.motivo || '—').replace(/\n/g,' '),
+      a.dataEmissao  ? new Date(a.dataEmissao+'T00:00:00').toLocaleDateString('pt-BR') : '—',
+      a.status || '—',
+      a.dataAssinatura ? new Date(a.dataAssinatura).toLocaleDateString('pt-BR') : '—',
+      a.testemunhaNome || '—',
+    ]);
+  });
+  _downloadCSV(rows, `advertencias_${today()}.csv`);
+  toast(`📥 ${lista.length} advertência(s) exportadas!`);
+}
+
+// Estado do filtro de advertências
+let _advFilter = { nome: '', status: '' };
+
+function _filtrarAdv(f) {
+  return (APP.advertencias || []).filter(a => {
+    const emp = APP.employees.find(e => e.id === a.empId) || { nome: '' };
+    if (f.nome   && !emp.nome.toLowerCase().includes(f.nome.toLowerCase()))   return false;
+    if (f.status && a.status !== f.status)                                     return false;
+    return true;
+  }).sort((a, b) => (b.dataEmissao || '').localeCompare(a.dataEmissao || ''));
+}
+
+function aplicarFiltroAdv() {
+  _advFilter.nome   = document.getElementById('adv-filter-nome')?.value   || '';
+  _advFilter.status = document.getElementById('adv-filter-status')?.value || '';
+  const lista  = _filtrarAdv(_advFilter);
+  const counter = document.getElementById('adv-filter-count');
+  if (counter) counter.textContent = `${lista.length} registro(s)`;
+  const tbody = document.getElementById('adv-tbody');
+  if (!tbody) return;
+
+  if (!lista.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--mt)">Nenhum resultado para o filtro aplicado.</td></tr>`;
+    return;
+  }
+  const ADV = (typeof ADV_TIPOS !== 'undefined') ? ADV_TIPOS : {};
+  tbody.innerHTML = lista.map(a => {
+    const emp  = APP.employees.find(e => e.id === a.empId) || { nome:'Desconhecido', cargo:'' };
+    const tipo = ADV[a.tipo] || { label: a.tipo||'—', bg:'#F3F4F6', cor:'#374151', border:'#E5E7EB' };
+    const statusMap = {
+      pendente:   { l:'Aguard. Assinatura', c:'#D97706' },
+      assinado:   { l:'Assinado',           c:'#059669' },
+      recusado:   { l:'Recusado',           c:'#DC2626' },
+      testemunha: { l:'Assinado c/ testemunha', c:'#2563EB' },
+    };
+    const st = statusMap[a.status] || { l: a.status, c:'#64748B' };
+    return `<tr>
+      <td><div style="display:flex;align-items:center;gap:8px">
+        ${av(emp.nome, a.empId, 30)}
+        <div><p style="margin:0;font-weight:600;font-size:13px">${esc(emp.nome)}</p>
+        <p style="margin:0;font-size:11px;color:var(--mt)">${esc(emp.cargo||'')}</p></div>
+      </div></td>
+      <td><span class="adv-badge" style="background:${tipo.bg};color:${tipo.cor};border:1px solid ${tipo.border}">${tipo.label}</span></td>
+      <td style="font-size:13px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.motivo_resumo||a.motivo||'—')}</td>
+      <td style="font-size:13px">${a.dataEmissao?new Date(a.dataEmissao+'T00:00:00').toLocaleDateString('pt-BR'):'—'}</td>
+      <td><span class="adv-badge" style="background:${st.c}18;color:${st.c}">${st.l}</span></td>
+      <td><div style="display:flex;gap:5px;flex-wrap:wrap">
+        <button class="btn btn-sm btn-icon-blue" onclick="previewAdv('${a.id}')">👁 Ver</button>
+        <button class="btn btn-sm btn-icon-blue" onclick="printAdv('${a.id}')">🖨</button>
+        ${a.status==='pendente' ? `<button class="btn btn-sm" style="background:#4F46E5;color:#fff;font-size:11px" onclick="enviarAdvParaPortal('${a.id}')">🔗 Portal</button>` : ''}
+        <button class="btn btn-sm btn-icon-red" onclick="delAdv('${a.id}')">🗑</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── CSV Férias ────────────────────────────────────────────────────────────────
+function exportarCSVFerias() {
+  const lista = [...APP.ferias].sort((a,b)=>(b.inicio||'').localeCompare(a.inicio||''));
+  const rows = [['Funcionário','CPF','Cargo','Tipo','Início','Fim','Dias','Status','Observação','Assinado']];
+  lista.forEach(f => {
+    const emp = APP.employees.find(e => e.id === f.empId) || { nome:'—', cargo:'—', cpf:'—' };
+    rows.push([
+      emp.nome, emp.cpf||'—', emp.cargo||'—',
+      f.tipo === 'abono' ? 'Abono Pecuniário' : 'Férias',
+      f.inicio ? new Date(f.inicio+'T00:00:00').toLocaleDateString('pt-BR') : '—',
+      f.fim    ? new Date(f.fim+'T00:00:00').toLocaleDateString('pt-BR')    : '—',
+      f.dias || 0,
+      { programada:'Programada', em_andamento:'Em Andamento', gozado:'Gozado', cancelado:'Cancelado' }[f.status] || f.status || '—',
+      (f.obs||'').replace(/\n/g,' '),
+      f.assinatura ? 'Sim' : 'Não',
+    ]);
+  });
+  _downloadCSV(rows, `ferias_${today()}.csv`);
+  toast(`📥 ${lista.length} registro(s) de férias exportado(s)!`);
+}
+
+// ── CSV Banco de Horas (lançamentos individuais) ──────────────────────────────
+function exportarCSVBancoHoras() {
+  const ativos = APP.employees.filter(e => e.status === 'ativo');
+  const rows = [['Funcionário','CPF','Cargo','Data','Tipo','Horas','Minutos Totais','Motivo','Origem']];
+  ativos.forEach(emp => {
+    const ls = (APP.bancohoras[emp.id] || []);
+    ls.forEach(l => {
+      const min = l.minutos || 0;
+      rows.push([
+        emp.nome, emp.cpf||'—', emp.cargo||'—',
+        l.data || '—',
+        l.tipo === 'credito' ? 'Crédito' : 'Débito',
+        Math.floor(min / 60),
+        min,
+        (l.motivo || l.obs || l.descricao || '—').replace(/\n/g,' '),
+        l._syncAuto ? 'Automático (Biométrico)' : 'Manual',
+      ]);
+    });
+  });
+  _downloadCSV(rows, `banco_horas_detalhado_${today()}.csv`);
+  toast(`📥 Banco de horas exportado!`);
+}
+
+// ─── Solicita permissão de notificação do browser ao abrir o sistema ────────
+(function _pedirPermNotif() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    // Pede só após 8s para não assustar o usuário ao abrir
+    setTimeout(() => {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission().then(p => {
+          if (p === 'granted') toast('🔔 Notificações ativadas! O RH será alertado quando colaboradores assinarem documentos.', 'ok', 5000);
+        });
+      }
+    }, 8000);
+  }
+})();
+
+   /* db.collection('empresas').doc(empresaId)
      .collection('notificacoes_portal')
      .where('colaboradorId','==', colaboradorId)
      .where('tipo','==','suspensao')
@@ -39370,6 +40361,313 @@ const suspensao = (() => {
        });
      });
    ══════════════════════════════════════════════════════ */
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TEMPLATES DE DOCUMENTOS — salvar/reutilizar modelos de advertência/suspensão
+// ═══════════════════════════════════════════════════════════════════════════
+
+function _tplLoad(){ try{ return JSON.parse(localStorage.getItem('atlas_doc_templates')||'[]'); }catch(e){ return []; } }
+function _tplSave(arr){ localStorage.setItem('atlas_doc_templates',JSON.stringify(arr)); }
+
+const DOC_TPL_TIPOS = [
+  {id:'advertencia',label:'Advertência Escrita',icon:'⚠️',cor:'#D97706'},
+  {id:'suspensao',label:'Suspensão Disciplinar',icon:'🚫',cor:'#DC2626'},
+  {id:'comunicado',label:'Comunicado Interno',icon:'📢',cor:'#2563EB'},
+  {id:'aviso',label:'Aviso Prévio',icon:'📋',cor:'#7C3AED'},
+  {id:'elogio',label:'Carta de Elogio',icon:'🌟',cor:'#059669'},
+  {id:'outro',label:'Outro Documento',icon:'📄',cor:'#64748B'},
+];
+
+function rDocTemplates(){
+  const templates = _tplLoad();
+  return `
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px">
+    <p style="font-size:13px;color:var(--mt);margin:0">Modelos prontos de documentos para reutilizar rapidamente</p>
+    <button class="btn btn-blue" onclick="openTplForm(null)">+ Novo Template</button>
+  </div>
+  ${templates.length === 0 ? `
+  <div class="card" style="text-align:center;padding:56px 20px">
+    <div style="font-size:52px;margin-bottom:16px">📄</div>
+    <p style="font-size:17px;font-weight:700;color:var(--tx);margin-bottom:6px">Nenhum template cadastrado</p>
+    <p style="font-size:13px;color:var(--mt);margin-bottom:22px">Crie modelos de advertência, suspensão e outros documentos para reutilizar com um clique.</p>
+    <button class="btn btn-blue" onclick="openTplForm(null)">+ Criar Primeiro Template</button>
+  </div>` : `
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px">
+    ${templates.map(t => {
+      const tipo = DOC_TPL_TIPOS.find(x=>x.id===t.tipo)||{label:t.tipo||'Outro',icon:'📄',cor:'#64748B'};
+      return `<div class="card" style="border-top:3px solid ${tipo.cor}">
+        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">
+          <div style="font-size:22px;flex-shrink:0">${tipo.icon}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:15px;margin-bottom:2px">${esc(t.nome)}</div>
+            <span style="background:${tipo.cor}18;color:${tipo.cor};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">${tipo.label}</span>
+          </div>
+        </div>
+        <div style="background:#F8FAFC;border-radius:8px;padding:10px;font-size:12px;color:var(--mt);max-height:80px;overflow:hidden;border:1px solid var(--border)">${esc((t.corpo||'').substring(0,200))}${(t.corpo||'').length>200?'…':''}</div>
+        <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap">
+          <button class="btn btn-sm btn-icon-blue" onclick="usarTemplate('${t.id}')">⚡ Usar</button>
+          <button class="btn btn-sm btn-icon-green" onclick="openTplForm('${t.id}')">✏️ Editar</button>
+          <button class="btn btn-sm btn-icon-red" onclick="deletarTemplate('${t.id}')">🗑</button>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`}`;
+}
+
+function openTplForm(id){
+  const templates = _tplLoad();
+  const t = id ? templates.find(x=>x.id===id) : null;
+  openModal(`<div class="mhd"><h3>${t?'Editar':'Novo'} Template</h3><button onclick="closeModal()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+  <div class="mbd">
+    <div class="fld"><label>Nome do Template</label><input id="tpl-nome" placeholder="Ex: Advertência por atraso recorrente" value="${esc(t?t.nome:'')}"></div>
+    <div class="fld"><label>Tipo de Documento</label>
+      <select id="tpl-tipo">
+        ${DOC_TPL_TIPOS.map(tp=>`<option value="${tp.id}" ${(t?t.tipo:'advertencia')===tp.id?'selected':''}>${tp.icon} ${tp.label}</option>`).join('')}
+      </select>
+    </div>
+    <div class="fld"><label>Assunto / Título padrão</label><input id="tpl-titulo" placeholder="Ex: ADVERTÊNCIA ESCRITA — ATRASO REITERADO" value="${esc(t?t.titulo||'':'')}"></div>
+    <div class="fld"><label>Corpo do Documento</label>
+      <textarea id="tpl-corpo" rows="10" placeholder="Texto completo. Use {NOME}, {CARGO}, {DATA}, {EMPRESA}, {CPF} como variáveis.">${esc(t?t.corpo||'':'')}</textarea>
+      <div style="font-size:11px;color:var(--mt);margin-top:4px">Variáveis: <code>{NOME}</code>, <code>{CARGO}</code>, <code>{DATA}</code>, <code>{EMPRESA}</code>, <code>{CPF}</code></div>
+    </div>
+  </div>
+  <div class="mft">
+    <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+    <button class="btn btn-blue" onclick="salvarTemplate('${id||''}')">Salvar Template</button>
+  </div>`);
+}
+
+function salvarTemplate(id){
+  const nome = (document.getElementById('tpl-nome')||{value:''}).value.trim();
+  const tipo = (document.getElementById('tpl-tipo')||{value:'outro'}).value;
+  const titulo = (document.getElementById('tpl-titulo')||{value:''}).value.trim();
+  const corpo = (document.getElementById('tpl-corpo')||{value:''}).value.trim();
+  if(!nome || !corpo){ toast('Preencha nome e corpo do template.','warn'); return; }
+  const templates = _tplLoad();
+  if(id){
+    const idx = templates.findIndex(x=>x.id===id);
+    if(idx>=0) templates[idx] = {id:id, nome, tipo, titulo, corpo, updatedAt:new Date().toISOString()};
+  } else {
+    templates.push({id:uid(), nome, tipo, titulo, corpo, createdAt:new Date().toISOString()});
+  }
+  _tplSave(templates);
+  closeModal();
+  toast('Template salvo!');
+  navigate('doc_templates');
+}
+
+function deletarTemplate(id){
+  if(!confirm('Excluir este template?')) return;
+  _tplSave(_tplLoad().filter(x=>x.id!==id));
+  toast('Template excluído.');
+  navigate('doc_templates');
+}
+
+function usarTemplate(id){
+  const t = _tplLoad().find(x=>x.id===id);
+  if(!t){ toast('Template não encontrado.','err'); return; }
+  if(t.tipo==='comunicado'){
+    openModal(`<div class="mhd"><h3>Novo Comunicado — template</h3><button onclick="closeModal()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mbd">
+      <div class="fld"><label>Título</label><input id="com-titulo" value="${esc(t.titulo||t.nome)}"></div>
+      <div class="fld"><label>Mensagem</label><textarea id="com-texto" rows="7">${esc(t.corpo)}</textarea></div>
+      <div class="fld"><label>Prioridade</label><select id="com-prio"><option value="normal">Normal</option><option value="importante">Importante</option><option value="urgente">Urgente</option></select></div>
+    </div>
+    <div class="mft">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-blue" onclick="_saveComunicadoFromTpl()">Publicar</button>
+    </div>`);
+  } else {
+    // Para advertências/suspensões: copia para clipboard e navega
+    navigator.clipboard?.writeText(t.corpo||'').catch(()=>{});
+    toast('Texto do template copiado! Abra Advertências e cole no campo de motivo.');
+    navigate('advertencias');
+  }
+}
+
+function _saveComunicadoFromTpl(){
+  const titulo = (document.getElementById('com-titulo')||{value:''}).value.trim();
+  const texto = (document.getElementById('com-texto')||{value:''}).value.trim();
+  const prioridade = (document.getElementById('com-prio')||{value:'normal'}).value;
+  if(!titulo||!texto){ toast('Preencha título e mensagem.','warn'); return; }
+  APP.comunicados.push({id:uid(),titulo,texto,prioridade,data:today(),autor:'RH',arquivado:false});
+  save('comunicados');
+  closeModal();
+  toast('Comunicado publicado!');
+  navigate('comunicados');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AGENDA DE RH — calendário com férias, aniversários, vencimentos, suspensões
+// ═══════════════════════════════════════════════════════════════════════════
+
+let _agendaMes = new Date().getMonth();
+let _agendaAno = new Date().getFullYear();
+
+function rAgendaRH(){
+  return `
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+    <p style="font-size:13px;color:var(--mt);margin:0">Férias programadas, aniversários, vencimentos de experiência e suspensões ativas</p>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="btn btn-ghost btn-sm" onclick="_agendaMes--;if(_agendaMes<0){_agendaMes=11;_agendaAno--;}navigate('agenda_rh')">&#x2039; Anterior</button>
+      <span style="font-weight:700;font-size:15px;min-width:140px;text-align:center">${MONTHS[_agendaMes]} ${_agendaAno}</span>
+      <button class="btn btn-ghost btn-sm" onclick="_agendaMes++;if(_agendaMes>11){_agendaMes=0;_agendaAno++;}navigate('agenda_rh')">Próximo &#x203A;</button>
+      <button class="btn btn-sm" style="background:#EFF6FF;color:#2563EB;border:1px solid #BFDBFE" onclick="_agendaMes=new Date().getMonth();_agendaAno=new Date().getFullYear();navigate('agenda_rh')">Hoje</button>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 300px;gap:16px">
+    ${_rAgendaCalendar()}
+    ${_rAgendaSidebar()}
+  </div>`;
+}
+
+function _agendaGetEvents(){
+  const mes = _agendaMes, ano = _agendaAno;
+  const events = {};
+  const addEv = (ds, ev) => { if(!events[ds]) events[ds]=[]; events[ds].push(ev); };
+
+  // Ferias
+  (APP.ferias||[]).forEach(f=>{
+    if(!f.inicio||!f.fim) return;
+    const emp = APP.employees.find(e=>e.id===f.empId);
+    const nome = emp?emp.nome:'?';
+    let cur = new Date(f.inicio+'T00:00:00');
+    const end = new Date(f.fim+'T00:00:00');
+    while(cur<=end){
+      if(cur.getFullYear()===ano && cur.getMonth()===mes){
+        const ds = `${ano}-${String(mes+1).padStart(2,'0')}-${String(cur.getDate()).padStart(2,'0')}`;
+        addEv(ds,{tipo:'ferias',label:nome.split(' ')[0],empId:f.empId,cor:'#2563EB'});
+      }
+      cur.setDate(cur.getDate()+1);
+    }
+  });
+
+  // Aniversarios
+  (APP.employees||[]).filter(e=>e.status==='ativo'&&e.dataNascimento).forEach(e=>{
+    const parts = e.dataNascimento.split('-');
+    if(parts.length<3) return;
+    const m=parseInt(parts[1])-1, d=parseInt(parts[2]);
+    if(m===mes){
+      const ds = `${ano}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      addEv(ds,{tipo:'aniversario',label:e.nome.split(' ')[0],empId:e.id,cor:'#DB2777'});
+    }
+  });
+
+  // Vencimento de experiência (90 dias)
+  (APP.employees||[]).filter(e=>e.status==='ativo'&&e.dataAdmissao).forEach(e=>{
+    const adm = new Date(e.dataAdmissao+'T00:00:00');
+    const venc = new Date(adm); venc.setDate(venc.getDate()+90);
+    if(venc.getFullYear()===ano && venc.getMonth()===mes){
+      const ds = `${ano}-${String(mes+1).padStart(2,'0')}-${String(venc.getDate()).padStart(2,'0')}`;
+      addEv(ds,{tipo:'vencimento',label:e.nome.split(' ')[0],empId:e.id,cor:'#D97706'});
+    }
+  });
+
+  // Suspensoes ativas
+  (APP.advertencias||[]).filter(a=>a.tipo==='suspensao'&&a.dataInicio&&a.dataFim).forEach(a=>{
+    const emp = APP.employees.find(e=>e.id===a.empId);
+    const nome = emp?emp.nome:'?';
+    let cur = new Date(a.dataInicio+'T00:00:00');
+    const end = new Date(a.dataFim+'T00:00:00');
+    while(cur<=end){
+      if(cur.getFullYear()===ano && cur.getMonth()===mes){
+        const ds = `${ano}-${String(mes+1).padStart(2,'0')}-${String(cur.getDate()).padStart(2,'0')}`;
+        addEv(ds,{tipo:'suspensao',label:nome.split(' ')[0],empId:a.empId,cor:'#DC2626'});
+      }
+      cur.setDate(cur.getDate()+1);
+    }
+  });
+
+  return events;
+}
+
+function _rAgendaCalendar(){
+  const mes=_agendaMes, ano=_agendaAno;
+  const firstDay=new Date(ano,mes,1).getDay();
+  const totalDays=new Date(ano,mes+1,0).getDate();
+  const todayStr=today();
+  const events=_agendaGetEvents();
+  const diasSemana=['Dom','Seg','Ter','Qua','Qui','Sex','Sab'];
+  let html=`<div class="card">
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:6px">
+      ${diasSemana.map(d=>`<div style="text-align:center;font-size:10px;font-weight:700;color:var(--mt);padding:5px 0">${d}</div>`).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">`;
+  for(let i=0;i<firstDay;i++) html+=`<div></div>`;
+  for(let d=1;d<=totalDays;d++){
+    const ds=`${ano}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday=ds===todayStr;
+    const isSel=window._agendaSelDay===ds;
+    const evs=events[ds]||[];
+    const dow=(firstDay+d-1)%7;
+    const isWeekend=dow===0||dow===6;
+    const bord=isSel?'var(--navy)':isToday?'var(--blue)':evs.length?evs[0].cor:'var(--border)';
+    html+=`<div onclick="window._agendaSelDay='${ds}';navigate('agenda_rh')" style="min-height:64px;border-radius:7px;border:1.5px solid ${bord};padding:5px;cursor:pointer;background:${isSel?'#EFF6FF':isToday?'#F0F9FF':isWeekend?'#F8FAFC':'#fff'};" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">
+      <div style="font-weight:${isToday?'800':'600'};font-size:12px;color:${isToday?'var(--blue)':isWeekend?'var(--mt)':'var(--tx)'};margin-bottom:3px">${d}</div>
+      ${evs.slice(0,3).map(ev=>`<div style="font-size:9px;font-weight:700;background:${ev.cor}20;color:${ev.cor};border-radius:3px;padding:1px 3px;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ev.label)}</div>`).join('')}
+      ${evs.length>3?`<div style="font-size:9px;color:var(--mt)">+${evs.length-3}</div>`:''}
+    </div>`;
+  }
+  html+=`</div></div>`;
+  return html;
+}
+
+function _rAgendaSidebar(){
+  const events=_agendaGetEvents();
+  const sel=window._agendaSelDay||today();
+  const hoje=events[sel]||[];
+  const allEvs=[];
+  Object.keys(events).sort().forEach(ds=>events[ds].forEach(ev=>allEvs.push({...ev,data:ds})));
+  const birthdays=allEvs.filter(e=>e.tipo==='aniversario');
+  const vencimentos=allEvs.filter(e=>e.tipo==='vencimento');
+  const tipoL={ferias:'Ferias',aniversario:'Aniversario',vencimento:'Venc. Contrato',suspensao:'Suspensao'};
+  const tipoI={ferias:'🏖️',aniversario:'🎂',vencimento:'📋',suspensao:'🚫'};
+  return `<div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="sh" style="margin-top:0;font-size:12px">${sel===today()?'Hoje':'📅 '+new Date(sel+'T00:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'long'})}</div>
+      ${hoje.length===0?`<p style="font-size:13px;color:var(--mt)">Nenhum evento.</p>`:
+        hoje.map(ev=>{
+          const emp=APP.employees.find(e=>e.id===ev.empId);
+          return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
+            ${av(emp?emp.nome:'?',ev.empId,28)}
+            <div><div style="font-size:12px;font-weight:700">${emp?esc(emp.nome.split(' ').slice(0,2).join(' ')):'—'}</div>
+            <div style="font-size:11px;color:${ev.cor};font-weight:600">${tipoI[ev.tipo]||''} ${tipoL[ev.tipo]||ev.tipo}</div></div>
+          </div>`;
+        }).join('')
+      }
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="sh" style="margin-top:0;font-size:12px">Legenda</div>
+      ${[['🏖️','Ferias','#2563EB'],['🎂','Aniversario','#DB2777'],['📋','Venc. Experiencia','#D97706'],['🚫','Suspensao','#DC2626']].map(([ic,lb,cor])=>
+        `<div style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:5px"><div style="width:10px;height:10px;border-radius:3px;background:${cor};flex-shrink:0"></div>${ic} ${lb}</div>`
+      ).join('')}
+    </div>
+    ${birthdays.length>0?`<div class="card">
+      <div class="sh p" style="margin-top:0;font-size:12px">🎂 Aniversariantes</div>
+      ${birthdays.slice(0,6).map(ev=>{
+        const emp=APP.employees.find(e=>e.id===ev.empId);
+        return `<div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid var(--border)">
+          ${av(emp?emp.nome:'?',ev.empId,24)}
+          <div><div style="font-size:12px;font-weight:600">${emp?esc(emp.nome.split(' ').slice(0,2).join(' ')):'—'}</div>
+          <div style="font-size:10px;color:var(--mt)">${new Date(ev.data+'T00:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</div></div>
+        </div>`;
+      }).join('')}
+    </div>`:''}
+    ${vencimentos.length>0?`<div class="card" style="margin-top:12px">
+      <div class="sh a" style="margin-top:0;font-size:12px">📋 Venc. Experiência</div>
+      ${vencimentos.slice(0,5).map(ev=>{
+        const emp=APP.employees.find(e=>e.id===ev.empId);
+        return `<div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid var(--border)">
+          ${av(emp?emp.nome:'?',ev.empId,24)}
+          <div><div style="font-size:12px;font-weight:600">${emp?esc(emp.nome.split(' ').slice(0,2).join(' ')):'—'}</div>
+          <div style="font-size:10px;color:#D97706;font-weight:700">${new Date(ev.data+'T00:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</div></div>
+        </div>`;
+      }).join('')}
+    </div>`:''}
+  </div>`;
+}
+
 </script>
 
 <!-- Fim do módulo Suspensão Disciplinar -->
