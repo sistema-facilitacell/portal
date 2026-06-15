@@ -417,13 +417,38 @@ body{background:var(--bg);color:var(--tx);}
       });
     }
 
+    // ── Indicador visual fixo de pontos pendentes de sincronização ─────────────
+    // Mostra um banner discreto sempre que houver registros offline aguardando
+    // envio ao Firestore, para o colaborador não ficar "no escuro".
+    async function _atualizarIndicadorOffline() {
+      let pending = [];
+      try { pending = await _idbGetAll(); } catch { pending = []; }
+      const mine = (EMP?.id) ? pending.filter(p => p.empId === EMP.id) : pending;
+      let el = document.getElementById('_offline-pendentes-banner');
+      if (mine.length === 0) {
+        if (el) el.remove();
+        return;
+      }
+      const online = navigator.onLine;
+      const txt = `${mine.length} ponto${mine.length > 1 ? 's' : ''} pendente${mine.length > 1 ? 's' : ''} de sincronização`
+                + (online ? ' — sincronizando...' : ' — aguardando conexão');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = '_offline-pendentes-banner';
+        el.style.cssText = 'position:fixed;bottom:64px;left:50%;transform:translateX(-50%);z-index:99997;background:#FFFBEB;border:1.5px solid #FDE68A;color:#92400E;font-size:12px;font-weight:700;padding:8px 16px;border-radius:20px;box-shadow:0 4px 16px rgba(0,0,0,.12);display:flex;align-items:center;gap:8px;max-width:calc(100% - 32px);text-align:center;cursor:pointer';
+        el.onclick = () => { if (navigator.onLine && DB && EMP?.id) _syncOfflinePunches(); };
+        document.body.appendChild(el);
+      }
+      el.innerHTML = `<span>${online ? '🔄' : '📴'}</span><span>${txt}</span>`;
+    }
+
     async function _syncOfflinePunches() {
       if (!DB || !EMP?.id) return;
       let pending = [];
       try { pending = await _idbGetAll(); } catch { return; }
-      if (!pending.length) return;
+      if (!pending.length) { _atualizarIndicadorOffline(); return; }
       const mine = pending.filter(p => p.empId === EMP.id);
-      if (!mine.length) return;
+      if (!mine.length) { _atualizarIndicadorOffline(); return; }
       toast(`🔄 Sincronizando ${mine.length} ponto(s) registrado(s) offline...`, 'info', 4000);
       let ok = 0;
       for (const p of mine) {
@@ -438,6 +463,7 @@ body{background:var(--bg);color:var(--tx);}
         } catch(e) { console.warn('[OfflineSync] Falhou:', p.id, e); }
       }
       if (ok > 0) toast(`✅ ${ok} ponto(s) sincronizado(s) com sucesso!`, 'ok');
+      _atualizarIndicadorOffline();
     }
 
     // Sincroniza ao reconectar + reativa rede do Firestore
@@ -446,12 +472,14 @@ body{background:var(--bg);color:var(--tx);}
       if (DB)  DB.enableNetwork().catch(() => {});
       if (DB2) DB2.enableNetwork().catch(() => {});
       if (DB && EMP?.id) _syncOfflinePunches();
+      _atualizarIndicadorOffline();
     });
 
     // Desativa conexão Firestore ao perder internet (elimina spam de WebChannel)
     window.addEventListener('offline', () => {
       if (DB)  DB.disableNetwork().catch(() => {});
       if (DB2) DB2.disableNetwork().catch(() => {});
+      _atualizarIndicadorOffline();
     });
 
     // SW só funciona em HTTPS/localhost — file://: desregistra SW residual (evita 'Unsafe attempt')
@@ -466,7 +494,7 @@ body{background:var(--bg);color:var(--tx);}
             _SW_REG = await navigator.serviceWorker.register('./sw_portal.js');
             navigator.serviceWorker.addEventListener('message', e => {
               if (e.data && e.data.type === 'NOTIF_CLICK') {
-                _pushNavegar(e.data.tipo);
+                _pushNavegar(e.data.tipo, e.data.action);
               }
             });
           } catch(e) { /* SW indisponível — sem notificações push */ }
@@ -477,14 +505,23 @@ body{background:var(--bg);color:var(--tx);}
     // LOG-1: única declaração canônica de _pushNavegar — o módulo PortalPush
     // não deve ter uma cópia privada; ambos os pontos de entrada (SW e PortalPush)
     // devem chamar esta função global.
-    function _pushNavegar(tipo) {
+    function _pushNavegar(tipo, action) {
+      // Atalho: clique na ação "▶ Bater ponto" da notificação → abre direto o
+      // modal de biometria, sem precisar navegar manualmente até a aba Ponto.
+      if (action === 'bater' || tipo === 'bater_ponto') {
+        if (typeof showTab === 'function') showTab('ponto');
+        window.focus();
+        setTimeout(() => { if (typeof abrirBioPonto === 'function') abrirBioPonto(); }, 300);
+        return;
+      }
       const dest = {
         holerite:               'hol',
         justificativa_aprovada: 'ponto',
         justificativa_rejeitada:'ponto',
         comunicado:             'avisos',
         solicitacao:            'solicitacoes',
-        advertencia:            'docs'
+        advertencia:            'docs',
+        ponto:                  'ponto'
       };
       const tab = dest[tipo] || 'avisos';
       if (typeof showTab === 'function') showTab(tab);
@@ -1012,6 +1049,10 @@ let ESPELHO_SIGS = {}; // { 'empId_ano_mes': { sig: dataURL, ts: string } }
 let CHAT_MSGS = [];
 let CHAT_UNSUB = null;
 let PONTO_REMINDER_SCHEDULED = false;
+let PONTO_REMINDER_IA_SCHEDULED = false; // lembrete adaptativo (padrão pessoal de horários)
+let PONTO_VIEW_MODE = 'tabela'; // 'tabela' | 'calendario' — histórico de batidas
+let CHAT_VIEW_MODE = 'rh'; // 'rh' | 'ia' — aba de chat ativa
+let CHAT_IA_MSGS = []; // histórico local da conversa com o assistente de IA (não persiste)
 // Configuração de lembretes carregada do Firestore (gravada pelo RH no Atlas RH)
 // Formato: { entradaManha: "08:50", entradaTarde: null, saida: "17:50", antecedenciaMin: 10, ativo: true }
 let PONTO_LEMBRETE_CONFIG = null;
@@ -1539,6 +1580,7 @@ async function doLogin() {
     btn.textContent = '✓';
     // Sincroniza pontos offline pendentes ao logar (se tiver internet)
     if (navigator.onLine) setTimeout(_syncOfflinePunches, 1500);
+    setTimeout(_atualizarIndicadorOffline, 1500);
     afterLogin();
   } catch (e) {
     let msg = e.message || '';
@@ -1563,6 +1605,8 @@ function afterLogin() {
   // appEl.style.flexDirection = 'row'; ← REMOVIDO: sobrescrevia o @media (max-width:768px)
   appEl.style.minHeight = '100vh';
   appEl.style.width = '100%';
+
+  _criarFabPonto();
 
   const iniEl = document.getElementById('av-top');
   const nameEl = document.getElementById('uname-top');
@@ -1602,6 +1646,9 @@ function afterLogin() {
 
   // ── Agendamento de lembrete de ponto às 08h50 ──────────────
   agendarLembretePonto();
+
+  // ── Lembrete inteligente baseado no padrão pessoal de horários ──
+  setTimeout(() => agendarLembreteIAPonto(), 4000);
 
   // ── Verificar batida faltante do dia anterior ──────────────
   setTimeout(() => verificarBatidaFaltante(), 3000);
@@ -1694,8 +1741,13 @@ function doLogout() {
   PONTO_MES = null; PONTO_ANO = null;
   // FIX: reseta flags que não eram limpas no logout
   PONTO_REMINDER_SCHEDULED = false;
+  PONTO_REMINDER_IA_SCHEDULED = false;
   ESPELHO_SIGS = {}; SOLIC_LIST = []; CHAT_MSGS = [];
   clearInterval(CLK_INTERVAL);
+  const _fab = document.getElementById('_fab-ponto');
+  if (_fab) _fab.remove();
+  const _offBanner = document.getElementById('_offline-pendentes-banner');
+  if (_offBanner) _offBanner.remove();
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('inp-cpf').value = '';
@@ -2891,6 +2943,7 @@ function showTab(tab) {
   const bt = document.getElementById('tab-' + tab);
   if (bt) bt.classList.add('active');
   renderTab(tab);
+  _atualizarFabPonto();
 }
 
 function renderTab(tab) {
@@ -3298,6 +3351,98 @@ async function sigSave(hId) {
 }
 
 // ── PONTO ────────────────────────────────────────────────────
+// Alterna entre visualização em lista (tabela) e calendário no histórico de ponto.
+function setPontoViewMode(mode) {
+  if (PONTO_VIEW_MODE === mode) return;
+  PONTO_VIEW_MODE = mode;
+  atualizarBotaoPonto();
+}
+
+// ── CALENDÁRIO VISUAL DO MÊS ─────────────────────────────────────────────────
+// Grade 7 colunas (dom–sáb) com um chip por dia, colorido conforme status:
+// verde = trabalhou, vermelho = falta, amarelo = sem saída/atestado,
+// cinza = feriado/folga/férias/sem registro. Toque no dia mostra detalhes.
+function _renderCalendarioPonto(diasMap, ano, mes, today) {
+  const STATUS_COR = {
+    trabalhou: { bg: '#F0FDF4', border: '#86EFAC', txt: '#059669' },
+    falta:     { bg: '#FEF2F2', border: '#FECACA', txt: '#DC2626' },
+    sem_saida: { bg: '#FFFBEB', border: '#FDE68A', txt: '#D97706' },
+    atestado:  { bg: '#FFFBEB', border: '#FDE68A', txt: '#D97706' },
+    feriado:   { bg: '#F1F5F9', border: '#E2E8F0', txt: '#64748B' },
+    folga:     { bg: '#F1F5F9', border: '#E2E8F0', txt: '#64748B' },
+    ferias:    { bg: '#EFF6FF', border: '#BFDBFE', txt: '#2563EB' },
+    default:   { bg: '#fff',    border: '#F1F5F9', txt: '#CBD5E1' }
+  };
+
+  function parseMinCal(hhmm) {
+    if (!hhmm) return null;
+    const [h, m] = hhmm.split(':').map(Number);
+    return h * 60 + m;
+  }
+  function fmtHorasCal(minutos) {
+    if (minutos == null || minutos <= 0) return '';
+    const h = Math.floor(minutos / 60), m = minutos % 60;
+    return h > 0 ? `${h}h${m > 0 ? m : ''}` : `${m}m`;
+  }
+
+  const primeiroDia = new Date(ano, mes, 1);
+  const totalDiasMes = new Date(ano, mes + 1, 0).getDate();
+  const offsetSemana = primeiroDia.getDay(); // 0=domingo
+
+  const labels = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+  const headerHTML = labels.map(l => `<div style="text-align:center;font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase">${l}</div>`).join('');
+
+  let cells = '';
+  // Espaços vazios antes do dia 1
+  for (let i = 0; i < offsetSemana; i++) {
+    cells += `<div></div>`;
+  }
+  for (let d = 1; d <= totalDiasMes; d++) {
+    const ds = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const rec = diasMap[ds] || {};
+    const isToday = ds === today;
+
+    const entMin = parseMinCal(rec.entrada);
+    const saiMin = parseMinCal(rec.saida);
+    let horasMin = rec.minutosTrabalho;
+    if (horasMin == null && entMin != null && saiMin != null && saiMin > entMin) {
+      const bruto = saiMin - entMin;
+      const intervalo = bruto > 360 ? 60 : bruto > 240 ? 15 : 0;
+      horasMin = Math.max(0, bruto - intervalo);
+    }
+
+    const statusFinal = (!rec.saida && rec.entrada && ds !== today) ? 'sem_saida' : (rec.status || (ds > today ? '' : 'default'));
+    const cor = STATUS_COR[statusFinal] || STATUS_COR.default;
+    const horasStr = fmtHorasCal(horasMin);
+    const temBatida = !!(rec.entrada || rec.saida);
+
+    cells += `<div onclick="${temBatida ? `verDetalhesBatidas('${ds}')` : ''}"
+      style="aspect-ratio:1;border-radius:8px;background:${cor.bg};border:1.5px ${isToday ? 'solid #7C3AED' : 'solid ' + cor.border};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;${temBatida ? 'cursor:pointer' : ''};position:relative">
+      <div style="font-size:12px;font-weight:800;color:${isToday ? '#7C3AED' : cor.txt}">${d}</div>
+      ${horasStr ? `<div style="font-size:9px;font-weight:700;color:${cor.txt}">${horasStr}</div>` : ''}
+      ${statusFinal === 'falta' ? `<div style="font-size:9px">❌</div>` : ''}
+      ${statusFinal === 'sem_saida' ? `<div style="font-size:9px">⚠️</div>` : ''}
+    </div>`;
+  }
+
+  const legenda = [
+    ['#F0FDF4', '#86EFAC', 'Trabalhou'],
+    ['#FEF2F2', '#FECACA', 'Falta'],
+    ['#FFFBEB', '#FDE68A', 'Sem saída / Atestado'],
+    ['#EFF6FF', '#BFDBFE', 'Férias'],
+    ['#F1F5F9', '#E2E8F0', 'Feriado / Folga']
+  ].map(([bg, brd, label]) => `<div style="display:flex;align-items:center;gap:5px">
+      <div style="width:12px;height:12px;border-radius:3px;background:${bg};border:1px solid ${brd}"></div>
+      <span style="font-size:10px;color:#64748B">${label}</span>
+    </div>`).join('');
+
+  return `
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:6px">${headerHTML}</div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px">${cells}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid #F1F5F9">${legenda}</div>
+    <div style="margin-top:8px;font-size:11px;color:#94A3B8">Toque em um dia para ver os detalhes das batidas.</div>`;
+}
+
 function renderPonto() {
   const now   = new Date();
   // CORRIGIDO: usa mês navegável para o histórico, não sempre o mês atual
@@ -3647,7 +3792,11 @@ function renderPonto() {
           <div style="font-size:11px;color:#64748B">Cartão ponto mensal</div>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:6px">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <div style="display:flex;border:1.5px solid #E2E8F0;border-radius:8px;overflow:hidden">
+          <button onclick="setPontoViewMode('tabela')" style="padding:6px 10px;border:none;cursor:pointer;font-size:12px;font-weight:700;background:${PONTO_VIEW_MODE === 'tabela' ? '#7C3AED' : '#fff'};color:${PONTO_VIEW_MODE === 'tabela' ? '#fff' : '#64748B'}">📋 Lista</button>
+          <button onclick="setPontoViewMode('calendario')" style="padding:6px 10px;border:none;cursor:pointer;font-size:12px;font-weight:700;background:${PONTO_VIEW_MODE === 'calendario' ? '#7C3AED' : '#fff'};color:${PONTO_VIEW_MODE === 'calendario' ? '#fff' : '#64748B'}">🗓️ Calendário</button>
+        </div>
         <button onclick="navPonto(-1)" style="width:32px;height:32px;border:1.5px solid #E2E8F0;border-radius:8px;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#374151">‹</button>
         <div style="min-width:110px;text-align:center;font-size:13px;font-weight:700;color:#1E293B">${MONTHS[mes]} ${ano}</div>
         <button onclick="navPonto(1)" style="width:32px;height:32px;border:1.5px solid #E2E8F0;border-radius:8px;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#374151">›</button>
@@ -3672,6 +3821,8 @@ function renderPonto() {
 
     ${dias.length === 0
       ? '<div style="text-align:center;padding:32px;color:#64748B"><div style="font-size:36px;margin-bottom:10px">📭</div><div style="font-weight:600">Nenhum registro em '+ MONTHS[mes] +' '+ ano +'</div></div>'
+      : PONTO_VIEW_MODE === 'calendario'
+      ? _renderCalendarioPonto(diasMap, ano, mes, today)
       : `<div style="overflow-x:auto">
         <table class="ptable" style="min-width:460px">
           <thead><tr>
@@ -3692,6 +3843,7 @@ function renderPonto() {
 }
 
 function atualizarBotaoPonto() {
+  _atualizarFabPonto();
   // Re-renderiza a aba inteira para atualizar últimas batidas do dia e calendário do mês
   if (CURRENT_TAB === 'ponto') {
     const c = document.getElementById('content');
@@ -3709,6 +3861,47 @@ function atualizarBotaoPonto() {
   btn.style.boxShadow = isIn
     ? '0 4px 16px rgba(220,38,38,.4)'
     : '0 4px 16px rgba(5,150,105,.4)';
+}
+
+// ── ATALHO RÁPIDO DE PONTO (FAB) ─────────────────────────────────────────────
+// Botão flutuante visível em qualquer aba do portal: abre direto o modal de
+// biometria, sem precisar navegar até a aba "Ponto". Cor/ícone refletem se
+// o próximo registro será uma entrada ou saída.
+function _criarFabPonto() {
+  if (document.getElementById('_fab-ponto')) { _atualizarFabPonto(); return; }
+  const fab = document.createElement('button');
+  fab.id = '_fab-ponto';
+  fab.onclick = () => abrirBioPonto();
+  fab.style.cssText = `
+    position:fixed; bottom:22px; right:18px; z-index:9996;
+    width:60px; height:60px; border-radius:50%; border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:1px; color:#fff; font-weight:800;
+    box-shadow:0 6px 20px rgba(0,0,0,.25); transition:transform .15s;
+  `;
+  fab.onmousedown = () => fab.style.transform = 'scale(0.93)';
+  fab.onmouseup   = () => fab.style.transform = 'scale(1)';
+  document.body.appendChild(fab);
+  _atualizarFabPonto();
+}
+
+function _atualizarFabPonto() {
+  const fab = document.getElementById('_fab-ponto');
+  if (!fab) return;
+  // Esconde o FAB se o modal de biometria já estiver aberto, ou na própria aba Ponto
+  // (que já tem o botão grande), para não duplicar a ação.
+  if ((typeof BIO_MODAL_ABERTO !== 'undefined' && BIO_MODAL_ABERTO) || CURRENT_TAB === 'ponto') {
+    fab.style.display = 'none';
+    return;
+  }
+  fab.style.display = 'flex';
+  const lastType = TODAY_PUNCHES.length > 0 ? TODAY_PUNCHES[TODAY_PUNCHES.length - 1].type : null;
+  const isIn = lastType === 'in';
+  fab.style.background = isIn
+    ? 'linear-gradient(135deg,#DC2626,#EF4444)'
+    : 'linear-gradient(135deg,#059669,#10B981)';
+  fab.title = isIn ? 'Registrar saída' : 'Registrar entrada';
+  fab.innerHTML = `<span style="font-size:20px;line-height:1">${isIn ? '■' : '▶'}</span><span style="font-size:9px;letter-spacing:.04em">PONTO</span>`;
 }
 
 function startClock() {
@@ -5731,6 +5924,151 @@ async function verificarBatidaFaltante() {
   } catch(e) {}
 }
 
+// ═══════════════════════════════════════════════════════════════
+// LEMBRETE ADAPTATIVO DE PONTO (IA) — aprende o horário habitual do
+// próprio colaborador a partir do histórico de bio_punches e avisa
+// proativamente quando ele está atrasado em relação ao seu padrão.
+//
+// Complementa (não substitui) o lembrete de horário fixo configurado
+// pelo RH em portal_config/lembretes_ponto: roda em paralelo, com
+// tag de notificação própria, e só atua sobre a ENTRADA do dia.
+// ═══════════════════════════════════════════════════════════════
+const PONTO_IA_TOLERANCIA_MIN = 15; // minutos de tolerância acima da média antes de avisar
+const PONTO_IA_MIN_AMOSTRAS   = 5;  // mínimo de dias com entrada para confiar no padrão
+const PONTO_IA_JANELA_DIAS    = 45; // janela de histórico consultada (calendário)
+const PONTO_IA_CHECK_MS       = 5 * 60 * 1000; // intervalo de verificação enquanto app aberto
+
+// Calcula o "horário habitual de entrada" do colaborador:
+// mediana dos horários de entrada nos últimos PONTO_IA_JANELA_DIAS dias,
+// descartando outliers a mais de 90min da mediana (folgas, exceções, etc.)
+async function _calcularPadraoEntrada() {
+  if (!DB || !EMP?.id) return null;
+  const hoje = new Date();
+  const desde = new Date(hoje);
+  desde.setDate(desde.getDate() - PONTO_IA_JANELA_DIAS);
+  const desdeStr = localDateStr(desde);
+
+  let snap;
+  try {
+    snap = await DB.collection('bio_punches')
+      .where('empId', '==', EMP.id)
+      .where('type', '==', 'in')
+      .where('date', '>=', desdeStr)
+      .get();
+  } catch(e) { return null; }
+  if (!snap || snap.empty) return null;
+
+  // Converte cada horário "HH:MM" para minutos desde 00:00
+  const minutos = snap.docs
+    .map(d => d.data().time)
+    .filter(t => /^\d{2}:\d{2}$/.test(t || ''))
+    .map(t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; })
+    .sort((a, b) => a - b);
+
+  if (minutos.length < PONTO_IA_MIN_AMOSTRAS) return null;
+
+  // Mediana inicial (robusta a outliers isolados)
+  const medianaBruta = minutos[Math.floor(minutos.length / 2)];
+
+  // Remove outliers (folgas pontuais, escalas atípicas) a >90min da mediana bruta
+  const filtrados = minutos.filter(m => Math.abs(m - medianaBruta) <= 90);
+  if (filtrados.length < PONTO_IA_MIN_AMOSTRAS) return null;
+
+  const mediaFinal = Math.round(filtrados.reduce((a, b) => a + b, 0) / filtrados.length);
+  const desvio = Math.round(
+    Math.sqrt(filtrados.reduce((acc, m) => acc + (m - mediaFinal) ** 2, 0) / filtrados.length)
+  );
+
+  return {
+    mediaMin: mediaFinal,
+    horaStr: `${String(Math.floor(mediaFinal / 60)).padStart(2,'0')}:${String(mediaFinal % 60).padStart(2,'0')}`,
+    desvioMin: desvio,
+    amostras: filtrados.length
+  };
+}
+
+// Dispara o alerta proativo (notificação + toast + som), uma vez por dia.
+function _avisarAtrasoIA(padrao, minutosAtraso) {
+  const today = localDateStr(new Date());
+  const flagKey = `_pontoIA_aviso_${EMP?.id || 'x'}_${today}`;
+  if (sessionStorage.getItem(flagKey)) return; // já avisou hoje nesta sessão
+  sessionStorage.setItem(flagKey, '1');
+
+  const titulo = '🤖 Lembrete inteligente — Atlas RH';
+  const corpo  = `Você costuma bater entrada por volta de ${padrao.horaStr}. `
+               + `Já se passaram ${minutosAtraso} min do seu horário habitual e não há registro de entrada hoje. Esqueceu de bater o ponto?`;
+
+  // Push via Service Worker / Notification nativa
+  try {
+    if (typeof _SW_REG !== 'undefined' && _SW_REG && Notification.permission === 'granted') {
+      _SW_REG.showNotification(titulo, {
+        body: corpo,
+        tag: 'lembrete-ponto-ia',
+        renotify: true,
+        icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%237C3AED'/><text y='46' font-size='34' fill='white' font-family='Arial' x='12'>IA</text></svg>",
+        vibrate: [200, 100, 200],
+        actions: [{ action: 'bater', title: '▶ Bater ponto' }, { action: 'fechar', title: 'Fechar' }],
+        data: { tipo: 'ponto', slot: { tipo: 'entrada', hora: padrao.horaStr, label: 'Entrada (IA)' } }
+      });
+    } else if (Notification.permission === 'granted') {
+      const n = new Notification(titulo, { body: corpo, tag: 'lembrete-ponto-ia' });
+      n.onclick = () => { window.focus(); showTab('ponto'); n.close(); };
+    }
+  } catch(_) {}
+
+  // Toast visual (app aberto)
+  try {
+    const el = document.createElement('div');
+    el.style.cssText = 'position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:99998;background:#F5F3FF;border:2px solid #DDD6FE;border-radius:14px;padding:14px 18px;max-width:380px;width:calc(100% - 32px);box-shadow:0 8px 32px rgba(0,0,0,.15);display:flex;align-items:flex-start;gap:11px;animation:_ppIn .3s ease';
+    el.innerHTML = `<div style="font-size:28px;flex-shrink:0">🤖</div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:800;color:#5B21B6;margin-bottom:3px">Lembrete inteligente</div>
+        <div style="font-size:12px;color:#6D28D9;line-height:1.5">${corpo}</div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button onclick="showTab('ponto');this.closest('div').parentElement.parentElement.remove()" style="padding:7px 14px;background:#7C3AED;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">▶ Bater ponto</button>
+          <button onclick="this.closest('div').parentElement.parentElement.remove()" style="padding:7px 12px;background:#EDE9FE;color:#5B21B6;border:1px solid #DDD6FE;border-radius:8px;font-size:12px;cursor:pointer">Fechar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(el);
+    setTimeout(() => { if (el.parentNode) el.remove(); }, 20000);
+  } catch(_) {}
+
+  if (typeof _bipPonto === 'function') { try { _bipPonto('lembrete'); } catch(_) {} }
+}
+
+// Verifica se já passou (padrão + tolerância) e ainda não há entrada hoje.
+function _checarAtrasoIA(padrao) {
+  if (!padrao) return;
+  const today = localDateStr(new Date());
+  const jaBateu = TODAY_PUNCHES.some(p => p.date === today && p.type === 'in');
+  if (jaBateu) return;
+
+  const agora = new Date();
+  // Domingo: padrão pode não ser confiável (geralmente folga) — pula
+  if (agora.getDay() === 0) return;
+
+  const minutosAgora = agora.getHours() * 60 + agora.getMinutes();
+  const limite = padrao.mediaMin + PONTO_IA_TOLERANCIA_MIN;
+  if (minutosAgora >= limite) {
+    _avisarAtrasoIA(padrao, minutosAgora - padrao.mediaMin);
+  }
+}
+
+// Orquestrador: calcula o padrão uma vez e agenda verificações periódicas
+// enquanto o app estiver aberto (não usa push agendado — é "enquanto online").
+async function agendarLembreteIAPonto() {
+  if (PONTO_REMINDER_IA_SCHEDULED) return;
+  PONTO_REMINDER_IA_SCHEDULED = true;
+
+  const padrao = await _calcularPadraoEntrada();
+  if (!padrao) return; // histórico insuficiente para um padrão confiável
+
+  // Checagem imediata (caso o colaborador abra o app já atrasado)
+  _checarAtrasoIA(padrao);
+  // Checagens periódicas enquanto a sessão estiver ativa
+  setInterval(() => _checarAtrasoIA(padrao), PONTO_IA_CHECK_MS);
+}
+
 // ── LEMBRETE DE PONTO ÀS 08h50 ───────────────────────────────
 // ═══════════════════════════════════════════════════════════════
 // LEMBRETE DE PONTO — configurável pelo RH via Firestore
@@ -6377,7 +6715,26 @@ async function _enviarSolicitacaoPortal() {
 
 async function renderChat(c) {
   c.innerHTML = `
-    <div class="sh">💬 Chat com o RH</div>
+    <div class="sh">💬 Chat</div>
+    <div style="display:flex;border:1.5px solid #E2E8F0;border-radius:10px;overflow:hidden;margin-bottom:12px">
+      <button id="chat-tab-rh" onclick="setChatViewMode('rh')" style="flex:1;padding:10px;border:none;cursor:pointer;font-size:13px;font-weight:700;background:${CHAT_VIEW_MODE === 'rh' ? '#E85D04' : '#fff'};color:${CHAT_VIEW_MODE === 'rh' ? '#fff' : '#64748B'}">💬 Chat com o RH</button>
+      <button id="chat-tab-ia" onclick="setChatViewMode('ia')" style="flex:1;padding:10px;border:none;cursor:pointer;font-size:13px;font-weight:700;background:${CHAT_VIEW_MODE === 'ia' ? '#7C3AED' : '#fff'};color:${CHAT_VIEW_MODE === 'ia' ? '#fff' : '#64748B'}">🤖 Assistente IA</button>
+    </div>
+    <div id="chat-container"></div>`;
+
+  if (CHAT_VIEW_MODE === 'ia') { renderChatIA(document.getElementById('chat-container')); return; }
+  _renderChatRH(document.getElementById('chat-container'));
+}
+
+function setChatViewMode(mode) {
+  if (CHAT_VIEW_MODE === mode) return;
+  if (CHAT_UNSUB) { CHAT_UNSUB(); CHAT_UNSUB = null; }
+  CHAT_VIEW_MODE = mode;
+  showTab('chat');
+}
+
+async function _renderChatRH(c) {
+  c.innerHTML = `
     <div id="chat-box" style="background:#fff;border:1px solid #E9EEF5;border-radius:14px;height:420px;overflow-y:auto;padding:16px;margin-bottom:12px;display:flex;flex-direction:column;gap:10px">
       <div style="text-align:center;padding:20px;color:#94A3B8;font-size:13px">⏳ Carregando mensagens...</div>
     </div>
@@ -6419,7 +6776,14 @@ async function renderChat(c) {
       }
       box.innerHTML = msgs.map(m => {
         const isMine = m.de === 'colaborador';
+        const isBot  = m.de === 'sistema';
         const dtStr = m.ts ? new Date(m.ts.toDate ? m.ts.toDate() : m.ts).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
+        if (isBot) {
+          return `<div style="align-self:center;max-width:90%;background:#F5F3FF;border:1px solid #DDD6FE;border-radius:12px;padding:10px 14px;font-size:13px;line-height:1.6;color:#5B21B6;white-space:pre-wrap">
+            <div style="font-size:10px;font-weight:800;color:#7C3AED;margin-bottom:4px;text-transform:uppercase;letter-spacing:.08em">🤖 Resumo automático · ${dtStr}</div>
+            ${esc(m.texto).replace(/\*(.+?)\*/g, '<strong>$1</strong>')}
+          </div>`;
+        }
         return `<div style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};max-width:80%;${isMine ? 'align-self:flex-end' : 'align-self:flex-start'}">
           <div style="background:${isMine ? 'linear-gradient(135deg,#E85D04,#D97706)' : '#F1F5F9'};color:${isMine ? '#fff' : '#1E293B'};padding:10px 14px;border-radius:${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'};font-size:14px;line-height:1.5;word-break:break-word">
             ${esc(m.texto)}
@@ -6469,6 +6833,201 @@ async function enviarMsgChat() {
     toast('Erro ao enviar: ' + e.message, 'err');
   } finally {
     input.disabled = false;
+    setTimeout(() => input.focus(), 50);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ASSISTENTE DE IA — dúvidas sobre banco de horas, DSR e ponto
+// Conversa local (não persiste no Firestore), usando Groq (já
+// configurado para o reconhecimento facial). Monta um contexto com
+// os dados reais do colaborador (saldo de BH, horas do mês, escala)
+// e um resumo das regras de DSR/banco de horas conforme CLT, para
+// que a IA responda com precisão sobre a situação da pessoa.
+// ═══════════════════════════════════════════════════════════════
+const CHAT_IA_MODEL = 'llama-3.3-70b-versatile';
+
+// Monta o contexto textual com os dados do colaborador para o prompt da IA.
+function _montarContextoChatIA() {
+  const bh = window._BH_SALDO;
+  const now = new Date();
+
+  // Total de horas trabalhadas no mês atual (a partir de MONTH_PUNCHES)
+  const mesAtual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const punchesMes = (MONTH_PUNCHES || []).filter(p => p.date && p.date.startsWith(mesAtual));
+  const porDia = {};
+  punchesMes.forEach(p => {
+    porDia[p.date] = porDia[p.date] || { ins: [], outs: [] };
+    if (p.type === 'in') porDia[p.date].ins.push(p.time);
+    if (p.type === 'out') porDia[p.date].outs.push(p.time);
+  });
+  let totalMinMes = 0, diasTrabalhadosMes = 0;
+  Object.values(porDia).forEach(({ ins, outs }) => {
+    const sortedIns = [...ins].sort(), sortedOuts = [...outs].sort();
+    const pares = Math.min(sortedIns.length, sortedOuts.length);
+    let temHoras = false;
+    for (let i = 0; i < pares; i++) {
+      const [eh, em] = sortedIns[i].split(':').map(Number);
+      const [sh, sm] = sortedOuts[i].split(':').map(Number);
+      const min = (sh * 60 + sm) - (eh * 60 + em);
+      if (min > 0) { totalMinMes += min; temHoras = true; }
+    }
+    if (temHoras) diasTrabalhadosMes++;
+  });
+  const fmtHM = m => `${Math.floor(m/60)}h${String(Math.abs(m)%60).padStart(2,'0')}`;
+
+  const horarioStr = EMP?.horarioEntrada ? `${EMP.horarioEntrada}–${EMP.horarioSaida || '?'}` : (EMP?.horario || 'não configurada no cadastro');
+
+  let ctx = `Dados do colaborador (use SOMENTE estes dados ao responder sobre a situação pessoal dele):\n`;
+  ctx += `- Nome: ${EMP?.nome || '—'}\n`;
+  ctx += `- Cargo: ${EMP?.cargo || '—'}\n`;
+  ctx += `- Escala/horário previsto: ${horarioStr}\n`;
+  ctx += `- Dias trabalhados neste mês até agora: ${diasTrabalhadosMes}\n`;
+  ctx += `- Total de horas trabalhadas neste mês até agora: ${fmtHM(totalMinMes)}\n`;
+  if (bh) {
+    ctx += `- Saldo atual do banco de horas (últimos 12 meses): ${bh.fmtSaldo} (créditos: ${bh.fmtCred}, débitos: ${bh.fmtDeb})\n`;
+  } else {
+    ctx += `- Saldo do banco de horas: não disponível no momento.\n`;
+  }
+  return ctx;
+}
+
+const CHAT_IA_SYSTEM_PROMPT = `Você é o assistente de RH do Atlas RH, especializado em responder dúvidas de colaboradores sobre PONTO, BANCO DE HORAS e DSR (Descanso Semanal Remunerado), seguindo a CLT brasileira.
+
+Regras gerais que você conhece e pode explicar quando perguntado:
+- Banco de horas: horas extras trabalhadas geram crédito; horas faltantes geram débito. O saldo pode ser compensado com folgas ou pago, conforme acordo/convenção coletiva da empresa.
+- DSR: o Descanso Semanal Remunerado é o dia de descanso (geralmente domingo) pago ao empregado. Faltas injustificadas no período podem refletir na perda do DSR daquela semana, conforme a Lei 605/49.
+- Intervalo intrajornada: jornadas acima de 6h têm direito a, no mínimo, 1h de intervalo (almoço); jornadas entre 4h e 6h têm direito a 15 min.
+- Horas extras: em geral pagas com adicional mínimo de 50% em dia normal e 100% em domingos/feriados, salvo acordo de banco de horas que permita compensação.
+
+INSTRUÇÕES:
+- Responda em português do Brasil, de forma direta, curta e clara (no máximo 4-5 frases por resposta, salvo se o colaborador pedir mais detalhes).
+- Quando a pergunta envolver a SITUAÇÃO PESSOAL do colaborador (saldo de horas, quantas horas trabalhou, etc.), use os dados fornecidos no contexto abaixo.
+- Se a pergunta exigir uma decisão do RH (aprovar/negar algo, alterar escala, pagar horas extras), explique a regra geral mas oriente o colaborador a confirmar com o RH pelo chat "Chat com o RH".
+- Nunca invente números — se não tiver o dado, diga que não tem essa informação disponível.
+- Não dê conselhos jurídicos definitivos; explique de forma geral e sugira confirmar com o RH/contador da empresa em casos específicos ou litigiosos.
+
+${''}`;
+
+function renderChatIA(c) {
+  c.innerHTML = `
+    <div id="chatia-box" style="background:#fff;border:1px solid #E9EEF5;border-radius:14px;height:420px;overflow-y:auto;padding:16px;margin-bottom:12px;display:flex;flex-direction:column;gap:10px"></div>
+    <div style="background:#fff;border:1px solid #E9EEF5;border-radius:14px;padding:12px;display:flex;gap:8px;align-items:flex-end">
+      <textarea id="chatia-input" placeholder="Pergunte sobre banco de horas, DSR, sua escala..." rows="2"
+        style="flex:1;border:1.5px solid #E2E8F0;border-radius:10px;padding:10px 12px;font-size:14px;resize:none;font-family:inherit;outline:none;transition:border-color .15s"
+        onfocus="this.style.borderColor='#7C3AED'" onblur="this.style.borderColor='#E2E8F0'"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();enviarMsgChatIA()}"
+      ></textarea>
+      <button id="chatia-send" onclick="enviarMsgChatIA()" style="padding:10px 18px;background:linear-gradient(135deg,#7C3AED,#A78BFA);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;flex-shrink:0;box-shadow:0 2px 8px rgba(124,58,237,.3)">
+        Enviar
+      </button>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:#94A3B8;text-align:center">🤖 Respostas geradas por IA — não substituem a confirmação oficial do RH</div>`;
+
+  _renderChatIAMsgs();
+
+  // Sugestões rápidas quando a conversa está vazia
+  if (CHAT_IA_MSGS.length === 0) {
+    const box = document.getElementById('chatia-box');
+    const sugestoes = [
+      'Qual meu saldo de banco de horas?',
+      'O que é DSR?',
+      'Quantas horas já trabalhei este mês?',
+      'Como funciona o intervalo de almoço?'
+    ];
+    box.innerHTML = `
+      <div style="text-align:center;padding:20px 10px">
+        <div style="font-size:36px;margin-bottom:8px">🤖</div>
+        <div style="font-size:14px;font-weight:800;color:#1E293B;margin-bottom:4px">Assistente de Ponto e Banco de Horas</div>
+        <div style="font-size:12px;color:#64748B;margin-bottom:14px">Tire dúvidas sobre banco de horas, DSR, escala e seus registros.</div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:stretch">
+          ${sugestoes.map(s => `<button onclick="_chatIAPerguntaRapida('${s.replace(/'/g, "\\'")}')" style="padding:8px 12px;background:#F5F3FF;border:1px solid #DDD6FE;border-radius:8px;color:#5B21B6;font-size:12px;font-weight:600;cursor:pointer;text-align:left">${s}</button>`).join('')}
+        </div>
+      </div>`;
+  }
+}
+
+function _chatIAPerguntaRapida(texto) {
+  const input = document.getElementById('chatia-input');
+  if (input) input.value = texto;
+  enviarMsgChatIA();
+}
+
+function _renderChatIAMsgs() {
+  const box = document.getElementById('chatia-box');
+  if (!box) return;
+  if (CHAT_IA_MSGS.length === 0) return; // mantém a tela de sugestões
+  box.innerHTML = CHAT_IA_MSGS.map(m => {
+    const isMine = m.role === 'user';
+    if (m.pending) {
+      return `<div style="align-self:flex-start;display:flex;align-items:center;gap:8px;color:#94A3B8;font-size:13px"><span style="font-size:18px">🤖</span> Pensando...</div>`;
+    }
+    return `<div style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};max-width:85%;${isMine ? 'align-self:flex-end' : 'align-self:flex-start'}">
+      <div style="background:${isMine ? 'linear-gradient(135deg,#7C3AED,#A78BFA)' : '#F5F3FF'};color:${isMine ? '#fff' : '#3730A3'};padding:10px 14px;border-radius:${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'};font-size:14px;line-height:1.5;word-break:break-word;white-space:pre-wrap">
+        ${esc(m.content)}
+      </div>
+      <div style="font-size:10px;color:#94A3B8;margin-top:3px">${isMine ? 'Você' : '🤖 Assistente IA'}</div>
+    </div>`;
+  }).join('');
+  box.scrollTop = box.scrollHeight;
+}
+
+async function enviarMsgChatIA() {
+  const input = document.getElementById('chatia-input');
+  const btn = document.getElementById('chatia-send');
+  if (!input) return;
+  const texto = (input.value || '').trim();
+  if (!texto) return;
+  input.value = '';
+  input.disabled = true;
+  if (btn) btn.disabled = true;
+
+  CHAT_IA_MSGS.push({ role: 'user', content: texto });
+  CHAT_IA_MSGS.push({ role: 'assistant', content: '', pending: true });
+  _renderChatIAMsgs();
+
+  try {
+    if (!GROQ_API_KEY) throw new Error('Assistente indisponível no momento.');
+
+    const contexto = _montarContextoChatIA();
+    const historico = CHAT_IA_MSGS
+      .filter(m => !m.pending)
+      .slice(-10) // limita o histórico enviado
+      .map(m => ({ role: m.role, content: m.content }));
+
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GROQ_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: CHAT_IA_MODEL,
+        max_tokens: 400,
+        temperature: 0.3,
+        messages: [
+          { role: 'system', content: CHAT_IA_SYSTEM_PROMPT + '\n' + contexto },
+          ...historico
+        ]
+      })
+    });
+
+    if (!resp.ok) {
+      if (resp.status === 401) throw new Error('Chave de IA inválida ou expirada (401). Avise o RH/TI para renovar a chave Groq.');
+      throw new Error(`Erro ${resp.status} ao consultar o assistente.`);
+    }
+    const data = await resp.json();
+    const reply = data?.choices?.[0]?.message?.content?.trim() || 'Não consegui gerar uma resposta agora. Tente novamente.';
+
+    CHAT_IA_MSGS.pop(); // remove o "pending"
+    CHAT_IA_MSGS.push({ role: 'assistant', content: reply });
+  } catch(e) {
+    CHAT_IA_MSGS.pop();
+    CHAT_IA_MSGS.push({ role: 'assistant', content: '⚠️ Não foi possível obter uma resposta agora. ' + (e.message || '') + ' Você pode tentar novamente ou usar o "Chat com o RH" para falar diretamente com a equipe.' });
+  } finally {
+    _renderChatIAMsgs();
+    input.disabled = false;
+    if (btn) btn.disabled = false;
     setTimeout(() => input.focus(), 50);
   }
 }
@@ -6622,7 +7181,7 @@ const CLAUDE_ZONA_FIM    = 0.72; // acima  = negação direta pelo face-api (aum
 const CLAUDE_APOS_MS     = 4000; // após Xs sem aprovação direta → Claude assume
 
 // ── Chave Groq ────────────────────────────────────────────────────────────────
-const GROQ_API_KEY = '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';
+const GROQ_API_KEY = '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';
 
 // ── Helpers de imagem ─────────────────────────────────────────────────────────
 function _canvasParaBase64(canvas) {
@@ -6718,6 +7277,7 @@ let BIO_BLINK_OK     = false;
 const BLINK_EAR_THRESHOLD = 0.21;
 const BLINK_FRAMES_CLOSED = 2;
 const BLINK_FRAMES_OPEN   = 2;
+const BLINK_TIMEOUT_MS    = 7000; // tempo de referência para a barra visual do overlay de blink
 
 function _earDist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
 function _earSide(pts, idx) {
@@ -6729,6 +7289,50 @@ function _earSide(pts, idx) {
 function calcEAR(landmarks) {
   const pts = landmarks.positions;
   return (_earSide(pts, [36,37,38,39,40,41]) + _earSide(pts, [42,43,44,45,46,47])) / 2;
+}
+
+// ── Máquina de estados do blink (liveness) ────────────────────────────────────
+// Detecta um ciclo completo: olhos abertos → fechados (≥N frames) → abertos (≥N frames).
+// Isso garante que é uma pessoa real na câmera, não uma foto estática.
+let _blinkState        = 'aberto'; // 'aberto' | 'fechado'
+let _blinkFramesClosed = 0;
+let _blinkFramesOpen   = 0;
+let _blinkStartTs      = 0;
+
+function _blinkReset() {
+  BIO_BLINK_OK       = false;
+  _blinkState        = 'aberto';
+  _blinkFramesClosed = 0;
+  _blinkFramesOpen   = 0;
+  _blinkStartTs      = Date.now();
+}
+
+// Processa o EAR do frame atual e atualiza BIO_BLINK_OK quando um blink completo ocorrer.
+function processarBlinkFrame(landmarks) {
+  if (BIO_BLINK_OK || !landmarks) return null;
+  const ear = calcEAR(landmarks);
+
+  if (_blinkState === 'aberto') {
+    if (ear < BLINK_EAR_THRESHOLD) {
+      _blinkFramesClosed++;
+      if (_blinkFramesClosed >= BLINK_FRAMES_CLOSED) {
+        _blinkState = 'fechado';
+        _blinkFramesOpen = 0;
+      }
+    } else {
+      _blinkFramesClosed = 0;
+    }
+  } else { // 'fechado' — aguardando reabertura para concluir o ciclo
+    if (ear >= BLINK_EAR_THRESHOLD) {
+      _blinkFramesOpen++;
+      if (_blinkFramesOpen >= BLINK_FRAMES_OPEN) {
+        BIO_BLINK_OK = true; // ciclo completo: piscou de verdade
+      }
+    } else {
+      _blinkFramesOpen = 0;
+    }
+  }
+  return ear;
 }
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
@@ -6809,6 +7413,14 @@ async function extrairDescriptorDeFoto(base64) {
 }
 
 // ── Salva ponto no Firebase ───────────────────────────────────────────────────
+// ── Haversine distance (metros) — utilitário global ──────────────────────────
+function _haversineGlobal(la1, lo1, la2, lo2) {
+  const R = 6371000, r = Math.PI / 180;
+  const dLa = (la2 - la1) * r, dLo = (lo2 - lo1) * r;
+  const a = Math.sin(dLa/2)**2 + Math.cos(la1*r) * Math.cos(la2*r) * Math.sin(dLo/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 async function registrarPontoNoBanco(method, extra) {
   const now     = new Date();
   const today   = localDateStr(now);
@@ -6845,6 +7457,39 @@ async function registrarPontoNoBanco(method, extra) {
     ...extra
   };
 
+  // ── Detecção de "corrida para o ponto" (inconsistência geo × tempo) ─────────
+  // Compara com o último punch de HOJE que tenha lat/lng salvos. Se a distância
+  // percorrida implicar velocidade fisicamente improvável (>140km/h), marca o
+  // punch atual para revisão do RH no AI Monitor — sem bloquear o registro.
+  if (punchDoc.lat != null && punchDoc.lng != null && DB) {
+    try {
+      const snapAnt = await DB.collection('bio_punches')
+        .where('empId', '==', EMP.id)
+        .where('date', '==', today)
+        .orderBy('createdAt', 'desc')
+        .limit(1)
+        .get();
+      if (!snapAnt.empty) {
+        const ant = snapAnt.docs[0].data();
+        if (ant.lat != null && ant.lng != null && ant.createdAt) {
+          const distM    = _haversineGlobal(punchDoc.lat, punchDoc.lng, ant.lat, ant.lng);
+          const diffMs   = new Date(punchDoc.createdAt) - new Date(ant.createdAt);
+          const diffH    = diffMs / 3_600_000;
+          if (diffH > 0 && distM > 200) { // ignora deslocamentos curtos (margem de GPS)
+            const velKmh = (distM / 1000) / diffH;
+            const LIMITE_KMH = 140; // acima disso é fisicamente improvável em área urbana
+            if (velKmh > LIMITE_KMH) {
+              punchDoc.inconsistenciaVelocidade = true;
+              punchDoc.velocidadeKmh = Math.round(velKmh);
+              punchDoc.distanciaAnteriorM = Math.round(distM);
+              punchDoc.minutosDesdeUltimoPunch = Math.round(diffMs / 60000);
+            }
+          }
+        }
+      }
+    } catch(_) {} // não bloqueia o registro do ponto se a checagem falhar
+  }
+
   // ── Tenta salvar no Firebase; se offline OU Firestore inacessível, salva no IDB ─────
   // FIX CRÍTICO: navigator.onLine=true não garante que o Firestore responda
   // (rede instável, rate-limit, timeout). Ponto NÃO pode ser perdido silenciosamente.
@@ -6864,12 +7509,14 @@ async function registrarPontoNoBanco(method, extra) {
       punchDoc._fbErr   = _fbErr.message;
       await _idbSavePunch(punchDoc);
       toast('⚠️ Conexão instável — ponto salvo localmente e será sincronizado em breve.', 'aviso', 6000);
+      _atualizarIndicadorOffline();
     }
   } else {
     punchDoc.id = 'offline_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
     punchDoc._offline = true;
     await _idbSavePunch(punchDoc);
     toast('📴 Sem internet — ponto salvo localmente e será sincronizado automaticamente.', 'aviso', 5000);
+    _atualizarIndicadorOffline();
   }
 
   TODAY_PUNCHES.push(punchDoc);
@@ -6902,7 +7549,78 @@ async function registrarPontoNoBanco(method, extra) {
     }
   } catch(_) {}
 
+  // ── Resumo diário automático no chat (ao bater a saída) ─────────────────────
+  if (newType === 'out') {
+    _enviarResumoDiarioChat(today).catch(() => {});
+  }
+
   return { tipo: newType === 'in' ? '🟢 Entrada' : '🔴 Saída', timeStr };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RESUMO DIÁRIO AUTOMÁTICO (IA) — enviado no chat ao bater a saída.
+// Calcula horas trabalhadas no dia (pares entrada/saída de
+// TODAY_PUNCHES) e mostra o saldo atual do banco de horas
+// (window._BH_SALDO, já calculado por _atualizarBadgeBancoHoras).
+// Mensagem é gravada como 'de: sistema' em rh_chat/{empId}/msgs,
+// visível tanto para o colaborador quanto para o RH.
+// ═══════════════════════════════════════════════════════════════
+async function _enviarResumoDiarioChat(dateStr) {
+  if (!DB || !EMP?.id) return;
+
+  // Soma os intervalos entrada→saída do dia, em minutos
+  const punchesHoje = (TODAY_PUNCHES || [])
+    .filter(p => p.date === dateStr)
+    .sort((a, b) => a.time.localeCompare(b.time));
+
+  let minutosTrabalhados = 0;
+  let entradaAberta = null;
+  for (const p of punchesHoje) {
+    if (p.type === 'in') {
+      entradaAberta = p.time;
+    } else if (p.type === 'out' && entradaAberta) {
+      const [eh, em] = entradaAberta.split(':').map(Number);
+      const [sh, sm] = p.time.split(':').map(Number);
+      minutosTrabalhados += (sh * 60 + sm) - (eh * 60 + em);
+      entradaAberta = null;
+    }
+  }
+  if (minutosTrabalhados <= 0) return; // sem jornada completa hoje — não envia resumo
+
+  const fmtHM = m => `${Math.floor(m/60)}h${String(m%60).padStart(2,'0')}`;
+  const horasHojeStr = fmtHM(minutosTrabalhados);
+
+  // Atualiza e lê o saldo de banco de horas (best-effort)
+  try { await _atualizarBadgeBancoHoras(); } catch(_) {}
+  const bh = window._BH_SALDO;
+
+  let resumo = `📊 *Resumo do seu dia* — ${new Date(dateStr + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })}\n\n`;
+  resumo += `⏱️ Horas trabalhadas hoje: ${horasHojeStr}\n`;
+  if (bh) {
+    const emoji = bh.saldo > 0 ? '⏫' : bh.saldo < 0 ? '⚠️' : '✅';
+    resumo += `${emoji} Saldo do banco de horas: ${bh.fmtSaldo}`;
+  }
+  resumo += `\n\nBom descanso! 🙂`;
+
+  try {
+    // Evita duplicar o resumo se o colaborador bater "saída" mais de uma vez no mesmo dia
+    const flagKey = `_resumoDiarioEnviado_${EMP.id}_${dateStr}`;
+    if (sessionStorage.getItem(flagKey)) return;
+    sessionStorage.setItem(flagKey, '1');
+
+    await DB.collection('rh_chat').doc(EMP.id).collection('msgs').add({
+      texto: resumo, de: 'sistema', isBot: true,
+      empId: EMP.id, empNome: EMP.nome,
+      ts: firebase.firestore.FieldValue.serverTimestamp(),
+      lida: false, lidaEm: null
+    });
+    await DB.collection('rh_chat').doc(EMP.id).set({
+      empId: EMP.id, empNome: EMP.nome, empCargo: EMP.cargo || '',
+      ultimaMsgTs: firebase.firestore.FieldValue.serverTimestamp(),
+      ultimaMsgTexto: resumo.slice(0, 80),
+      ultimaMsgDe: 'sistema'
+    }, { merge: true });
+  } catch(_) {}
 }
 
 // ── Para a câmera com segurança ───────────────────────────────────────────────
@@ -6947,12 +7665,15 @@ async function abrirBioPonto() {
   // Desabilita botão imediatamente para evitar cliques adicionais
   const _btnPonto = document.getElementById('btn-bater-ponto');
   if (_btnPonto) _btnPonto.disabled = true;
+  const _fabPonto = document.getElementById('_fab-ponto');
+  if (_fabPonto) _fabPonto.style.display = 'none';
 
   bioStopStream();
   BIO_REGISTRANDO  = false;
   BIO_BLINK_OK     = false;
   BIO_ETAPA        = 0;
   cancelAnimationFrame(BIO_AUTO_LOOP);
+  _blinkReset();
 
   const modal    = document.getElementById('bio-ponto-modal');
   modal.style.display = 'flex';
@@ -7358,7 +8079,8 @@ async function abrirBioPonto() {
       const timerTag = `<span style="font-size:10px;color:#64748B;margin-left:6px">(${restante}s)</span>`;
 
       // Fallback: melhor leitura abaixo do limite após frames suficientes → aprova/arbitra
-      if (melhorDistancia <= FALLBACK_LIMIT && totalFramesOk >= FALLBACK_MIN_FRAMES) {
+      // (exige liveness confirmado — sem blink, deixa o loop continuar normalmente)
+      if (melhorDistancia <= FALLBACK_LIMIT && totalFramesOk >= FALLBACK_MIN_FRAMES && BIO_BLINK_OK) {
         BIO_REGISTRANDO = true;
         cancelAnimationFrame(BIO_AUTO_LOOP);
 
@@ -7421,6 +8143,18 @@ async function abrirBioPonto() {
           processando = false; return;
         }
 
+        // ── LIVENESS (anti-foto): exige um ciclo de piscar de olhos real ────────
+        // Roda em paralelo ao reconhecimento facial — não atrasa quem já está
+        // piscando naturalmente, mas impede aprovação via foto estática.
+        if (det.landmarks) processarBlinkFrame(det.landmarks);
+        if (!BIO_BLINK_OK) {
+          bioShowBlink(true);
+          const _blinkElapsed = Date.now() - _blinkStartTs;
+          bioBlinkBar(Math.min(1, _blinkElapsed / BLINK_TIMEOUT_MS));
+        } else {
+          bioShowBlink(false);
+        }
+
         const distance   = (() => {
           // FIX: calcula distância para todos os descritores registrados e usa a mínima
           // (multi-ângulo: o melhor ângulo ganha, melhora aprovação em condições difíceis)
@@ -7454,13 +8188,19 @@ async function abrirBioPonto() {
             : `🟢 Reconhecendo... ${progressoPct}%${timerTag}`;
 
           if (acertos >= ACERTOS_NECES && mediaAtual <= MATCH_THRESHOLD + 0.15) {
+            if (!BIO_BLINK_OK) {
+              // Identidade já confirmada, mas falta o ciclo de blink (anti-foto).
+              // Mantém o loop rodando aguardando o piscar de olhos.
+              statusEl.innerHTML = `✅ Identidade confirmada!<br><span style="font-size:11px;color:#FCD34D">👀 Agora pisque os olhos para confirmar presença${timerTag}</span>`;
+              processando = false; return;
+            }
             BIO_REGISTRANDO = true;
             cancelAnimationFrame(BIO_AUTO_LOOP);
             bioSetRing(1, '#10B981');
             if (icon) icon.style.display = 'flex';
             const method = empData.descriptor && empData.descriptor.length >= 128
               ? 'faceapi_128d_aprovado_direto' : 'faceapi_foto_aprovado_direto';
-            await aprovar(method, { faceDistance: distance.toFixed(4), mediaDistancia: mediaAtual.toFixed(4), liveness: 'faceapi_zona_segura' });
+            await aprovar(method, { faceDistance: distance.toFixed(4), mediaDistancia: mediaAtual.toFixed(4), liveness: 'faceapi_zona_segura+blink' });
             processando = false; return;
           } else if (acertos >= ACERTOS_NECES) {
             acertos = Math.floor(ACERTOS_NECES / 2);
@@ -7492,6 +8232,12 @@ async function abrirBioPonto() {
             processando = false; return;
           }
           window._bioFramesDuvidosos = 0; // reseta para próxima rodada
+
+          // ── LIVENESS: exige blink antes de gastar uma chamada de Groq ──────────
+          if (!BIO_BLINK_OK) {
+            statusEl.innerHTML = `🟡 Quase lá...<br><span style="font-size:11px;color:#FCD34D">👀 Pisque os olhos para confirmar presença${timerTag}</span>`;
+            processando = false; return;
+          }
 
           BIO_REGISTRANDO = true; // Pausa o loop enquanto Claude analisa
           cancelAnimationFrame(BIO_AUTO_LOOP);
@@ -7568,6 +8314,7 @@ function bioFecharModal() {
   document.getElementById('bio-ponto-modal').style.display = 'none';
   bioShowBlink(false);
   bioStopStream();
+  _atualizarFabPonto();
   // FIX: re-habilita o botão de bater ponto após fechar o modal
   const _btnP = document.getElementById('btn-bater-ponto');
   if (_btnP) _btnP.disabled = false;
@@ -7599,7 +8346,7 @@ const PortalPush = (() => {
     // Mensagens do SW (clique com app fechado)
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('message', e => {
-        if (e.data && e.data.type === 'NOTIF_CLICK') _pushNavegar(e.data.tipo);
+        if (e.data && e.data.type === 'NOTIF_CLICK') _pushNavegar(e.data.tipo, e.data.action);
       });
     }
   }
@@ -7791,7 +8538,7 @@ const PortalPush = (() => {
     const [bg, border, icon, txt] = C[tipo] || C.geral;
     const el = document.createElement('div');
     el.style.cssText = `position:fixed;top:16px;right:16px;z-index:999999;background:${bg};border:1.5px solid ${border};border-radius:14px;padding:14px 18px;max-width:360px;width:calc(100% - 32px);box-shadow:0 8px 32px rgba(0,0,0,.15);display:flex;align-items:flex-start;gap:11px;cursor:pointer;animation:_ppIn .3s ease`;
-    el.innerHTML = `<div style="font-size:24px;flex-shrink:0;line-height:1.2">${icon}</div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700;color:${txt};margin-bottom:3px">${_esc(titulo)}</div><div style="font-size:12px;color:#475569;line-height:1.4">${_esc(corpo)}</div></div><button onclick="event.stopPropagation();this.parentElement.remove()" style="background:none;border:none;cursor:pointer;color:#94A3B8;font-size:18px;line-height:1;padding:0;flex-shrink:0;margin-top:-1px">×</button>`;
+    el.innerHTML = `<div style="font-size:24px;flex-shrink:0;line-height:1.2">${icon}</div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700;color:${txt};margin-bottom:3px">${esc(titulo)}</div><div style="font-size:12px;color:#475569;line-height:1.4">${esc(corpo)}</div></div><button onclick="event.stopPropagation();this.parentElement.remove()" style="background:none;border:none;cursor:pointer;color:#94A3B8;font-size:18px;line-height:1;padding:0;flex-shrink:0;margin-top:-1px">×</button>`;
     el.addEventListener('click', () => { el.remove(); window._pushNavegar(tipo); });
     document.body.appendChild(el);
     setTimeout(() => { if (el.parentNode) el.remove(); }, 7000);
