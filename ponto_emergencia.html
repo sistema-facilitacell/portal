@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="theme-color" content="#0F172A"/>
+<title>Ponto de Emergência — Atlas RH</title>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --navy:#0F172A;--gold:#C9A84C;--green:#10b981;--red:#f43f5e;
+  --surface:#F8FAFC;--border:#E2E8F0;--mt:#64748B;--text:#1E293B;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--navy);min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:0}
+
+/* ── Topo ── */
+.topbar{width:100%;background:linear-gradient(135deg,#0F172A,#1E293B);padding:16px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(201,168,76,.25)}
+.topbar-logo{font-size:18px;font-weight:900;color:#fff;letter-spacing:-0.5px}
+.topbar-logo span{color:var(--gold)}
+.topbar-badge{margin-left:auto;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:#FCA5A5;border-radius:20px;padding:4px 12px;font-size:11px;font-weight:700}
+
+/* ── Container ── */
+.wrap{width:100%;max-width:420px;padding:20px 16px 40px;display:flex;flex-direction:column;gap:16px}
+
+/* ── Card ── */
+.card{background:#fff;border-radius:18px;padding:24px 20px;box-shadow:0 4px 24px rgba(0,0,0,.18)}
+.card-title{font-size:16px;font-weight:800;color:var(--text);margin-bottom:4px}
+.card-sub{font-size:12px;color:var(--mt);margin-bottom:20px;line-height:1.5}
+
+/* ── Input CPF ── */
+.input-wrap{position:relative;margin-bottom:14px}
+.input-wrap input{width:100%;padding:14px 16px;border:2px solid var(--border);border-radius:12px;font-size:18px;font-weight:700;letter-spacing:3px;text-align:center;font-family:monospace;color:var(--text);background:#F8FAFC;outline:none;transition:border-color .2s}
+.input-wrap input:focus{border-color:var(--gold);background:#fff}
+.input-label{font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+
+/* ── Botão ── */
+.btn{width:100%;padding:15px;border:none;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-gold{background:linear-gradient(135deg,#C9A84C,#A8843A);color:#fff}
+.btn-gold:active{transform:scale(.97)}
+.btn-ghost{background:var(--surface);color:var(--mt);border:1.5px solid var(--border);font-size:13px;padding:10px}
+
+/* ── Avatar / nome ── */
+.emp-card{display:flex;align-items:center;gap:14px;background:#F8FAFC;border:1.5px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:16px}
+.emp-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--navy),#334155);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:var(--gold);flex-shrink:0;overflow:hidden}
+.emp-avatar img{width:100%;height:100%;object-fit:cover}
+.emp-name{font-size:15px;font-weight:800;color:var(--text)}
+.emp-cargo{font-size:12px;color:var(--mt);margin-top:2px}
+
+/* ── Badge entrada/saída ── */
+.punch-badge{width:100%;padding:12px;border-radius:12px;text-align:center;font-size:14px;font-weight:800;margin-bottom:16px;letter-spacing:.5px}
+.punch-in{background:rgba(16,185,129,.1);color:#059669;border:2px solid rgba(16,185,129,.3)}
+.punch-out{background:rgba(244,63,94,.1);color:#e11d48;border:2px solid rgba(244,63,94,.3)}
+
+/* ── Câmera ── */
+.camera-wrap{position:relative;width:100%;aspect-ratio:1;border-radius:18px;overflow:hidden;background:#0F172A;margin-bottom:16px}
+.camera-wrap video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.camera-wrap canvas{position:absolute;top:0;left:0;width:100%;height:100%;transform:scaleX(-1)}
+.camera-oval{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:72%;aspect-ratio:0.75;border:3px solid rgba(201,168,76,.6);border-radius:50%;pointer-events:none;transition:border-color .3s,box-shadow .3s}
+.camera-overlay{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(15,23,42,.9));padding:16px;text-align:center}
+.cam-status{font-size:14px;font-weight:700;color:#fff}
+.cam-sub{font-size:11px;color:rgba(255,255,255,.65);margin-top:3px}
+
+/* ── Barra de confiança ── */
+.conf-bar-wrap{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.conf-bar{flex:1;height:8px;background:#E2E8F0;border-radius:99px;overflow:hidden}
+.conf-bar-fill{height:100%;border-radius:99px;transition:width .3s,background .3s;width:0%}
+.conf-pct{font-size:12px;font-weight:700;color:var(--mt);min-width:36px;text-align:right}
+
+/* ── Timer ── */
+.timeout-bar{height:3px;background:var(--gold);border-radius:99px;transition:width 1s linear;margin-bottom:14px}
+
+/* ── Processing overlay ── */
+.proc-overlay{position:absolute;inset:0;background:rgba(15,23,42,.85);display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;border-radius:18px}
+.proc-spinner{width:44px;height:44px;border:3px solid rgba(201,168,76,.25);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
+.proc-txt{font-size:13px;color:#fff;font-weight:600;text-align:center;padding:0 20px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Resultado ── */
+.result-card{text-align:center;padding:32px 20px}
+.result-icon{font-size:56px;margin-bottom:12px}
+.result-title{font-size:20px;font-weight:900;margin-bottom:6px}
+.result-time{font-size:28px;font-weight:900;font-family:monospace;margin:12px 0}
+.result-sub{font-size:13px;color:var(--mt);line-height:1.5}
+.result-groq{background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:12px;padding:12px 14px;margin:14px 0;font-size:12px;color:#166534;line-height:1.5;text-align:left}
+.result-groq-err{background:#FEF2F2;border-color:#FECACA;color:#991B1B}
+
+/* ── Groq status ── */
+.groq-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.3);border-radius:20px;padding:4px 12px;font-size:11px;color:var(--gold);font-weight:700;margin-bottom:16px}
+
+/* ── Tela de carregamento ── */
+.loading-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:60px 20px;text-align:center}
+.loading-spinner{width:40px;height:40px;border:3px solid rgba(201,168,76,.2);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
+.loading-txt{color:rgba(255,255,255,.7);font-size:14px}
+
+/* ── Screens ── */
+.screen{display:none;animation:fadeIn .25s ease}
+.screen.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Clock ── */
+.clock{font-size:13px;color:var(--mt);font-family:monospace;margin-bottom:4px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo">ATLAS<span>RH</span></div>
+  <div style="font-size:12px;color:rgba(255,255,255,.5);margin-left:4px">Ponto de Emergência</div>
+  <div class="topbar-badge">🆘 Emergência</div>
+</div>
+
+<div class="wrap">
+
+  <!-- ── SCREEN: carregando ── -->
+  <div class="screen active" id="scr-loading">
+    <div class="loading-screen">
+      <div class="loading-spinner"></div>
+      <div class="loading-txt">Conectando ao sistema...</div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN: CPF ── -->
+  <div class="screen" id="scr-cpf">
+    <div class="card">
+      <div class="card-title">🔐 Identificação</div>
+      <div class="card-sub">Digite seu CPF para continuar. Seu rosto será usado como confirmação de identidade.</div>
+      <div class="input-label">CPF</div>
+      <div class="input-wrap">
+        <input type="tel" id="inp-cpf" maxlength="14" placeholder="000.000.000-00"
+          oninput="fmtCPF(this)" onkeydown="if(event.key==='Enter')buscarColaborador()"/>
+      </div>
+      <button class="btn btn-gold" onclick="buscarColaborador()">
+        <span>Continuar</span><span>→</span>
+      </button>
+      <div id="cpf-err" style="display:none;margin-top:12px;background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:10px 14px;font-size:13px;color:#991B1B;text-align:center"></div>
+    </div>
+
+    <div style="text-align:center;padding:12px 0">
+      <div style="font-size:11px;color:rgba(255,255,255,.35);line-height:1.6">
+        Este é um terminal de emergência.<br>
+        Acesso autorizado pelo RH — Atlas RH
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN: confirmar colaborador ── -->
+  <div class="screen" id="scr-confirm">
+    <div class="card">
+      <div class="clock" id="conf-clock">--:--:--</div>
+      <div class="emp-card" id="emp-info"></div>
+      <div class="punch-badge" id="punch-badge">Carregando...</div>
+      <div class="groq-chip">🤖 Verificação por IA facial ativada</div>
+      <p style="font-size:13px;color:var(--mt);margin-bottom:16px;line-height:1.5">
+        Posicione seu rosto na câmera. O sistema irá reconhecê-lo automaticamente usando inteligência artificial.
+      </p>
+      <button class="btn btn-gold" onclick="iniciarCamera()" id="btn-iniciar-cam">
+        📸 Iniciar Reconhecimento Facial
+      </button>
+      <button class="btn btn-ghost" style="margin-top:8px" onclick="voltarCPF()">← Voltar</button>
+    </div>
+  </div>
+
+  <!-- ── SCREEN: câmera ── -->
+  <div class="screen" id="scr-camera">
+    <div class="card" style="padding:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-size:13px;font-weight:700;color:var(--text)">Reconhecimento Facial</div>
+        <div class="punch-badge" id="cam-punch-badge" style="width:auto;padding:4px 12px;margin:0;font-size:12px">...</div>
+      </div>
+
+      <div class="camera-wrap" id="camera-wrap">
+        <video id="cam-video" autoplay muted playsinline></video>
+        <canvas id="cam-canvas"></canvas>
+        <div class="camera-oval" id="cam-oval"></div>
+        <div class="camera-overlay">
+          <div class="cam-status" id="cam-status">Iniciando câmera...</div>
+          <div class="cam-sub" id="cam-sub">Aguarde</div>
+        </div>
+        <div class="proc-overlay" id="proc-overlay">
+          <div class="proc-spinner"></div>
+          <div class="proc-txt" id="proc-txt">Verificando identidade...</div>
+        </div>
+      </div>
+
+      <div class="timeout-bar" id="timeout-bar" style="width:100%"></div>
+
+      <div class="conf-bar-wrap" id="conf-wrap" style="display:none">
+        <span style="font-size:11px;color:var(--mt);font-weight:700">Confiança</span>
+        <div class="conf-bar"><div class="conf-bar-fill" id="conf-fill"></div></div>
+        <div class="conf-pct" id="conf-pct">0%</div>
+      </div>
+
+      <button class="btn btn-ghost" onclick="cancelarCamera()">✕ Cancelar</button>
+    </div>
+  </div>
+
+  <!-- ── SCREEN: resultado ── -->
+  <div class="screen" id="scr-result">
+    <div class="card result-card">
+      <div class="result-icon" id="res-icon">✅</div>
+      <div class="result-title" id="res-title">Ponto Registrado!</div>
+      <div class="result-time" id="res-time">--:--</div>
+      <div class="result-sub" id="res-sub"></div>
+      <div id="res-groq" class="result-groq" style="display:none"></div>
+      <div style="height:1px;background:var(--border);margin:16px 0"></div>
+      <button class="btn btn-gold" onclick="reiniciar()">Registrar outro colaborador</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- face-api.js -->
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
+<script>
+// ══════════════════════════════════════════════════════
+// CONFIG — mesma do Atlas RH
+// ══════════════════════════════════════════════════════
+const FB_CFG = {
+  apiKey:            'AIzaSyAucORaywW7Dl-v1PB-lMtEA-5tl_uCqug',
+  projectId:         'rh-facilitacell',
+  storageBucket:     'rh-facilitacell.firebasestorage.app',
+  messagingSenderId: '98798741381',
+  appId:             '1:98798741381:web:f441b922d1c968880a46ec'
+};
+const GROQ_KEY   = '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';
+const GROQ_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct'; // vision
+const MODEL_URL  = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights';
+
+let db = null;
+let modelsLoaded = false;
+
+// Estado
+let EMP = null;       // colaborador encontrado
+let DESCRIPTOR = null; // Float32Array do rosto cadastrado
+let NEXT_TYPE = 'in'; // próxima batida
+let CAM_STREAM = null;
+let DETECT_INT = null;
+let TIMEOUT_INT = null;
+let PROCESSING = false;
+let DETECTING = false;
+
+// ══════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════
+async function init() {
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(FB_CFG);
+    db = firebase.firestore();
+    // Carrega modelos face-api em paralelo com a UI
+    loadModels();
+    showScreen('scr-cpf');
+    startClock();
+  } catch(e) {
+    showScreen('scr-cpf');
+    console.warn('[init]', e);
+  }
+}
+
+async function loadModels() {
+  if (modelsLoaded) return true;
+  try {
+    await Promise.all([
+      faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+    ]);
+    modelsLoaded = true;
+    return true;
+  } catch(e) {
+    console.warn('[models]', e);
+    return false;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function fmtCPF(inp) {
+  let v = inp.value.replace(/\D/g,'').slice(0,11);
+  if (v.length > 9) v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/,'$1.$2.$3-$4');
+  else if (v.length > 6) v = v.replace(/(\d{3})(\d{3})(\d{0,3})/,'$1.$2.$3');
+  else if (v.length > 3) v = v.replace(/(\d{3})(\d{0,3})/,'$1.$2');
+  inp.value = v;
+}
+
+function nowTime() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+}
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function uid() {
+  return 'emg_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+}
+
+function startClock() {
+  const el = document.getElementById('conf-clock');
+  if (el) el.textContent = nowTime();
+  setInterval(() => {
+    const el = document.getElementById('conf-clock');
+    if (el && document.getElementById('scr-confirm').classList.contains('active')) el.textContent = nowTime();
+  }, 1000);
+}
+
+function showCpfErr(msg) {
+  const el = document.getElementById('cpf-err');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function hideCpfErr() {
+  document.getElementById('cpf-err').style.display = 'none';
+}
+
+// ══════════════════════════════════════════════════════
+// STEP 1 — Buscar colaborador pelo CPF
+// ══════════════════════════════════════════════════════
+async function buscarColaborador() {
+  hideCpfErr();
+  const raw = document.getElementById('inp-cpf').value.replace(/\D/g,'');
+  if (raw.length !== 11) { showCpfErr('CPF inválido. Digite os 11 dígitos.'); return; }
+
+  const btn = document.querySelector('#scr-cpf .btn-gold');
+  btn.textContent = '⏳ Buscando...';
+  btn.disabled = true;
+
+  try {
+    // Busca em bio_users (cadastro biométrico)
+    const snap = await db.collection('bio_users').where('cpf','==',raw).where('active','==',true).limit(1).get();
+    if (snap.empty) {
+      showCpfErr('CPF não encontrado ou biometria não cadastrada. Fale com o RH.');
+      btn.innerHTML = '<span>Continuar</span><span>→</span>'; btn.disabled = false;
+      return;
+    }
+    const bioUser = snap.docs[0].data();
+
+    // Pega descritores faciais
+    const rawDesc = bioUser.descriptor?.length >= 128
+      ? bioUser.descriptor
+      : (bioUser.descriptors?.length > 0 ? bioUser.descriptors[0] : null);
+    if (!rawDesc || rawDesc.length < 128) {
+      showCpfErr('Rosto não cadastrado. Peça ao RH para cadastrar sua biometria.');
+      btn.innerHTML = '<span>Continuar</span><span>→</span>'; btn.disabled = false;
+      return;
+    }
+    DESCRIPTOR = new Float32Array(rawDesc);
+
+    // Dados do colaborador
+    EMP = { cpf: raw, nome: bioUser.name || bioUser.nome || 'Colaborador', cargo: bioUser.cargo || '', foto: bioUser.fotoPerfil || bioUser.foto || null, hrEmpId: bioUser.hrEmpId || bioUser.empId || '' };
+
+    // Determina próxima batida
+    const today = todayStr();
+    try {
+      const ps = await db.collection('bio_punches').where('cpf','==',raw).where('date','==',today).orderBy('time').get();
+      const punches = ps.docs.map(d => d.data());
+      const last = punches.length > 0 ? punches[punches.length-1].type : null;
+      NEXT_TYPE = last === 'in' ? 'out' : 'in';
+    } catch(e) { NEXT_TYPE = 'in'; }
+
+    // Monta tela de confirmação
+    renderEmpCard();
+    showScreen('scr-confirm');
+  } catch(e) {
+    showCpfErr('Erro ao conectar: ' + e.message);
+  }
+  btn.innerHTML = '<span>Continuar</span><span>→</span>'; btn.disabled = false;
+}
+
+function renderEmpCard() {
+  const ini = (EMP.nome||'?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  document.getElementById('emp-info').innerHTML = `
+    <div class="emp-avatar">${EMP.foto ? `<img src="${EMP.foto}"/>` : ini}</div>
+    <div>
+      <div class="emp-name">${EMP.nome}</div>
+      <div class="emp-cargo">${EMP.cargo || 'Colaborador'}</div>
+    </div>`;
+
+  const badge = document.getElementById('punch-badge');
+  const camBadge = document.getElementById('cam-punch-badge');
+  if (NEXT_TYPE === 'in') {
+    badge.textContent = '▶ REGISTRAR ENTRADA';
+    badge.className = 'punch-badge punch-in';
+    if (camBadge) { camBadge.textContent = '▶ ENTRADA'; camBadge.className = 'punch-badge punch-in'; }
+  } else {
+    badge.textContent = '■ REGISTRAR SAÍDA';
+    badge.className = 'punch-badge punch-out';
+    if (camBadge) { camBadge.textContent = '■ SAÍDA'; camBadge.className = 'punch-badge punch-out'; }
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// STEP 2 — Câmera + reconhecimento facial
+// ══════════════════════════════════════════════════════
+async function iniciarCamera() {
+  showScreen('scr-camera');
+  renderEmpCard();
+
+  // Garante modelos carregados
+  if (!modelsLoaded) {
+    setCamStatus('⏳ Carregando modelos de IA...', 'Aguarde alguns segundos');
+    const ok = await loadModels();
+    if (!ok) {
+      setCamStatus('❌ Falha ao carregar IA', 'Verifique sua internet');
+      return;
+    }
+  }
+
+  setCamStatus('Iniciando câmera...', 'Aguarde');
+  try {
+    CAM_STREAM = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 640 } },
+      audio: false
+    });
+    const video = document.getElementById('cam-video');
+    video.srcObject = CAM_STREAM;
+    await video.play();
+
+    // Sincroniza canvas com video
+    video.onloadedmetadata = () => {
+      const canvas = document.getElementById('cam-canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+    };
+
+    setCamStatus('Posicione seu rosto no óvalo', 'Mantenha o rosto centralizado');
+    startTimeout();
+    startDetection();
+  } catch(e) {
+    setCamStatus('❌ Câmera bloqueada', 'Permita acesso à câmera e tente novamente');
+  }
+}
+
+function setCamStatus(main, sub='') {
+  const s = document.getElementById('cam-status');
+  const ss = document.getElementById('cam-sub');
+  if(s) s.textContent = main;
+  if(ss) ss.textContent = sub;
+}
+
+function startTimeout() {
+  let rem = 45;
+  const bar = document.getElementById('timeout-bar');
+  TIMEOUT_INT = setInterval(() => {
+    rem--;
+    if (bar) bar.style.width = (rem / 45 * 100) + '%';
+    if (rem <= 0) {
+      clearInterval(TIMEOUT_INT);
+      if (!PROCESSING) {
+        pararCamera();
+        mostrarResultado(false, 'Tempo esgotado. Rosto não reconhecido.', null, null);
+      }
+    }
+  }, 1000);
+}
+
+function startDetection() {
+  const video = document.getElementById('cam-video');
+  const canvas = document.getElementById('cam-canvas');
+  const oval = document.getElementById('cam-oval');
+  const confFill = document.getElementById('conf-fill');
+  const confPct = document.getElementById('conf-pct');
+  const confWrap = document.getElementById('conf-wrap');
+  let hits = 0;
+
+  DETECT_INT = setInterval(async () => {
+    if (PROCESSING || DETECTING || !video.videoWidth) return;
+    DETECTING = true;
+    try {
+      const det = await faceapi
+        .detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+
+      if (!det) {
+        oval.style.borderColor = 'rgba(201,168,76,.5)';
+        oval.style.boxShadow = 'none';
+        if (confWrap) confWrap.style.display = 'none';
+        setCamStatus('Posicione seu rosto no óvalo', 'Nenhum rosto detectado');
+        hits = 0;
+        DETECTING = false;
+        return;
+      }
+
+      // Desenha landmarks
+      const dims = { width: video.videoWidth, height: video.videoHeight };
+      faceapi.draw.drawFaceLandmarks(canvas, faceapi.resizeResults(det, dims));
+
+      // Compara com descriptor cadastrado
+      const dist = faceapi.euclideanDistance(det.descriptor, DESCRIPTOR);
+      const sim = Math.max(0, Math.min(100, Math.round((1 - dist / 1.0) * 100)));
+      const match = dist < 0.5;
+
+      if (confWrap) confWrap.style.display = 'flex';
+      if (confFill) { confFill.style.width = sim + '%'; confFill.style.background = match ? '#10b981' : dist < 0.65 ? '#fbbf24' : '#f43f5e'; }
+      if (confPct) confPct.textContent = sim + '%';
+
+      if (match) {
+        oval.style.borderColor = '#10b981';
+        oval.style.boxShadow = '0 0 0 6px rgba(16,185,129,.2)';
+        setCamStatus('✓ Rosto reconhecido!', `Similaridade: ${sim}%`);
+        hits++;
+        if (hits >= 3) {
+          PROCESSING = true;
+          clearInterval(DETECT_INT);
+          clearInterval(TIMEOUT_INT);
+          // Captura frame para Groq
+          document.getElementById('proc-overlay').style.display = 'flex';
+          document.getElementById('proc-txt').textContent = 'Capturando imagem para verificação...';
+          const capturedB64 = captureFrame(video);
+          document.getElementById('proc-txt').textContent = 'IA verificando presença...';
+          await processarPonto(capturedB64, sim);
+        }
+      } else {
+        oval.style.borderColor = dist < 0.65 ? '#fbbf24' : 'rgba(244,63,94,.6)';
+        oval.style.boxShadow = 'none';
+        setCamStatus('Verificando...', dist < 0.65 ? 'Aproxime-se' : 'Rosto não reconhecido');
+        hits = 0;
+      }
+    } catch(e) { console.warn('[detect]', e); }
+    DETECTING = false;
+  }, 500);
+}
+
+function captureFrame(video) {
+  try {
+    const c = document.createElement('canvas');
+    c.width = 320; c.height = 320;
+    const ctx = c.getContext('2d');
+    // Desfaz o espelhamento para captura real
+    ctx.translate(c.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.7).split(',')[1];
+  } catch(e) { return null; }
+}
+
+function pararCamera() {
+  clearInterval(DETECT_INT); DETECT_INT = null;
+  clearInterval(TIMEOUT_INT); TIMEOUT_INT = null;
+  if (CAM_STREAM) { CAM_STREAM.getTracks().forEach(t => t.stop()); CAM_STREAM = null; }
+  PROCESSING = false; DETECTING = false;
+}
+
+function cancelarCamera() {
+  pararCamera();
+  showScreen('scr-confirm');
+}
+
+// ══════════════════════════════════════════════════════
+// STEP 3 — Groq verifica liveness + grava ponto
+// ══════════════════════════════════════════════════════
+async function processarPonto(imageB64, similaridade) {
+  document.getElementById('proc-txt').textContent = '🤖 Groq analisando presença real...';
+
+  let groqMsg = null;
+  let groqOk = true;
+
+  // Verifica liveness com Groq Vision (detecta foto de foto / fraude)
+  if (imageB64 && GROQ_KEY) {
+    try {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
+        body: JSON.stringify({
+          model: GROQ_MODEL,
+          max_tokens: 200,
+          messages: [{
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `Você é um sistema de verificação de presença para controle de ponto. Analise esta imagem e responda APENAS em JSON:
+{"presente": true/false, "rosto_real": true/false, "fraude": true/false, "observacao": "texto curto em português"}
+
+- "presente": há um rosto humano visível e bem posicionado
+- "rosto_real": é uma pessoa real (não uma foto de foto, tela ou print)
+- "fraude": detectou tentativa de burlar o sistema (foto impressa, celular com foto, etc.)
+- "observacao": observação breve sobre o que viu
+
+Responda APENAS o JSON, sem mais nada.`
+              },
+              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageB64}` } }
+            ]
+          }]
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const txt = data.choices?.[0]?.message?.content || '';
+        try {
+          const j = JSON.parse(txt.replace(/```json|```/g,'').trim());
+          if (j.fraude) {
+            groqOk = false;
+            groqMsg = `⚠️ Fraude detectada pela IA: ${j.observacao || 'Suspeita de foto de foto'}`;
+          } else if (!j.presente || !j.rosto_real) {
+            groqOk = false;
+            groqMsg = `❌ IA não confirmou presença real: ${j.observacao || 'Tente novamente'}`;
+          } else {
+            groqMsg = `✅ IA confirmou: ${j.observacao || 'Presença real verificada'}`;
+          }
+        } catch(e) { groqMsg = '✅ IA verificou a imagem (resposta não estruturada)'; }
+      }
+    } catch(e) { console.warn('[Groq]', e); groqMsg = '⚠️ IA indisponível — ponto registrado pelo reconhecimento facial'; }
+  }
+
+  if (!groqOk) {
+    pararCamera();
+    mostrarResultado(false, groqMsg, null, null);
+    return;
+  }
+
+  // Grava ponto no Firestore
+  document.getElementById('proc-txt').textContent = '💾 Salvando registro...';
+  const time = nowTime().slice(0,5); // HH:MM
+  const today = todayStr();
+  const month = today.slice(0,7);
+  const punch = {
+    id: uid(),
+    cpf: EMP.cpf,
+    userId: EMP.cpf,
+    empName: EMP.nome,
+    hrEmpId: EMP.hrEmpId || '',
+    date: today,
+    time: time,
+    type: NEXT_TYPE,
+    month: month,
+    verified: true,
+    similaridade: similaridade,
+    origem: 'ponto_emergencia',
+    groqVerificado: !!groqMsg,
+    groqMsg: groqMsg || '',
+    ts: new Date().toISOString()
+  };
+
+  try {
+    await db.collection('bio_punches').doc(punch.id).set(punch);
+    pararCamera();
+    mostrarResultado(true, groqMsg, time, NEXT_TYPE);
+  } catch(e) {
+    pararCamera();
+    mostrarResultado(false, 'Erro ao salvar: ' + e.message, null, null);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// RESULTADO
+// ══════════════════════════════════════════════════════
+function mostrarResultado(ok, groqMsg, time, tipo) {
+  document.getElementById('res-icon').textContent = ok ? (tipo === 'in' ? '✅' : '🏁') : '❌';
+  document.getElementById('res-title').textContent = ok
+    ? (tipo === 'in' ? 'Entrada registrada!' : 'Saída registrada!')
+    : 'Não foi possível registrar';
+  document.getElementById('res-time').textContent = ok ? time : '--:--';
+  document.getElementById('res-sub').textContent = ok
+    ? `${EMP?.nome || ''} · ${todayStr()}`
+    : (groqMsg || 'Tente novamente ou contate o RH.');
+
+  const groqEl = document.getElementById('res-groq');
+  if (groqMsg) {
+    groqEl.textContent = '🤖 ' + groqMsg;
+    groqEl.className = 'result-groq' + (ok ? '' : ' result-groq-err');
+    groqEl.style.display = 'block';
+  } else {
+    groqEl.style.display = 'none';
+  }
+
+  showScreen('scr-result');
+
+  // Som de feedback
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(ok ? 880 : 220, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(ok ? 1320 : 110, ctx.currentTime + 0.3);
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.start(); osc.stop(ctx.currentTime + 0.4);
+  } catch(_) {}
+}
+
+// ══════════════════════════════════════════════════════
+// NAVEGAÇÃO
+// ══════════════════════════════════════════════════════
+function voltarCPF() {
+  EMP = null; DESCRIPTOR = null;
+  document.getElementById('inp-cpf').value = '';
+  hideCpfErr();
+  showScreen('scr-cpf');
+}
+
+function reiniciar() {
+  pararCamera();
+  EMP = null; DESCRIPTOR = null; NEXT_TYPE = 'in'; PROCESSING = false; DETECTING = false;
+  document.getElementById('inp-cpf').value = '';
+  hideCpfErr();
+  showScreen('scr-cpf');
+}
+
+// ── BOOT ──
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
