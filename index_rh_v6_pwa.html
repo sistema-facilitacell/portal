@@ -1471,6 +1471,9 @@ td,th{font-size:15px!important;}
   <script>
     if('serviceWorker' in navigator){
       window.addEventListener('load', () => {
+  // Carrega URL do terminal de emergência salva anteriormente
+  const _savedEmergUrl = localStorage.getItem('atlas_emerg_url');
+  if (_savedEmergUrl) window._PONTO_EMERG_URL = _savedEmergUrl;
         navigator.serviceWorker.register('./sw_rh.js').catch(()=>{});
       });
     }
@@ -2266,14 +2269,23 @@ async function loadCloud(){
         const nuvem=d||{};
         // Merge: para cada funcionário, une os lançamentos e remove duplicatas por id
         const merged={...nuvem};
+        let houveExtras=false;
         Object.keys(local).forEach(empId=>{
           const localArr=Array.isArray(local[empId])?local[empId]:[];
           const nuvemArr=Array.isArray(merged[empId])?merged[empId]:[];
           const nuvemIds=new Set(nuvemArr.map(l=>l.id));
-          // Adiciona lançamentos locais que não estão na nuvem (foram criados offline)
-          const extras=localArr.filter(l=>l.id&&!nuvemIds.has(l.id));
+          // FIX: lançamentos automáticos (_syncAuto) do localStorage NUNCA são
+          // tratados como "extras criados offline" — eles são recalculados
+          // pelo BH patch v19 a cada sync e, se ausentes na nuvem, é porque
+          // foram removidos de propósito (limpeza de duplicatas/tags antigas).
+          // Re-injetá-los aqui causava ressurreição de lançamentos órfãos
+          // ([manual-sync-...], [cartaoponto-...], [sync-...]) e fbSave
+          // constante. Só lançamentos MANUAIS (sem _syncAuto) que existem
+          // localmente e não na nuvem são preservados como "extras offline".
+          const extras=localArr.filter(l=>l.id&&!nuvemIds.has(l.id)&&!l._syncAuto);
           if(extras.length>0){
             merged[empId]=[...nuvemArr,...extras];
+            houveExtras=true;
             console.log(`[loadCloud/bancohoras] Merge ${empId}: +${extras.length} lançamentos locais preservados`);
           } else {
             merged[empId]=nuvemArr;
@@ -2281,13 +2293,9 @@ async function loadCloud(){
         });
         APP.bancohoras=merged;
         lsSave('bancohoras');
-        // Sobe merged para nuvem SOMENTE se houve lançamentos extras locais
+        // Sobe merged para nuvem SOMENTE se houve lançamentos manuais extras locais
         // (evita write desnecessário a cada abertura do app)
-        if(Object.keys(merged).some(empId=>{
-          const nuvemArr=Array.isArray(d[empId])?d[empId]:[];
-          const mergedArr=Array.isArray(merged[empId])?merged[empId]:[];
-          return mergedArr.length>nuvemArr.length;
-        })){ fbSave('bancohoras'); }
+        if(houveExtras){ fbSave('bancohoras'); }
         loaded++;
         return;
       }
@@ -2688,7 +2696,6 @@ const NAV_GROUPS = [
     {id:'__prestadores_ext__',label:'Contratos de Prestação',icon:'<path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',ext:'prestadores.html'},
   ]},
   { label: 'Automação', items: [
-    {id:'solicitacoes_portal',label:'Solicitações do Portal',icon:'<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>'},
     {id:'assinatura_digital',label:'Assinatura Digital',icon:'<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>'},
     {id:'workflows',label:'Workflows Automáticos',icon:'<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>'},
     {id:'alarmes_portal',label:'Alarmes do Portal',icon:'<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="12" y1="2" x2="12" y2="4"/>'},
@@ -2759,8 +2766,16 @@ function buildNav(){
       }
       // Item especial: Chat Colaboradores — abre painel lateral em vez de navegar
       if(n.chat){ return _buildChatNavBtn(n); }
-      const badge=n.id==='admissao'&&pendAdm>0?`<span id="adm-pending-badge" style="margin-left:auto;background:#DC2626;color:#fff;font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px">${pendAdm}</span>`:'';
-      return `<button class="ni${MOD===n.id?' active':''}" onclick="navigate('${n.id}')" style="${n.id==='admissao'&&pendAdm>0?'border-left:3px solid #059669;background:#F0FDF4;color:#059669;font-weight:700;':''}">
+      const _solicPend = (window._SOLIC_PENDING_COUNT||0);
+      const badge=n.id==='admissao'&&pendAdm>0
+        ? `<span id="adm-pending-badge" style="margin-left:auto;background:#DC2626;color:#fff;font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px">${pendAdm}</span>`
+        : n.id==='solicitacoes_portal'&&_solicPend>0
+          ? `<span class="nav-badge-solic" style="margin-left:auto;background:#E85D04;color:#fff;border-radius:10px;min-width:18px;height:18px;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;padding:0 4px;animation:pulse-badge 2s infinite">${_solicPend}</span>`
+          : '';
+      const navStyle = n.id==='admissao'&&pendAdm>0 ? 'border-left:3px solid #059669;background:#F0FDF4;color:#059669;font-weight:700;'
+        : n.id==='solicitacoes_portal'&&_solicPend>0 ? 'border-left:3px solid #E85D04;background:#FFF7ED;color:#C2410C;font-weight:700;'
+        : '';
+      return `<button class="ni${MOD===n.id?' active':''}" onclick="navigate('${n.id}')" style="${navStyle}">
         ${svgI(n.icon)} ${n.label}${badge}
       </button>`;
     }).join('');
@@ -4842,63 +4857,14 @@ function _executarSaveDia(d,k,status,entrada,saida_almoco,volta_almoco,saida_caf
   toast('Ponto registrado!');
 
   // ── AUTO-SYNC Banco de Horas após edição manual ──────────────────
-  // Recalcula créditos/débitos do mês inteiro para este funcionário
-  // com base nos registros do cartão ponto (incluindo o dia recém-editado).
+  // FONTE ÚNICA: usa o patch v19 (_syncBHMes), que é a versão mais
+  // precisa (com fix de saída inválida) e já remove qualquer lançamento
+  // automático antigo de outras TAGs antes de recalcular este mês.
   try {
-    const _bh_emp = APP.employees.find(e => e.id === empId);
-    if (_bh_emp) {
-      const _bh_TAG = `[manual-sync-${ano}-${String(mes+1).padStart(2,'0')}]`;
-      const _bh_mesKey = `${ano}-${String(mes+1).padStart(2,'0')}`;
-      const _bh_pontoK = `${empId}_${ano}_${mes}`;
-      const _bh_registro = APP.pontos[_bh_pontoK] || {};
-      const _pt2 = t => { if(!t||!String(t).includes(':')) return null; const [h,m]=String(t).split(':').map(Number); return (h||0)*60+(m||0); };
-      const _bh_entH = _pt2(_bh_emp.horarioEntrada) || 9*60;
-      const _bh_saiH = _pt2(_bh_emp.horarioSaida)   || 17*60+50;
-      const _bh_almSai  = _pt2(_bh_emp.horarioAlmoco)        || 12*60;
-      const _bh_almVolt = _pt2(_bh_emp.horarioVoltaAlmoco)   || 13*60;
-      const _bh_cafSai  = _pt2(_bh_emp.horarioCafe)          || 15*60;
-      const _bh_cafVolt = _pt2(_bh_emp.horarioVoltaCafe)     || 15*60+30;
-      const _bh_pausa  = Math.max(0,_bh_almVolt-_bh_almSai)+Math.max(0,_bh_cafVolt-_bh_cafSai);
-      const _bh_diaEsp = Math.max(0,(_bh_saiH-_bh_entH)-_bh_pausa);
-      let _bh_credMin = 0, _bh_debMin = 0;
-      const _bh_diasMes = new Date(ano, mes+1, 0).getDate();
-      for (let _bh_d = 1; _bh_d <= _bh_diasMes; _bh_d++) {
-        const _bh_dow = new Date(ano, mes, _bh_d).getDay();
-        if (_bh_dow === 0 || _bh_dow === 6) continue; // domingo e sábado
-        const _bh_r = _bh_registro[_bh_d];
-        if (!_bh_r || !_bh_r.entrada || !_bh_r.saida) continue;
-        if (['falta','atestado','folga','ferias'].includes(_bh_r.status||'')) continue;
-        const _bh_e  = _pt2(_bh_r.entrada);
-        const _bh_sa = _pt2(_bh_r.saida_almoco);
-        const _bh_va = _pt2(_bh_r.volta_almoco);
-        const _bh_sc = _pt2(_bh_r.saida_cafe);
-        const _bh_vc = _pt2(_bh_r.volta_cafe);
-        const _bh_s  = _pt2(_bh_r.saida);
-        const _bh_eEfet = (_bh_e!==null && _bh_e>_bh_entH && _bh_e<=_bh_entH+10) ? _bh_entH : _bh_e;
-        if (_bh_eEfet===null || _bh_s===null) continue;
-        let _bh_worked = 0;
-        if (_bh_sa!==null && _bh_sa>_bh_eEfet) _bh_worked += _bh_sa-_bh_eEfet;
-        if (_bh_va!==null) { if (_bh_sc!==null && _bh_sc>_bh_va) _bh_worked += _bh_sc-_bh_va; else if (_bh_s>_bh_va) _bh_worked += _bh_s-_bh_va; }
-        if (_bh_vc!==null && _bh_s>_bh_vc) _bh_worked += _bh_s-_bh_vc;
-        if (!_bh_worked && _bh_s>_bh_eEfet) _bh_worked = Math.max(0,(_bh_s-_bh_eEfet)-_bh_pausa);
-        if (!_bh_worked) continue;
-        const _bh_diff = _bh_worked - _bh_diaEsp;
-        if (_bh_diff > 2)   _bh_credMin += _bh_diff;
-        else if (_bh_diff < -5) _bh_debMin += Math.abs(_bh_diff);
-      }
-      // Remove apenas os lançamentos da própria TAG [manual-sync-YYYY-MM] — não apaga [sync-...] nem [biometrico-...]
-      if (!APP.bancohoras[empId]) APP.bancohoras[empId] = [];
-      APP.bancohoras[empId] = APP.bancohoras[empId].filter(l => !l.motivo || !l.motivo.startsWith(_bh_TAG));
-      const _bh_uid = () => uid ? uid() : (Date.now()+'_'+Math.random().toString(36).slice(2));
-      const _bh_mesLabel = new Date(ano,mes,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
-      if (_bh_credMin > 0) {
-        APP.bancohoras[empId].push({ id:_bh_uid(), data:`${_bh_mesKey}-01`, tipo:'credito', minutos:_bh_credMin, motivo:`${_bh_TAG} ✏️ Horas Extras — Cartão Ponto (${_bh_mesLabel})`, criadoEm:new Date().toISOString(), _syncAuto:true });
-      }
-      if (_bh_debMin > 0) {
-        APP.bancohoras[empId].push({ id:_bh_uid(), data:`${_bh_mesKey}-01`, tipo:'debito',  minutos:_bh_debMin,  motivo:`${_bh_TAG} ✏️ Horas a Menos — Cartão Ponto (${_bh_mesLabel})`, criadoEm:new Date().toISOString(), _syncAuto:true });
-      }
-      save('bancohoras');
-      console.log(`[saveDia→BH] ${_bh_emp.nome} ${_bh_mesKey}: crédito=${_bh_credMin}min débito=${_bh_debMin}min`);
+    if (typeof _syncBHMes === 'function') {
+      _syncBHMes(ano, mes, [empId]);
+    } else if (typeof window.bhSyncPatchV19 === 'function') {
+      window.bhSyncPatchV19(ano, mes);
     }
   } catch(_bh_err) {
     console.warn('[saveDia→BH] Erro ao atualizar banco de horas:', _bh_err);
@@ -10742,14 +10708,14 @@ function rBiometrico() {
     <div style="font-size:36px;margin-bottom:12px">🔌</div>
     <div style="font-size:16px;font-weight:700;margin-bottom:8px">Firebase não conectado</div>
     <p style="color:var(--mt)">Configure a conexão com Firebase na barra lateral.</p></div>`;
-  const tabs=[['hoje','🏠 Hoje'],['funcionarios','👥 Colaboradores'],['mensal','📅 Mensal'],['fechamento','📊 Fechamento'],['justificativas',`📎 Justificativas${(BIO_DATA.justificativas||[]).filter(j=>!j.status||j.status==='pendente').length>0?' <span style="background:#DC2626;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800">'+((BIO_DATA.justificativas||[]).filter(j=>!j.status||j.status==='pendente').length)+'</span>':''}`],['comunicados','📢 Comunicados'],['geo','📍 Geolocalização']];
+  const tabs=[['hoje','🏠 Hoje'],['funcionarios','👥 Colaboradores'],['mensal','📅 Mensal'],['fechamento','📊 Fechamento'],['justificativas',`📎 Justificativas${(BIO_DATA.justificativas||[]).filter(j=>!j.status||j.status==='pendente').length>0?' <span style="background:#DC2626;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800">'+((BIO_DATA.justificativas||[]).filter(j=>!j.status||j.status==='pendente').length)+'</span>':''}`],['comunicados','📢 Comunicados'],['geo','📍 Geolocalização'],['solicitacoes',(()=>{const n=window._SOLIC_PENDING_COUNT||0;return '📋 Solicitações'+(n>0?' <span style="background:#E85D04;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800">'+n+'</span>':'');})()]];
   return`<div>
     <div style="display:flex;gap:6px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:14px;flex-wrap:wrap">
       ${tabs.map(([id,lbl])=>`<button onclick="BIO_TAB='${id}';navigate('biometrico')" class="btn btn-sm" style="${BIO_TAB===id?'background:var(--navy);color:#fff':'background:#F1F5F9;color:var(--mt)'}">${lbl}</button>`).join('')}
       <button onclick="sincronizarTudo({mes:BIO_MES,ano:BIO_ANO,origem:'biometrico'})" class="btn btn-sm" style="background:#7C3AED;color:#fff;font-weight:700" title="Sincroniza Biométrico → Cartão Ponto → Banco de Horas">⚡ Sincronizar Tudo</button>
       <button onclick="bioLoadData().then(()=>navigate('biometrico'))" class="btn btn-sm" style="background:#EFF6FF;color:var(--blue);margin-left:auto">🔄 Atualizar</button>
     </div>
-    ${BIO_TAB==='hoje'?rBioHoje():BIO_TAB==='funcionarios'?rBioFuncionarios():BIO_TAB==='mensal'?rBioMensal():BIO_TAB==='geo'?rBioGeo():BIO_TAB==='justificativas'?rBioJustificativas():BIO_TAB==='comunicados'?rBioComunicados():rBioFechamento()}
+    ${BIO_TAB==='solicitacoes'?rBioSolicitacoes():BIO_TAB==='hoje'?rBioHoje():BIO_TAB==='funcionarios'?rBioFuncionarios():BIO_TAB==='mensal'?rBioMensal():BIO_TAB==='geo'?rBioGeo():BIO_TAB==='justificativas'?rBioJustificativas():BIO_TAB==='comunicados'?rBioComunicados():rBioFechamento()}
   </div>`;
 }
 
@@ -11199,6 +11165,47 @@ function rBioHoje(){
         status==='adj'?`<span style="background:#EFF6FF;color:var(--blue);border:1px solid #BFDBFE;padding:3px 10px;border-radius:8px;font-size:12px;font-weight:600">${adj?.type==='atestado'?'Atestado':adj?.type==='falta'?'Falta':'Ajuste'}</span>`:
         `<span style="background:#FEF2F2;color:var(--red);border:1px solid #FECACA;padding:3px 10px;border-radius:8px;font-size:12px;font-weight:600">Ausente</span>`}
     </div>`).join('')}
+  </div>
+  <div style="margin-top:14px;background:linear-gradient(135deg,#FFF7ED,#FFFBEB);border:2px dashed #FCD34D;border-radius:14px;padding:16px 18px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+      <span style="font-size:20px">🆘</span>
+      <div>
+        <div style="font-size:13px;font-weight:800;color:#92400E">Ponto de Emergência</div>
+        <div style="font-size:11px;color:#B45309;margin-top:1px">Use quando o portal do colaborador estiver fora do ar</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:#92400E;background:#FEF3C7;border-radius:8px;padding:8px 12px;margin-bottom:12px;line-height:1.5">
+      📋 Envie o link do terminal de emergência para o colaborador via WhatsApp. Ele abre no celular, digita o CPF e bate o ponto com reconhecimento facial + IA.
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto">
+      ${(BIO_DATA.bioUsers||[]).filter(u=>u.active).map(u=>{
+        const empRec=APP.employees.find(e=>(e.cpf||'').replace(/\D/g,'') === (u.cpf||'').replace(/\D/g,''));
+        const phone=(empRec?.whatsapp||empRec?.telefone||'').replace(/\D/g,'');
+        const cpfFmt=u.cpf?u.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4'):u.cpf||'—';
+        const nome=u.name||'?';
+        const linkEmerg=window._PONTO_EMERG_URL||'ponto_emergencia.html';
+        const msgWA=encodeURIComponent('Olá '+nome.split(' ')[0]+'! 👋\n\nO portal está temporariamente indisponível.\n\nPara registrar seu ponto, acesse o link abaixo, digite seu CPF e posicione seu rosto na câmera:\n\n🔗 '+linkEmerg+'\n\n_(Funciona pelo celular, sem instalar nada)_\n\nQualquer dúvida fale com o RH! 🧡');
+        const waBtn=phone?('<a href="https://wa.me/55'+phone+'?text='+msgWA+'" target="_blank" style="background:#25D366;color:#fff;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap">📱 Enviar</a>'):'<span style="font-size:10px;color:var(--mt)">Sem tel.</span>';
+        return '<div style="display:flex;align-items:center;gap:8px;background:#fff;border-radius:10px;padding:9px 12px;border:1px solid #FDE68A">'+
+          '<div style="flex:1;min-width:0">'+
+            '<div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(nome)+'</div>'+
+            '<div style="font-size:11px;color:var(--mt);font-family:monospace">'+cpfFmt+'</div>'+
+          '</div>'+
+          '<button onclick="navigator.clipboard.writeText(window._PONTO_EMERG_URL||&quot;ponto_emergencia.html&quot;);toast(&quot;Link copiado!&quot;,&quot;ok&quot;)" style="background:#F1F5F9;border:1px solid var(--border);border-radius:8px;padding:5px 9px;font-size:11px;cursor:pointer;white-space:nowrap">🔗 Link</button>'+
+          waBtn+
+        '</div>';
+      }).join('')||'<div style="text-align:center;color:var(--mt);font-size:12px;padding:8px">Nenhum colaborador biométrico ativo</div>'}
+    </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid #FDE68A">
+      <div style="font-size:10px;color:#B45309;margin-bottom:6px;font-weight:700;text-transform:uppercase">URL do terminal de emergência</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input id="_emerg_url_inp" type="text" placeholder="https://seusite.com/ponto_emergencia.html"
+          value="${window._PONTO_EMERG_URL||''}"
+          style="flex:1;padding:7px 10px;border:1.5px solid #FDE68A;border-radius:8px;font-size:12px;background:#FFFBEB;color:var(--text)"
+          oninput="window._PONTO_EMERG_URL=this.value"/>
+        <button onclick="(()=>{const v=document.getElementById('_emerg_url_inp').value.trim();if(v){window._PONTO_EMERG_URL=v;localStorage.setItem('atlas_emerg_url',v);toast('URL salva!','ok')}else toast('Digite a URL primeiro','warn')})()" style="background:#D97706;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">💾 Salvar</button>
+      </div>
+    </div>
   </div>`;
 }
 
@@ -13108,6 +13115,49 @@ async function bioRemoverAviso(idx){
 async function bioSalvarComunicado(){}
 async function bioLimparComunicado(){}
 
+// ── TAB: SOLICITAÇÕES DO PORTAL (embutida no Biométrico IA) ──────────────
+function rBioSolicitacoes() {
+  setTimeout(async function() {
+    await _loadSolicRH();
+    var wrap = document.getElementById('_bio_solic_wrap');
+    if (wrap) wrap.innerHTML = _htmlSolicRHBio();
+    _solAtualizarBadgeNav();
+    if (typeof buildNav === 'function') buildNav();
+  }, 0);
+  return '<div id="_bio_solic_wrap"><div class="card" style="padding:32px;text-align:center"><div style="font-size:32px;margin-bottom:8px">📋</div><div style="font-size:14px;color:var(--mt)">Carregando solicitações...</div></div></div>';
+}
+function _htmlSolicRHBio() {
+  if (typeof _htmlSolicRH !== 'function') return '<div class="card" style="padding:32px;text-align:center;color:var(--mt)">Módulo de solicitações não carregado.</div>';
+  var html = _htmlSolicRH();
+  var _b1 = "onclick=\"_loadSolicRH(true).then(()=>{document.getElementById('content').innerHTML=_htmlSolicRH();_solAtualizarBadgeNav();}\"";
+  var _b2 = "onclick=\"_loadSolicRH(true).then(()=>{var w=document.getElementById('_bio_solic_wrap');if(w)w.innerHTML=_htmlSolicRHBio();_solAtualizarBadgeNav();}\"";
+  html = html.split(_b1).join(_b2);
+  return html;
+}
+
+
+// ── TAB: SOLICITAÇÕES DO PORTAL (embutida no Biométrico IA) ──────────────
+function rBioSolicitacoes() {
+  setTimeout(async function() {
+    await _loadSolicRH();
+    var wrap = document.getElementById('_bio_solic_wrap');
+    if (wrap) wrap.innerHTML = _htmlSolicRHBio();
+    _solAtualizarBadgeNav();
+    if (typeof buildNav === 'function') buildNav();
+  }, 0);
+  return '<div id="_bio_solic_wrap"><div class="card" style="padding:32px;text-align:center"><div style="font-size:32px;margin-bottom:8px">📋</div><div style="font-size:14px;color:var(--mt)">Carregando solicitações...</div></div></div>';
+}
+function _htmlSolicRHBio() {
+  if (typeof _htmlSolicRH !== 'function') return '<div class="card" style="padding:32px;text-align:center;color:var(--mt)">Módulo de solicitações não carregado.</div>';
+  var html = _htmlSolicRH();
+  // Redireciona botão Atualizar para o wrapper interno (não substitui #content)
+  var _b1 = "onclick=\"_loadSolicRH(true).then(()=>{document.getElementById('content').innerHTML=_htmlSolicRH();_solAtualizarBadgeNav();}\"";
+  var _b2 = "onclick=\"_loadSolicRH(true).then(()=>{var w=document.getElementById('_bio_solic_wrap');if(w)w.innerHTML=_htmlSolicRHBio();_solAtualizarBadgeNav();}\"";
+  html = html.split(_b1).join(_b2);
+  return html;
+}
+
+
 // ── TAB: FECHAMENTO ────────────────────────────────
 function rBioFechamento(){
   const empNames=[...new Set([...BIO_DATA.bioUsers.map(u=>u.name),...BIO_DATA.punches.map(p=>p.empName)])];
@@ -14648,6 +14698,14 @@ function enviarLinkWpp(empId){
 // Controle: roda no máximo 1x por sessão (não a cada visibilitychange/reconexão)
 let _autoSyncBHFeito = false;
 function _autoSyncBHSilencioso(){
+  // DESATIVADO: redundante com o patch v19 (_syncBHMes / _autoSyncDiario),
+  // que já roda no carregamento e é a fonte canônica e mais precisa
+  // (corrige o bug de "saída inválida" que esta função antiga não tratava).
+  // Mantido como no-op para não quebrar a chamada existente no boot.
+  console.log('[AutoSyncBH] desativado — sincronização agora é feita exclusivamente pelo BH patch v19');
+  return;
+}
+function _autoSyncBHSilenciosoLEGADO_DESATIVADO(){
   if(_autoSyncBHFeito){ console.log('[AutoSyncBH] Já rodou nesta sessão — pulando'); return; }
   _autoSyncBHFeito = true;
   try{
@@ -14824,6 +14882,8 @@ async function initApp(){
       try{ await fbFlushQueue(); }catch(e){ console.warn('[fbFlushQueue] erro:',e); }
       // Listener em tempo real
       try{ bioStartRealtimeListener(); }catch(e){ console.warn('[bioListener] erro:',e); }
+      // Listener em tempo real de Solicitações do Portal (badge + notificação)
+      try{ if(typeof _solIniciarListenerRealtime==='function') _solIniciarListenerRealtime(); }catch(e){ console.warn('[solListenerRealtime] erro:',e); }
       // Re-renderiza com dados completos
       const ativos=APP.employees.filter(e=>e.status==='ativo');
       if(ativos.length&&!HOL.empId)HOL.empId=ativos[0].id;
@@ -23279,6 +23339,7 @@ td,th{font-size:15px!important;}
       concluido:    {cor:'#64748B',bg:'#F8FAFC',l:'Concluído', ico:'✔'},
       concluida:    {cor:'#64748B',bg:'#F8FAFC',l:'Concluído', ico:'✔'},
       rejeitado:    {cor:'#DC2626',bg:'#FEF2F2',l:'Recusado',  ico:'✕'},
+      recusado:     {cor:'#DC2626',bg:'#FEF2F2',l:'Recusado',  ico:'✕'},
       cancelado:    {cor:'#DC2626',bg:'#FEF2F2',l:'Cancelado', ico:'✕'},
     };
     const TIPO_LABEL={
@@ -23303,7 +23364,7 @@ td,th{font-size:15px!important;}
       ];
       const statusOrdem=['pendente','em_analise','aprovado','aprovada','concluido','concluida'];
       const statusIdx=statusOrdem.indexOf(s.status);
-      const isCancelado=s.status==='rejeitado'||s.status==='cancelado';
+      const isCancelado=s.status==='rejeitado'||s.status==='recusado'||s.status==='cancelado';
       return `<div class="p-card" style="margin-bottom:14px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
           <div>
@@ -26459,7 +26520,7 @@ async function enviarStatusPortalHoje(){
     // BUG-C1 FIX: inclui aba Justificativas com badge de pendentes
     const nJust=(BIO_DATA.justificativas||[]).filter(j=>!j.status||j.status==='pendente').length;
     const justLabel='📎 Justificativas'+(nJust>0?' <span style="background:#DC2626;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800">'+nJust+'</span>':'');
-    const tabs=[['hoje','🏠 Hoje'],['ia','🤖 IA Monitor'],['funcionarios','👥 Colaboradores'],['mensal','📅 Mensal'],['fechamento','📊 Fechamento'],['justificativas',justLabel],['comunicados','📢 Comunicados'],['geo','📍 Geolocalização']];
+    const tabs=[['hoje','🏠 Hoje'],['ia','🤖 IA Monitor'],['funcionarios','👥 Colaboradores'],['mensal','📅 Mensal'],['fechamento','📊 Fechamento'],['justificativas',justLabel],['comunicados','📢 Comunicados'],['geo','📍 Geolocalização'],['solicitacoes',(()=>{const n=window._SOLIC_PENDING_COUNT||0;return '📋 Solicitações'+(n>0?' <span style="background:#E85D04;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800">'+n+'</span>':'');})()]];
     return'<div><div style="display:flex;gap:6px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:14px;flex-wrap:wrap">'+
       tabs.map(([id,lbl])=>{
         const isAI=id==='ia', nAl=(window.ALERTAS_CACHE||[]).filter(a=>a.tipo!=='OK').length, hasAlerts=isAI&&nAl>0;
@@ -26468,7 +26529,7 @@ async function enviarStatusPortalHoje(){
       '<button onclick="sincronizarTudo({mes:BIO_MES,ano:BIO_ANO,origem:\'biometrico\'})" class="btn btn-sm" style="background:#7C3AED;color:#fff;font-weight:700" title="Sincroniza Biométrico → Cartão Ponto → Banco de Horas">⚡ Sincronizar Tudo</button>'+
       '<button onclick="bioLoadData().then(()=>{gerarAlertasHoje();navigate(\'biometrico\')})" class="btn btn-sm" style="background:#EFF6FF;color:var(--blue);margin-left:auto">🔄 Atualizar</button></div>'+
       // BUG-C1 FIX: router chain agora inclui 'justificativas'
-      (BIO_TAB==='ia'?rBioAI():BIO_TAB==='hoje'?rBioHoje():BIO_TAB==='funcionarios'?rBioFuncionarios():BIO_TAB==='mensal'?rBioMensal():BIO_TAB==='geo'?rBioGeo():BIO_TAB==='justificativas'?rBioJustificativas():BIO_TAB==='comunicados'?rBioComunicados():rBioFechamento())+
+      (BIO_TAB==='ia'?rBioAI():BIO_TAB==='solicitacoes'?rBioSolicitacoes():BIO_TAB==='hoje'?rBioHoje():BIO_TAB==='funcionarios'?rBioFuncionarios():BIO_TAB==='mensal'?rBioMensal():BIO_TAB==='geo'?rBioGeo():BIO_TAB==='justificativas'?rBioJustificativas():BIO_TAB==='comunicados'?rBioComunicados():rBioFechamento())+
       '</div>';
   };
 })();
@@ -34535,6 +34596,20 @@ console.log('[v18] ✅ Módulo Assinatura Digital carregado — canvas + SHA-256
       `[cartaoponto-${mk}]`,
       `[bh_patch_v19-${mk}]`
     ];
+    // ── Remoção extra de lançamentos órfãos sem TAG conhecida ──────────
+    // Versões antigas geravam motivos sem nenhum prefixo [tag-YYYY-MM],
+    // como "📋 Horas Extras — Auto-Sync (...)" puro. Remove qualquer
+    // lançamento automático cuja `data` (YYYY-MM-01) corresponda a este
+    // mês e cujo motivo NÃO contenha a TAG v19 atual.
+    const atualPre = _bhLs(empId);
+    _bhSet(empId, atualPre.filter(l => {
+      if (!l._syncAuto) return true; // manuais: preserva sempre
+      const mot = l.motivo || '';
+      if (prefixos.some(p => mot.startsWith(p))) return true; // tratado abaixo
+      const dataMes = (l.data || '').slice(0, 7);
+      if (dataMes === mk && !mot.includes(`bh_patch_v19-${mk}`)) return false; // órfão deste mês → remove
+      return true;
+    }));
     const atual = _bhLs(empId);
     _bhSet(empId, atual.filter(l => {
       if (!l._syncAuto) return true; // lançamentos manuais: preserva
@@ -35945,13 +36020,17 @@ function _htmlSolicRH() {
   const statusCfg = {
     pendente:  { txt:'⏳ Pendente',  bg:'#FFF7ED', c:'#C2410C' },
     aprovado:  { txt:'✅ Aprovado',  bg:'#F0FDF4', c:'#166534' },
+    concluido: { txt:'✅ Aprovado',  bg:'#F0FDF4', c:'#166534' }, // FIX: registros antigos gravados como 'concluido'
     recusado:  { txt:'❌ Recusado',  bg:'#FEF2F2', c:'#991B1B' },
     cancelado: { txt:'🚫 Cancelado', bg:'#F8FAFC', c:'#64748B' },
   };
+  // FIX: normaliza status legados — 'concluido' (e variações 'aprovada') contam como 'aprovado'
+  // para os filtros de "Aprovadas" e o badge de pendentes funcionarem corretamente.
+  const _statusNorm = st => (st === 'concluido' || st === 'aprovada') ? 'aprovado' : st;
   const lista = _SOLIC_FILTRO === 'todos'
     ? _SOLIC_LISTA
-    : _SOLIC_LISTA.filter(s => s.status === _SOLIC_FILTRO);
-  const pendCount = _SOLIC_LISTA.filter(s => s.status === 'pendente').length;
+    : _SOLIC_LISTA.filter(s => _statusNorm(s.status) === _SOLIC_FILTRO);
+  const pendCount = _SOLIC_LISTA.filter(s => _statusNorm(s.status) === 'pendente').length;
 
   const filtroBtn = (val, label) => {
     const ativo = _SOLIC_FILTRO === val;
@@ -35959,7 +36038,8 @@ function _htmlSolicRH() {
   };
 
   const rows = lista.map(s => {
-    const si = statusCfg[s.status] || statusCfg.pendente;
+    const stNorm = _statusNorm(s.status);
+    const si = statusCfg[stNorm] || statusCfg.pendente;
     const tl = tipoLabel[s.tipo] || s.tipo;
     const dt = s.criadoEm ? new Date(s.criadoEm).toLocaleDateString('pt-BR') : '—';
     const empNome = s.empNome || s.empId || '—';
@@ -35976,7 +36056,7 @@ function _htmlSolicRH() {
     }
     const motivoHtml = s.motivo ? `<div style="font-size:12px;color:var(--mt);background:var(--surface);padding:6px 10px;border-radius:8px;margin:6px 0;line-height:1.4">"${s.motivo}"</div>` : '';
     const respostaHtml = s.respostaRH ? `<div style="font-size:12px;color:#1D4ED8;background:#EFF6FF;border-radius:8px;padding:6px 10px;margin-top:4px;line-height:1.4">💬 RH: ${s.respostaRH}</div>` : '';
-    const botoesAcao = s.status === 'pendente' ? `
+    const botoesAcao = stNorm === 'pendente' ? `
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
         <button onclick="_solAbrirResposta('${s.id}')" style="flex:1;min-width:120px;background:linear-gradient(135deg,#166534,#15803D);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer">✅ Aprovar / Responder</button>
         <button onclick="_solRecusar('${s.id}')" style="flex:1;min-width:100px;background:#FEF2F2;color:#991B1B;border:1.5px solid #FECACA;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer">❌ Recusar</button>
@@ -36011,7 +36091,7 @@ function _htmlSolicRH() {
     ${pendCount > 0 ? `<div style="background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#92400E;font-weight:700">⏳ ${pendCount} solicitação(ões) aguardando resposta</div>` : ''}
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
       ${filtroBtn('todos', `Todas (${_SOLIC_LISTA.length})`)}
-      ${filtroBtn('pendente', `Pendentes (${_SOLIC_LISTA.filter(s=>s.status==='pendente').length})`)}
+      ${filtroBtn('pendente', `Pendentes (${_SOLIC_LISTA.filter(s=>_statusNorm(s.status)==='pendente').length})`)}
       ${filtroBtn('aprovado', 'Aprovadas')}
       ${filtroBtn('recusado', 'Recusadas')}
     </div>
@@ -36072,7 +36152,7 @@ async function _solResponder(id, novoStatus, respostaRH) {
     }
     const historicoFinal = [...histAtual, ...novosPassos];
     await FBASE.collection(_sColecao).doc(id).update({
-      status: (novoStatus === 'aprovado' || novoStatus === 'aprovada') ? 'concluido' : novoStatus,
+      status: (novoStatus === 'aprovado' || novoStatus === 'aprovada') ? 'aprovado' : novoStatus,
       respostaRH: respostaRH || '',
       respondidoEm: agora,
       respondidoEm_br: new Date().toLocaleString('pt-BR'),
@@ -36080,7 +36160,10 @@ async function _solResponder(id, novoStatus, respostaRH) {
       historico: historicoFinal,
     });
     const s = _SOLIC_LISTA.find(x => x.id === id);
-    if (s) { s.status = novoStatus; s.respostaRH = respostaRH; s.historico = historicoFinal; }
+    if (s) {
+      s.status = (novoStatus === 'aprovado' || novoStatus === 'aprovada') ? 'aprovado' : novoStatus;
+      s.respostaRH = respostaRH; s.historico = historicoFinal;
+    }
     // Notificar colaborador via portal_notificacoes
     if (s && s.empId) {
       const tipoTxt = { ferias:'Férias', ajuste_ponto:'Ajuste de Ponto', troca_turno:'Troca de Turno', compensacao_bh:'Compensação de Banco de Horas', banco_horas:'Banco de Horas' };
@@ -36107,39 +36190,109 @@ async function _solResponder(id, novoStatus, respostaRH) {
 }
 
 function _solAtualizarBadgeNav() {
-  const pendentes = _SOLIC_LISTA.filter(s => s.status === 'pendente').length;
-  // Badge no nav item
-  const navItem = document.querySelector('[data-id="solicitacoes_portal"] .badge, #nav-solic-badge');
-  if (navItem) {
-    navItem.style.display = pendentes > 0 ? 'inline-flex' : 'none';
-    navItem.textContent = pendentes;
-  }
-  // Busca pelo texto do item via buildNav badge
-  document.querySelectorAll('.ni').forEach(el => {
-    if (el.dataset && el.dataset.id === 'solicitacoes_portal') {
-      let badge = el.querySelector('.nav-badge-solic');
-      if (!badge && pendentes > 0) {
-        badge = document.createElement('span');
-        badge.className = 'nav-badge-solic';
-        badge.style.cssText = 'background:#E85D04;color:#fff;border-radius:50%;min-width:16px;height:16px;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;margin-left:auto;padding:0 3px';
-        el.appendChild(badge);
+  const pendentes = _SOLIC_LISTA.filter(s => {
+    const st = s.status;
+    return st !== 'concluido' && st !== 'aprovada' && st !== 'aprovado' && st !== 'recusado' && st !== 'cancelado' && st !== 'rejeitado';
+  }).length;
+  window._SOLIC_PENDING_COUNT = pendentes;
+  // Re-renderiza a nav para mostrar/ocultar o badge corretamente
+  if (typeof buildNav === 'function') buildNav();
+}
+
+// ── Listener Firestore em tempo real para Solicitações do Portal ──────────
+// Mantém o badge atualizado e notifica o RH mesmo quando ele está em outra tela.
+let _solRealtimeUnsub = null;
+let _solRealtimeLastKnownIds = null; // null = primeira carga (não notifica)
+
+function _solIniciarListenerRealtime() {
+  if (typeof FBASE === 'undefined' || !FBASE) return;
+  if (_solRealtimeUnsub) return; // já está ativo
+
+  _solRealtimeUnsub = FBASE.collection('portal_solicitacoes')
+    .where('status', '==', 'pendente')
+    .onSnapshot(snap => {
+      const docs = snap.docs.map(d => ({ id: d.id, _origem: 'portal', ...d.data() }));
+      const novoCount = docs.length;
+
+      // Detecta se chegou solicitação nova (não estava na lista anterior)
+      const isFirstLoad = _solRealtimeLastKnownIds === null;
+      if (!isFirstLoad && novoCount > (_solRealtimeLastKnownIds?.size || 0)) {
+        const novas = docs.filter(d => !_solRealtimeLastKnownIds.has(d.id));
+        if (novas.length > 0) {
+          // Toast de alerta
+          const nome = novas[0].empNome || novas[0].empId || 'Colaborador';
+          const tipo = { ferias:'Férias', ajuste_ponto:'Ajuste de Ponto', troca_turno:'Troca de Turno', compensacao_bh:'Compensação BH', banco_horas:'Banco de Horas' };
+          const tl = tipo[novas[0].tipo] || novas[0].tipo || 'Solicitação';
+          if (typeof toast === 'function') {
+            toast(`📋 Nova solicitação de ${nome}: ${tl}. Clique em "Solicitações do Portal" para responder.`, 'info', 8000);
+          }
+          // Toca um som suave de notificação (se disponível)
+          try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.3);
+            gain.gain.setValueAtTime(0.15, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+            osc.start(); osc.stop(ctx.currentTime + 0.4);
+          } catch(_) {}
+        }
       }
-      if (badge) {
-        badge.textContent = pendentes;
-        badge.style.display = pendentes > 0 ? 'inline-flex' : 'none';
+
+      _solRealtimeLastKnownIds = new Set(docs.map(d => d.id));
+
+      // Atualiza lista global se a tela de solicitações estiver aberta
+      if (typeof MOD !== 'undefined' && MOD === 'solicitacoes_portal') {
+        // Recarrega a lista completa (inclui aprovadas/recusadas também)
+        _loadSolicRH().then(() => {
+          const c = document.getElementById('content');
+          if (c && MOD === 'solicitacoes_portal') c.innerHTML = _htmlSolicRH();
+          _solAtualizarBadgeNav();
+        });
+      } else {
+        // Apenas atualiza o contador pendente para o badge do nav
+        // Merge parcial: atualiza as solicitações pendentes na lista
+        const porId = {};
+        docs.forEach(d => { porId[d.id] = d; });
+        _SOLIC_LISTA.forEach((s, i) => { if (porId[s.id]) _SOLIC_LISTA[i] = { ..._SOLIC_LISTA[i], ...porId[s.id] }; });
+        // Adiciona novas que ainda não estão na lista
+        docs.forEach(d => { if (!_SOLIC_LISTA.find(s => s.id === d.id)) _SOLIC_LISTA.unshift(d); });
+        window._SOLIC_PENDING_COUNT = novoCount;
+        if (typeof buildNav === 'function') buildNav();
       }
-    }
-  });
+    }, err => {
+      console.warn('[Solic RT]', err);
+    });
 }
 
 // Carrega solicitações na inicialização para mostrar badge imediatamente
 document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => {
     if (typeof FBASE !== 'undefined' && FBASE) {
-      _loadSolicRH().then(() => _solAtualizarBadgeNav());
+      _loadSolicRH().then(() => {
+        _solAtualizarBadgeNav();
+        _solIniciarListenerRealtime();
+      });
     }
   }, 3000); // aguarda Firebase inicializar
 });
+
+// Fallback: se Firebase inicializar depois do DOMContentLoaded
+// (ex: arquivo local file://) aguarda até 30s
+(function _aguardaFirebaseSolic(tentativa) {
+  if (tentativa > 15) return;
+  if (typeof FBASE !== 'undefined' && FBASE && _solRealtimeUnsub === null) {
+    if (_SOLIC_LISTA.length === 0) {
+      _loadSolicRH().then(() => { _solAtualizarBadgeNav(); _solIniciarListenerRealtime(); });
+    } else {
+      _solIniciarListenerRealtime();
+    }
+    return;
+  }
+  setTimeout(() => _aguardaFirebaseSolic(tentativa + 1), 2000);
+})(0);
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  MÓDULO: DASHBOARD DE ABSENTEÍSMO
