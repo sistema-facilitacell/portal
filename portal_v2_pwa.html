@@ -317,6 +317,23 @@ body{background:var(--bg);color:var(--tx);}
 .clock-time{font-size:52px;font-weight:800;letter-spacing:-.03em;color:#93C5FD;}
 .clock-date{font-size:13px;color:rgba(255,255,255,.5);margin-bottom:20px;}
 
+/* Ponto emergência — badges entrada/saída */
+.punch-type{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:12px;border-radius:10px;font-size:13px;font-weight:700;
+  margin-bottom:0;letter-spacing:.3px;
+}
+.punch-in{background:#ECFDF5;color:#065F46;border:1.5px solid #A7F3D0}
+.punch-out{background:#FFF1F2;color:#9F1239;border:1.5px solid #FECDD3}
+.clock-line-mono{font-size:11px;color:rgba(255,255,255,.5);font-family:monospace;margin-bottom:8px;letter-spacing:.04em;}
+
+/* emp-row dentro do clock-hero */
+.clock-emp-row{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px 14px;margin-bottom:14px;}
+.clock-emp-av{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#0B1628,#1e3a5f);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#C9A84C;flex-shrink:0;overflow:hidden;}
+.clock-emp-av img{width:100%;height:100%;object-fit:cover;}
+.clock-emp-name{font-size:14px;font-weight:700;color:#fff;line-height:1.2;}
+.clock-emp-role{font-size:11px;color:rgba(255,255,255,.5);margin-top:2px;}
+
 /* Table */
 .ptable{width:100%;border-collapse:collapse;}
 .ptable th{font-size:11px;font-weight:700;text-transform:uppercase;color:#94A3B8;padding:8px 12px;text-align:left;border-bottom:2px solid #F1F5F9;letter-spacing:.06em;}
@@ -3699,6 +3716,7 @@ function renderPonto() {
 
   return `
   <div class="clock-hero">
+    <div class="clock-line-mono" id="clk-mono">--:--:--</div>
     <div class="clock-time" id="clk">--:--:--</div>
     <div class="clock-date">${now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
     ${(() => {
@@ -3715,15 +3733,27 @@ function renderPonto() {
         else if (diffMin < -1) statusHorario = `<span style="background:rgba(52,211,153,.2);color:#6EE7B7;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700">Adiantado</span>`;
         else statusHorario = `<span style="background:rgba(52,211,153,.2);color:#6EE7B7;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700">No horário ✓</span>`;
       }
-      return `<div style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);padding:6px 16px;border-radius:20px;font-size:12px;color:rgba(255,255,255,.8);margin-bottom:10px;flex-wrap:wrap;justify-content:center">
+      return `<div style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);padding:6px 16px;border-radius:20px;font-size:12px;color:rgba(255,255,255,.8);margin-bottom:12px;flex-wrap:wrap;justify-content:center">
         🕗 Escala prevista: <strong>${horStr}</strong> ${statusHorario}
       </div>`;
     })()}
-    <div style="display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.1);padding:5px 14px;border-radius:20px;font-size:13px;color:#fff;margin-bottom:14px">
-      <div style="width:8px;height:8px;border-radius:50%;background:${TODAY_PUNCHES.length === 0 ? '#94A3B8' : isIn ? '#34D399' : '#F87171'}"></div>
-      ${TODAY_PUNCHES.length === 0 ? 'Sem registros hoje' : isIn ? 'Trabalhando' : 'Fora do trabalho'}
+    ${(() => {
+      if (!EMP) return '';
+      const inicial = EMP.nome ? EMP.nome.trim().charAt(0).toUpperCase() : '?';
+      const foto = EMP.fotoUrl || EMP.photoURL || '';
+      const avatarInner = foto ? `<img src="${foto}" alt="">` : inicial;
+      return `<div class="clock-emp-row">
+        <div class="clock-emp-av">${avatarInner}</div>
+        <div>
+          <div class="clock-emp-name">${EMP.nome || '—'}</div>
+          <div class="clock-emp-role">${EMP.cargo || EMP.setor || '—'}</div>
+        </div>
+      </div>`;
+    })()}
+    <div class="punch-type ${isIn ? 'punch-out' : 'punch-in'}" style="margin-bottom:14px">
+      ${isIn ? '■ REGISTRAR SAÍDA' : '▶ REGISTRAR ENTRADA'}
     </div>
-    <button id="btn-bater-ponto" onclick="abrirBioPonto()" style="margin-top:8px;padding:14px 36px;background:${lastType === 'in' ? 'linear-gradient(135deg,#DC2626,#EF4444)' : 'linear-gradient(135deg,#059669,#10B981)'};color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 4px 16px ${lastType === 'in' ? 'rgba(220,38,38,.4)' : 'rgba(5,150,105,.4)'}">
+    <button id="btn-bater-ponto" onclick="abrirBioPonto()" style="width:100%;padding:14px;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.1px;background:${lastType === 'in' ? 'linear-gradient(135deg,#DC2626,#EF4444)' : 'linear-gradient(135deg,#059669,#10B981)'};color:#fff;box-shadow:0 4px 16px ${lastType === 'in' ? 'rgba(220,38,38,.4)' : 'rgba(5,150,105,.4)'}">
       ${lastType === 'in' ? '■ Registrar Saída' : '▶ Registrar Entrada'}
     </button>
   </div>
@@ -3906,13 +3936,16 @@ function _atualizarFabPonto() {
 
 function startClock() {
   clearInterval(CLK_INTERVAL);
-  CLK_INTERVAL = setInterval(() => {
+  const _tick = () => {
+    const t = new Date().toLocaleTimeString('pt-BR');
     const el = document.getElementById('clk');
     if (!el) { clearInterval(CLK_INTERVAL); return; }
-    el.textContent = new Date().toLocaleTimeString('pt-BR');
-  }, 1000);
-  const el = document.getElementById('clk');
-  if (el) el.textContent = new Date().toLocaleTimeString('pt-BR');
+    el.textContent = t;
+    const mono = document.getElementById('clk-mono');
+    if (mono) mono.textContent = t;
+  };
+  CLK_INTERVAL = setInterval(_tick, 1000);
+  _tick();
 }
 function stopClock() {
   clearInterval(CLK_INTERVAL);
@@ -7101,166 +7134,113 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
-<!-- MODAL BIOMETRIA — Verificação Híbrida: face-api.js 128d + Claude Vision (árbitro) -->
-<div id="bio-ponto-modal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.92);align-items:center;justify-content:center;flex-direction:column">
-  <div style="background:#0F172A;border-radius:24px;padding:28px 20px;max-width:360px;width:94%;text-align:center;border:1px solid rgba(255,255,255,.1)">
-    <div style="font-size:17px;font-weight:800;color:#fff;margin-bottom:4px">📸 Verificação Facial</div>
-    <div style="font-size:12px;color:#94A3B8;margin-bottom:10px">Verificação de presença + identidade</div>
+<!-- MODAL BIOMETRIA v3 — Ultra-rápido: Groq Vision Direto + face-api fallback -->
+<div id="bio-ponto-modal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(8,12,22,.92);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);align-items:center;justify-content:center;flex-direction:column">
+  <style>
+    @keyframes bioHeadTurn{0%,100%{transform:rotateY(0) translateX(0)}25%{transform:translateX(-3px) rotate(-7deg)}75%{transform:translateX(3px) rotate(7deg)}}
+    #bio-liveness-head{animation:bioHeadTurn 2.4s ease-in-out infinite}
+  </style>
+  <div style="position:relative;background:linear-gradient(180deg,#101a2e 0%,#0B1426 100%);border-radius:22px;padding:0;max-width:354px;width:93%;text-align:center;border:1px solid rgba(148,163,184,.14);box-shadow:0 28px 70px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.05);overflow:hidden">
 
-    <!-- Indicador de etapa única -->
-    <div id="bio-steps" style="display:flex;justify-content:center;align-items:flex-start;gap:8px;margin-bottom:16px">
-      <div id="bio-step-1" style="display:none"></div>
-      <div id="bio-step-line-1" style="display:none"></div>
-      <div id="bio-step-2" style="display:flex;flex-direction:column;align-items:center;gap:4px;opacity:1">
-        <div id="bio-step-2-label" style="font-size:11px;color:#94A3B8;font-weight:700;text-transform:uppercase;letter-spacing:.12em;animation:pulse 1.8s ease-in-out infinite">📷 ANALISANDO ROSTO...</div>
+    <!-- Faixa de marca -->
+    <div style="height:3px;width:100%;background:linear-gradient(90deg,#C9A84C,#E85D04,#C9A84C)"></div>
+
+    <!-- Header -->
+    <div style="padding:20px 22px 0">
+      <div style="display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:3px">
+        <div style="width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#C9A84C,#E85D04);display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 2px 8px rgba(232,93,4,.35)">🛡️</div>
+        <div style="font-size:17px;font-weight:800;color:#F8FAFC;letter-spacing:.01em">Registro de Ponto</div>
       </div>
+      <div id="bio-subtitle" style="font-size:10.5px;color:#64748B;margin-bottom:16px;letter-spacing:.1em;text-transform:uppercase;font-weight:600">Verificação biométrica</div>
     </div>
 
-    <!-- Círculo da câmera com anel de progresso animado -->
-    <div style="position:relative;width:240px;height:240px;margin:0 auto 14px">
-      <svg id="bio-ring-svg" viewBox="0 0 240 240" style="position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)">
-        <circle cx="120" cy="120" r="116" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="5"/>
-        <circle id="bio-ring-progress" cx="120" cy="120" r="116" fill="none" stroke="#3B82F6" stroke-width="5"
-          stroke-dasharray="729" stroke-dashoffset="729"
-          style="transition:stroke-dashoffset .3s ease,stroke .3s ease"/>
+    <!-- Câmera circular com anel de progresso -->
+    <div style="position:relative;width:218px;height:218px;margin:0 auto 14px">
+      <svg id="bio-ring-svg" viewBox="0 0 220 220" style="position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)">
+        <circle cx="110" cy="110" r="105" fill="none" stroke="rgba(148,163,184,.12)" stroke-width="5"/>
+        <circle id="bio-ring-progress" cx="110" cy="110" r="105" fill="none" stroke="#3B82F6" stroke-width="6"
+          stroke-linecap="round"
+          stroke-dasharray="659.7" stroke-dashoffset="659.7"
+          style="transition:stroke-dashoffset .25s ease,stroke .25s ease;filter:drop-shadow(0 0 5px currentColor)"/>
       </svg>
       <!-- Vídeo circular -->
-      <div style="position:absolute;inset:6px;border-radius:50%;overflow:hidden">
-        <video id="bio-video" autoplay muted playsinline webkit-playsinline x5-playsinline style="width:100%;height:100%;object-fit:cover;transform:scaleX(-1)"></video>
-        <canvas id="bio-canvas" style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;inset:0"></canvas>
+      <div style="position:absolute;inset:9px;border-radius:50%;overflow:hidden;background:#000;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)">
+        <video id="bio-video" autoplay muted playsinline webkit-playsinline
+          style="width:100%;height:100%;object-fit:cover;transform:scaleX(-1)"></video>
+        <!-- vinheta sutil -->
+        <div style="position:absolute;inset:0;border-radius:50%;box-shadow:inset 0 0 28px rgba(0,0,0,.45);pointer-events:none"></div>
       </div>
-      <!-- Ícone de estado centralizado -->
-      <div id="bio-ring-icon" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;font-size:64px">✅</div>
-      <!-- Overlay instrução de movimento -->
-      <div id="bio-blink-overlay" style="display:none;position:absolute;inset:6px;border-radius:50%;background:rgba(0,0,0,.6);align-items:center;justify-content:center;flex-direction:column;gap:6px">
-        <div style="font-size:36px">🙆</div>
-        <div style="font-size:12px;color:#fff;font-weight:700;text-align:center;line-height:1.4;padding:0 12px">Vire a cabeça<br>levemente</div>
-        <div style="width:80px;height:5px;background:rgba(255,255,255,.15);border-radius:3px;margin-top:4px">
-          <div id="bio-blink-bar" style="height:100%;width:0%;background:#10B981;border-radius:3px;transition:width .15s"></div>
+      <!-- Ícone resultado -->
+      <div id="bio-ring-icon" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;font-size:56px;border-radius:50%">✅</div>
+      <!-- Overlay liveness (prova de vida) — profissional, sem emoji -->
+      <div id="bio-move-overlay" style="display:none;position:absolute;inset:9px;border-radius:50%;background:radial-gradient(circle at 50% 38%,rgba(10,16,28,.55),rgba(8,12,22,.9));backdrop-filter:blur(1.5px);-webkit-backdrop-filter:blur(1.5px);align-items:center;justify-content:center;flex-direction:column;gap:9px;pointer-events:none">
+        <svg id="bio-move-emoji" width="46" height="46" viewBox="0 0 64 64" fill="none" style="overflow:visible">
+          <!-- silhueta de rosto -->
+          <g id="bio-liveness-head" style="transform-origin:32px 34px">
+            <ellipse cx="32" cy="32" rx="15" ry="19" stroke="#E2E8F0" stroke-width="2.4" fill="none"/>
+            <circle cx="26" cy="29" r="1.9" fill="#E2E8F0"/>
+            <circle cx="38" cy="29" r="1.9" fill="#E2E8F0"/>
+            <path d="M27 39 Q32 42 37 39" stroke="#E2E8F0" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+          </g>
+          <!-- setas de varredura -->
+          <path d="M11 32 q-3 0 -3 0" stroke="#34D399" stroke-width="2.6" stroke-linecap="round"/>
+          <path d="M9 27 L4 32 L9 37" stroke="#34D399" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity=".9"/>
+          <path d="M55 27 L60 32 L55 37" stroke="#34D399" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity=".9"/>
+        </svg>
+        <div id="bio-move-text" style="font-size:11px;color:#F1F5F9;font-weight:700;text-align:center;line-height:1.45;padding:0 16px;letter-spacing:.02em">Prova de vida<br><span style="font-size:10px;font-weight:500;color:#94A3B8">vire o rosto lentamente</span></div>
+        <div style="width:82px;height:3px;background:rgba(255,255,255,.14);border-radius:3px;overflow:hidden">
+          <div id="bio-move-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#10B981,#34D399);border-radius:3px;transition:width .12s ease;box-shadow:0 0 6px rgba(52,211,153,.6)"></div>
         </div>
       </div>
     </div>
 
-    <div id="bio-status" style="font-size:13px;color:#94A3B8;margin-bottom:14px;min-height:40px;line-height:1.5">Iniciando câmera...</div>
+    <div style="padding:0 22px 20px">
+      <!-- Status -->
+      <div id="bio-status" style="font-size:13px;color:#94A3B8;min-height:42px;line-height:1.55;margin-bottom:10px">Iniciando câmera...</div>
 
-    <button onclick="bioFecharModal()" style="width:100%;padding:11px;background:rgba(255,255,255,.06);color:#94A3B8;border:1px solid rgba(255,255,255,.1);border-radius:10px;font-size:13px;cursor:pointer">✕ Cancelar</button>
+      <!-- Indicador de método ativo -->
+      <div id="bio-method-tag" style="display:none;font-size:10px;color:#64748B;margin-bottom:12px;font-family:monospace;letter-spacing:.05em"></div>
+
+      <!-- Selo de segurança -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:14px;font-size:10px;color:#475569;letter-spacing:.03em">
+        <span style="width:6px;height:6px;border-radius:50%;background:#10B981;box-shadow:0 0 6px #10B981"></span>
+        Conexão segura · Dados criptografados
+      </div>
+
+      <button onclick="bioFecharModal()" style="width:100%;padding:12px;background:rgba(255,255,255,.04);color:#94A3B8;border:1px solid rgba(148,163,184,.16);border-radius:11px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s" onmouseover="this.style.background='rgba(255,255,255,.09)';this.style.color='#CBD5E1'" onmouseout="this.style.background='rgba(255,255,255,.04)';this.style.color='#94A3B8'">Cancelar</button>
+    </div>
+
+    <!-- Overlay de resultado (mensagem grande aprovado/reprovado) -->
+    <div id="bio-resultado-overlay" style="display:none;position:absolute;inset:0;border-radius:22px;align-items:center;justify-content:center;flex-direction:column;z-index:20;text-align:center;padding:20px">
+      <div id="bio-resultado-icone" style="font-size:74px;line-height:1;margin-bottom:8px"></div>
+      <div id="bio-resultado-titulo" style="font-size:32px;font-weight:900;color:#fff;letter-spacing:.02em;line-height:1.15;text-shadow:0 2px 10px rgba(0,0,0,.35)"></div>
+      <div id="bio-resultado-sub" style="font-size:13px;font-weight:700;color:rgba(255,255,255,.92);margin-top:12px;line-height:1.5"></div>
+    </div>
   </div>
 </div>
 
 <script>
 // ══════════════════════════════════════════════════════════════════════════════
-// BIOMETRIA — SISTEMA HÍBRIDO PERFEITO: face-api.js 128d + Claude Vision
+// BIOMETRIA v3 — ULTRA-RÁPIDO
 // ──────────────────────────────────────────────────────────────────────────────
-// FLUXO:
-//   1. face-api detecta rosto e gera distância euclidiana (0 = idêntico)
-//   2. dist ≤ 0.50 → APROVADO direto (face-api confiante)
-//   3. dist entre 0.50 e 0.80 → Claude Vision arbitra (zona cinza)
-//   4. dist > 0.80 → NEGADO direto (muito diferente)
-//   5. Após 8s sem aprovação direta → Claude analisa melhor frame capturado
-// ──────────────────────────────────────────────────────────────────────────────
-
-// raw.githubusercontent.com tem CORS wildcard (*) — funciona de file:// e HTTPS
-// cdn.jsdelivr.net gera erro 404 de hts_manifest.json ao servir pesos — removido
-// unpkg.com rejeita origin 'null' (file://) com erro CORS
-const _isFileProto = (window.location.protocol === 'file:');
-const FACEAPI_CDN_OPTIONS = _isFileProto
-  ? [
-      // file:// → só raw.github (CORS wildcard); unpkg/jsdelivr bloqueiam origin null
-      'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/0.22.2/weights',
-    ]
-  : [
-      // HTTPS → unpkg primeiro (sem hts_manifest 404), raw como fallback
-      'https://unpkg.com/face-api.js@0.22.2/weights',
-      'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/0.22.2/weights',
-    ];
-
-// ── Thresholds calibrados ──────────────────────────────────────────────────────
-let MATCH_THRESHOLD   = 0.60; // face-api: configurável via Firestore (hr/config → bioThreshold)
-const CLAUDE_ZONA_INICIO = 0.60; // abaixo = aprovação direta pelo face-api (aumentado 0.52→0.60: condições reais de iluminação)
-const CLAUDE_ZONA_FIM    = 0.72; // acima  = negação direta pelo face-api (aumentado 0.68→0.72)
-const CLAUDE_APOS_MS     = 4000; // após Xs sem aprovação direta → Claude assume
+// ARQUITETURA:
+//   1. Câmera abre IMEDIATAMENTE
+//   2. Groq Vision analisa em 1-2s (sem esperar face-api carregar)
+//   3. face-api carrega em background; assume se Groq falhar
+//   4. Liveness: movimento de cabeça detectado por face-api landmarks
+//      (mais robusto que EAR blink em condições de baixa luz)
+//   5. Decisão em <3s na maioria dos casos
+// ══════════════════════════════════════════════════════════════════════════════
 
 // ── Chave Groq ────────────────────────────────────────────────────────────────
 const GROQ_API_KEY = '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';
 
-// ── Helpers de imagem ─────────────────────────────────────────────────────────
-function _canvasParaBase64(canvas) {
-  // Captura frame em alta qualidade para o Claude
-  const tmp = document.createElement('canvas');
-  tmp.width  = 480; tmp.height = 360;
-  tmp.getContext('2d').drawImage(canvas, 0, 0, 480, 360);
-  return tmp.toDataURL('image/jpeg', 0.92).split(',')[1];
-}
-
-function _dataUrlParaBase64(dataUrl) {
-  if (!dataUrl) return null;
-  // data URL direto (base64 embutido)
-  if (dataUrl.includes(',')) return dataUrl.split(',')[1];
-  return null; // URL HTTP: usar _dataUrlParaBase64Async
-}
-
-// Versão async: faz fetch de URLs HTTP e converte para base64
-async function _dataUrlParaBase64Async(dataUrl) {
-  if (!dataUrl) return null;
-  // já é data URL
-  if (dataUrl.includes(',')) return dataUrl.split(',')[1];
-  // é URL HTTP — faz fetch e converte
-  try {
-    const resp = await fetch(dataUrl);
-    if (!resp.ok) return null;
-    const blob = await resp.blob();
-    return await new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload  = () => res(r.result.split(',')[1]);
-      r.onerror = () => rej(new Error('fetch-to-b64 failed'));
-      r.readAsDataURL(blob);
-    });
-  } catch(e) {
-    console.warn('[_dataUrlParaBase64Async] Erro ao buscar foto:', e.message);
-    return null;
-  }
-}
-
-// ── Groq Vision ───────────────────────────────────────────────────────────────
-// Envia frame da câmera + foto cadastrada → Groq (Llama 4 Scout) decide SIM/NAO
-// Retorna: 'APROVADO' | 'NEGADO' | 'ERRO'
-async function claudeVision(frameCanvas, fotoCadastradaDataUrl) {
-  try {
-    const frameB64 = _canvasParaBase64(frameCanvas);
-    // FIX: suporta tanto data:image (base64) quanto URLs HTTP do Firebase/Cloudinary
-    const fotoB64  = await _dataUrlParaBase64Async(fotoCadastradaDataUrl);
-    if (!frameB64 || !fotoB64) { console.warn('[Groq Vision] fotoB64 nulo — fotoPerfil pode estar ausente ou inacessível'); return 'ERRO'; }
-
-    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${GROQ_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-        max_tokens: 20,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${fotoB64}` } },
-            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${frameB64}` } },
-            { type: 'text', text: 'Primeira imagem: foto de cadastro de um colaborador. Segunda imagem: frame da câmera ao vivo agora. A pessoa pode ter barba maior ou menor, óculos, iluminação diferente ou ângulo levemente diferente do que no cadastro. Foque na estrutura óssea: distância entre os olhos, formato do nariz, formato da boca e contorno do rosto. Desconsidere diferenças de barba, cabelo ou iluminação. São provavelmente a mesma pessoa? Responda SOMENTE: SIM ou NAO' }
-          ]
-        }]
-      })
-    });
-
-    if (!resp.ok) { console.warn('[Groq Vision] HTTP', resp.status, await resp.text()); return 'ERRO'; }
-    const data  = await resp.json();
-    const texto = (data.choices?.[0]?.message?.content || '').trim().toUpperCase();
-    console.log('[Groq Vision] Resposta:', texto);
-    return texto.startsWith('SIM') ? 'APROVADO' : 'NEGADO';
-  } catch(e) {
-    console.warn('[Groq Vision] Erro:', e.message);
-    return 'ERRO';
-  }
-}
+// ── CDNs face-api ─────────────────────────────────────────────────────────────
+const _isFileProto = (window.location.protocol === 'file:');
+const FACEAPI_CDN_OPTIONS = _isFileProto
+  ? ['https://raw.githubusercontent.com/justadudewhohacks/face-api.js/0.22.2/weights']
+  : ['https://unpkg.com/face-api.js@0.22.2/weights',
+     'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/0.22.2/weights'];
 
 // ── Estado global ─────────────────────────────────────────────────────────────
 let BIO_STREAM       = null;
@@ -7269,140 +7249,335 @@ let FACEAPI_READY    = false;
 let BIO_AUTO_LOOP    = null;
 let BIO_REGISTRANDO  = false;
 let BIO_MODAL_ABERTO = false;
+let BIO_BLINK_OK     = false; // mantido por compatibilidade com código externo
 let BIO_ETAPA        = 0;
-let BIO_BLINK_OK     = false;
 
+// ── Liveness: detecção de movimento de cabeça ─────────────────────────────────
+// Mais robusto que EAR blink — funciona mesmo com olhos semicerrados/óculos
+let _liveNoseRef    = null;   // posição do nariz em repouso
+let _liveMovOk      = false;  // movimento detectado
+let _liveStartTs    = 0;
+let _liveFrames     = 0;
+const LIVE_MOV_THRESHOLD = 0.010; // desvio relativo ao tamanho do rosto (mais sensível = mais rápido)
+const LIVE_TIMEOUT_MS    = 4000;  // tempo máximo aguardando movimento antes de liberar
 
-// ── EAR (Eye Aspect Ratio) — liveness básico ──────────────────────────────────
-const BLINK_EAR_THRESHOLD = 0.21;
-const BLINK_FRAMES_CLOSED = 2;
-const BLINK_FRAMES_OPEN   = 2;
-const BLINK_TIMEOUT_MS    = 7000; // tempo de referência para a barra visual do overlay de blink
-
-function _earDist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
-function _earSide(pts, idx) {
-  const p = idx.map(i => pts[i]);
-  const v = _earDist(p[1], p[5]) + _earDist(p[2], p[4]);
-  const h = _earDist(p[0], p[3]);
-  return h < 0.001 ? 1 : v / (2 * h);
-}
-function calcEAR(landmarks) {
-  const pts = landmarks.positions;
-  return (_earSide(pts, [36,37,38,39,40,41]) + _earSide(pts, [42,43,44,45,46,47])) / 2;
+function _liveReset() {
+  _liveNoseRef = null;
+  _liveMovOk   = false;
+  _liveStartTs = Date.now();
+  _liveFrames  = 0;
 }
 
-// ── Máquina de estados do blink (liveness) ────────────────────────────────────
-// Detecta um ciclo completo: olhos abertos → fechados (≥N frames) → abertos (≥N frames).
-// Isso garante que é uma pessoa real na câmera, não uma foto estática.
-let _blinkState        = 'aberto'; // 'aberto' | 'fechado'
-let _blinkFramesClosed = 0;
-let _blinkFramesOpen   = 0;
-let _blinkStartTs      = 0;
+function _liveProcessFrame(landmarks) {
+  if (_liveMovOk || !landmarks) return;
+  const pts   = landmarks.positions;
+  const nose  = pts[30]; // ponto central do nariz (landmark 30)
+  const eyeL  = pts[36]; // canto esquerdo olho
+  const eyeR  = pts[45]; // canto direito olho
+  const faceW = Math.hypot(eyeR.x - eyeL.x, eyeR.y - eyeL.y); // largura de referência
+  if (faceW < 10) return;
 
-function _blinkReset() {
-  BIO_BLINK_OK       = false;
-  _blinkState        = 'aberto';
-  _blinkFramesClosed = 0;
-  _blinkFramesOpen   = 0;
-  _blinkStartTs      = Date.now();
-}
+  _liveFrames++;
+  if (_liveFrames < 2) { _liveNoseRef = { x: nose.x, y: nose.y, fW: faceW }; return; }
 
-// Processa o EAR do frame atual e atualiza BIO_BLINK_OK quando um blink completo ocorrer.
-function processarBlinkFrame(landmarks) {
-  if (BIO_BLINK_OK || !landmarks) return null;
-  const ear = calcEAR(landmarks);
+  if (!_liveNoseRef) { _liveNoseRef = { x: nose.x, y: nose.y, fW: faceW }; return; }
 
-  if (_blinkState === 'aberto') {
-    if (ear < BLINK_EAR_THRESHOLD) {
-      _blinkFramesClosed++;
-      if (_blinkFramesClosed >= BLINK_FRAMES_CLOSED) {
-        _blinkState = 'fechado';
-        _blinkFramesOpen = 0;
-      }
-    } else {
-      _blinkFramesClosed = 0;
-    }
-  } else { // 'fechado' — aguardando reabertura para concluir o ciclo
-    if (ear >= BLINK_EAR_THRESHOLD) {
-      _blinkFramesOpen++;
-      if (_blinkFramesOpen >= BLINK_FRAMES_OPEN) {
-        BIO_BLINK_OK = true; // ciclo completo: piscou de verdade
-      }
-    } else {
-      _blinkFramesOpen = 0;
-    }
+  const dx = Math.abs(nose.x - _liveNoseRef.x) / faceW;
+  const dy = Math.abs(nose.y - _liveNoseRef.y) / faceW;
+  const mov = Math.max(dx, dy);
+
+  if (mov > LIVE_MOV_THRESHOLD) {
+    _liveMovOk = true;
+    BIO_BLINK_OK = true; // sync external flag
+    bioShowMove(false);
   }
-  return ear;
 }
 
-// ── UI helpers ────────────────────────────────────────────────────────────────
+// ── Helpers visuais ───────────────────────────────────────────────────────────
+const _bioCirc = 2 * Math.PI * 105; // ≈ 659.7
+
 function bioSetRing(progress, color) {
-  const circ = 2 * Math.PI * 116;
   const ring = document.getElementById('bio-ring-progress');
   if (!ring) return;
-  ring.style.strokeDashoffset = circ * (1 - progress);
-  ring.style.stroke = color;
+  ring.style.strokeDashoffset = _bioCirc * (1 - Math.min(1, Math.max(0, progress)));
+  if (color) ring.style.stroke = color;
 }
-function bioSetStep(etapa) {
-  if (etapa > 1) { const l = document.getElementById('bio-step-line-1'); if (l) l.style.width = '100%'; }
-}
-function bioShowBlink(show) {
-  const o = document.getElementById('bio-blink-overlay');
+
+function bioShowMove(show) {
+  const o = document.getElementById('bio-move-overlay');
   if (o) o.style.display = show ? 'flex' : 'none';
 }
-function bioBlinkBar(pct) {
-  const b = document.getElementById('bio-blink-bar');
+
+function bioMoveBar(pct) {
+  const b = document.getElementById('bio-move-bar');
   if (b) b.style.width = Math.round(Math.min(1, pct) * 100) + '%';
 }
 
-// ── Carregamento dos modelos face-api ─────────────────────────────────────────
-async function _loadNetWithFallback(net, cdns) {
-  const tentativas = cdns.map(cdn =>
-    new Promise((resolve, reject) => {
-      const t = setTimeout(() => reject(new Error('timeout')), 8000);
-      net.loadFromUri(cdn).then(() => { clearTimeout(t); resolve(); }).catch(e => { clearTimeout(t); reject(e); });
-    })
-  );
-  try { await Promise.any(tentativas); }
-  catch(_) {
-    for (const cdn of cdns) {
-      try { await net.loadFromUri(cdn); return; } catch(e) {}
-    }
-    throw new Error('Todos os CDNs falharam');
-  }
+function bioSetSubtitle(txt) {
+  const s = document.getElementById('bio-subtitle');
+  if (s) s.textContent = txt;
 }
 
-async function initFaceAPI(statusEl) {
-  if (FACEAPI_READY) return;
-  if (statusEl) statusEl.textContent = '⏳ Carregando modelos de IA...';
+function bioSetMethod(txt) {
+  const m = document.getElementById('bio-method-tag');
+  if (!m) return;
+  if (txt) { m.style.display = 'block'; m.textContent = txt; } else { m.style.display = 'none'; }
+}
+
+// ── Mensagem grande de resultado (PONTO APROVADO / PONTO REPROVADO - REFAÇA) ──
+function bioMostrarResultado(sucesso, sub) {
+  const ov = document.getElementById('bio-resultado-overlay');
+  if (!ov) return;
+  // Reconstrói a estrutura interna (o comprovante pode tê-la substituído)
+  ov.style.padding = '20px';
+  ov.innerHTML = `
+    <div id="bio-resultado-icone" style="font-size:74px;line-height:1;margin-bottom:8px"></div>
+    <div id="bio-resultado-titulo" style="font-size:32px;font-weight:900;color:#fff;letter-spacing:.02em;line-height:1.15;text-shadow:0 2px 10px rgba(0,0,0,.35)"></div>
+    <div id="bio-resultado-sub" style="font-size:13px;font-weight:700;color:rgba(255,255,255,.92);margin-top:12px;line-height:1.5"></div>`;
+  const ic    = document.getElementById('bio-resultado-icone');
+  const tit   = document.getElementById('bio-resultado-titulo');
+  const subEl = document.getElementById('bio-resultado-sub');
+  ov.style.background = sucesso
+    ? 'linear-gradient(160deg,#059669,#047857)'
+    : 'linear-gradient(160deg,#DC2626,#B91C1C)';
+  ic.textContent = sucesso ? '✅' : '❌';
+  tit.innerHTML  = sucesso ? 'PONTO<br>APROVADO' : 'PONTO<br>REPROVADO';
+  subEl.innerHTML = sucesso
+    ? (sub || '')
+    : `<span style="display:inline-block;margin-top:2px;font-size:19px;font-weight:900;letter-spacing:.14em;color:#FEF08A">REFAÇA</span>${sub ? '<br><span style="font-weight:600;font-size:12px">' + sub + '</span>' : ''}`;
+  ov.style.display = 'flex';
+}
+function bioEsconderResultado() {
+  const ov = document.getElementById('bio-resultado-overlay');
+  if (ov) {
+    ov.style.display = 'none';
+    ov.style.padding = '20px';
+    ov.style.background = '';
+    ov.style.overflowY = 'visible';
+    // Restaura o posicionamento original (absolute dentro do card)
+    ov.style.position = 'absolute';
+    ov.style.inset = '0';
+    ov.style.zIndex = '20';
+  }
+  if (window._comprovanteAutoClose) { clearTimeout(window._comprovanteAutoClose); window._comprovanteAutoClose = null; }
+}
+
+// ── Envio do comprovante via WhatsApp (wa.me — sem custo, sem API) ────────────
+// Monta o texto do comprovante e abre o WhatsApp já apontando para o número do
+// colaborador cadastrado. O colaborador apenas confirma o envio.
+function _normalizarTelBR(raw) {
+  let n = String(raw || '').replace(/\D/g, '');
+  if (!n) return '';
+  // Remove zeros à esquerda e DDI duplicado
+  n = n.replace(/^0+/, '');
+  if (n.startsWith('55') && n.length >= 12) return n;      // já tem DDI
+  if (n.length === 10 || n.length === 11) return '55' + n; // DDD + número
+  return n.length >= 12 ? n : '55' + n;
+}
+
+function bioEnviarComprovanteWhats(dados) {
+  // Cancela o fechamento automático: o colaborador está concluindo uma ação
+  if (window._comprovanteAutoClose) { clearTimeout(window._comprovanteAutoClose); window._comprovanteAutoClose = null; }
+
+  const { tipo, rotulo, timeStr, nsr, nome, metodo, geo, geoOk, dataExt } = dados;
+  const linhas = [
+    '*ATLAS RH*',
+    'Comprovante de Registro de Ponto',
+    '────────────────────',
+    '',
+    `*${(rotulo || tipo || '').toUpperCase()}*`,
+    `Horário:  *${timeStr}*`,
+    `Data:  ${dataExt}`,
+    '',
+    `Colaborador:  ${nome || '—'}`,
+    `Tipo:  ${tipo}`,
+    `Verificação:  ${metodo || 'Reconhecimento facial'}`,
+    geo ? `Local:  ${geo}` : null,
+    '',
+    `Comprovante (NSR):  *${nsr || '—'}*`,
+    '────────────────────',
+    '_Registro eletrônico de jornada conforme_',
+    '_Portaria MTE nº 671/2021. Documento gerado_',
+    '_automaticamente pelo sistema Atlas RH._'
+  ].filter(l => l !== null);
+  const texto = encodeURIComponent(linhas.join('\n'));
+
+  const tel = _normalizarTelBR(EMP && EMP.telefone);
+  const url = tel
+    ? `https://wa.me/${tel}?text=${texto}`
+    : `https://wa.me/?text=${texto}`; // sem telefone cadastrado → colaborador escolhe o contato
+
+  if (!tel) toast('Telefone não cadastrado — escolha o contato no WhatsApp.', 'info', 4000);
+  window.open(url, '_blank');
+}
+
+
+// ── COMPROVANTE DE REGISTRO (padrão RH corporativo / Portaria MTE 671) ────────
+function bioMostrarComprovante({ tipo, rotulo, timeStr, nsr, nome, metodo, geo, geoOk }) {
+  const ov = document.getElementById('bio-resultado-overlay');
+  if (!ov) { bioMostrarResultado(true, `${tipo} registrada às ${timeStr}`); return; }
+  const ehEntrada = tipo === 'Entrada';
+  const corTopo = ehEntrada
+    ? 'linear-gradient(160deg,#047857,#065F46)'
+    : 'linear-gradient(160deg,#B91C1C,#7F1D1D)';
+  const dataExt = new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'long', year:'numeric' });
+  // Guarda os dados para o botão "Enviar no WhatsApp"
+  window._ultimoComprovante = { tipo, rotulo, timeStr, nsr, nome, metodo, geo, geoOk, dataExt };
+  const temTel = !!_normalizarTelBR(EMP && EMP.telefone);
+  // Quebra o overlay para tela cheia (não fica preso à altura do card da câmera)
+  ov.style.position = 'fixed';
+  ov.style.inset = '0';
+  ov.style.background = 'rgba(8,12,22,.92)';
+  ov.style.padding = '0';
+  ov.style.overflowY = 'auto';
+  ov.style.zIndex = '100000';
+  ov.innerHTML = `
+    <div style="width:100%;min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 20px;box-sizing:border-box">
+      <div style="position:relative;width:100%;max-width:300px;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.5)">
+        <!-- Botão fechar (X) -->
+        <button onclick="bioFecharModal()" aria-label="Fechar"
+          style="position:absolute;top:10px;right:10px;z-index:3;width:30px;height:30px;border:none;border-radius:50%;background:rgba(255,255,255,.22);color:#fff;font-size:18px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">&times;</button>
+        <div style="background:${corTopo};padding:18px 20px;text-align:center;color:#fff">
+          <div style="font-size:40px;line-height:1;margin-bottom:6px">✓</div>
+          <div style="font-size:15px;font-weight:800;letter-spacing:.02em">PONTO REGISTRADO</div>
+          <div style="font-size:11px;opacity:.85;margin-top:2px;text-transform:uppercase;letter-spacing:.08em">${rotulo || tipo}</div>
+        </div>
+        <div style="padding:16px 18px;text-align:left">
+          <div style="text-align:center;margin-bottom:14px">
+            <div style="font-size:38px;font-weight:900;color:#0F172A;letter-spacing:-.02em;font-variant-numeric:tabular-nums">${timeStr}</div>
+            <div style="font-size:11px;color:#64748B;text-transform:capitalize;margin-top:1px">${dataExt}</div>
+          </div>
+          ${[
+            ['Colaborador', nome || '—'],
+            ['Registro', tipo],
+            ['Verificação', metodo || 'Biometria facial'],
+            geo ? ['Localização', (geoOk ? '📍 ' : '') + geo] : null
+          ].filter(Boolean).map(([k, v]) => `
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #F1F5F9">
+              <span style="font-size:11px;color:#94A3B8;font-weight:600;text-transform:uppercase;letter-spacing:.04em">${k}</span>
+              <span style="font-size:12px;color:#1E293B;font-weight:700;text-align:right;max-width:62%">${v}</span>
+            </div>`).join('')}
+          <div style="margin-top:12px;padding:9px 11px;background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:9px;text-align:center">
+            <div style="font-size:9px;color:#94A3B8;font-weight:700;text-transform:uppercase;letter-spacing:.1em">NSR — Comprovante</div>
+            <div style="font-size:13px;color:#334155;font-weight:800;font-family:monospace;letter-spacing:.05em;margin-top:1px">${nsr || '—'}</div>
+          </div>
+
+          <button onclick="bioEnviarComprovanteWhats(window._ultimoComprovante)"
+            style="width:100%;margin-top:14px;padding:12px;border:none;border-radius:11px;background:#25D366;color:#fff;font-size:13.5px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 14px rgba(37,211,102,.35)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2zm0 18.15c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.2 8.2 0 0 1-1.26-4.38c0-4.54 3.7-8.23 8.24-8.23 4.54 0 8.23 3.69 8.23 8.23 0 4.54-3.69 8.24-8.16 8.24zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.13-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.41-.42-.56-.43h-.48c-.17 0-.43.06-.66.31-.22.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.1-.22-.16-.47-.28z"/></svg>
+            Enviar no WhatsApp
+          </button>
+          ${temTel ? '' : '<div style="margin-top:6px;font-size:10px;color:#94A3B8;text-align:center">Telefone não cadastrado — você escolhe o contato</div>'}
+
+          <button onclick="bioFecharModal()"
+            style="width:100%;margin-top:8px;padding:11px;border:1px solid #E2E8F0;border-radius:11px;background:#fff;color:#64748B;font-size:13px;font-weight:700;cursor:pointer">
+            Fechar
+          </button>
+
+          <div style="margin-top:10px;font-size:9px;color:#CBD5E1;text-align:center;line-height:1.4">Atlas RH · Registro eletrônico de jornada<br>Portaria MTE nº 671/2021</div>
+        </div>
+      </div>
+    </div>`;
+  ov.style.display = 'flex';
+}
+
+// ── Carregamento dos modelos face-api (background) ────────────────────────────
+async function _loadNetWithFallback(net, cdns) {
+  for (const cdn of cdns) {
+    try {
+      await Promise.race([
+        net.loadFromUri(cdn),
+        new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 10000))
+      ]);
+      return;
+    } catch(e) {}
+  }
+  throw new Error('face-api CDN indisponível');
+}
+
+async function initFaceAPI() {
+  if (FACEAPI_READY || typeof faceapi === 'undefined') return;
   await Promise.all([
     _loadNetWithFallback(faceapi.nets.ssdMobilenetv1,     FACEAPI_CDN_OPTIONS),
     _loadNetWithFallback(faceapi.nets.faceLandmark68Net,  FACEAPI_CDN_OPTIONS),
     _loadNetWithFallback(faceapi.nets.faceRecognitionNet, FACEAPI_CDN_OPTIONS),
   ]);
   FACEAPI_READY = true;
-  if (statusEl) statusEl.textContent = '✅ Modelos prontos';
 }
 
-// ── Extrai descriptor 128d de uma imagem base64 ───────────────────────────────
+// ── Groq Vision — comparação direta foto cadastro × frame câmera ──────────────
+async function groqComparar(frameCanvas, fotoCadastradaUrl) {
+  try {
+    // Frame canvas → base64
+    const tmp = document.createElement('canvas');
+    tmp.width = 480; tmp.height = 360;
+    tmp.getContext('2d').drawImage(frameCanvas, 0, 0, 480, 360);
+    const frameB64 = tmp.toDataURL('image/jpeg', 0.90).split(',')[1];
+
+    // Foto cadastrada → base64 (suporta data: e URLs HTTP)
+    let fotoB64 = null;
+    if (!fotoCadastradaUrl) return 'ERRO';
+    if (fotoCadastradaUrl.includes(',')) {
+      fotoB64 = fotoCadastradaUrl.split(',')[1];
+    } else {
+      try {
+        const r = await fetch(fotoCadastradaUrl);
+        if (!r.ok) return 'ERRO';
+        const blob = await r.blob();
+        fotoB64 = await new Promise((res, rej) => {
+          const fr = new FileReader();
+          fr.onload  = () => res(fr.result.split(',')[1]);
+          fr.onerror = () => rej(new Error('blob read fail'));
+          fr.readAsDataURL(blob);
+        });
+      } catch(e) { return 'ERRO'; }
+    }
+    if (!fotoB64) return 'ERRO';
+
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
+      body: JSON.stringify({
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        max_tokens: 10,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${fotoB64}` } },
+            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${frameB64}` } },
+            { type: 'text', text: 'Imagem 1: foto de cadastro do colaborador. Imagem 2: câmera ao vivo agora. Foque na estrutura óssea (olhos, nariz, boca, contorno). Ignore barba, cabelo, óculos, iluminação. São a mesma pessoa? Responda APENAS: SIM ou NAO' }
+          ]
+        }]
+      })
+    });
+
+    if (!resp.ok) return 'ERRO';
+    const data = await resp.json();
+    const txt = (data.choices?.[0]?.message?.content || '').trim().toUpperCase();
+    return txt.startsWith('SIM') ? 'APROVADO' : 'NEGADO';
+  } catch(e) {
+    console.warn('[Groq] Erro:', e.message);
+    return 'ERRO';
+  }
+}
+
+// ── Extrai descriptor face-api de foto ───────────────────────────────────────
 async function extrairDescriptorDeFoto(base64) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = async () => {
       try {
-        // Tenta com 2 tamanhos de canvas para maior chance de detectar
         for (const size of [800, 400, 200]) {
           const c = document.createElement('canvas');
           c.width = size; c.height = size;
           c.getContext('2d').drawImage(img, 0, 0, size, size);
           const det = await faceapi
-            .detectSingleFace(c, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.2 }))
+            .detectSingleFace(c, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.12 }))
             .withFaceLandmarks().withFaceDescriptor();
           if (det) { resolve(det.descriptor); return; }
         }
-        // Tenta direto na imagem original
         const det = await faceapi
-          .detectSingleFace(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.2 }))
+          .detectSingleFace(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.12 }))
           .withFaceLandmarks().withFaceDescriptor();
         resolve(det ? det.descriptor : null);
       } catch(e) { reject(e); }
@@ -7410,217 +7585,6 @@ async function extrairDescriptorDeFoto(base64) {
     img.onerror = () => reject(new Error('Erro ao carregar foto'));
     img.src = base64;
   });
-}
-
-// ── Salva ponto no Firebase ───────────────────────────────────────────────────
-// ── Haversine distance (metros) — utilitário global ──────────────────────────
-function _haversineGlobal(la1, lo1, la2, lo2) {
-  const R = 6371000, r = Math.PI / 180;
-  const dLa = (la2 - la1) * r, dLo = (lo2 - lo1) * r;
-  const a = Math.sin(dLa/2)**2 + Math.cos(la1*r) * Math.cos(la2*r) * Math.sin(dLo/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-async function registrarPontoNoBanco(method, extra) {
-  const now     = new Date();
-  const today   = localDateStr(now);
-  const timeStr = now.toTimeString().slice(0, 5);
-
-  // ── FIX: se TODAY_PUNCHES estiver vazio (sessão idle/reload), recarrega do Firestore
-  // antes de definir o tipo para não registrar entrada dupla por engano
-  if (TODAY_PUNCHES.length === 0) {
-    try { await loadPonto(); } catch(_) {}
-  }
-
-  const lastType = TODAY_PUNCHES.length > 0 ? TODAY_PUNCHES[TODAY_PUNCHES.length - 1].type : null;
-  const newType  = lastType === 'in' ? 'out' : 'in';
-
-  // ── Detecção de punch duplo suspeito (< 3 min do último) ─────────────
-  if (TODAY_PUNCHES.length > 0) {
-    const last = TODAY_PUNCHES[TODAY_PUNCHES.length - 1];
-    const [lh, lm] = (last.time || '00:00').split(':').map(Number);
-    const [nh, nm] = timeStr.split(':').map(Number);
-    const diffMin  = (nh * 60 + nm) - (lh * 60 + lm);
-    if (Math.abs(diffMin) < 3) {
-      throw new Error(`Ponto já registrado às ${last.time}. Aguarde pelo menos 3 minutos.`);
-    }
-  }
-
-  const punchDoc = {
-    empId: EMP.id, empName: EMP.nome,
-    cpf: (EMP.cpf || '').replace(/\D/g, ''),
-    hrEmpId: EMP.id,
-    date: today, time: timeStr, type: newType,
-    month: today.slice(0, 7),
-    method, origem: 'portal_funcionario',
-    createdAt: new Date().toISOString(),
-    ...extra
-  };
-
-  // ── Detecção de "corrida para o ponto" (inconsistência geo × tempo) ─────────
-  // Compara com o último punch de HOJE que tenha lat/lng salvos. Se a distância
-  // percorrida implicar velocidade fisicamente improvável (>140km/h), marca o
-  // punch atual para revisão do RH no AI Monitor — sem bloquear o registro.
-  if (punchDoc.lat != null && punchDoc.lng != null && DB) {
-    try {
-      const snapAnt = await DB.collection('bio_punches')
-        .where('empId', '==', EMP.id)
-        .where('date', '==', today)
-        .orderBy('createdAt', 'desc')
-        .limit(1)
-        .get();
-      if (!snapAnt.empty) {
-        const ant = snapAnt.docs[0].data();
-        if (ant.lat != null && ant.lng != null && ant.createdAt) {
-          const distM    = _haversineGlobal(punchDoc.lat, punchDoc.lng, ant.lat, ant.lng);
-          const diffMs   = new Date(punchDoc.createdAt) - new Date(ant.createdAt);
-          const diffH    = diffMs / 3_600_000;
-          if (diffH > 0 && distM > 200) { // ignora deslocamentos curtos (margem de GPS)
-            const velKmh = (distM / 1000) / diffH;
-            const LIMITE_KMH = 140; // acima disso é fisicamente improvável em área urbana
-            if (velKmh > LIMITE_KMH) {
-              punchDoc.inconsistenciaVelocidade = true;
-              punchDoc.velocidadeKmh = Math.round(velKmh);
-              punchDoc.distanciaAnteriorM = Math.round(distM);
-              punchDoc.minutosDesdeUltimoPunch = Math.round(diffMs / 60000);
-            }
-          }
-        }
-      }
-    } catch(_) {} // não bloqueia o registro do ponto se a checagem falhar
-  }
-
-  // ── Tenta salvar no Firebase; se offline OU Firestore inacessível, salva no IDB ─────
-  // FIX CRÍTICO: navigator.onLine=true não garante que o Firestore responda
-  // (rede instável, rate-limit, timeout). Ponto NÃO pode ser perdido silenciosamente.
-  if (navigator.onLine) {
-    try {
-      const punchRef = DB.collection('bio_punches').doc();
-      punchDoc.id = punchRef.id;
-      await punchRef.set(punchDoc);
-      // [FB2] Espelha batida no atlas-pontos
-      if (DB2) DB2.collection('bio_punches').doc(punchDoc.id).set(punchDoc, {merge:true}).catch(e => console.warn('[DB2] bio_punches:', e.message));
-    } catch (_fbErr) {
-      // Firebase falhou apesar de online (timeout, rede instável, regras Firestore)
-      // Salva no IDB para não perder o ponto — será sincronizado quando a conexão normalizar
-      console.warn('[Ponto] Firestore falhou, salvando no IDB:', _fbErr.message);
-      punchDoc.id = 'offline_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
-      punchDoc._offline = true;
-      punchDoc._fbErr   = _fbErr.message;
-      await _idbSavePunch(punchDoc);
-      toast('⚠️ Conexão instável — ponto salvo localmente e será sincronizado em breve.', 'aviso', 6000);
-      _atualizarIndicadorOffline();
-    }
-  } else {
-    punchDoc.id = 'offline_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
-    punchDoc._offline = true;
-    await _idbSavePunch(punchDoc);
-    toast('📴 Sem internet — ponto salvo localmente e será sincronizado automaticamente.', 'aviso', 5000);
-    _atualizarIndicadorOffline();
-  }
-
-  TODAY_PUNCHES.push(punchDoc);
-  TODAY_PUNCHES.sort((a, b) => a.time.localeCompare(b.time));
-  MONTH_PUNCHES.push(punchDoc);
-  MONTH_PUNCHES.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
-
-  // ── Notificação de confirmação instantânea ───────────────────
-  const _tipoLabel = newType === 'in' ? 'Entrada' : 'Saída';
-  const _emoji     = newType === 'in' ? '🟢' : '🔴';
-  const _notifBody = `${_emoji} ${_tipoLabel} registrada às ${timeStr} ✓`;
-  // Bip de confirmação (ta-dam) — toca no celular enquanto o modal ainda está aberto
-  _bipPonto('confirmacao');
-  try {
-    if (typeof _SW_REG !== 'undefined' && _SW_REG && Notification.permission === 'granted') {
-      await _SW_REG.showNotification('✅ Ponto registrado — Atlas RH', {
-        body: _notifBody,
-        tag: 'ponto-confirmacao',
-        renotify: true,
-        icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23059669'/><text y='46' font-size='36' fill='white' font-family='Arial' x='14'>✓</text></svg>",
-        badge: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='12' fill='%23059669'/></svg>",
-        vibrate: [100, 50, 100],
-        data: { tipo: 'ponto', timeStr, newType }
-      });
-    } else if (Notification.permission === 'granted') {
-      const n = new Notification('✅ Ponto registrado — Atlas RH', {
-        body: _notifBody, tag: 'ponto-confirmacao'
-      });
-      n.onclick = () => { window.focus(); window._pushNavegar && window._pushNavegar('ponto'); n.close(); };
-    }
-  } catch(_) {}
-
-  // ── Resumo diário automático no chat (ao bater a saída) ─────────────────────
-  if (newType === 'out') {
-    _enviarResumoDiarioChat(today).catch(() => {});
-  }
-
-  return { tipo: newType === 'in' ? '🟢 Entrada' : '🔴 Saída', timeStr };
-}
-
-// ═══════════════════════════════════════════════════════════════
-// RESUMO DIÁRIO AUTOMÁTICO (IA) — enviado no chat ao bater a saída.
-// Calcula horas trabalhadas no dia (pares entrada/saída de
-// TODAY_PUNCHES) e mostra o saldo atual do banco de horas
-// (window._BH_SALDO, já calculado por _atualizarBadgeBancoHoras).
-// Mensagem é gravada como 'de: sistema' em rh_chat/{empId}/msgs,
-// visível tanto para o colaborador quanto para o RH.
-// ═══════════════════════════════════════════════════════════════
-async function _enviarResumoDiarioChat(dateStr) {
-  if (!DB || !EMP?.id) return;
-
-  // Soma os intervalos entrada→saída do dia, em minutos
-  const punchesHoje = (TODAY_PUNCHES || [])
-    .filter(p => p.date === dateStr)
-    .sort((a, b) => a.time.localeCompare(b.time));
-
-  let minutosTrabalhados = 0;
-  let entradaAberta = null;
-  for (const p of punchesHoje) {
-    if (p.type === 'in') {
-      entradaAberta = p.time;
-    } else if (p.type === 'out' && entradaAberta) {
-      const [eh, em] = entradaAberta.split(':').map(Number);
-      const [sh, sm] = p.time.split(':').map(Number);
-      minutosTrabalhados += (sh * 60 + sm) - (eh * 60 + em);
-      entradaAberta = null;
-    }
-  }
-  if (minutosTrabalhados <= 0) return; // sem jornada completa hoje — não envia resumo
-
-  const fmtHM = m => `${Math.floor(m/60)}h${String(m%60).padStart(2,'0')}`;
-  const horasHojeStr = fmtHM(minutosTrabalhados);
-
-  // Atualiza e lê o saldo de banco de horas (best-effort)
-  try { await _atualizarBadgeBancoHoras(); } catch(_) {}
-  const bh = window._BH_SALDO;
-
-  let resumo = `📊 *Resumo do seu dia* — ${new Date(dateStr + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })}\n\n`;
-  resumo += `⏱️ Horas trabalhadas hoje: ${horasHojeStr}\n`;
-  if (bh) {
-    const emoji = bh.saldo > 0 ? '⏫' : bh.saldo < 0 ? '⚠️' : '✅';
-    resumo += `${emoji} Saldo do banco de horas: ${bh.fmtSaldo}`;
-  }
-  resumo += `\n\nBom descanso! 🙂`;
-
-  try {
-    // Evita duplicar o resumo se o colaborador bater "saída" mais de uma vez no mesmo dia
-    const flagKey = `_resumoDiarioEnviado_${EMP.id}_${dateStr}`;
-    if (sessionStorage.getItem(flagKey)) return;
-    sessionStorage.setItem(flagKey, '1');
-
-    await DB.collection('rh_chat').doc(EMP.id).collection('msgs').add({
-      texto: resumo, de: 'sistema', isBot: true,
-      empId: EMP.id, empNome: EMP.nome,
-      ts: firebase.firestore.FieldValue.serverTimestamp(),
-      lida: false, lidaEm: null
-    });
-    await DB.collection('rh_chat').doc(EMP.id).set({
-      empId: EMP.id, empNome: EMP.nome, empCargo: EMP.cargo || '',
-      ultimaMsgTs: firebase.firestore.FieldValue.serverTimestamp(),
-      ultimaMsgTexto: resumo.slice(0, 80),
-      ultimaMsgDe: 'sistema'
-    }, { merge: true });
-  } catch(_) {}
 }
 
 // ── Para a câmera com segurança ───────────────────────────────────────────────
@@ -7634,7 +7598,91 @@ function bioStopStream() {
   if (video) video.srcObject = null;
 }
 
-// Fecha câmera ao minimizar / trocar aba / fechar janela
+// ── Grava a batida de ponto no Firestore (bio_punches), com espelho no DB2 ───
+// e fallback offline (IndexedDB) quando não há conexão. Retorna { tipo, timeStr }
+// usado pela tela de resultado (PONTO APROVADO / detalhes da batida).
+async function registrarPontoNoBanco(method, extra) {
+  if (!EMP || !EMP.id) throw new Error('Colaborador não identificado. Recarregue a página.');
+
+  const now      = new Date();
+  const today    = localDateStr(now);
+  const timeStr  = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const cpfClean = (EMP.cpf || '').replace(/\D/g, '');
+
+  // ── GUARDA ANTI-DUPLICIDADE (padrão RH corporativo) ─────────────────────────
+  // Bloqueia uma nova batida se a última do dia ocorreu há menos de 60s.
+  // Evita registros acidentais duplicados (duplo clique, reconhecimento repetido).
+  const ANTI_DUP_SEG = 60;
+  if (TODAY_PUNCHES.length > 0) {
+    const ult = TODAY_PUNCHES[TODAY_PUNCHES.length - 1];
+    const [uh, um] = (ult.time || '00:00').split(':').map(Number);
+    const ultMin = uh * 60 + um;
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const difSeg = (nowMin - ultMin) * 60;
+    if (difSeg >= 0 && difSeg < ANTI_DUP_SEG) {
+      const falta = ANTI_DUP_SEG - difSeg;
+      throw new Error(`Registro muito próximo do anterior (${ult.time}). Aguarde ${falta}s para registrar novamente.`);
+    }
+  }
+
+  // Próximo tipo: alterna Entrada/Saída com base na última batida de hoje
+  const lastType = TODAY_PUNCHES.length > 0 ? TODAY_PUNCHES[TODAY_PUNCHES.length - 1].type : null;
+  const type = lastType === 'in' ? 'out' : 'in';
+  const tipo = type === 'in' ? 'Entrada' : 'Saída';
+
+  // Sequência da marcação no dia (1ª Entrada, 1ª Saída, etc.) — útil para auditoria
+  const seqDia = TODAY_PUNCHES.length + 1;
+  // Rótulo descritivo profissional (Entrada / Saída p/ intervalo / Retorno / Saída)
+  const rotulo = (() => {
+    if (type === 'in')  return seqDia === 1 ? 'Entrada' : 'Retorno do intervalo';
+    return TODAY_PUNCHES.filter(p => p.type === 'out').length === 0 && seqDia < 4
+      ? 'Saída para intervalo' : 'Saída';
+  })();
+
+  // NSR — Número Sequencial de Registro (rastreabilidade / comprovante)
+  const nsr = `${today.replace(/-/g, '')}${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
+
+  const id = `${EMP.id}_${today.replace(/-/g, '')}_${now.getTime()}`;
+
+  const doc = {
+    id, empId: EMP.id, hrEmpId: EMP.id, cpf: cpfClean, empName: EMP.nome || '',
+    date: today, time: timeStr, month: monthKey, type, method,
+    rotulo, seqDia, nsr,
+    origem: 'biometria', criadoEm: now.toISOString(),
+    ...(extra || {})
+  };
+
+  // Atualiza o estado local imediatamente — reflete nas "Últimas Batidas do Dia"
+  // mesmo antes da confirmação do servidor (UI otimista)
+  TODAY_PUNCHES.push(doc);
+  MONTH_PUNCHES.push(doc);
+  TODAY_PUNCHES.sort((a, b) => a.time.localeCompare(b.time));
+  MONTH_PUNCHES.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+
+  try {
+    if (!DB || !navigator.onLine) throw new Error('offline');
+    await DB.collection('bio_punches').doc(id).set(doc);
+    // [FB2] Espelha no atlas-pontos (fire-and-forget, não bloqueia o retorno)
+    if (DB2) DB2.collection('bio_punches').doc(id).set(doc, { merge: true }).catch(() => {});
+  } catch (e) {
+    // Sem conexão ou falha no envio — guarda offline para sincronizar depois
+    try {
+      await _idbSavePunch({ ...doc, _offline: true });
+      if (typeof _atualizarIndicadorOffline === 'function') _atualizarIndicadorOffline();
+    } catch (e2) {
+      // Nem servidor, nem offline — desfaz a atualização otimista
+      TODAY_PUNCHES = TODAY_PUNCHES.filter(p => p.id !== id);
+      MONTH_PUNCHES = MONTH_PUNCHES.filter(p => p.id !== id);
+      throw new Error('Não foi possível registrar o ponto. Tente novamente.');
+    }
+  }
+
+  return { tipo, timeStr, nsr, rotulo, seqDia };
+}
+
+
+// Fecha câmera ao minimizar / trocar aba
 function _bioVisibilityHandler() {
   if (document.hidden && BIO_STREAM) {
     cancelAnimationFrame(BIO_AUTO_LOOP);
@@ -7643,7 +7691,7 @@ function _bioVisibilityHandler() {
     const statusEl = document.getElementById('bio-status');
     const modal    = document.getElementById('bio-ponto-modal');
     if (modal && modal.style.display !== 'none' && statusEl)
-      statusEl.textContent = '⚠ Câmera encerrada — janela ficou em segundo plano. Feche e abra novamente.';
+      statusEl.textContent = '⚠ Câmera encerrada — janela ficou em segundo plano.';
   }
 }
 function _bioPagehideHandler()     { bioStopStream(); }
@@ -7657,12 +7705,10 @@ if (!window._bioListenersAttached) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// ORQUESTRADOR PRINCIPAL — abrirBioPonto
+// ORQUESTRADOR PRINCIPAL — abrirBioPonto v3
 // ══════════════════════════════════════════════════════════════════════════════
 async function abrirBioPonto() {
-  // FIX: guard contra duplo-clique / dupla abertura
   if (BIO_MODAL_ABERTO) return;
-  // Desabilita botão imediatamente para evitar cliques adicionais
   const _btnPonto = document.getElementById('btn-bater-ponto');
   if (_btnPonto) _btnPonto.disabled = true;
   const _fabPonto = document.getElementById('_fab-ponto');
@@ -7673,56 +7719,53 @@ async function abrirBioPonto() {
   BIO_BLINK_OK     = false;
   BIO_ETAPA        = 0;
   cancelAnimationFrame(BIO_AUTO_LOOP);
-  _blinkReset();
+  _liveReset();
 
   const modal    = document.getElementById('bio-ponto-modal');
   modal.style.display = 'flex';
   BIO_MODAL_ABERTO = true;
-  const statusEl = document.getElementById('bio-status');
-  const video    = document.getElementById('bio-video');
-  const icon     = document.getElementById('bio-ring-icon');
+  const statusEl  = document.getElementById('bio-status');
+  const video     = document.getElementById('bio-video');
+  const icon      = document.getElementById('bio-ring-icon');
 
-  document.getElementById('bio-canvas').style.display = 'none';
-  video.style.display = 'block';
   if (icon) icon.style.display = 'none';
   bioSetRing(0, '#3B82F6');
-  bioShowBlink(false);
-  bioBlinkBar(0);
-  bioSetStep(2);
-  statusEl.textContent = '📷 Acessando câmera...';
+  bioShowMove(false);
+  bioMoveBar(0);
+  bioSetSubtitle(EMP && EMP.nome ? EMP.nome.split(' ').slice(0,2).join(' ') : 'Posicione seu rosto na câmera');
+  bioSetMethod(null);
+  bioEsconderResultado();
+  statusEl.textContent = 'Iniciando câmera';
 
-  // ── Haversine distance (metros) ─────────────────────────────────────────────
-  function _haversinePortal(la1, lo1, la2, lo2) {
+  // ── Haversine ───────────────────────────────────────────────────────────────
+  function _hav(la1, lo1, la2, lo2) {
     const R = 6371000, r = Math.PI / 180;
-    const dLa = (la2 - la1) * r, dLo = (lo2 - lo1) * r;
-    const a = Math.sin(dLa/2)**2 + Math.cos(la1*r) * Math.cos(la2*r) * Math.sin(dLo/2)**2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const a = Math.sin((la2-la1)*r/2)**2 + Math.cos(la1*r)*Math.cos(la2*r)*Math.sin((lo2-lo1)*r/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   }
 
-  // ── Verifica zona geo do colaborador (bio_config/{empId} ou main) ───────────
+  // ── Verifica geo ─────────────────────────────────────────────────────────────
   async function verificarGeoZona() {
     let cfg = {};
     try {
-      let cfgSnap = EMP?.id ? await DB.collection('bio_config').doc(EMP.id).get() : null;
-      if (!cfgSnap || !cfgSnap.exists) cfgSnap = await DB.collection('bio_config').doc('main').get();
-      if (cfgSnap && cfgSnap.exists) cfg = cfgSnap.data();
+      let s = EMP?.id ? await DB.collection('bio_config').doc(EMP.id).get() : null;
+      if (!s || !s.exists) s = await DB.collection('bio_config').doc('main').get();
+      if (s && s.exists) cfg = s.data();
     } catch(e) {
-      console.warn('[GeoZona] Erro ao buscar config:', e);
-      return { ok: false, geoData: null, errMsg: '⛔ Não foi possível verificar a zona permitida.\n\nErro de conexão com o servidor. Tente novamente.' };
+      return { ok: false, geoData: null, errMsg: '⛔ Erro ao verificar localização. Tente novamente.' };
     }
     const locs = cfg.locations || [];
-    const reqGeo = cfg.requireGeo || false;
     if (locs.length === 0) return { ok: true, geoData: null };
     let pos;
     try {
       pos = await new Promise((res, rej) =>
         navigator.geolocation.getCurrentPosition(res, rej, { timeout: 12000, enableHighAccuracy: true })
       );
-    } catch (gpsErr) {
-      if (reqGeo) {
+    } catch(gpsErr) {
+      if (cfg.requireGeo) {
         const msg = gpsErr.code === 1
-          ? 'Permissão de localização negada. Permita o GPS nas configurações do navegador e tente novamente.'
-          : 'GPS indisponível ou tempo esgotado. Aproxime-se de uma área com sinal.';
+          ? 'Permissão de localização negada. Permita o GPS nas configurações.'
+          : 'GPS indisponível. Aproxime-se de uma área com sinal.';
         return { ok: false, geoData: null, errMsg: '⛔ Localização necessária\n\n' + msg };
       }
       return { ok: true, geoData: null };
@@ -7730,108 +7773,93 @@ async function abrirBioPonto() {
     const myLat = pos.coords.latitude, myLng = pos.coords.longitude;
     let bestDist = Infinity, bestLoc = null;
     for (const loc of locs) {
-      const d = _haversinePortal(myLat, myLng, loc.lat, loc.lng);
+      const d = _hav(myLat, myLng, loc.lat, loc.lng);
       if (d < bestDist) { bestDist = d; bestLoc = loc; }
     }
-    const within = locs.some(loc => _haversinePortal(myLat, myLng, loc.lat, loc.lng) <= (loc.radius || 50));
+    const within = locs.some(loc => _hav(myLat, myLng, loc.lat, loc.lng) <= (loc.radius || 50));
     const geoData = { dist: Math.round(bestDist), locName: bestLoc?.name || '', withinAny: within, lat: myLat, lng: myLng, reqRadius: bestLoc?.radius || 50 };
-    if (reqGeo && !within) {
-      return {
-        ok: false, geoData,
-        errMsg: `⛔ Você está fora da área permitida.\n\n📍 Distância atual: ${geoData.dist} metros\n🏪 Local mais próximo: ${geoData.locName || 'Loja'}\n🔵 Raio permitido: ${geoData.reqRadius} metros\n\nAproxime-se do local de trabalho e tente novamente.`
-      };
+    if (cfg.requireGeo && !within) {
+      return { ok: false, geoData, errMsg: `⛔ Você está fora da área permitida.\n\n📍 Distância: ${geoData.dist}m\n🏪 Local: ${geoData.locName || 'Loja'}\n🔵 Raio permitido: ${geoData.reqRadius}m` };
     }
     return { ok: true, geoData };
   }
 
-  // ── Aprovar ponto: verifica geo e registra ──────────────────────────────────
+  // ── Aprovar ponto ─────────────────────────────────────────────────────────────
   async function aprovar(method, extra) {
-    statusEl.innerHTML = `<span style="color:#60A5FA;font-size:13px;font-weight:700">📍 Verificando localização GPS...</span>`;
+    statusEl.innerHTML = `<span style="color:#60A5FA;font-weight:700">Verificando localização</span>`;
     const geoResult = await verificarGeoZona();
     if (!geoResult.ok) {
       BIO_REGISTRANDO = false;
       bioSetRing(1, '#EF4444');
       const linhas = geoResult.errMsg.split('\n');
       statusEl.innerHTML = linhas.map((l, i) =>
-        i === 0
-          ? `<span style="color:#FCA5A5;font-size:14px;font-weight:800">${l}</span>`
-          : `<span style="font-size:12px;color:#94A3B8">${l}</span>`
+        i === 0 ? `<span style="color:#FCA5A5;font-size:14px;font-weight:800">${l}</span>`
+                : `<span style="font-size:12px;color:#94A3B8">${l}</span>`
       ).join('<br>');
-      setTimeout(() => { bioFecharModal(); }, 3200);
+      setTimeout(() => bioFecharModal(), 3200);
       return;
     }
     try {
       const geoExtra = geoResult.geoData
         ? { lat: geoResult.geoData.lat, lng: geoResult.geoData.lng, dist: geoResult.geoData.dist, locName: geoResult.geoData.locName, geoVerificado: true }
         : { geoVerificado: false };
-      // ── Captura foto evidência do punch (biométrico) ──────────────────────────
-      let _punchFotoUrl = null;
-      let _punchFotoB64 = null; // fallback: miniatura salva direto no Firestore
+
+      // Captura foto evidência
+      let _punchFotoUrl = null, _punchFotoB64 = null;
       try {
-        // Usa camCanvas (último frame desenhado pelo bioLoop) ou captura do vídeo
-        const _snapSrc = (typeof camCanvas !== 'undefined' && camCanvas.width > 0) ? camCanvas : null;
-        const _video   = document.getElementById('bio-video');
+        const _vEl  = document.getElementById('bio-video');
         const _snap = document.createElement('canvas');
         _snap.width = 320; _snap.height = 240;
         const _ctx  = _snap.getContext('2d');
-        if (_snapSrc) {
-          _ctx.drawImage(_snapSrc, 0, 0, 320, 240);
-        } else if (_video && _video.readyState >= 2) {
-          const _vw2 = _video.videoWidth || 320, _vh2 = _video.videoHeight || 240;
-          _ctx.drawImage(_video, 0, 0, Math.min(_vw2, 320), Math.min(_vh2, 240));
+        if (typeof _bioLastCanvas !== 'undefined' && _bioLastCanvas?.width > 0) {
+          _ctx.drawImage(_bioLastCanvas, 0, 0, 320, 240);
+        } else if (_vEl && _vEl.readyState >= 2) {
+          _ctx.drawImage(_vEl, 0, 0, Math.min(_vEl.videoWidth || 320, 320), Math.min(_vEl.videoHeight || 240, 240));
         }
-        // Watermark com data/hora e nome do colaborador
         const _ts = new Date().toLocaleString('pt-BR');
-        _ctx.fillStyle = 'rgba(0,0,0,0.60)';
-        _ctx.fillRect(0, 208, 320, 32);
-        _ctx.fillStyle = '#FFFFFF';
-        _ctx.font = 'bold 10px monospace';
+        _ctx.fillStyle = 'rgba(0,0,0,.60)'; _ctx.fillRect(0, 208, 320, 32);
+        _ctx.fillStyle = '#FFFFFF'; _ctx.font = 'bold 10px monospace';
         _ctx.fillText(_ts + '  ·  ' + (EMP?.nome || ''), 6, 221);
-        _ctx.font = '9px monospace';
-        _ctx.fillStyle = '#C9A84C';
+        _ctx.font = '9px monospace'; _ctx.fillStyle = '#C9A84C';
         _ctx.fillText('Atlas RH — Registro Biométrico', 6, 232);
-
-        // Tenta Cloudinary (foto completa 320×240)
         _punchFotoUrl = await _uploadFotoCloudinaryPunch(_snap);
-
-        // Fallback: Cloudinary falhou → salva miniatura comprimida (~2KB) direto no Firestore
         if (!_punchFotoUrl) {
-          try {
-            const _mini = document.createElement('canvas');
-            _mini.width = 96; _mini.height = 72;
-            _mini.getContext('2d').drawImage(_snap, 0, 0, 96, 72);
-            const _b64 = _mini.toDataURL('image/jpeg', 0.50);
-            if (_b64 && _b64.length < 25000) _punchFotoB64 = _b64;
-          } catch(_) {}
+          const _mini = document.createElement('canvas');
+          _mini.width = 96; _mini.height = 72;
+          _mini.getContext('2d').drawImage(_snap, 0, 0, 96, 72);
+          const _b64 = _mini.toDataURL('image/jpeg', 0.50);
+          if (_b64 && _b64.length < 25000) _punchFotoB64 = _b64;
         }
-      } catch(_e) { console.warn('[PunchFoto] Erro ao capturar:', _e.message); }
+      } catch(_) {}
 
-      // fotoUrl (Cloudinary) tem preferência; fotoBase64 é o fallback sempre presente
-      const _fotoExtra = _punchFotoUrl
-        ? { fotoUrl: _punchFotoUrl }
-        : (_punchFotoB64 ? { fotoBase64: _punchFotoB64 } : {});
+      const _fotoExtra = _punchFotoUrl ? { fotoUrl: _punchFotoUrl } : (_punchFotoB64 ? { fotoBase64: _punchFotoB64 } : {});
+      const { tipo, timeStr, nsr, rotulo } = await registrarPontoNoBanco(method, { ...extra, ...geoExtra, ..._fotoExtra });
 
-      const { tipo, timeStr } = await registrarPontoNoBanco(method, { ...extra, ...geoExtra, ..._fotoExtra });
-      // FIX: se o colaborador cancelou o modal enquanto registrarPontoNoBanco rodava, não atualiza UI
       if (!BIO_MODAL_ABERTO) return;
       const isIA = method.includes('groq') || method.includes('claude');
       const geoTag = geoResult.geoData?.dist != null
-        ? `<br><span style="font-size:11px;color:#6EE7B7">📍 ${geoResult.geoData.locName || 'Local'} · ${geoResult.geoData.dist}m</span>`
+        ? `${geoResult.geoData.locName || 'Local'} · ${geoResult.geoData.dist}m`
         : '';
-      statusEl.innerHTML = `
-        <span style="color:#34D399;font-size:15px;font-weight:800">● ${tipo} registrada às ${timeStr}!</span><br>
-        <span style="font-size:11px;color:${isIA ? '#A78BFA' : '#6EE7B7'}">
-          ${isIA ? '🤖 Verificado por Groq + biometria' : '🛡️ Verificação facial concluída'}
-        </span>${geoTag}`;
+      _bipPonto && _bipPonto('confirmacao');
+      bioMostrarComprovante({
+        tipo, rotulo, timeStr, nsr,
+        nome: EMP?.nome || '',
+        metodo: 'Reconhecimento facial',
+        geo: geoTag, geoOk: !!geoResult.geoData
+      });
     } catch(e) {
-      // FIX: mostra o motivo real do erro (ex: "Aguarde 3 min", "Sem conexão", etc.)
-      const _errMsg = e && e.message ? e.message : 'Erro desconhecido. Tente novamente.';
-      statusEl.innerHTML = `<span style="color:#FCA5A5;font-size:13px;font-weight:700">❌ ${_errMsg}</span>`;
+      bioMostrarResultado(false, e?.message || 'Erro ao registrar o ponto.');
+      setTimeout(() => { bioFecharModal(); atualizarBotaoPonto(); }, 2600);
+      return;
     }
-    setTimeout(() => { bioFecharModal(); atualizarBotaoPonto(); }, 2200);
+    // Comprovante permanece na tela até o colaborador fechar (X, "Fechar" ou
+    // após enviar no WhatsApp). Não fecha sozinho para não atrapalhar a leitura.
+    if (window._comprovanteAutoClose) { clearTimeout(window._comprovanteAutoClose); window._comprovanteAutoClose = null; }
+    // Atualiza o botão de ponto ao fundo (entrada/saída) sem fechar o comprovante
+    atualizarBotaoPonto();
   }
 
-  // ── Detecção de plataforma ───────────────────────────────────────────────────
+  // ── Detecção de plataforma ────────────────────────────────────────────────────
   const _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const _isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
@@ -7839,115 +7867,44 @@ async function abrirBioPonto() {
 
   let stream = null;
   try {
-    // Abre câmera + carrega modelos em paralelo
-    const obterCamera = async () => {
-      const camTimeout = new Promise((_, rej) =>
-        setTimeout(() => rej(new Error('Timeout câmera (>15s)')), 15000)
-      );
+    // ── 1. Abre câmera ─────────────────────────────────────────────────────────
+    const opts = _isIOSSafari
+      ? [{ facingMode: 'user' }, { facingMode: { ideal: 'user' } }, { video: true }]
+      : [{ facingMode: { ideal: 'user' }, width: { ideal: 480 }, height: { ideal: 480 } },
+         { facingMode: 'user' }, { video: true }, true];
 
-      // iOS/Safari exige constraints simples na primeira tentativa
-      // Constraints complexas causam OverconstrainedError no Safari
-      const opts = _isIOSSafari ? [
-        { facingMode: 'user' },
-        { facingMode: { ideal: 'user' } },
-        { video: true }
-      ] : [
-        { facingMode: { ideal: 'user' }, width: { ideal: 480 }, height: { ideal: 480 } },
-        { facingMode: 'user' },
-        { video: true },
-        true
-      ];
-
-      const tentarCamera = async () => {
-        for (let i = 0; i < opts.length; i++) {
-          try { return await navigator.mediaDevices.getUserMedia({ video: opts[i] }); }
-          catch(e) { if (i === opts.length - 1) throw e; }
-        }
-      };
-      return Promise.race([tentarCamera(), camTimeout]);
-    };
-
-    // iOS Safari: não suporta Promise.all com getUserMedia + operações pesadas em paralelo
-    // Deve abrir câmera ANTES de carregar modelos faceapi
-    let s;
-    if (_isIOSSafari) {
-      statusEl.textContent = '📷 Acessando câmera (iOS)...';
-      s = await obterCamera();
-      if (!BIO_MODAL_ABERTO) { s.getTracks().forEach(t => t.stop()); return; }
-      BIO_STREAM = s;
-      stream = s;
-      if (!FACEAPI_READY) {
-        statusEl.textContent = '⏳ Carregando reconhecimento facial...';
-        await initFaceAPI(statusEl);
-      }
-    } else {
-      const [_s] = await Promise.all([
-        obterCamera(),
-        FACEAPI_READY ? Promise.resolve() : initFaceAPI(statusEl)
-      ]);
-      s = _s;
-      stream = s;
-      if (!BIO_MODAL_ABERTO) { stream.getTracks().forEach(t => t.stop()); return; }
-      BIO_STREAM = stream;
+    for (let i = 0; i < opts.length; i++) {
+      try { stream = await navigator.mediaDevices.getUserMedia({ video: opts[i] }); break; }
+      catch(e) { if (i === opts.length - 1) throw e; }
     }
 
-    // ── Configura o elemento <video> ─────────────────────────────────────────
-    video.muted       = true;
-    video.playsInline = true;
-    video.setAttribute('muted', '');
-    video.setAttribute('playsinline', '');
-    video.setAttribute('webkit-playsinline', ''); // iOS Safari legado
-    video.autoplay = true;
+    if (!BIO_MODAL_ABERTO) { stream.getTracks().forEach(t => t.stop()); return; }
+    BIO_STREAM = stream;
 
-    // iOS Safari: srcObject deve ser setado ANTES de chamar play()
-    // e o play() deve ser chamado explicitamente após srcObject
+    video.muted = true; video.playsInline = true;
+    video.setAttribute('muted', ''); video.setAttribute('playsinline', '');
+    video.setAttribute('webkit-playsinline', '');
     video.srcObject = BIO_STREAM;
 
-    // Aguarda vídeo estar realmente pronto para reprodução
-    await new Promise((res) => {
-      const timeout = setTimeout(() => res(), _isIOSSafari ? 8000 : 5000);
-      const check = () => {
-        if (video.readyState >= 2 && video.videoWidth > 0) {
-          clearTimeout(timeout);
-          res();
-        }
-      };
+    // Aguarda vídeo pronto
+    await new Promise(res => {
+      const t = setTimeout(res, _isIOSSafari ? 7000 : 4000);
+      const check = () => { if (video.readyState >= 2 && (video.videoWidth > 0 || _isIOSSafari)) { clearTimeout(t); res(); } };
       video.addEventListener('canplay',        check, { once: false });
       video.addEventListener('loadeddata',     check, { once: false });
       video.addEventListener('loadedmetadata', check, { once: false });
-
-      // iOS Safari: play() DEVE ser chamado explicitamente, não confia em autoplay
-      const tryPlay = () => {
-        const p = video.play();
-        if (p && typeof p.then === 'function') {
-          p.then(() => setTimeout(check, 200)).catch(() => setTimeout(check, 500));
-        }
-      };
-      tryPlay();
-      // Tentativas adicionais com delay (iOS às vezes precisa de retry)
-      setTimeout(() => { if (video.paused) tryPlay(); check(); }, 400);
-      setTimeout(() => { if (video.paused) tryPlay(); check(); }, 1000);
-      setTimeout(() => { if (video.paused) tryPlay(); check(); }, 2000);
-      if (_isIOSSafari) setTimeout(() => { if (video.paused) tryPlay(); check(); }, 3500);
+      const tryP = () => { const p = video.play(); if (p?.then) p.then(() => setTimeout(check,200)).catch(() => setTimeout(check,500)); };
+      tryP();
+      setTimeout(() => { if (video.paused) tryP(); check(); }, 400);
+      setTimeout(() => { if (video.paused) tryP(); check(); }, 1200);
+      if (_isIOSSafari) setTimeout(() => { if (video.paused) tryP(); check(); }, 3000);
     });
 
-    // Garante que o vídeo está tocando
-    if (video.paused) {
-      try { await video.play(); } catch(_) {}
-      await new Promise(res => setTimeout(res, _isIOSSafari ? 800 : 500));
-    }
-
-    // iOS Safari: videoWidth pode demorar para ficar disponível — aguarda extra
-    if (_isIOSSafari && video.videoWidth === 0) {
-      await new Promise(res => setTimeout(res, 1500));
-    }
-
+    if (video.paused) { try { await video.play(); } catch(_) {} }
     BIO_READY = true;
-    statusEl.textContent = '🔬 Câmera pronta. Posicione seu rosto...';
 
-    // ── Busca dados do colaborador ────────────────────────────────────────────
+    // ── 2. Busca dados do colaborador ─────────────────────────────────────────
     let empData = EMP || null;
-    // FIX: recarrega hr/employees se descriptor ausente
     if (empData && (!empData.descriptor || empData.descriptor.length < 128)) {
       try {
         const snap = await DB.collection('hr').doc('employees').get();
@@ -7958,347 +7915,369 @@ async function abrirBioPonto() {
         }
       } catch(e) {}
     }
-    // FIX: busca em bio_users se hr/employees ainda nao tiver descriptor valido
     if (empData && (!empData.descriptor || empData.descriptor.length < 128)) {
       try {
         const cpfBio = (empData.cpf || '').replace(/\D/g, '');
         if (cpfBio.length === 11) {
           const bioSnap = await DB.collection('bio_users').doc(cpfBio).get();
           if (bioSnap.exists) {
-            const bioData = bioSnap.data();
-            // FIX: monta lista de todos os descritores disponíveis (multi-ângulo)
+            const bd = bioSnap.data();
             const allDescs = [];
-            if (bioData.descriptor && bioData.descriptor.length >= 128) allDescs.push(bioData.descriptor);
-            if (bioData.descriptors && Array.isArray(bioData.descriptors)) {
-              bioData.descriptors.forEach(d => { if (d && d.length >= 128) allDescs.push(d); });
-            }
-            if (allDescs.length > 0) {
-              // Salva lista completa para usar no matching (mínima distância)
-              empData = { ...empData, descriptor: allDescs[0], _allDescriptors: allDescs };
-            }
+            if (bd.descriptor?.length >= 128) allDescs.push(bd.descriptor);
+            (bd.descriptors || []).forEach(d => { if (d?.length >= 128) allDescs.push(d); });
+            if (allDescs.length > 0) empData = { ...empData, descriptor: allDescs[0], _allDescriptors: allDescs };
           }
         }
       } catch(e) {}
     }
     if (!empData) { statusEl.textContent = '❌ Funcionário não encontrado.'; return; }
 
-    // FIX: aceita descriptor singular OU descriptors[0] (multi-angulo)
-    const _rawDesc = empData.descriptor && empData.descriptor.length >= 128
-      ? empData.descriptor
-      : (empData.descriptors && empData.descriptors.length > 0 ? empData.descriptors[0] : null);
-    const temBio = (_rawDesc && _rawDesc.length >= 128) ||
-                   (empData.fotoPerfil && (empData.fotoPerfil.startsWith('data:image') || empData.fotoPerfil.startsWith('http')));
+    const _rawDesc = empData.descriptor?.length >= 128 ? empData.descriptor
+                   : (empData.descriptors?.length > 0 ? empData.descriptors[0] : null);
+    const temBio = (_rawDesc?.length >= 128) ||
+                   (empData.fotoPerfil && (empData.fotoPerfil.startsWith('data:') || empData.fotoPerfil.startsWith('http')));
+
     if (!temBio) {
       bioSetRing(1, '#EF4444');
       statusEl.innerHTML = `<span style="color:#FCA5A5;font-size:14px;font-weight:800">⚠️ Biometria não cadastrada</span><br>
-        <span style="font-size:12px;color:#94A3B8;line-height:1.6">Procure o RH para regularizar seu acesso.<br>O ponto <strong style="color:#F87171">não foi registrado</strong>.</span>`;
+        <span style="font-size:12px;color:#94A3B8">Procure o RH para regularizar seu acesso.</span>`;
       return;
     }
 
-    // Pré-processa descriptor (só na 1ª vez, se ainda não salvo)
-    let storedDesc = null;
-    if (_rawDesc && _rawDesc.length >= 128) {
-      storedDesc = new Float32Array(_rawDesc);
-    } else {
-      statusEl.textContent = '⏳ Preparando reconhecimento (só na 1ª vez)...';
-      try { storedDesc = await extrairDescriptorDeFoto(empData.fotoPerfil); } catch(e) {}
-      if (!storedDesc) {
-        bioSetRing(1, '#EF4444');
-        statusEl.textContent = '❌ Não foi possível processar a foto cadastrada. Contate o RH.';
-        return;
-      }
-      // Salva descriptor no Firebase em background
-      (async () => {
-        try {
-          const descArray = Array.from(storedDesc);
-          const snap2 = await DB.collection('hr').doc('employees').get();
-          if (snap2.exists) {
-            const list2 = JSON.parse(snap2.data().d || '[]');
-            const idx   = list2.findIndex(e => e.id === EMP.id);
-            if (idx !== -1) {
-              list2[idx].descriptor = descArray;
-              await DB.collection('hr').doc('employees').update({ d: JSON.stringify(list2) });
-            }
-          }
-        } catch(e) {}
-      })();
+    // ── 3. Inicia face-api em background (não bloqueia) ───────────────────────
+    let _faceapiPromise = null;
+    if (typeof faceapi !== 'undefined' && !FACEAPI_READY) {
+      _faceapiPromise = initFaceAPI().catch(() => {});
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
-    // ETAPA 2 — FACE-API.JS 128d: confirma QUEM é a pessoa
-    // ══════════════════════════════════════════════════════════════════════════
-    BIO_ETAPA = 2;
-    bioSetStep(2);
-    statusEl.innerHTML = `<span style="font-weight:700;color:#60A5FA">🔬 Confirmando identidade...</span><br>
-      <span style="font-size:11px;color:#94A3B8">Olhe diretamente para a câmera</span>`;
-    bioSetRing(0.5, '#3B82F6');
+    // ── 4. Canvas de captura ──────────────────────────────────────────────────
+    const camCanvas = document.createElement('canvas');
+    camCanvas.width = 480; camCanvas.height = 360; // maior resolução = melhor detecção
+    window._bioLastCanvas = camCanvas; // referência para captura de foto evidência
 
-    let tentativas       = 0;
-    let acertos          = 0;        // acertos consecutivos abaixo do threshold
+    statusEl.innerHTML = `<span style="font-weight:700;color:#93C5FD">Analisando rosto</span><br>
+      <span style="font-size:11px;color:#64748B">Olhe diretamente para a câmera</span>`;
+    bioSetRing(0.3, '#3B82F6');
+    bioSetMethod(null);
+
+    // ── 5. PIPELINE PRINCIPAL ─────────────────────────────────────────────────
+    // Estratégia:
+    //   A) Groq Vision direto: captura frame → envia para Groq (~1-2s)
+    //      Se APROVADO → exige movimento (liveness) → registra
+    //   B) Se face-api carregou enquanto isso → usa distância euclidiana em paralelo
+    //   C) Timeout 20s → nega
+
+    let BIO_TIMEOUT   = 20000;
+    let BIO_START     = Date.now();
+    let FRAME_INTERVAL = 40;        // 40ms = ~25fps
+    let ultimoFrame   = 0;
+    let processando   = false;
+
+    // Estado Groq
+    let groqRodando      = false;
+    let groqResultado    = null;  // 'APROVADO' | 'NEGADO' | 'ERRO' | null
+    let groqFrameUsado   = null;  // canvas salvo para Groq
+    let groqCooldownAte  = 0;     // timestamp até quando não chamar Groq novamente
+    let groqTentativas   = 0;
+    const GROQ_COOLDOWN  = 5000;  // 5s entre chamadas Groq
+    const GROQ_MAX_TENT  = 3;     // máximo de chamadas Groq antes de fallback só face-api
+
+    // Estado face-api
+    // file:// → thresholds mais permissivos (sem Groq como árbitro)
+    const _fileMode = _isFileProto;
+    let storedDesc       = null;
+    let storedDescReady  = false;
     let melhorDistancia  = 999;
-    let somaDistancias   = 0;        // acumulador para média ponderada (segurança extra)
-    let totalFramesOk    = 0;        // total de frames com rosto detectado
-    window._bioFramesDuvidosos = 0;  // FIX: reseta contador de frames na zona duvidosa
-    const ACERTOS_NECES  = 2;        // 2 frames consecutivos — equilíbrio entre segurança e velocidade
-    const BIO_TIMEOUT    = 25000;    // timeout máximo: 25s
-    const BIO_START      = Date.now();
-    const FRAME_INTERVAL = 100;      // processa a cada 100ms
-    // Fallback: aceita se a melhor leitura estiver abaixo do threshold após frames suficientes
-    const FALLBACK_LIMIT = MATCH_THRESHOLD + 0.12; // = 0.72 (cobre zona duvidosa inteira)
-    const FALLBACK_MIN_FRAMES = 4;   // ativa fallback após 4 frames processados
-    let ultimoFrame      = 0;
-    const camCanvas      = document.createElement('canvas');
-    camCanvas.width = 320; camCanvas.height = 240;
-    let processando = false;
+    let acertos          = 0;
+    let totalFramesOk    = 0;
+    const MATCH_THRESHOLD = _fileMode ? 0.68 : 0.60;   // mais generoso em file://
+    const ACERTOS_NECES   = _fileMode ? 1    : 2;       // 1 frame suficiente em file://
+    const ZONA_SEGURA     = _fileMode ? 0.55 : 0.45;    // zona de aprovação direta
 
+    // Prepara descriptor face-api em background
+    async function _prepararDescriptor() {
+      if (!_rawDesc || _rawDesc.length < 128) {
+        // Sem descriptor salvo → aguarda face-api e extrai da foto
+        try { if (_faceapiPromise) await _faceapiPromise; } catch(e) {}
+        if (!FACEAPI_READY || !empData.fotoPerfil) return;
+        try { storedDesc = await extrairDescriptorDeFoto(empData.fotoPerfil); } catch(e) {}
+      } else {
+        storedDesc = new Float32Array(_rawDesc);
+      }
+      if (storedDesc) storedDescReady = true;
+    }
+    _prepararDescriptor().catch(() => {});
+
+    // Se não tem descriptor pré-calculado, inicia face-api com prioridade
+    if (!_rawDesc || _rawDesc.length < 128) {
+      if (typeof faceapi !== 'undefined' && !FACEAPI_READY && _faceapiPromise === null) {
+        _faceapiPromise = initFaceAPI().catch(() => {});
+      }
+    }
+
+    // ── Dispara primeira análise Groq IMEDIATAMENTE ───────────────────────────
+    const _groqDisponivel = !!GROQ_API_KEY;
+    async function _dispararGroq() {
+      if (!_groqDisponivel) return;
+      if (groqRodando || !BIO_MODAL_ABERTO || !BIO_READY) return;
+      if (groqTentativas >= GROQ_MAX_TENT) return;
+      if (Date.now() < groqCooldownAte) return;
+      const fotoUrl = empData.fotoPerfil || null;
+      if (!fotoUrl) return;
+      groqRodando = true;
+      groqTentativas++;
+      // Copia canvas atual para análise
+      const snp = document.createElement('canvas');
+      snp.width = 320; snp.height = 240;
+      snp.getContext('2d').drawImage(camCanvas, 0, 0);
+      groqFrameUsado = snp;
+      bioSetMethod('Análise inteligente em andamento');
+      try {
+        groqResultado = await groqComparar(snp, fotoUrl);
+        console.log('[Bio v3] Groq resultado:', groqResultado, 'tentativa', groqTentativas);
+      } catch(e) {
+        groqResultado = 'ERRO';
+      }
+      // Se ERRO (ex: CORS em file://) → não penaliza com cooldown longo
+      groqCooldownAte = groqResultado === 'ERRO'
+        ? Date.now() + 15000  // espera 15s antes de tentar Groq de novo (face-api assume)
+        : Date.now() + GROQ_COOLDOWN;
+      groqRodando = false;
+      if (!BIO_MODAL_ABERTO) return;
+      bioSetMethod(groqResultado === 'APROVADO' ? 'Identidade confirmada' :
+                   groqResultado === 'NEGADO'   ? 'Identidade não reconhecida' :
+                   groqResultado === 'ERRO'     ? null : null);
+    }
+
+    // Dispara Groq 500ms após câmera pronta
+    if (_groqDisponivel) setTimeout(_dispararGroq, 500);
+
+    // ── Loop de frames ────────────────────────────────────────────────────────
     async function bioLoop() {
       if (BIO_REGISTRANDO || !BIO_MODAL_ABERTO) return;
       BIO_AUTO_LOOP = requestAnimationFrame(bioLoop);
       const agora = Date.now();
-      // iOS Safari: videoWidth pode continuar 0 mesmo com vídeo rodando; usa readyState como fallback
       const videoOk = video.videoWidth > 0 || (_isIOSSafari && video.readyState >= 2);
       if (processando || !BIO_READY || !videoOk || (agora - ultimoFrame) < FRAME_INTERVAL) return;
       processando = true;
       ultimoFrame = agora;
 
       const elapsed = agora - BIO_START;
+      const restante = Math.ceil((BIO_TIMEOUT - elapsed) / 1000);
+      const timer = `<span style="font-size:10px;color:#475569"> (${restante}s)</span>`;
 
-      // Timeout: 15s sem reconhecimento → nega
+      // Timeout global
       if (elapsed > BIO_TIMEOUT) {
         BIO_REGISTRANDO = true;
         cancelAnimationFrame(BIO_AUTO_LOOP);
         bioSetRing(1, '#EF4444');
-        statusEl.innerHTML = `<span style="color:#FCA5A5;font-size:14px;font-weight:800">❌ Rosto não reconhecido</span><br>
-          <span style="font-size:12px;color:#94A3B8">Ponto <strong style="color:#F87171">não registrado</strong>. Contate o RH se precisar de ajuda.</span>`;
-        setTimeout(() => { bioFecharModal(); }, 2500);
+        bioShowMove(false);
+        bioMostrarResultado(false, 'Rosto não reconhecido');
+        setTimeout(() => bioFecharModal(), 2500);
         processando = false; return;
       }
 
-      // Indicador de tempo restante na UI
-      const restante = Math.ceil((BIO_TIMEOUT - elapsed) / 1000);
-      const timerTag = `<span style="font-size:10px;color:#64748B;margin-left:6px">(${restante}s)</span>`;
+      // Captura frame
+      try {
+        const _vw = video.videoWidth || 480, _vh = video.videoHeight || 360;
+        camCanvas.getContext('2d').drawImage(video, 0, 0, Math.min(_vw,480), Math.min(_vh,360));
+      } catch(e) { processando = false; return; }
 
-      // Fallback: melhor leitura abaixo do limite após frames suficientes → aprova/arbitra
-      // (exige liveness confirmado — sem blink, deixa o loop continuar normalmente)
-      if (melhorDistancia <= FALLBACK_LIMIT && totalFramesOk >= FALLBACK_MIN_FRAMES && BIO_BLINK_OK) {
+      // ── FASE A: Groq aprovou → exige liveness → registra ─────────────────────
+      if (groqResultado === 'APROVADO') {
+        // Tenta usar face-api para liveness (se carregou)
+        let livOk = _liveMovOk;
+        if (!livOk && FACEAPI_READY) {
+          try {
+            const det = await faceapi
+              .detectSingleFace(camCanvas, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.12 }))
+              .withFaceLandmarks();
+            if (det?.landmarks) _liveProcessFrame(det.landmarks);
+            livOk = _liveMovOk;
+          } catch(e) {}
+        }
+
+        // Janela de liveness: curta quando face-api detecta movimento;
+        // se face-api não carregou, libera por tempo (Groq já confirmou a identidade).
+        const _liveWindow = FACEAPI_READY ? LIVE_TIMEOUT_MS : 1800;
+
+        if (!livOk) {
+          const elapsed2 = Date.now() - _liveStartTs;
+          bioMoveBar(Math.min(1, elapsed2 / _liveWindow));
+          if (FACEAPI_READY) {
+            bioShowMove(true);
+            statusEl.innerHTML = `<span style="color:#34D399;font-weight:700">Identidade confirmada</span><br><span style="font-size:11px;color:#64748B">Mova levemente a cabeça</span>`;
+          } else {
+            bioShowMove(false);
+            statusEl.innerHTML = `<span style="color:#34D399;font-weight:700">Identidade confirmada</span><br><span style="font-size:11px;color:#64748B">Finalizando registro…</span>`;
+          }
+          bioSetRing(0.85, '#10B981');
+
+          if (elapsed2 > _liveWindow) {
+            livOk = true;
+            BIO_BLINK_OK = true;
+          }
+        }
+
+        if (livOk) {
+          BIO_REGISTRANDO = true;
+          cancelAnimationFrame(BIO_AUTO_LOOP);
+          bioSetRing(1, '#10B981');
+          bioShowMove(false);
+          if (icon) icon.style.display = 'flex';
+          await aprovar('groq_vision_direto', { liveness: 'head_move+groq', groqTentativas });
+          processando = false; return;
+        }
+
+        processando = false; return;
+      }
+
+      // ── FASE B: Groq negou definitivamente ────────────────────────────────────
+      if (groqResultado === 'NEGADO' && groqTentativas >= 2) {
+        // Dá chance ao face-api antes de negar definitivamente
+        if (storedDescReady && FACEAPI_READY) {
+          try {
+            const det = await faceapi
+              .detectSingleFace(camCanvas, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.12 }))
+              .withFaceLandmarks().withFaceDescriptor();
+            if (det) {
+              const d = faceapi.euclideanDistance(det.descriptor, storedDesc);
+              if (d <= ZONA_SEGURA) {
+                // face-api muito confiante — aprova mesmo com Groq negando
+                groqResultado = null; // reseta para não ficar em loop
+                console.log('[Bio v3] face-api override Groq NEGADO, dist:', d.toFixed(4));
+                processando = false; return;
+              }
+            }
+          } catch(e) {}
+        }
         BIO_REGISTRANDO = true;
         cancelAnimationFrame(BIO_AUTO_LOOP);
-
-        const chaveOk = !!GROQ_API_KEY;
-        const naZonaDuvidosa = melhorDistancia > CLAUDE_ZONA_INICIO && melhorDistancia <= CLAUDE_ZONA_FIM;
-
-        if (naZonaDuvidosa && chaveOk) {
-          // Aciona Claude Vision como árbitro final no fallback
-          bioSetRing(0.7, '#8B5CF6');
-          statusEl.innerHTML = `<span style="color:#C4B5FD;font-weight:700">🤖 Verificando com Groq (árbitro final)...</span>`;
-          const fotoBase  = empData.fotoPerfil || null;
-          const resultado = await claudeVision(camCanvas, fotoBase);
-          if (!BIO_MODAL_ABERTO) { processando = false; return; }
-          if (resultado === 'APROVADO') {
-            bioSetRing(1, '#10B981');
-            if (icon) icon.style.display = 'flex';
-            await aprovar('groq_vision_fallback', { faceDistance: melhorDistancia.toFixed(4), claudeDecisao: 'APROVADO', liveness: 'fallback+groq' });
-          } else if (resultado === 'NEGADO') {
-            // Groq confirmou que NÃO é a mesma pessoa — nega definitivamente
-            bioSetRing(1, '#EF4444');
-            statusEl.innerHTML = `<span style="color:#FCA5A5;font-size:14px;font-weight:800">❌ Identidade não confirmada</span><br>
-              <span style="font-size:12px;color:#94A3B8">Ponto <strong style="color:#F87171">não registrado</strong>.</span>`;
-            setTimeout(() => { bioFecharModal(); }, 2500);
-          } else {
-            // Groq ERRO (network/rate-limit/foto inacessível) — aprova por distância
-            bioSetRing(1, '#10B981');
-            if (icon) icon.style.display = 'flex';
-            const method = empData.descriptor && empData.descriptor.length >= 128
-              ? 'faceapi_128d_fallback_direto' : 'faceapi_foto_fallback_direto';
-            await aprovar(method, { faceDistance: melhorDistancia.toFixed(4), liveness: 'faceapi_fallback_groq_err' });
-          }
-          processando = false; return;
-        }
-
-        // Zona segura (distância <= 0.45) — aprovação direta
-        bioSetRing(1, '#10B981');
-        if (icon) icon.style.display = 'flex';
-        const method = empData.descriptor && empData.descriptor.length >= 128
-          ? 'faceapi_128d_fallback_direto' : 'faceapi_foto_fallback_direto';
-        await aprovar(method, { faceDistance: melhorDistancia.toFixed(4), liveness: 'faceapi_zona_segura_fallback' });
+        bioSetRing(1, '#EF4444');
+        bioShowMove(false);
+        bioMostrarResultado(false, 'Identidade não confirmada');
+        setTimeout(() => bioFecharModal(), 2500);
         processando = false; return;
       }
 
-      try {
-        const _vw = video.videoWidth || 320, _vh = video.videoHeight || 240;
-        camCanvas.getContext('2d').drawImage(video, 0, 0, Math.min(_vw, 320), Math.min(_vh, 240));
-        const det = await faceapi
-          .detectSingleFace(camCanvas, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.3 }))
-          .withFaceLandmarks()
-          .withFaceDescriptor();
-
-        if (!BIO_MODAL_ABERTO) { processando = false; return; }
-
-        if (!det) {
-          acertos = 0; tentativas++;
-          bioSetRing(0.5, '#3B82F6');
-          statusEl.innerHTML = (tentativas > 3
-            ? '⚠ Nenhum rosto detectado. Melhore a iluminação.'
-            : '🔬 Analisando identidade...') + timerTag;
-          processando = false; return;
-        }
-
-        // ── LIVENESS (anti-foto): exige um ciclo de piscar de olhos real ────────
-        // Roda em paralelo ao reconhecimento facial — não atrasa quem já está
-        // piscando naturalmente, mas impede aprovação via foto estática.
-        if (det.landmarks) processarBlinkFrame(det.landmarks);
-        if (!BIO_BLINK_OK) {
-          bioShowBlink(true);
-          const _blinkElapsed = Date.now() - _blinkStartTs;
-          bioBlinkBar(Math.min(1, _blinkElapsed / BLINK_TIMEOUT_MS));
-        } else {
-          bioShowBlink(false);
-        }
-
-        const distance   = (() => {
-          // FIX: calcula distância para todos os descritores registrados e usa a mínima
-          // (multi-ângulo: o melhor ângulo ganha, melhora aprovação em condições difíceis)
-          const allDescs = empData._allDescriptors;
-          if (allDescs && allDescs.length > 1) {
-            let minDist = faceapi.euclideanDistance(det.descriptor, storedDesc);
-            for (let _i = 1; _i < allDescs.length; _i++) {
-              try {
-                const _d = faceapi.euclideanDistance(det.descriptor, new Float32Array(allDescs[_i]));
-                if (_d < minDist) minDist = _d;
-              } catch(_) {}
-            }
-            return minDist;
-          }
-          return faceapi.euclideanDistance(det.descriptor, storedDesc);
-        })();
-        const confidence = Math.max(0, Math.min(1, 1 - (distance / MATCH_THRESHOLD)));
-        if (distance < melhorDistancia) melhorDistancia = distance;
-        totalFramesOk++;
-        somaDistancias += distance;
-
-        // ── ZONA SEGURA: face-api aprova direto (distância <= 0.45) ─────────────
-        if (distance <= CLAUDE_ZONA_INICIO) {
-          acertos++;
-          window._bioFramesDuvidosos = 0; // FIX: saiu da zona duvidosa, reseta contador
-          const mediaAtual   = somaDistancias / totalFramesOk;
-          const progressoPct = Math.round((acertos / ACERTOS_NECES) * 100);
-          bioSetRing(0.5 + (acertos / ACERTOS_NECES) * 0.5, '#10B981');
-          statusEl.innerHTML = acertos >= ACERTOS_NECES
-            ? '✅ Identidade confirmada! Registrando...'
-            : `🟢 Reconhecendo... ${progressoPct}%${timerTag}`;
-
-          if (acertos >= ACERTOS_NECES && mediaAtual <= MATCH_THRESHOLD + 0.15) {
-            if (!BIO_BLINK_OK) {
-              // Identidade já confirmada, mas falta o ciclo de blink (anti-foto).
-              // Mantém o loop rodando aguardando o piscar de olhos.
-              statusEl.innerHTML = `✅ Identidade confirmada!<br><span style="font-size:11px;color:#FCD34D">👀 Agora pisque os olhos para confirmar presença${timerTag}</span>`;
-              processando = false; return;
-            }
-            BIO_REGISTRANDO = true;
-            cancelAnimationFrame(BIO_AUTO_LOOP);
-            bioSetRing(1, '#10B981');
-            if (icon) icon.style.display = 'flex';
-            const method = empData.descriptor && empData.descriptor.length >= 128
-              ? 'faceapi_128d_aprovado_direto' : 'faceapi_foto_aprovado_direto';
-            await aprovar(method, { faceDistance: distance.toFixed(4), mediaDistancia: mediaAtual.toFixed(4), liveness: 'faceapi_zona_segura+blink' });
-            processando = false; return;
-          } else if (acertos >= ACERTOS_NECES) {
-            acertos = Math.floor(ACERTOS_NECES / 2);
-            somaDistancias = 0; totalFramesOk = 0;
-          }
-
-        // ── ZONA DUVIDOSA: Claude Vision arbitra (0.45 < distância <= 0.65) ─────
-        } else if (distance <= CLAUDE_ZONA_FIM) {
-          acertos = 0;
-          // Só chama Claude se a chave estiver configurada e não estiver em cooldown
-          const chaveOk = !!GROQ_API_KEY;
-          if (!chaveOk) {
-            // Sem chave Claude: comportamento original do face-api
-            const pct = Math.round(confidence * 100);
-            bioSetRing(0.5 + confidence * 0.3, '#F59E0B');
-            statusEl.innerHTML = `🟡 Quase lá (${pct}%)... aproxime-se.${timerTag}`;
-            processando = false; return;
-          }
-
-          // FIX: acumula frames duvidosos antes de escalar para Groq
-          // (evita chamar Groq por um único frame de baixa qualidade)
-          if (!window._bioFramesDuvidosos) window._bioFramesDuvidosos = 0;
-          window._bioFramesDuvidosos++;
-          const FRAMES_DUVIDOSOS_NECESSARIOS = 3;
-          if (window._bioFramesDuvidosos < FRAMES_DUVIDOSOS_NECESSARIOS) {
-            const pct = Math.round(confidence * 100);
-            bioSetRing(0.5 + confidence * 0.3, '#F59E0B');
-            statusEl.innerHTML = `🟡 Analisando... (${pct}%)${timerTag}`;
-            processando = false; return;
-          }
-          window._bioFramesDuvidosos = 0; // reseta para próxima rodada
-
-          // ── LIVENESS: exige blink antes de gastar uma chamada de Groq ──────────
-          if (!BIO_BLINK_OK) {
-            statusEl.innerHTML = `🟡 Quase lá...<br><span style="font-size:11px;color:#FCD34D">👀 Pisque os olhos para confirmar presença${timerTag}</span>`;
-            processando = false; return;
-          }
-
-          BIO_REGISTRANDO = true; // Pausa o loop enquanto Claude analisa
-          cancelAnimationFrame(BIO_AUTO_LOOP);
-          bioSetRing(0.7, '#8B5CF6');
-          statusEl.innerHTML = `<span style="color:#C4B5FD;font-weight:700">🤖 Verificando com Groq...</span><br>
-            <span style="font-size:11px;color:#94A3B8">Análise extra de segurança</span>`;
-
-          const fotoBase = empData.fotoPerfil || null;
-          const resultado = await claudeVision(camCanvas, fotoBase);
+      // ── FASE C: face-api direto (Groq ainda rodando ou com erro) ─────────────
+      if (storedDescReady && FACEAPI_READY) {
+        try {
+          const det = await faceapi
+            .detectSingleFace(camCanvas, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.12 }))
+            .withFaceLandmarks().withFaceDescriptor();
 
           if (!BIO_MODAL_ABERTO) { processando = false; return; }
 
-          if (resultado === 'APROVADO') {
-            bioSetRing(1, '#10B981');
-            if (icon) icon.style.display = 'flex';
-            await aprovar('groq_vision_arbitro', { faceDistance: distance.toFixed(4), claudeDecisao: 'APROVADO', liveness: 'faceapi_blink + groq_vision' });
-          } else if (resultado === 'NEGADO') {
-            bioSetRing(1, '#EF4444');
-            statusEl.innerHTML = `<span style="color:#FCA5A5;font-size:14px;font-weight:800">❌ Identidade não confirmada</span><br>
-              <span style="font-size:12px;color:#94A3B8">Ponto <strong style="color:#F87171">não registrado</strong>. Contate o RH.</span>`;
-            setTimeout(() => { bioFecharModal(); }, 2500);
-          } else {
-            // Groq ERRO (network/rate-limit) — se distância já está abaixo do threshold, aprova direto
-            if (distance <= MATCH_THRESHOLD) {
-              bioSetRing(1, '#10B981');
-              if (icon) icon.style.display = 'flex';
-              await aprovar('faceapi_128d_groq_erro_aprovado', { faceDistance: distance.toFixed(4), liveness: 'faceapi_zona_segura_groq_offline' });
+          if (det) {
+            if (det.landmarks) _liveProcessFrame(det.landmarks);
+
+            const allDescs = empData._allDescriptors;
+            let distance = faceapi.euclideanDistance(det.descriptor, storedDesc);
+            if (allDescs?.length > 1) {
+              for (let i = 1; i < allDescs.length; i++) {
+                try {
+                  const d2 = faceapi.euclideanDistance(det.descriptor, new Float32Array(allDescs[i]));
+                  if (d2 < distance) distance = d2;
+                } catch(_) {}
+              }
+            }
+            if (distance < melhorDistancia) melhorDistancia = distance;
+            totalFramesOk++;
+
+            const pct = Math.round(Math.max(0, Math.min(1, 1 - distance / MATCH_THRESHOLD)) * 100);
+            const cor  = distance <= 0.45 ? '#10B981' : distance <= 0.60 ? '#F59E0B' : '#EF4444';
+            bioSetRing(0.3 + (1 - Math.min(distance, 1)) * 0.6, cor);
+
+            if (!_liveMovOk) {
+              bioShowMove(true);
+              bioMoveBar(Math.min(1, (Date.now() - _liveStartTs) / LIVE_TIMEOUT_MS));
             } else {
-              // Distância ainda alta — retoma loop
-              BIO_REGISTRANDO = false;
-              const _restanteAtual = Math.ceil((BIO_TIMEOUT - (Date.now() - BIO_START)) / 1000);
-              statusEl.innerHTML = `🔄 Continuando análise... <span style="font-size:10px;color:#64748B">(${_restanteAtual}s)</span>`;
-              BIO_AUTO_LOOP = requestAnimationFrame(bioLoop);
+              bioShowMove(false);
+            }
+
+            // Zona segura face-api (muito confiante)
+            if (distance <= ZONA_SEGURA && _liveMovOk) {
+              acertos++;
+              statusEl.innerHTML = acertos >= ACERTOS_NECES
+                ? '<span style="color:#34D399;font-weight:700">Identidade confirmada — registrando ponto</span>'
+                : `<span style="color:#34D399;font-weight:700">Identidade reconhecida</span><br><span style="font-size:11px;color:#64748B">Concluindo verificação${timer}</span>`;
+              if (acertos >= ACERTOS_NECES) {
+                BIO_REGISTRANDO = true;
+                cancelAnimationFrame(BIO_AUTO_LOOP);
+                bioSetRing(1, '#10B981'); bioShowMove(false);
+                if (icon) icon.style.display = 'flex';
+                await aprovar('faceapi_zona_segura', { faceDistance: distance.toFixed(4), liveness: 'head_move+faceapi' });
+                processando = false; return;
+              }
+            } else if (distance <= ZONA_SEGURA && !_liveMovOk) {
+              statusEl.innerHTML = `<span style="color:#34D399;font-weight:700">Identidade confirmada</span><br><span style="font-size:11px;color:#64748B">Conclua a prova de vida</span>`;
+              acertos = Math.max(0, acertos);
+            } else if (distance <= MATCH_THRESHOLD) {
+              acertos = 0;
+              statusEl.innerHTML = `<span style="font-weight:700;color:#93C5FD">Verificando identidade</span><br><span style="font-size:11px;color:#64748B">Mantenha o rosto centralizado${timer}</span>`;
+              // Re-dispara Groq se disponível e em cooldown expirado
+              if (!groqRodando && groqTentativas < GROQ_MAX_TENT && Date.now() > groqCooldownAte) {
+                _dispararGroq().catch(() => {});
+              }
+            } else {
+              acertos = 0;
+              statusEl.innerHTML = `<span style="font-weight:700;color:#FCD34D">Aproxime e centralize o rosto</span><br><span style="font-size:11px;color:#64748B">Procure um ambiente bem iluminado${timer}</span>`;
+              if (!groqRodando && groqTentativas < GROQ_MAX_TENT && Date.now() > groqCooldownAte) {
+                _dispararGroq().catch(() => {});
+              }
+            }
+
+            // Fallback face-api: melhor leitura suficiente após muitos frames
+            if (melhorDistancia <= MATCH_THRESHOLD && totalFramesOk >= (_fileMode ? 3 : 6) && _liveMovOk) {
+              BIO_REGISTRANDO = true;
+              cancelAnimationFrame(BIO_AUTO_LOOP);
+              bioSetRing(1, '#10B981'); bioShowMove(false);
+              if (icon) icon.style.display = 'flex';
+              await aprovar('faceapi_fallback', { faceDistance: melhorDistancia.toFixed(4), liveness: 'head_move+faceapi_fallback' });
+              processando = false; return;
+            }
+          } else {
+            // Nenhum rosto detectado
+            acertos = 0;
+            bioSetRing(0.3, '#3B82F6');
+            statusEl.innerHTML = totalFramesOk > 0
+              ? `<span style="color:#FCD34D;font-weight:700">Posicione o rosto no círculo</span><span style="font-size:11px;color:#64748B">${timer}</span>`
+              : `<span style="color:#93C5FD;font-weight:700">Analisando</span><span style="font-size:11px;color:#64748B">${timer}</span>`;
+            // Re-dispara Groq enquanto aguarda rosto ser enquadrado melhor
+            if (!groqRodando && groqTentativas < GROQ_MAX_TENT && Date.now() > groqCooldownAte && elapsed > 3000) {
+              _dispararGroq().catch(() => {});
             }
           }
-          processando = false; return;
-
-        // ── ZONA NEGADA: face-api nega direto (distância > 0.65) ────────────────
+        } catch(e) {}
+      } else {
+        // face-api ainda não carregou
+        const prog = Math.min(0.6, elapsed / 6000);
+        bioSetRing(0.2 + prog * 0.4, '#3B82F6');
+        if (groqRodando) {
+          statusEl.innerHTML = `<span style="color:#93C5FD;font-weight:700">Verificando identidade</span><br>
+            <span style="font-size:11px;color:#64748B">Aguarde alguns segundos${timer}</span>`;
+        } else if (groqResultado === 'ERRO' && groqTentativas < GROQ_MAX_TENT && Date.now() > groqCooldownAte) {
+          _dispararGroq().catch(() => {});
         } else {
-          acertos = 0;
-          window._bioFramesDuvidosos = 0; // FIX: saiu da zona duvidosa, reseta contador
-          const pct = Math.round(confidence * 100);
-          bioSetRing(0.5 + confidence * 0.3, '#EF4444');
-          statusEl.innerHTML = `🔴 Verificando... (${pct}%)${timerTag}`;
+          statusEl.innerHTML = `<span style="font-weight:700;color:#93C5FD">Posicione o rosto no círculo</span><span style="font-size:11px;color:#64748B">${timer}</span>`;
         }
-      } catch(e) { /* ignora frame com erro */ }
+      }
+
       processando = false;
     }
     BIO_AUTO_LOOP = requestAnimationFrame(bioLoop);
 
   } catch(e) {
     if (!BIO_MODAL_ABERTO) return;
-    if (e.message === 'modal_closed' || e.message === 'blink_timeout') return;
     if (stream) stream.getTracks().forEach(t => { try { t.stop(); } catch(_) {} });
     bioStopStream();
     const _iosHint = _isIOSSafari ? ' No iPhone/iPad: Ajustes → Safari → Câmera → Permitir.' : '';
-    const msg = e.name === 'NotAllowedError'       ? `❌ Permissão de câmera negada.${_iosHint}`
-              : e.name === 'NotFoundError'          ? '❌ Nenhuma câmera encontrada neste dispositivo.'
-              : e.name === 'NotReadableError'       ? '❌ Câmera em uso por outro aplicativo. Feche-o e tente novamente.'
-              : e.name === 'OverconstrainedError'   ? '❌ Câmera não suporta a configuração solicitada. Tente recarregar.'
-              : e.name === 'SecurityError'          ? `❌ Acesso à câmera bloqueado por segurança.${_iosHint}`
+    const msg = e.name === 'NotAllowedError'     ? `❌ Permissão de câmera negada.${_iosHint}`
+              : e.name === 'NotFoundError'        ? '❌ Nenhuma câmera encontrada neste dispositivo.'
+              : e.name === 'NotReadableError'     ? '❌ Câmera em uso por outro app. Feche-o e tente novamente.'
+              : e.name === 'OverconstrainedError' ? '❌ Câmera incompatível. Recarregue a página.'
+              : e.name === 'SecurityError'        ? `❌ Câmera bloqueada por segurança.${_iosHint}`
               : '❌ Erro ao abrir câmera: ' + e.message;
     document.getElementById('bio-status').textContent = msg;
   }
@@ -8312,10 +8291,10 @@ function bioFecharModal() {
   cancelAnimationFrame(BIO_AUTO_LOOP);
   BIO_AUTO_LOOP = null;
   document.getElementById('bio-ponto-modal').style.display = 'none';
-  bioShowBlink(false);
+  bioShowMove(false);
+  bioEsconderResultado();
   bioStopStream();
   _atualizarFabPonto();
-  // FIX: re-habilita o botão de bater ponto após fechar o modal
   const _btnP = document.getElementById('btn-bater-ponto');
   if (_btnP) _btnP.disabled = false;
 }
