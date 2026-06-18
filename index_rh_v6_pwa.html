@@ -11,15 +11,15 @@
 <script>(function(){if(window.location.protocol!=="file:"){var icons=[["icon","icone-192.png","image/png",""],["apple-touch-icon","icone-192.png","",""],["apple-touch-icon","icone-192.png","","192x192"],["apple-touch-icon","icone-512.png","","512x512"]];icons.forEach(function(i){var l=document.createElement("link");l.rel=i[0];l.href=i[1];if(i[2])l.type=i[2];if(i[3])l.setAttribute("sizes",i[3]);document.head.appendChild(l);});}})();</script>
 
 <!-- Firebase carregado estaticamente — evita travamento por download dinâmico -->
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <!-- Firebase Realtime Database — 2º banco para ponto biométrico em tempo real -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <!-- Firebase Auth — necessário para autenticação anônima (Firestore rules) -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <!-- Supabase — 3º banco para dados sensíveis (funcionários, holerite, contratos) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
 <script>
 window.FIREBASE_LOADED = (typeof firebase !== 'undefined');
@@ -1879,7 +1879,7 @@ function calcIRRF(b){
 // O módulo usa caminho próprio de persistência (Firestore collection separada +
 // localStorage 'fcrh_comprovantes') — não entra em _VALID_KEYS/fbLoad para não
 // conflitar com a lógica da collection comprovantes_pagamento.
-let APP={employees:[],candidates:[],pontos:{},financeiro:{},atestados:[],admissoes:{},demissoes:{},salarios:{},holRascunho:{},metaDiaria:{},faltaPagar:[],advertencias:[],ferias:[],avaliacoes:[],comunicados:[],bancohoras:{},contratos:[],comprovantes:[],bhSolicitacoes:[],empresaCfg:{},lancamentos_bh:{},wf_ferias:[],wf_contratos_alertas:[],wf_holerite_auto:[],wf_onboarding:[],portalSolicitacoes:[]};
+let APP={employees:[],candidates:[],pontos:{},financeiro:{},atestados:[],admissoes:{},demissoes:{},salarios:{},holRascunho:{},metaDiaria:{},faltaPagar:[],advertencias:[],ferias:[],avaliacoes:[],comunicados:[],bancohoras:{},contratos:[],comprovantes:[],bhSolicitacoes:[],empresaCfg:{},lancamentos_bh:{},wf_ferias:[],wf_contratos_alertas:[],wf_holerite_auto:[],wf_onboarding:[],portalSolicitacoes:[],ocorrenciasContratados:[]};
 
 // FIX-BUG2: helper para escapar HTML em mensagens de erro (previne XSS)
 function _escHtml(s){
@@ -2154,6 +2154,7 @@ const _VALID_KEYS=new Set(['employees','candidates','pontos','financeiro','atest
   'wf_holerite_auto',      // workflow de geração automática de holerite
   'wf_onboarding',         // workflow de onboarding
   'portalSolicitacoes',    // solicitações do portal do colaborador
+  'ocorrenciasContratados',// faltas/atestados/saídas de contratados sem registro de ponto
 ]);
 
 // ── save(k) — salva local + Firebase + Supabase (dados sensíveis) ──
@@ -2668,6 +2669,8 @@ const NAV_GROUPS = [
   { label: 'Ferramentas', items: [
     {id:'agenda_rh',label:'Agenda de RH',icon:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>'},
     {id:'doc_templates',label:'Templates de Documentos',icon:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>'},
+    {id:'auditoria',label:'Logs de Auditoria',icon:'<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>'},
+    {id:'ocorrencias_contratados',label:'Ocorrências de Contratados',icon:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>'},
   ]},
 ];
 // Mantém NAV flat para compatibilidade com MOD, navigate(), etc.
@@ -2841,7 +2844,7 @@ function navigate(mod){
     return;
   }
 
-  const renders={dashboard:(typeof window._rDashComAlertas==="function"?window._rDashComAlertas:rDash),funcionarios:rFuncs,ponto:rPonto,financeiro:rFin,holerite:rHolerite,atestados:rAtestados,candidatos:rCand,admissao:rAdmissao,demissao:rDemissao,salarios:rSalarios,metadiaria:rMetaDiaria,biometrico:function(){ return (typeof window.rBiometrico==='function') ? window.rBiometrico() : rBiometrico(); },relatorio:rRelatorio,advertencias:rAdvertencias,ferias:rFerias,desempenho:rDesempenho,comunicados:rComunicados,bancohoras:rBancoHoras,recrutamento:rRecrutamento,contratos:function(){ return (typeof rContratos==='function') ? rContratos() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Contratos carregando...</div>'; },comprovantes:rComprovantes,portaislinks:rPortaisLinks,workflows:rWorkflows,assinatura_digital:function(){ return (typeof window.rAssinaturaDigital==='function') ? window.rAssinaturaDigital() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Assinatura carregando...</div>'; },alarmes_portal:rAlarmesPortal,solicitacoes_portal:rSolicitacoesPortal,absenteismo:rAbsenteismo,suspensao:function(){ const t=document.getElementById('_susp_module_html_'); return t?t.innerHTML:'<div class="card" style="padding:30px;text-align:center">⏳ Módulo Suspensões carregando...</div>'; },agenda_rh:rAgendaRH,doc_templates:rDocTemplates};
+  const renders={dashboard:(typeof window._rDashComAlertas==="function"?window._rDashComAlertas:rDash),funcionarios:rFuncs,ponto:rPonto,financeiro:rFin,holerite:rHolerite,atestados:rAtestados,candidatos:rCand,admissao:rAdmissao,demissao:rDemissao,salarios:rSalarios,metadiaria:rMetaDiaria,biometrico:function(){ return (typeof window.rBiometrico==='function') ? window.rBiometrico() : rBiometrico(); },relatorio:rRelatorio,advertencias:rAdvertencias,ferias:rFerias,desempenho:rDesempenho,comunicados:rComunicados,bancohoras:rBancoHoras,recrutamento:rRecrutamento,contratos:function(){ return (typeof rContratos==='function') ? rContratos() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Contratos carregando...</div>'; },comprovantes:rComprovantes,portaislinks:rPortaisLinks,workflows:rWorkflows,assinatura_digital:function(){ return (typeof window.rAssinaturaDigital==='function') ? window.rAssinaturaDigital() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Assinatura carregando...</div>'; },alarmes_portal:rAlarmesPortal,solicitacoes_portal:rSolicitacoesPortal,absenteismo:rAbsenteismo,suspensao:function(){ const t=document.getElementById('_susp_module_html_'); return t?t.innerHTML:'<div class="card" style="padding:30px;text-align:center">⏳ Módulo Suspensões carregando...</div>'; },agenda_rh:rAgendaRH,doc_templates:rDocTemplates,auditoria:function(){ return (typeof window.rAuditoria==='function') ? window.rAuditoria() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando auditoria...</div>'; },ocorrencias_contratados:function(){ return (typeof window.rOcorrenciasContratados==='function') ? window.rOcorrenciasContratados() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; }};
   // FIX-C1: try-catch no dispatcher — evita tela branca se qualquer render lançar erro
   try {
     document.getElementById('content').innerHTML=(renders[mod]||rDash)();
@@ -2893,6 +2896,18 @@ function navigateDebounced(mod,delay=150){
 // MODAL & TOAST
 // ════════════════════════════════════════════════════
 function openModal(title,html,width=680,noScroll=false){
+  // COMPAT: alguns modais antigos chamam openModal(htmlCompleto) com todo o markup
+  // (incluindo <div class="mhd"><h3>Título</h3>...) no 1º argumento. Detecta e corrige.
+  if(html===undefined && typeof title==='string' && /<div\s+class=["']mhd["']/.test(title)){
+    const full=title;
+    let extractedTitle='Atlas RH';
+    const mt=full.match(/<h3[^>]*>([\s\S]*?)<\/h3>/i);
+    if(mt) extractedTitle=mt[1].replace(/<[^>]+>/g,'').trim();
+    // Remove o cabeçalho .mhd (título + botão fechar) e usa o resto como corpo
+    let body=full.replace(/<div\s+class=["']mhd["'][\s\S]*?<\/div>/i,'');
+    // Desembrulha o .mbd se existir, mantendo .mft para o rodapé
+    title=extractedTitle; html=body;
+  }
   document.getElementById('mtitle').textContent=title;
   document.getElementById('overlay').classList.add('open');
   document.querySelector('.mbox').style.maxWidth=width+'px';
@@ -4215,6 +4230,7 @@ function confirmarExclusaoEmp(id){
 async function delEmp(id){
   const emp=APP.employees.find(e=>e.id===id);
   if(!emp){closeModal();toast('Funcionário não encontrado.','err');return;}
+  if(typeof auditLog==='function') auditLog('Excluiu funcionário', `${emp.nome||emp.name||id} (e todos os dados vinculados)`, 'Funcionários');
 
   // BUG-10 FIX: limpa todos os dados vinculados ao funcionário antes de removê-lo
   // para evitar registros órfãos que distorcem relatórios e acumulam lixo.
@@ -16600,11 +16616,9 @@ function rBancoHoras(){
 
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px">
     <div><h2 style="font-size:20px;font-weight:800;margin:0">⏰ Banco de Horas</h2>
-    <p style="font-size:13px;color:var(--mt);margin:4px 0 0">Horas extras, compensações e saldos individuais</p></div>
+    <p style="font-size:13px;color:var(--mt);margin:4px 0 0">Atualização automática: Ponto Biométrico → Cartão Ponto → Banco de Horas → Portal do Colaborador</p></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn" style="background:#7C3AED;color:#fff;font-weight:700" onclick="sincronizarTudo({origem:'bancohoras'})" title="Sincroniza TUDO: Biométrico → Cartão Ponto → Banco de Horas (todos os funcionários)">⚡ Sincronizar Tudo</button>
-      <button class="btn btn-green" onclick="syncBHdoCartaoPonto()" title="Importa horas extras e débitos calculados pelo Cartão Ponto para o Banco de Horas">📋 Importar do Cartão Ponto</button>
-      <button class="btn" style="background:#EFF6FF;color:#2563EB;border:1px solid #BFDBFE" onclick="syncBHdoBiometrico()" title="Importa somente créditos do Ponto Biométrico">🔄 Importar do Biométrico</button>
+      <button class="btn" style="background:#7C3AED;color:#fff;font-weight:700" onclick="sincronizarTudo({origem:'bancohoras'})" title="Força o recálculo de TODOS os funcionários agora (normalmente é automático)">🔄 Recalcular agora</button>
       <button class="btn btn-blue" onclick="openBHForm(null)">+ Lançar Horas</button>
       <button class="btn" style="background:#059669;color:#fff;font-weight:700;border:2px solid #047857" onclick="forceSaveBH()" title="Salva todos os lançamentos do Banco de Horas no Firebase agora">💾 Salvar Banco de Horas</button>
       <button class="btn" style="background:#F0FDF4;color:#059669;border:1px solid #BBF7D0;font-weight:700" onclick="exportarCSVBancoHoras()" title="Exporta todos os lançamentos individuais do banco de horas em CSV">📥 Exportar CSV</button>
@@ -34704,6 +34718,15 @@ console.log('[v18] ✅ Módulo Assinatura Digital carregado — canvas + SHA-256
     if (typeof navigate === 'function') navigate('bancohoras');
   };
 
+  // ── Versão SILENCIOSA por funcionário (para automação em background) ──────
+  // Recalcula só os funcionários informados, sem toast nem navigate.
+  window.bhSyncSilencioso = function(ano, mes, empIds) {
+    const hoje = new Date();
+    ano = ano !== undefined ? ano : hoje.getFullYear();
+    mes = mes !== undefined ? mes : hoje.getMonth();
+    return _syncBHMes(ano, mes, empIds || null);
+  };
+
   // ── Substitui saldoBH para nunca clampear em 0 indevidamente ──────────
   // O saldo real pode ser negativo (funcionário deve horas)
   function _saldoBHReal(empId) {
@@ -34787,6 +34810,32 @@ console.log('[v18] ✅ Módulo Assinatura Digital carregado — canvas + SHA-256
   window.syncBHdoCartaoPonto = function() {
     const hoje = new Date();
     window.bhSyncPatchV19(hoje.getFullYear(), hoje.getMonth());
+  };
+
+  // ── Override de syncBHdoBiometrico: usa a MESMA fonte única (v19) ──────
+  // FIX dupla-contagem: antes, "Importar do Biométrico" usava bioCalc e gerava
+  // a TAG [biometrico-MM], enquanto "Importar do Cartão Ponto" usava a v19 e
+  // gerava [bh_patch_v19-MM]. As duas coexistiam → saldos diferentes/duplicados.
+  // Agora ambos passam pelo MESMO fluxo: biométrico → Cartão Ponto → _syncBHMes,
+  // que limpa TODAS as TAGs antes de gravar. Resultado idêntico, sem duplicar.
+  window.syncBHdoBiometrico = async function() {
+    const hoje = new Date();
+    const ano = (typeof BIO_ANO!=='undefined') ? BIO_ANO : hoje.getFullYear();
+    const mes = (typeof BIO_MES!=='undefined') ? BIO_MES : hoje.getMonth();
+    // 1) Garante dados biométricos carregados
+    try{ if(typeof bioLoadData==='function' && typeof FBASE!=='undefined' && FBASE) await bioLoadData(); }catch(e){ console.warn('[BH bio→v19] bioLoadData',e); }
+    // 2) Popula o Cartão Ponto a partir do biométrico (fonte canônica)
+    const mk = ano+'-'+String(mes+1).padStart(2,'0');
+    try{ if(typeof _bioSyncAllPontosDoMes==='function') await _bioSyncAllPontosDoMes(mk); }catch(e){ console.warn('[BH bio→v19] syncPontos',e); }
+    // 3) Recalcula o BH pela fonte única e envia ao portal
+    try{
+      _syncBHMes(ano, mes, null);
+      if(typeof save==='function'){ save('pontos'); save('bancohoras'); }
+      if(typeof enviarSaldoBHPortal==='function') await enviarSaldoBHPortal(null);
+    }catch(e){ console.warn('[BH bio→v19] syncBHMes',e); }
+    const mesLabel = new Date(ano, mes, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    if(typeof toast==='function') toast('✅ Biométrico importado e Banco de Horas recalculado ('+mesLabel+').','ok',5000);
+    if(typeof navigate==='function') navigate('bancohoras');
   };
 
   // ── Override de _confirmarImportBHCartaoPonto ─────────────────────────
@@ -40585,8 +40634,7 @@ function rDocTemplates(){
 function openTplForm(id){
   const templates = _tplLoad();
   const t = id ? templates.find(x=>x.id===id) : null;
-  openModal(`<div class="mhd"><h3>${t?'Editar':'Novo'} Template</h3><button onclick="closeModal()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
-  <div class="mbd">
+  openModal(`${t?'Editar':'Novo'} Template`, `
     <div class="fld"><label>Nome do Template</label><input id="tpl-nome" placeholder="Ex: Advertência por atraso recorrente" value="${esc(t?t.nome:'')}"></div>
     <div class="fld"><label>Tipo de Documento</label>
       <select id="tpl-tipo">
@@ -40598,11 +40646,10 @@ function openTplForm(id){
       <textarea id="tpl-corpo" rows="10" placeholder="Texto completo. Use {NOME}, {CARGO}, {DATA}, {EMPRESA}, {CPF} como variáveis.">${esc(t?t.corpo||'':'')}</textarea>
       <div style="font-size:11px;color:var(--mt);margin-top:4px">Variáveis: <code>{NOME}</code>, <code>{CARGO}</code>, <code>{DATA}</code>, <code>{EMPRESA}</code>, <code>{CPF}</code></div>
     </div>
-  </div>
-  <div class="mft">
-    <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-    <button class="btn btn-blue" onclick="salvarTemplate('${id||''}')">Salvar Template</button>
-  </div>`);
+    <div class="mft">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-blue" onclick="salvarTemplate('${id||''}')">Salvar Template</button>
+    </div>`, 620);
 }
 
 function salvarTemplate(id){
@@ -40847,6 +40894,8 @@ function _rAgendaSidebar(){
 /* ───── Assistente RH IA (chat global flutuante) ───── */
 /* ───── Chat embutido na página (Dashboard / Análise IA) ───── */
 .aiainl-card{display:flex;flex-direction:column;border:1px solid #E2E8F0}
+.aia-spin{width:14px;height:14px;border:2px solid #E2E8F0;border-top-color:#0B1E35;border-radius:50%;display:inline-block;animation:aiaSpin .7s linear infinite}
+@keyframes aiaSpin{to{transform:rotate(360deg)}}
 .aiainl-head{background:#0B1E35;color:#fff;padding:13px 16px;display:flex;align-items:center;gap:11px}
 .aiainl-head .aiainl-ic{width:32px;height:32px;border-radius:8px;background:#13294a;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .aiainl-head .aiainl-ic svg{width:17px;height:17px;stroke:#C9A84C}
@@ -41028,6 +41077,7 @@ async function aiaSend(){
     'Use os DADOS DO SISTEMA abaixo quando a pergunta for sobre a situação atual da empresa (presenças, faltas, pendências).',
     'Seja conciso: respostas de 2 a 6 parágrafos curtos. Use **negrito** para destacar pontos-chave e listas quando ajudar.',
     'Quando envolver cálculo ou regra legal, explique o raciocínio de forma simples. Se faltar dado, diga o que precisa.',
+    'Se o RH pedir um documento (advertência, comunicado, aviso, carta, notificação), escreva o texto COMPLETO e formal, pronto para uso, sem comentários extras antes ou depois — apenas o documento. Use os dados do colaborador citado quando disponíveis.',
     'Importante: você orienta, mas decisões trabalhistas sensíveis devem ser validadas pelo RH/jurídico da empresa.',
     '\n=== DADOS DO SISTEMA (contexto de hoje) ===\n'+aiaContexto()
   ].join('\n');
@@ -41040,7 +41090,16 @@ async function aiaSend(){
   try{ resp = await chatAICall(sys, userPrompt); }
   catch(e){ resp = '⚠ ' + (e && e.message ? e.message : 'Não consegui processar agora.') + '\n\nDica: abra ⚙ Configurar IA e confira a chave Groq.'; }
   _aiaTyping(false);
-  aiaPushBot(resp && resp.trim() ? resp : '⚠ A IA não retornou resposta. Verifique a chave Groq nas configurações.');
+  const _respFinal = resp && resp.trim() ? resp : '⚠ A IA não retornou resposta. Verifique a chave Groq nas configurações.';
+  aiaPushBot(_respFinal);
+  // Se a pergunta era um pedido de documento e a IA respondeu, oferece exportação
+  if(aiaEhPedidoDoc(txt) && resp && resp.trim() && !/^⚠/.test(_respFinal)){
+    AIA_LAST_DOC = _respFinal;
+    const b=document.getElementById('aia-body');
+    if(b){ const d=document.createElement('div'); d.className='aia-msg bot'; d.style.background='#FFFBEB'; d.style.border='1px solid #FDE68A';
+      d.innerHTML='📄 Documento pronto. <a href="#" onclick="aiaExportarDoc();return false;" style="color:#0B1E35;font-weight:700;text-decoration:underline">Abrir para imprimir / salvar PDF →</a>';
+      b.appendChild(d); _aiaScroll(); }
+  }
   AIA.busy=false; if(sb)sb.disabled=false;
   if(inp)inp.focus();
 }
@@ -41097,6 +41156,7 @@ function rBioIA(){
     ? `<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
          <button class="btn btn-sm" style="background:#0B1E35;color:#fff" onclick="bioaiGerar()">🔄 Recalcular</button>
          <button class="btn btn-sm" style="background:#F1F5F9;color:#475569" onclick="bioaiGerar('mes')">📅 Analisar o mês</button>
+         <button class="btn btn-sm" style="background:#F1F5F9;color:#475569" onclick="bioaiExportarPDF()">📄 Exportar PDF</button>
          <button class="btn btn-sm" style="background:#F1F5F9;color:#475569" onclick="aiaOpen()">💬 Conversar com a IA</button>
        </div>`
     : '';
@@ -41176,6 +41236,7 @@ async function aiainlSend(){
     'Domine CLT, eSocial, DSR, férias, banco de horas, Portaria 671/2021, jornada, horas extras e atestados.',
     'Use os DADOS DO SISTEMA quando a pergunta for sobre a situação atual (presenças, faltas, pendências).',
     'Seja conciso (2 a 6 parágrafos curtos), use **negrito** em pontos-chave. Decisões sensíveis devem ser validadas pelo RH/jurídico.',
+    'Se o RH pedir um documento (advertência, comunicado, aviso, carta, notificação), escreva o texto COMPLETO e formal, pronto para uso, sem comentários antes ou depois — apenas o documento.',
     '\n=== DADOS DO SISTEMA (hoje) ===\n'+aiaContexto()
   ].join('\n');
   const ult = AIA_INLINE.history.slice(-7,-1).map(m=>`${m.role==='user'?'RH':'Assistente'}: ${m.content}`).join('\n');
@@ -41188,17 +41249,39 @@ async function aiainlSend(){
   const final = resp && resp.trim() ? resp : '⚠ A IA não retornou resposta. Verifique a chave Groq nas configurações.';
   AIA_INLINE.history.push({role:'assistant',content:final});
   if(b){ const d=document.createElement('div'); d.className='aiainl-msg bot'; d.innerHTML=_aiaMd(final); b.appendChild(d); _aiainlScroll(); }
+  if(aiaEhPedidoDoc(txt) && resp && resp.trim() && !/^⚠/.test(final)){
+    AIA_LAST_DOC = final;
+    if(b){ const d2=document.createElement('div'); d2.className='aiainl-msg bot'; d2.style.background='#FFFBEB'; d2.style.border='1px solid #FDE68A';
+      d2.innerHTML='📄 Documento pronto. <a href="#" onclick="aiaExportarDoc();return false;" style="color:#0B1E35;font-weight:700;text-decoration:underline">Abrir para imprimir / salvar PDF →</a>';
+      b.appendChild(d2); _aiainlScroll(); }
+  }
   AIA_INLINE.busy=false; if(sb)sb.disabled=false;
   const i2=document.getElementById('aiainl-input'); if(i2)i2.focus({preventScroll:true});
 }
 window.aiaInlineHTML=aiaInlineHTML; window.aiainlRestore=aiainlRestore; window.aiainlSend=aiainlSend;
 window.aiainlChip=aiainlChip; window.aiainlKey=aiainlKey; window.aiainlGrow=aiainlGrow;
 
-// Restaura o chat embutido sempre que ele aparecer na página (após render)
-setInterval(()=>{
-  const body=document.getElementById('aiainl-body');
-  if(body && !body.dataset.ready){ body.dataset.ready='1'; aiainlRestore(); }
-},400);
+// Restaura o chat embutido e o resumo após cada render (sem polling contínuo)
+function _aiaPostRender(){
+  try{
+    const body=document.getElementById('aiainl-body');
+    if(body && !body.dataset.ready){ body.dataset.ready='1'; aiainlRestore(); }
+    const slot=document.getElementById('aia-resumo-slot');
+    if(slot && !slot.dataset.kick){ slot.dataset.kick='1'; aiaGerarResumo(false); }
+  }catch(e){}
+}
+// Engata no navigate: roda uma vez logo após cada navegação (via microtask)
+(function(){
+  if(typeof window.navigate==='function' && !window._aiaNavHooked){
+    const _origNav = window.navigate;
+    window.navigate = function(){
+      const r = _origNav.apply(this, arguments);
+      setTimeout(_aiaPostRender, 0);
+      return r;
+    };
+    window._aiaNavHooked = true;
+  }
+})();
 
 // Injeta o chat embutido também no final do Dashboard principal
 (function(){
@@ -41209,6 +41292,630 @@ setInterval(()=>{
     return base + aiaInlineHTML();
   };
 })();
+
+// ════════════════════════════════════════════════════════════════════
+// [ATLAS IA] RESUMO EXECUTIVO DO DIA (topo do Dashboard, gerado por IA)
+// ════════════════════════════════════════════════════════════════════
+let AIA_RESUMO = null;        // cache do resumo do dia
+let AIA_RESUMO_DATA = null;   // data do cache (para regenerar a cada dia)
+let AIA_RESUMO_LOADING = false;
+
+function aiaResumoHTML(){
+  const hoje = new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});
+  let interior;
+  if(AIA_RESUMO){
+    interior = `<div style="font-size:13.5px;line-height:1.65;color:#1E293B">${AIA_RESUMO}</div>`;
+  } else if(AIA_RESUMO_LOADING){
+    interior = `<div style="font-size:13px;color:#64748B;display:flex;align-items:center;gap:8px"><span class="aia-spin"></span> A IA está preparando o resumo do dia...</div>`;
+  } else {
+    interior = `<div style="font-size:13px;color:#64748B">Clique para gerar um panorama do RH hoje.</div>`;
+  }
+  return `<div class="card" style="padding:18px 20px;margin-bottom:16px;border-left:3px solid #C9A84C">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="width:30px;height:30px;border-radius:8px;background:#0B1E35;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#C9A84C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v1a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:800;color:#0B1E35;font-family:'Nunito',sans-serif">Resumo do dia · IA</div>
+        <div style="font-size:11px;color:#64748B;text-transform:capitalize">${hoje}</div>
+      </div>
+      <button class="btn btn-sm" style="background:#F1F5F9;color:#475569" onclick="aiaGerarResumo(true)">🔄 Atualizar</button>
+    </div>
+    ${interior}
+  </div>`;
+}
+
+async function aiaGerarResumo(forcar){
+  const hojeKey=(()=>{const d=new Date();return`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;})();
+  if(!forcar && AIA_RESUMO && AIA_RESUMO_DATA===hojeKey) return; // já tem de hoje
+  if(AIA_RESUMO_LOADING) return;
+  AIA_RESUMO_LOADING=true;
+  const cont=document.getElementById('aia-resumo-slot'); if(cont) cont.innerHTML=aiaResumoHTML();
+
+  const sys=[
+    'Você é um analista de RH sênior do Atlas RH. Gere um RESUMO EXECUTIVO do dia, curto e direto, em português do Brasil, para o gestor de RH ler ao abrir o sistema.',
+    'Use no máximo 4 frases ou 4 tópicos curtos. Destaque o que precisa de atenção HOJE: presenças/faltas, pendências, e 1 sugestão de ação se fizer sentido.',
+    'Tom profissional e objetivo. Use **negrito** apenas em números ou pontos-chave. Não invente dados além dos fornecidos. Se estiver tudo tranquilo, diga isso.',
+    '\n=== DADOS DO SISTEMA (hoje) ===\n'+aiaContexto()
+  ].join('\n');
+
+  let txt;
+  try{ txt = await chatAICall(sys, 'Gere o resumo executivo do dia com base nos dados acima.'); }
+  catch(e){ txt = '⚠ Não foi possível gerar o resumo agora. Verifique a chave Groq em ⚙ Configurar IA.'; }
+  AIA_RESUMO = (txt||'').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+  AIA_RESUMO_DATA = hojeKey;
+  AIA_RESUMO_LOADING=false;
+  const cont2=document.getElementById('aia-resumo-slot'); if(cont2) cont2.innerHTML=aiaResumoHTML();
+}
+window.aiaGerarResumo=aiaGerarResumo;
+
+// Prepend do resumo no topo do dashboard
+(function(){
+  const _prevDash_res = window._rDashComAlertas || window.rDash;
+  window._rDashComAlertas = function(){
+    let base='';
+    try{ base = (typeof _prevDash_res==='function') ? _prevDash_res() : ''; }catch(e){ base=''; }
+    return `<div id="aia-resumo-slot">${aiaResumoHTML()}</div>` + base;
+  };
+})();
+
+// (a geração do resumo é disparada por _aiaPostRender, engatado no navigate)
+
+// ════════════════════════════════════════════════════════════════════
+// [ATLAS IA] LOGS DE AUDITORIA (quem alterou o quê e quando)
+// Grava em localStorage (anel de 500) e, se disponível, no Firestore.
+// ════════════════════════════════════════════════════════════════════
+const AUDIT_LS_KEY = 'atlas_audit_log';
+function _auditUser(){
+  try{ return (typeof _getRHUser==='function') ? _getRHUser() : (sessionStorage.getItem('fcrh_rh_user')||'RH'); }
+  catch(e){ return 'RH'; }
+}
+function auditLog(acao, detalhe, modulo){
+  try{
+    const entrada = {
+      ts: Date.now(),
+      data: new Date().toISOString(),
+      usuario: _auditUser(),
+      modulo: modulo || (typeof MOD!=='undefined'?MOD:'') || '',
+      acao: acao || '',
+      detalhe: (detalhe!=null?String(detalhe):'').slice(0,500)
+    };
+    // localStorage (anel de 500)
+    let arr=[];
+    try{ arr = JSON.parse(localStorage.getItem(AUDIT_LS_KEY)||'[]'); }catch(_){ arr=[]; }
+    arr.unshift(entrada);
+    if(arr.length>500) arr=arr.slice(0,500);
+    localStorage.setItem(AUDIT_LS_KEY, JSON.stringify(arr));
+    // Firestore (best-effort, não bloqueia)
+    if(typeof FBASE!=='undefined' && FBASE){
+      FBASE.collection('audit_log').add(entrada).catch(()=>{});
+    }
+  }catch(e){ /* nunca quebra o fluxo principal por causa de log */ }
+}
+window.auditLog = auditLog;
+
+function _auditFmtData(iso){
+  try{ const d=new Date(iso); return d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+  catch(e){ return iso; }
+}
+
+// Tela de auditoria
+function rAuditoria(){
+  let arr=[];
+  try{ arr = JSON.parse(localStorage.getItem(AUDIT_LS_KEY)||'[]'); }catch(_){ arr=[]; }
+  const linhas = arr.length ? arr.map(e=>`
+    <tr style="border-bottom:1px solid #EEF2F6">
+      <td style="padding:9px 10px;font-size:12px;color:#64748B;white-space:nowrap">${esc(_auditFmtData(e.data))}</td>
+      <td style="padding:9px 10px;font-size:12.5px;font-weight:700;color:#0B1E35">${esc(e.usuario||'—')}</td>
+      <td style="padding:9px 10px;font-size:12px"><span style="background:#F1F5F9;border-radius:5px;padding:2px 7px;color:#475569">${esc(e.modulo||'—')}</span></td>
+      <td style="padding:9px 10px;font-size:12.5px;color:#1E293B">${esc(e.acao||'')}</td>
+      <td style="padding:9px 10px;font-size:12px;color:#64748B">${esc(e.detalhe||'')}</td>
+    </tr>`).join('')
+    : `<tr><td colspan="5" style="padding:30px;text-align:center;color:#94A3B8;font-size:13px">Nenhum registro de auditoria ainda. As ações importantes (salvar, excluir, lançar, liberar acesso) aparecerão aqui.</td></tr>`;
+
+  return `<div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+      <div style="font-size:18px;font-weight:800;color:#0B1E35;font-family:'Nunito',sans-serif">Logs de Auditoria</div>
+      <span style="background:#0B1E35;color:#fff;font-size:11px;font-weight:700;border-radius:20px;padding:2px 10px">${arr.length}</span>
+    </div>
+    <div style="font-size:12.5px;color:#64748B;margin-bottom:16px">Registro de quem alterou o quê e quando. Mantém os últimos 500 eventos localmente${(typeof FBASE!=='undefined'&&FBASE)?' e sincroniza com a nuvem':''}.</div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <input id="audit-busca" placeholder="Filtrar por usuário, ação ou módulo..." oninput="_auditFiltrar()" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid #CBD5E1;border-radius:8px;font-size:13px;outline:none">
+      <button class="btn btn-sm" style="background:#F1F5F9;color:#475569" onclick="auditExportarCSV()">📥 Exportar CSV</button>
+      <button class="btn btn-sm" style="background:#FEF2F2;color:#DC2626" onclick="auditLimpar()">🗑 Limpar</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:#F8FAFC;border-bottom:1px solid #E2E8F0">
+          <th style="padding:10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748B">Data/Hora</th>
+          <th style="padding:10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748B">Usuário</th>
+          <th style="padding:10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748B">Módulo</th>
+          <th style="padding:10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748B">Ação</th>
+          <th style="padding:10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748B">Detalhe</th>
+        </tr></thead>
+        <tbody id="audit-tbody">${linhas}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+window.rAuditoria = rAuditoria;
+
+function _auditFiltrar(){
+  const q=(document.getElementById('audit-busca').value||'').toLowerCase();
+  let arr=[]; try{ arr=JSON.parse(localStorage.getItem(AUDIT_LS_KEY)||'[]'); }catch(_){ arr=[]; }
+  const f = arr.filter(e=>!q || (`${e.usuario} ${e.modulo} ${e.acao} ${e.detalhe}`.toLowerCase().includes(q)));
+  const tb=document.getElementById('audit-tbody'); if(!tb)return;
+  tb.innerHTML = f.length ? f.map(e=>`
+    <tr style="border-bottom:1px solid #EEF2F6">
+      <td style="padding:9px 10px;font-size:12px;color:#64748B;white-space:nowrap">${esc(_auditFmtData(e.data))}</td>
+      <td style="padding:9px 10px;font-size:12.5px;font-weight:700;color:#0B1E35">${esc(e.usuario||'—')}</td>
+      <td style="padding:9px 10px;font-size:12px"><span style="background:#F1F5F9;border-radius:5px;padding:2px 7px;color:#475569">${esc(e.modulo||'—')}</span></td>
+      <td style="padding:9px 10px;font-size:12.5px;color:#1E293B">${esc(e.acao||'')}</td>
+      <td style="padding:9px 10px;font-size:12px;color:#64748B">${esc(e.detalhe||'')}</td>
+    </tr>`).join('') : `<tr><td colspan="5" style="padding:24px;text-align:center;color:#94A3B8">Nenhum resultado.</td></tr>`;
+}
+window._auditFiltrar=_auditFiltrar;
+
+function auditExportarCSV(){
+  let arr=[]; try{ arr=JSON.parse(localStorage.getItem(AUDIT_LS_KEY)||'[]'); }catch(_){ arr=[]; }
+  const linhas=[['Data/Hora','Usuario','Modulo','Acao','Detalhe']]
+    .concat(arr.map(e=>[_auditFmtData(e.data),e.usuario||'',e.modulo||'',e.acao||'',e.detalhe||'']));
+  const csv=linhas.map(l=>l.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\n');
+  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='auditoria_atlasrh.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+window.auditExportarCSV=auditExportarCSV;
+
+function auditLimpar(){
+  if(!confirm('Limpar todos os logs de auditoria locais? (a cópia na nuvem é mantida)')) return;
+  localStorage.removeItem(AUDIT_LS_KEY);
+  auditLog('Logs de auditoria limpos','Limpeza manual da auditoria local','Auditoria');
+  if(typeof navigate==='function') navigate('auditoria');
+}
+window.auditLimpar=auditLimpar;
+
+// ════════════════════════════════════════════════════════════════════
+// [ATLAS IA] OCORRÊNCIAS DE CONTRATADOS (faltas, atestados, saída antecipada)
+// Para prestadores/PJ/contratados que NÃO têm registro de ponto.
+// ════════════════════════════════════════════════════════════════════
+const OCC_TIPOS = {
+  falta:        { label:'Falta',            icon:'🚫', cor:'#DC2626', bg:'#FEF2F2' },
+  atestado:     { label:'Atestado',         icon:'🩺', cor:'#2563EB', bg:'#EFF6FF' },
+  saida_antec:  { label:'Saída antecipada', icon:'🕒', cor:'#D97706', bg:'#FFFBEB' }
+};
+
+function _occContratados(){
+  const ativos = (APP&&APP.employees)?APP.employees.filter(e=>e.status==='ativo'):[];
+  return ativos.filter(e =>
+    e.naoBatePonto===true ||
+    ['PJ','pj','Autônomo','autonomo','Terceirizado','RPA','Contratado','contratado']
+      .includes(e.tipoContrato) || e.contratado===true || e.pj===true
+  );
+}
+
+function rOcorrenciasContratados(){
+  const contratados = _occContratados();
+  const lista = (APP.ocorrenciasContratados||[]).slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+
+  const optsColab = contratados.length
+    ? contratados.map(e=>`<option value="${esc(e.id)}">${esc(e.nome||e.name||'(sem nome)')}</option>`).join('')
+    : '';
+
+  const semContratados = contratados.length===0
+    ? `<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:12px 14px;font-size:12.5px;color:#92400E;margin-bottom:16px">
+         Nenhum colaborador que não bate ponto cadastrado ainda. Clique em <strong>+ Cadastrar colaborador</strong> acima para adicionar quem não registra ponto (PJ, autônomo, terceirizado, etc.).
+       </div>`
+    : '';
+
+  const form = `
+    <div class="card" style="padding:18px 20px;margin-bottom:18px">
+      <div style="font-size:14px;font-weight:800;color:#0B1E35;font-family:'Nunito',sans-serif;margin-bottom:14px">Lançar ocorrência</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase">Contratado</label>
+          <select id="occ-colab" style="width:100%;padding:8px 10px;border:1px solid #CBD5E1;border-radius:8px;font-size:13px;margin-top:4px" ${contratados.length?'':'disabled'}>
+            ${optsColab || '<option>— nenhum contratado —</option>'}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase">Tipo</label>
+          <select id="occ-tipo" onchange="_occToggleHora()" style="width:100%;padding:8px 10px;border:1px solid #CBD5E1;border-radius:8px;font-size:13px;margin-top:4px">
+            <option value="falta">🚫 Falta</option>
+            <option value="atestado">🩺 Atestado</option>
+            <option value="saida_antec">🕒 Saída antecipada</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase">Data</label>
+          <input type="date" id="occ-data" value="${new Date().toISOString().slice(0,10)}" style="width:100%;padding:8px 10px;border:1px solid #CBD5E1;border-radius:8px;font-size:13px;margin-top:4px">
+        </div>
+        <div id="occ-hora-wrap" style="display:none">
+          <label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase">Horário de saída</label>
+          <input type="time" id="occ-hora" style="width:100%;padding:8px 10px;border:1px solid #CBD5E1;border-radius:8px;font-size:13px;margin-top:4px">
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase">Motivo / Observação</label>
+        <textarea id="occ-motivo" rows="2" placeholder="Ex.: atestado médico de 1 dia, consulta, problema pessoal..." style="width:100%;padding:8px 10px;border:1px solid #CBD5E1;border-radius:8px;font-size:13px;margin-top:4px;resize:vertical;font-family:inherit"></textarea>
+      </div>
+      <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <label style="font-size:12px;color:#475569;cursor:pointer">
+          📎 Anexar comprovante (opcional)
+          <input type="file" id="occ-file" accept="image/*,.pdf" style="display:none" onchange="_occFileLabel(this)">
+        </label>
+        <span id="occ-file-nome" style="font-size:11.5px;color:#64748B"></span>
+        <button class="btn btn-blue" style="background:#0B1E35;margin-left:auto" onclick="occSalvar()" ${contratados.length?'':'disabled'}>💾 Lançar ocorrência</button>
+      </div>
+    </div>`;
+
+  const linhas = lista.length ? lista.map(o=>{
+    const t = OCC_TIPOS[o.tipo] || {label:o.tipo,icon:'•',cor:'#475569',bg:'#F1F5F9'};
+    const dataFmt = (()=>{ try{ return new Date(o.data+'T00:00').toLocaleDateString('pt-BR'); }catch(e){ return o.data; } })();
+    return `<tr style="border-bottom:1px solid #EEF2F6">
+      <td style="padding:10px;font-size:12.5px;color:#1E293B;white-space:nowrap">${esc(dataFmt)}${o.hora?` <span style="color:#94A3B8">${esc(o.hora)}</span>`:''}</td>
+      <td style="padding:10px;font-size:12.5px;font-weight:700;color:#0B1E35">${esc(o.colabNome||'—')}</td>
+      <td style="padding:10px"><span style="background:${t.bg};color:${t.cor};border-radius:6px;padding:3px 9px;font-size:11.5px;font-weight:700">${t.icon} ${esc(t.label)}</span></td>
+      <td style="padding:10px;font-size:12px;color:#475569">${esc(o.motivo||'')}</td>
+      <td style="padding:10px;text-align:center">${o.arquivoBase64?`<a href="${o.arquivoBase64}" download="${esc(o.arquivoNome||'comprovante')}" style="color:#2563EB;text-decoration:none" title="Baixar comprovante">📎</a>`:'<span style="color:#CBD5E1">—</span>'}</td>
+      <td style="padding:10px;text-align:center"><button onclick="occExcluir('${o.id}')" style="background:none;border:none;cursor:pointer;color:#DC2626;font-size:14px" title="Excluir">🗑</button></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6" style="padding:28px;text-align:center;color:#94A3B8;font-size:13px">Nenhuma ocorrência lançada ainda.</td></tr>`;
+
+  return `<div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <div style="font-size:18px;font-weight:800;color:#0B1E35;font-family:'Nunito',sans-serif">Ocorrências de Contratados</div>
+      <span style="background:#0B1E35;color:#fff;font-size:11px;font-weight:700;border-radius:20px;padding:2px 10px">${lista.length}</span>
+      <button class="btn btn-sm" style="background:#0B1E35;color:#fff;margin-left:auto" onclick="occCadastrarColab()">+ Cadastrar colaborador</button>
+    </div>
+    <div style="font-size:12.5px;color:#64748B;margin-bottom:16px">Registre faltas, atestados e saídas antecipadas de colaboradores que não batem ponto. Faltas e atestados descontam automaticamente no holerite (com DSR).</div>
+    ${semContratados}
+    ${form}
+    <div class="card" style="padding:0;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:#F8FAFC;border-bottom:1px solid #E2E8F0">
+          <th style="padding:10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748B">Data</th>
+          <th style="padding:10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748B">Contratado</th>
+          <th style="padding:10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748B">Tipo</th>
+          <th style="padding:10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748B">Motivo</th>
+          <th style="padding:10px;text-align:center;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748B">Anexo</th>
+          <th style="padding:10px;text-align:center;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748B"></th>
+        </tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+window.rOcorrenciasContratados = rOcorrenciasContratados;
+
+function _occToggleHora(){
+  const tipo=document.getElementById('occ-tipo'); const wrap=document.getElementById('occ-hora-wrap');
+  if(tipo&&wrap) wrap.style.display = (tipo.value==='saida_antec') ? 'block' : 'none';
+}
+window._occToggleHora=_occToggleHora;
+function _occFileLabel(inp){
+  const el=document.getElementById('occ-file-nome');
+  if(el) el.textContent = inp.files&&inp.files[0] ? inp.files[0].name : '';
+}
+window._occFileLabel=_occFileLabel;
+
+async function occSalvar(){
+  const colabSel=document.getElementById('occ-colab');
+  const colabId=colabSel?colabSel.value:'';
+  const colabNome=colabSel&&colabSel.selectedOptions[0]?colabSel.selectedOptions[0].textContent:'';
+  const tipo=document.getElementById('occ-tipo').value;
+  const data=document.getElementById('occ-data').value;
+  const hora=document.getElementById('occ-hora')?document.getElementById('occ-hora').value:'';
+  const motivo=document.getElementById('occ-motivo').value.trim();
+  const fileInp=document.getElementById('occ-file');
+
+  if(!colabId){ if(typeof toast==='function') toast('Selecione o contratado','warn'); return; }
+  if(!data){ if(typeof toast==='function') toast('Informe a data','warn'); return; }
+  if(tipo==='saida_antec' && !hora){ if(typeof toast==='function') toast('Informe o horário de saída','warn'); return; }
+
+  const rec = {
+    id: (typeof uid==='function'?uid():String(Date.now())),
+    colabId, colabNome, tipo, data, hora: hora||'', motivo,
+    criadoEm: new Date().toISOString(),
+    criadoPor: (typeof _getRHUser==='function'?_getRHUser():'RH')
+  };
+
+  // Anexo opcional
+  if(fileInp && fileInp.files && fileInp.files[0]){
+    try{
+      const f=fileInp.files[0];
+      rec.arquivoNome=f.name;
+      rec.arquivoBase64 = await (typeof fileToBase64==='function'
+        ? fileToBase64(f)
+        : new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f);}));
+    }catch(e){ console.warn('[occ] anexo falhou',e); }
+  }
+
+  if(!Array.isArray(APP.ocorrenciasContratados)) APP.ocorrenciasContratados=[];
+  // Falta/atestado: grava no cartão-ponto para alimentar o holerite (com DSR automático)
+  let avisoHolerite='';
+  if(tipo==='falta' || tipo==='atestado'){
+    const ref=_occAplicarNoPonto(rec);
+    if(ref){ rec.pontoRef=ref; avisoHolerite = (tipo==='falta')
+      ? ' A falta foi lançada no holerite (com desconto do DSR da semana).'
+      : ' O atestado foi lançado no holerite.'; }
+  }
+  APP.ocorrenciasContratados.push(rec);
+  save('ocorrenciasContratados');
+  if(typeof auditLog==='function') auditLog('Lançou ocorrência de contratado', `${OCC_TIPOS[tipo]?OCC_TIPOS[tipo].label:tipo} · ${colabNome} · ${data}`, 'Contratados');
+  if(typeof toast==='function') toast('✅ Ocorrência registrada!'+avisoHolerite,'ok');
+  if(typeof navigate==='function') navigate('ocorrencias_contratados');
+}
+window.occSalvar=occSalvar;
+
+function occExcluir(id){
+  if(!confirm('Excluir esta ocorrência?')) return;
+  const occ = (APP.ocorrenciasContratados||[]).find(o=>o.id===id);
+  // Reverte o lançamento no cartão-ponto, se houver
+  if(occ && occ.pontoRef){ try{ _occReverterPonto(occ); }catch(e){ console.warn('[occ] reverter ponto',e); } }
+  APP.ocorrenciasContratados = (APP.ocorrenciasContratados||[]).filter(o=>o.id!==id);
+  save('ocorrenciasContratados');
+  if(typeof auditLog==='function') auditLog('Excluiu ocorrência de contratado', id, 'Contratados');
+  if(typeof navigate==='function') navigate('ocorrencias_contratados');
+}
+window.occExcluir=occExcluir;
+
+// ── Cadastro de colaborador que não bate ponto ──
+function occCadastrarColab(){
+  const html = `
+    <div style="display:grid;gap:12px">
+      <div>
+        <label style="font-size:12px;font-weight:700;color:#475569">Nome completo *</label>
+        <input id="occ-novo-nome" style="width:100%;padding:9px 11px;border:1px solid #CBD5E1;border-radius:8px;margin-top:4px;font-size:13px">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <label style="font-size:12px;font-weight:700;color:#475569">CPF</label>
+          <input id="occ-novo-cpf" placeholder="000.000.000-00" style="width:100%;padding:9px 11px;border:1px solid #CBD5E1;border-radius:8px;margin-top:4px;font-size:13px">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:700;color:#475569">Cargo / Função</label>
+          <input id="occ-novo-cargo" style="width:100%;padding:9px 11px;border:1px solid #CBD5E1;border-radius:8px;margin-top:4px;font-size:13px">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <label style="font-size:12px;font-weight:700;color:#475569">Salário mensal (R$) *</label>
+          <input id="occ-novo-salario" type="number" step="0.01" placeholder="0,00" style="width:100%;padding:9px 11px;border:1px solid #CBD5E1;border-radius:8px;margin-top:4px;font-size:13px">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:700;color:#475569">Tipo de contrato</label>
+          <select id="occ-novo-tipo" style="width:100%;padding:9px 11px;border:1px solid #CBD5E1;border-radius:8px;margin-top:4px;font-size:13px">
+            <option value="PJ">PJ</option>
+            <option value="Autônomo">Autônomo</option>
+            <option value="Terceirizado">Terceirizado</option>
+            <option value="RPA">RPA</option>
+            <option value="Contratado">Contratado (outro)</option>
+          </select>
+        </div>
+      </div>
+      <div style="font-size:11.5px;color:#64748B;background:#F8FAFC;border-radius:8px;padding:9px 11px">
+        ℹ️ Este colaborador será marcado como <strong>não bate ponto</strong>. O salário é usado para calcular o desconto de falta e DSR no holerite.
+      </div>
+      <div class="mft">
+        <button class="btn" style="background:#F1F5F9;color:#475569" onclick="closeModal()">Cancelar</button>
+        <button class="btn btn-blue" style="background:#0B1E35" onclick="occSalvarColab()">💾 Salvar colaborador</button>
+      </div>
+    </div>`;
+  openModal('Cadastrar colaborador (não bate ponto)', html, 560);
+  setTimeout(()=>{ const n=document.getElementById('occ-novo-nome'); if(n)n.focus(); },80);
+}
+window.occCadastrarColab=occCadastrarColab;
+
+function occSalvarColab(){
+  const nome=(document.getElementById('occ-novo-nome').value||'').trim();
+  const cpf=(document.getElementById('occ-novo-cpf').value||'').trim();
+  const cargo=(document.getElementById('occ-novo-cargo').value||'').trim();
+  const salario=parseFloat(document.getElementById('occ-novo-salario').value||'0');
+  const tipo=document.getElementById('occ-novo-tipo').value;
+  if(!nome){ toast('Informe o nome','warn'); return; }
+  if(!salario || salario<=0){ toast('Informe o salário mensal','warn'); return; }
+  const novo = {
+    id: (typeof uid==='function'?uid():String(Date.now())),
+    nome, cpf, cargo, salario,
+    tipoContrato: tipo,
+    naoBatePonto: true,
+    status: 'ativo',
+    admissao: (typeof today==='function'?today():new Date().toISOString().slice(0,10))
+  };
+  if(!Array.isArray(APP.employees)) APP.employees=[];
+  APP.employees.push(novo);
+  save('employees');
+  if(typeof auditLog==='function') auditLog('Cadastrou colaborador (não bate ponto)', `${nome} · ${tipo}`, 'Contratados');
+  toast('✅ Colaborador cadastrado!','ok');
+  closeModal();
+  navigate('ocorrencias_contratados');
+}
+window.occSalvarColab=occSalvarColab;
+
+// ── Integração com o cartão-ponto: grava falta/atestado para o holerite ──
+function _occAplicarNoPonto(occ){
+  // Só falta e atestado afetam o holerite (saída antecipada é só registro)
+  if(occ.tipo!=='falta' && occ.tipo!=='atestado') return null;
+  const d = new Date(occ.data+'T00:00');
+  const ano=d.getFullYear(), mes=d.getMonth(), dia=d.getDate();
+  const k=`${occ.colabId}_${ano}_${mes}`;
+  if(!APP.pontos[k]) APP.pontos[k]={};
+  // Não sobrescreve um dia que já tenha batidas reais
+  const statusAlvo = (occ.tipo==='falta') ? 'falta' : 'atestado';
+  APP.pontos[k][dia] = Object.assign({}, APP.pontos[k][dia]||{}, {
+    status: statusAlvo, entrada:'', saida_almoco:'', volta_almoco:'', saida:'',
+    _occId: occ.id  // marca a origem para permitir reversão
+  });
+  save('pontos');
+  return { k, dia };
+}
+function _occReverterPonto(occ){
+  if(!occ.pontoRef) return;
+  const {k,dia}=occ.pontoRef;
+  if(APP.pontos[k] && APP.pontos[k][dia] && APP.pontos[k][dia]._occId===occ.id){
+    delete APP.pontos[k][dia];
+    save('pontos');
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// [ATLAS BH] Sincronização do saldo de Banco de Horas com o Portal
+// Fluxo: ponto biométrico → cartão-ponto → _syncBHMes → saldo → PORTAL
+// ════════════════════════════════════════════════════════════════════
+
+// Calcula o saldo REAL (pode ser negativo) dos últimos 12 meses
+function _bhSaldoRealMin(empId){
+  if(typeof window._saldoBHReal==='function') return window._saldoBHReal(empId);
+  // fallback
+  const v=APP.bancohoras[empId]; const arr=Array.isArray(v)?v:[];
+  const cutoff=new Date(new Date().getFullYear()-1,new Date().getMonth(),1).toISOString().slice(0,7)+'-01';
+  return arr.filter(l=>l.data>=cutoff).reduce((a,l)=>a+(l.tipo==='credito'?l.minutos:-l.minutos),0);
+}
+function _bhFmtMin(m){const neg=m<0;const v=Math.abs(m);const h=Math.floor(v/60);const mm=v%60;return (neg?'-':'')+h+'h'+String(mm).padStart(2,'0');}
+
+// Envia o saldo de BH de todos os ativos para o portal (coleção portal_banco_horas)
+async function enviarSaldoBHPortal(empIds){
+  if(typeof FBASE==='undefined' || !FBASE) return;
+  const ativos = APP.employees.filter(e=>e.status==='ativo' && (!empIds || empIds.includes(e.id)));
+  try{
+    const batch = ativos.map(emp=>{
+      const saldoMin = _bhSaldoRealMin(emp.id);
+      const cpfKey = (emp.cpf||emp.id).replace(/\D/g,'');
+      // Histórico recente (últimos 20 lançamentos) para o colaborador conferir
+      const v=APP.bancohoras[emp.id]; const arr=Array.isArray(v)?v:[];
+      const hist = arr.slice().sort((a,b)=>(b.data||'').localeCompare(a.data||'')).slice(0,20)
+        .map(l=>({data:l.data,tipo:l.tipo,minutos:l.minutos,motivo:(l.motivo||'').replace(/\[[^\]]*\]\s*/,'')}));
+      return FBASE.collection('portal_banco_horas').doc(cpfKey).set({
+        empId: emp.id, empNome: emp.nome, empCpf: cpfKey,
+        saldoMinutos: saldoMin,
+        saldoFormatado: _bhFmtMin(saldoMin),
+        situacao: saldoMin>0?'credito':saldoMin<0?'a_compensar':'zerado',
+        historico: hist,
+        atualizadoEm: new Date().toISOString()
+      },{merge:true});
+    });
+    await Promise.all(batch);
+    console.log('[Portal BH] Saldo enviado para', ativos.length, 'colaborador(es)');
+  }catch(e){ console.warn('[Portal BH] Erro ao enviar saldo:', e); }
+}
+window.enviarSaldoBHPortal = enviarSaldoBHPortal;
+
+// Recalcula o BH do mês a partir do cartão-ponto e empurra o saldo pro portal
+async function recalcularBHeEnviarPortal(empIds, ano, mes){
+  const hoje=new Date();
+  ano = (ano!==undefined)?ano:hoje.getFullYear();
+  mes = (mes!==undefined)?mes:hoje.getMonth();
+  try{
+    if(typeof window.bhSyncSilencioso==='function'){ window.bhSyncSilencioso(ano, mes, empIds||null); }
+    else if(typeof window.bhSyncPatchV19==='function'){ window.bhSyncPatchV19(ano, mes); }
+  }catch(e){ console.warn('[BH recalc]',e); }
+  await enviarSaldoBHPortal(empIds);
+}
+window.recalcularBHeEnviarPortal = recalcularBHeEnviarPortal;
+
+// ── Encadeia: após "Sincronizar Tudo" (biométrico→ponto→BH), envia saldo ao portal ──
+(function(){
+  if(window._bhPortalHooked) return;
+  const _origSinc = window.sincronizarTudo;
+  if(typeof _origSinc==='function'){
+    window.sincronizarTudo = async function(opts){
+      const r = await _origSinc.apply(this, arguments);
+      try{
+        opts = opts || {};
+        const ano = (opts.ano!==undefined)?+opts.ano:new Date().getFullYear();
+        const mes = (opts.mes!==undefined)?+opts.mes:new Date().getMonth();
+        let empIds=null; if(opts.empId) empIds=[opts.empId];
+        await enviarSaldoBHPortal(empIds);
+        if(typeof auditLog==='function') auditLog('Sincronizou Banco de Horas','Biométrico → Ponto → BH → Portal','Banco de Horas');
+      }catch(e){ console.warn('[BH portal hook]',e); }
+      return r;
+    };
+  }
+  // ── Encadeia: após aprovar compensação, recalcula e reenvia saldo ao portal ──
+  const _origAprovar = window.aprovarSolicitacaoBH;
+  if(typeof _origAprovar==='function'){
+    window.aprovarSolicitacaoBH = async function(id){
+      const r = await _origAprovar.apply(this, arguments);
+      try{
+        // descobre o empId da solicitação para reenviar só dele (mais rápido)
+        let empId=null;
+        try{ const s=(window._BH_SOLIC_LISTA||[]).find(x=>x.id===id); if(s) empId=s.empId; }catch(_){}
+        await enviarSaldoBHPortal(empId?[empId]:null);
+        if(typeof auditLog==='function') auditLog('Aprovou compensação de BH', 'Solicitação '+id, 'Banco de Horas');
+      }catch(e){ console.warn('[BH aprovar hook]',e); }
+      return r;
+    };
+  }
+  window._bhPortalHooked = true;
+})();
+
+// ── Envia o saldo de BH ao portal automaticamente após o Firebase carregar ──
+(function(){
+  function _pushInicial(){
+    try{ enviarSaldoBHPortal(null); }catch(e){ console.warn('[BH portal inicial]',e); }
+  }
+  if(typeof FBASE!=='undefined' && FBASE){ setTimeout(_pushInicial, 6000); }
+  else if(Array.isArray(window._firebaseReadyCallbacks)){ window._firebaseReadyCallbacks.push(()=>setTimeout(_pushInicial,2000)); }
+  else { setTimeout(()=>{ if(typeof FBASE!=='undefined' && FBASE) _pushInicial(); }, 12000); }
+})();
+
+// ════════════════════════════════════════════════════════════════════
+// [ATLAS BH] CADEIA AUTOMÁTICA: Biométrico → Cartão Ponto → BH → Portal
+// Toda batida que atualiza o cartão-ponto dispara (com debounce) o recálculo
+// do Banco de Horas daquele funcionário e o envio do saldo ao portal.
+// ════════════════════════════════════════════════════════════════════
+(function(){
+  if(window._bhCadeiaHooked) return;
+  const _origAplicar = window.bioAplicarBatidaLocal || (typeof bioAplicarBatidaLocal==='function'?bioAplicarBatidaLocal:null);
+  if(typeof _origAplicar!=='function') return;
+
+  const _debTimers = {}; // por funcionário+mês
+  function _agendarRecalc(empId, ano, mes){
+    const key = `${empId}_${ano}_${mes}`;
+    clearTimeout(_debTimers[key]);
+    // 6s de debounce: agrupa a rajada de batidas (entrada/almoço/saída) num cálculo só
+    _debTimers[key] = setTimeout(async ()=>{
+      try{
+        if(typeof _syncBHMes==='function'){ /* dentro do closure v19 — usa wrapper global */ }
+        if(typeof window.bhSyncPatchV19==='function'){
+          // recalcula o mês inteiro daquele funcionário pela fonte única (cartão-ponto)
+          // bhSyncPatchV19 recalcula todos; para ser leve, usamos recalcularBHeEnviarPortal por emp
+        }
+        if(typeof recalcularBHeEnviarPortal==='function'){
+          await recalcularBHeEnviarPortal([empId], ano, mes);
+        } else if(typeof enviarSaldoBHPortal==='function'){
+          await enviarSaldoBHPortal([empId]);
+        }
+        console.log('[BH cadeia] Recalculado e enviado ao portal:', empId, `${ano}-${mes+1}`);
+      }catch(e){ console.warn('[BH cadeia] erro no recalc automático:', e); }
+    }, 6000);
+  }
+
+  window.bioAplicarBatidaLocal = function(punch){
+    const r = _origAplicar.apply(this, arguments);
+    try{
+      if(punch && punch.date){
+        const he = (typeof bioFindEmployee==='function') ? bioFindEmployee(punch) : null;
+        if(he){
+          const [yS,mS] = punch.date.split('-');
+          const yr=parseInt(yS), m=parseInt(mS)-1;
+          _agendarRecalc(he.id, yr, m);
+        }
+      }
+    }catch(e){ console.warn('[BH cadeia] hook erro:', e); }
+    return r;
+  };
+  window._bhCadeiaHooked = true;
+  console.log('[BH cadeia] ✅ Automação ativa: batida → cartão-ponto → banco de horas → portal');
+})();
+
+
+
+
+
+
 
 
 // Gera o relatório com IA
@@ -41251,9 +41958,75 @@ async function bioaiGerar(escopo='hoje'){
   catch(e){ txt='⚠ Não foi possível gerar a análise. ' + (e && e.message ? e.message : 'Verifique a chave Groq em ⚙ Configurar IA.'); }
   BIOAI_REPORT = (txt||'').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/^### (.+)$/gm,'<h4>$1</h4>').replace(/\n/g,'<br>');
   BIOAI_LOADING=false;
+  if(typeof auditLog==='function') auditLog('Gerou análise IA do ponto', 'Escopo: '+escopo, 'Ponto Biométrico');
   navigate('biometrico');
 }
 window.bioaiGerar=bioaiGerar;
+
+// Exporta a análise IA atual para PDF (via printHtml, com timbre da empresa)
+function bioaiExportarPDF(){
+  if(!BIOAI_REPORT){ if(typeof toast==='function') toast('Gere a análise primeiro','warn'); return; }
+  const emp = (typeof EMPRESA_CFG!=='undefined') ? EMPRESA_CFG : {};
+  const hojeStr = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+  const conteudo = `
+    <div class="doc-page">
+      <div style="border-bottom:2px solid #0B1E35;padding-bottom:12px;margin-bottom:18px">
+        <div style="font-size:20px;font-weight:800;color:#0B1E35">${esc(emp.nomeFantasia||emp.nomeRazao||'Atlas RH')}</div>
+        <div style="font-size:12px;color:#555">${esc(emp.nomeRazao||'')}${emp.cnpj?' · CNPJ '+esc(emp.cnpj):''}</div>
+        <div style="font-size:12px;color:#555">${esc(emp.cidade||'')}${emp.uf?'/'+esc(emp.uf):''}</div>
+      </div>
+      <h2 style="font-size:17px;color:#0B1E35;margin-bottom:4px">Análise IA do Ponto Biométrico</h2>
+      <div style="font-size:12px;color:#777;margin-bottom:18px">Emitido em ${hojeStr}</div>
+      <div style="font-size:13.5px;line-height:1.7;color:#1a1a1a">${BIOAI_REPORT}</div>
+      <div style="margin-top:28px;font-size:11px;color:#999;border-top:1px solid #ddd;padding-top:10px">
+        Documento gerado automaticamente pelo Atlas RH com apoio de IA. As recomendações têm caráter orientativo e devem ser validadas pelo RH/jurídico.
+      </div>
+    </div>`;
+  if(typeof window.printHtml==='function') window.printHtml(conteudo, 'Análise IA - Ponto Biométrico');
+  else if(typeof toast==='function') toast('Função de impressão indisponível','err');
+}
+window.bioaiExportarPDF=bioaiExportarPDF;
+
+// ════════════════════════════════════════════════════════════════════
+// [ATLAS IA] GERADOR DE DOCUMENTOS POR IA (a partir do chat)
+// O assistente detecta pedidos de documento e oferece um botão para
+// abrir o texto formatado (timbre + pronto para PDF/impressão).
+// ════════════════════════════════════════════════════════════════════
+let AIA_LAST_DOC = null; // guarda o último documento gerado p/ exportação
+
+// Detecta se a mensagem do usuário é um pedido de documento
+function aiaEhPedidoDoc(txt){
+  return /\b(advert[êe]ncia|comunicado|aviso|carta|notifica[çc][ãa]o|declara[çc][ãa]o|memorando|circular|suspens[ãa]o|feedback formal)\b/i.test(txt||'');
+}
+
+// Abre o documento gerado, formatado com timbre, para impressão/PDF
+function aiaExportarDoc(){
+  if(!AIA_LAST_DOC){ if(typeof toast==='function') toast('Nenhum documento gerado ainda','warn'); return; }
+  const emp = (typeof EMPRESA_CFG!=='undefined') ? EMPRESA_CFG : {};
+  const hojeStr = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+  // AIA_LAST_DOC já vem em texto; convertendo quebras de linha e negrito simples
+  const corpo = esc(AIA_LAST_DOC).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+  const conteudo = `
+    <div class="doc-page">
+      <div style="border-bottom:2px solid #0B1E35;padding-bottom:12px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:flex-end">
+        <div>
+          <div style="font-size:20px;font-weight:800;color:#0B1E35">${esc(emp.nomeFantasia||emp.nomeRazao||'Atlas RH')}</div>
+          <div style="font-size:12px;color:#555">${esc(emp.nomeRazao||'')}${emp.cnpj?' · CNPJ '+esc(emp.cnpj):''}</div>
+        </div>
+        <div style="font-size:12px;color:#555;text-align:right">${esc(emp.cidade||'')}${emp.uf?'/'+esc(emp.uf):''}<br>${hojeStr}</div>
+      </div>
+      <div style="font-size:14px;line-height:1.8;color:#1a1a1a;text-align:justify">${corpo}</div>
+      <div style="margin-top:60px;display:flex;justify-content:space-between;gap:40px">
+        <div style="flex:1;border-top:1px solid #333;padding-top:6px;text-align:center;font-size:12px">Assinatura do Empregador</div>
+        <div style="flex:1;border-top:1px solid #333;padding-top:6px;text-align:center;font-size:12px">Assinatura do Colaborador</div>
+      </div>
+    </div>`;
+  if(typeof window.printHtml==='function') window.printHtml(conteudo, 'Documento - Atlas RH');
+  if(typeof auditLog==='function') auditLog('Gerou documento por IA', (AIA_LAST_DOC||'').slice(0,80).replace(/\n/g,' ')+'...', 'Assistente IA');
+}
+window.aiaExportarDoc=aiaExportarDoc;
+window.aiaEhPedidoDoc=aiaEhPedidoDoc;
+
 
 // Override de rBiometrico: injeta a aba "Análise IA" e renderiza seu conteúdo.
 const _rBiometrico_final = window.rBiometrico || (typeof rBiometrico==='function'?rBiometrico:null);
