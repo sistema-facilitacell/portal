@@ -489,7 +489,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F4F7FC;min-height:1
     <div style="background:#EAF1FB;border:2px solid #C9A227;border-radius:12px;padding:14px 16px;margin-bottom:18px">
       <div style="font-size:12px;font-weight:700;color:#0B3D91;margin-bottom:6px"> Status</div>
       <div id="firebaseStatusText" style="font-size:13px;color:#5a6a7e;line-height:1.6">Verificando...</div>
-      <button onclick="testarFirebase()" style="margin-top:10px;width:100%;padding:9px;background:#0B3D91;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit"> Testar conexão agora</button>
+      <button onclick="testarFirebase()" style="margin-top:10px;width:100%;padding:9px;background:#0B3D91;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🔌 Testar conexão agora</button>
       <div id="setupTestResult" style="display:none;margin-top:8px;padding:9px 12px;border-radius:7px;font-size:12px;line-height:1.6"></div>
     </div>
 
@@ -572,7 +572,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F4F7FC;min-height:1
 
         <!-- ETAPA 1: DADOS PESSOAIS -->
         <div class="wiz-pane active" id="wpane1">
-          <div class="card-title" style="margin-bottom:14px;font-size:12px"> Dados pessoais</div>
+          <div class="card-title" style="margin-bottom:14px;font-size:12px">👤 Dados pessoais</div>
           <div class="form-group"><label>Nome completo *</label><input type="text" id="c_nome" placeholder="Seu nome completo" /></div>
           <div class="form-group"><label>Telefone / WhatsApp *</label><input type="text" id="c_phone" placeholder="(00) 00000-0000" maxlength="15" /></div>
           <div class="form-group"><label>CPF <span style="color:#8899aa">— opcional</span></label><input type="text" id="c_cpf" placeholder="000.000.000-00" maxlength="14" /></div>
@@ -590,7 +590,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F4F7FC;min-height:1
 
         <!-- ETAPA 2: EXPERIÊNCIA -->
         <div class="wiz-pane" id="wpane2">
-          <div class="card-title" style="margin-bottom:14px;font-size:12px"> Formação e experiência</div>
+          <div class="card-title" style="margin-bottom:14px;font-size:12px">📋 Formação e experiência</div>
           <div class="form-group"><label>Tempo de experiência na área</label>
             <select id="c_experiencia">
               <option value="">Selecione...</option>
@@ -620,7 +620,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F4F7FC;min-height:1
 
         <!-- ETAPA 3: DISPONIBILIDADE -->
         <div class="wiz-pane" id="wpane3">
-          <div class="card-title" style="margin-bottom:14px;font-size:12px"> Disponibilidade</div>
+          <div class="card-title" style="margin-bottom:14px;font-size:12px">🗓️ Disponibilidade</div>
           <div class="form-group"><label>Quando pode começar?</label>
             <div class="radio-grid" id="c_dispGrid">
               <label class="radio-opt"><input type="radio" name="c_disp" value="Imediata"> Imediata</label>
@@ -641,13 +641,13 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F4F7FC;min-height:1
 
         <!-- ETAPA 4: HORÁRIO DA ENTREVISTA -->
         <div class="wiz-pane" id="wpane4">
-          <div class="card-title" style="margin-bottom:6px;font-size:12px"> Escolha o horário da entrevista</div>
+          <div class="card-title" style="margin-bottom:6px;font-size:12px">🕐 Escolha o horário da entrevista</div>
           <p style="font-size:13px;color:#5a6a7e;line-height:1.6;margin-bottom:12px">Selecione um dos horários disponíveis liberados pelo RH:</p>
           <div class="slot-grid" id="c_slotGrid">
             <div class="slot-empty">Carregando horários disponíveis…</div>
           </div>
           <div style="margin:16px 0 4px">
-            <div class="card-title" style="margin-bottom:8px;font-size:11px"> Link da sua entrevista (Microsoft Teams)</div>
+            <div class="card-title" style="margin-bottom:8px;font-size:11px">🎥 Link da sua entrevista (Microsoft Teams)</div>
             <div class="lbox"> <span>teams.live.com/meet/9318143793203</span></div>
           </div>
         </div>
@@ -658,7 +658,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F4F7FC;min-height:1
         <div class="wiz-nav">
           <button class="btn btn-outline" id="wizBack" onclick="wizPrev()" style="display:none">← Voltar</button>
           <button class="btn btn-primary" id="wizNext" onclick="wizNext()">Continuar →</button>
-          <button class="btn btn-primary" id="submitBtn" onclick="submitCandidato()" style="display:none"> Confirmar inscrição</button>
+          <button class="btn btn-primary" id="submitBtn" onclick="submitCandidato()" style="display:none">✅ Confirmar inscrição</button>
         </div>
       </div>
 
@@ -946,13 +946,13 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F4F7FC;min-height:1
       <h2> Gestão de Candidatos</h2>
       <div class="adm-tr">
         <span style="font-size:12px;color:#fff;background:rgba(11,61,145,.15);padding:7px 13px;border-radius:8px;border:1px solid #E6CF7A"> Banco configurado</span>
-        <button class="btn btn-outline" onclick="forceRefresh()" style="font-size:12px;padding:7px 13px;border-radius:8px;font-weight:600;color:#1a8a4a;border-color:#4caf50"> Atualizar</button>
-        <button class="btn btn-outline" onclick="openSettings()" style="font-size:12px;padding:7px 13px;border-radius:8px;font-weight:600"> Notificações</button>
-        <button class="btn btn-outline" onclick="openBackup()" style="font-size:12px;padding:7px 13px;border-radius:8px;font-weight:600;color:#7b4fcf;border-color:#ce93d8"> Backup</button>
-        <button class="btn" onclick="switchTabById('WhatsApp')" style="font-size:12px;padding:7px 13px;border-radius:8px;font-weight:700;background:#25d366;color:#fff;border:none"> WhatsApp</button>
-        <button class="btn" onclick="switchTabById('Horarios');renderHorariosTab()" style="font-size:12px;padding:7px 13px;border-radius:8px;font-weight:700;background:#FBF7E9;color:#0B3D91;border:1.5px solid #C9A227"> Horários</button>
-        <button class="btn btn-outline" onclick="confirmClearAll()" style="font-size:12px;padding:7px 13px;border-radius:8px;font-weight:600;color:#c0392b;border-color:#f5c6cb"> Limpar tudo</button>
-        <button class="btn btn-outline" onclick="logout()" style="font-size:13px;padding:8px 16px;border-radius:8px;font-weight:600"> Sair</button>
+        <button class="btn btn-outline" onclick="forceRefresh()" style="font-size:12px;padding:7px 13px;border-radius:8px;font-weight:600;color:#1a8a4a;border-color:#4caf50">🔄 Atualizar</button>
+        <button class="btn btn-outline" onclick="openSettings()" style="font-size:12px;padding:7px 13px;border-radius:8px;font-weight:600">🔔 Notificações</button>
+        <button class="btn btn-outline" onclick="openBackup()" style="font-size:12px;padding:7px 13px;border-radius:8px;font-weight:600;color:#7b4fcf;border-color:#ce93d8">💾 Backup</button>
+        <button class="btn" onclick="switchTabById('WhatsApp')" style="font-size:12px;padding:7px 13px;border-radius:8px;font-weight:700;background:#25d366;color:#fff;border:none">📲 WhatsApp</button>
+        <button class="btn" onclick="switchTabById('Horarios');renderHorariosTab()" style="font-size:12px;padding:7px 13px;border-radius:8px;font-weight:700;background:#FBF7E9;color:#0B3D91;border:1.5px solid #C9A227">📅 Horários</button>
+        <button class="btn btn-outline" onclick="confirmClearAll()" style="font-size:12px;padding:7px 13px;border-radius:8px;font-weight:600;color:#c0392b;border-color:#f5c6cb">🗑️ Limpar tudo</button>
+        <button class="btn btn-outline" onclick="logout()" style="font-size:13px;padding:8px 16px;border-radius:8px;font-weight:600">🚪 Sair</button>
       </div>
     </div>
     <div id="nextInterviewBanner" class="next-interview-banner" style="display:none">
@@ -971,7 +971,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F4F7FC;min-height:1
     <div class="adm-grid">
       <div style="display:flex;flex-direction:column;gap:16px">
         <div class="card">
-          <div class="card-title"><div class="icon" style="background:#EAF1FB"></div>Adicionar Candidato</div>
+          <div class="card-title"><div class="icon" style="background:#EAF1FB">➕</div>Adicionar Candidato</div>
           <div class="ainfo"><span style="font-size:18px;flex-shrink:0">ℹ</span><span>Após cadastrar, envie o convite. O candidato confirma e envia o currículo pelo formulário.</span></div>
           <div class="form-group"><label>Nome completo *</label><input type="text" id="a_nome" placeholder="Nome completo" /></div>
           <div class="form-group"><label>Telefone (WhatsApp) *</label><input type="text" id="a_phone" placeholder="(44) 99999-9999" maxlength="15" /></div>
@@ -983,30 +983,30 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F4F7FC;min-height:1
           </div>
           <div class="form-group"><label>Observação <span style="color:#bbc5d0;font-weight:400;text-transform:none;font-size:10px">(opcional)</span></label><input type="text" id="a_obs" placeholder="Ex: Apresentar doc. de identidade" /></div>
           <div style="display:flex;gap:8px;margin-top:6px">
-            <button class="btn btn-outline" onclick="addCandidateSilent()" style="flex:1;justify-content:center;padding:11px;font-size:13px;font-weight:600;border-radius:9px;border:1.5px solid #4caf50;color:#1a8a4a;background:#f1f8f5" title="Salva na agenda sem abrir tela de envio"> Só Agenda</button>
-            <button class="btn btn-primary" onclick="addCandidate()" style="flex:2;font-size:14px"> Cadastrar e Enviar Convite</button>
+            <button class="btn btn-outline" onclick="addCandidateSilent()" style="flex:1;justify-content:center;padding:11px;font-size:13px;font-weight:600;border-radius:9px;border:1.5px solid #4caf50;color:#1a8a4a;background:#f1f8f5" title="Salva na agenda sem abrir tela de envio">📋 Só Agenda</button>
+            <button class="btn btn-primary" onclick="addCandidate()" style="flex:2;font-size:14px">➕ Cadastrar e Enviar Convite</button>
           </div>
-          <button class="btn btn-outline" onclick="criarVagaHorario()" style="width:100%;justify-content:center;padding:11px;font-size:13px;font-weight:600;border-radius:9px;border:1.5px solid #C9A227;color:#0B3D91;background:#FBF7E9;margin-top:8px" title="Publica um horário livre que aparece no formulário do candidato"> Criar vaga de horário (formulário)</button>
+          <button class="btn btn-outline" onclick="criarVagaHorario()" style="width:100%;justify-content:center;padding:11px;font-size:13px;font-weight:600;border-radius:9px;border:1.5px solid #C9A227;color:#0B3D91;background:#FBF7E9;margin-top:8px" title="Publica um horário livre que aparece no formulário do candidato">📅 Criar vaga de horário (formulário)</button>
           <p style="font-size:11px;color:#aab;text-align:center;margin-top:8px"> <em>Só Agenda</em> cadastra sem enviar mensagem.  <em>Criar vaga</em> publica um horário livre (sem nome) que o candidato escolhe ao se inscrever pelo formulário.</p>
         </div>
         <!-- LINK DO FORMULÁRIO DE CONFIRMAÇÃO -->
         <div class="card" style="padding:16px 18px">
-          <div class="card-title" style="margin-bottom:14px"><div class="icon" style="background:#EAF1FB"></div>Link de Confirmação</div>
+          <div class="card-title" style="margin-bottom:14px"><div class="icon" style="background:#EAF1FB">🔗</div>Link de Confirmação</div>
           <div style="background:linear-gradient(135deg,#0B3D91,#1F6FD6);border-radius:11px;padding:14px 16px;cursor:pointer" onclick="window.open(SITE,'_blank')">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-              <span style="font-size:20px"></span>
+              <span style="font-size:20px">📋</span>
               <div>
                 <div style="font-size:13px;font-weight:700;color:#fff">Formulário do Candidato</div>
                 <div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:1px">Link para o candidato se inscrever e confirmar</div>
               </div>
             </div>
-            <button onclick="event.stopPropagation();copyLink()" style="width:100%;background:rgba(255,255,255,.18);color:#fff;border:1.5px solid rgba(255,255,255,.35);padding:8px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer" id="copyLinkBtn"> Copiar link do formulário</button>
+            <button onclick="event.stopPropagation();copyLink()" style="width:100%;background:rgba(255,255,255,.18);color:#fff;border:1.5px solid rgba(255,255,255,.35);padding:8px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer" id="copyLinkBtn">📋 Copiar link do formulário</button>
           </div>
         </div>
         <div class="card">
-          <div class="card-title"><div class="icon" style="background:#EAF1FB"></div>Sala Teams</div>
+          <div class="card-title"><div class="icon" style="background:#EAF1FB">🎥</div>Sala Teams</div>
           <div class="lbox" style="margin-bottom:10px"> teams.live.com/meet/9318143793203</div>
-          <button class="btn btn-outline" style="width:100%;font-size:13px;justify-content:center;padding:9px;font-weight:600;border-radius:8px" onclick="window.open('https://teams.live.com/meet/9318143793203?p=BIsr6nOqtpQHiW0ZaO','_blank')"> Entrar na Sala</button>
+          <button class="btn btn-outline" style="width:100%;font-size:13px;justify-content:center;padding:9px;font-weight:600;border-radius:8px" onclick="window.open('https://teams.live.com/meet/9318143793203?p=BIsr6nOqtpQHiW0ZaO','_blank')">🎥 Entrar na Sala</button>
         </div>
       </div>
       <div class="card">
@@ -1027,16 +1027,16 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F4F7FC;min-height:1
         <div id="tabHorarios" class="tab-content">
           <div style="max-width:600px;margin:0 auto">
             <div class="card" style="margin-bottom:16px;border:2px solid #C9A227">
-              <div class="card-title" style="color:#0B3D91"><div class="icon" style="background:#FBF7E9"></div>Criar Vaga de Horário</div>
+              <div class="card-title" style="color:#0B3D91"><div class="icon" style="background:#FBF7E9">📅</div>Criar Vaga de Horário</div>
               <p style="font-size:13px;color:#5a6a7e;margin-bottom:14px;line-height:1.6">Publique um horário livre que aparece automaticamente no formulário do candidato. O candidato escolhe o horário ao se inscrever.</p>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
                 <div class="form-group" style="margin-bottom:0"><label>Data da Entrevista</label><input type="date" id="h_data_date" /></div>
                 <div class="form-group" style="margin-bottom:0"><label>Horário</label><input type="time" id="h_data_time" value="09:00" /></div>
               </div>
-              <button onclick="criarVagaHorarioTab()" style="width:100%;padding:13px;background:linear-gradient(135deg,#0B3D91,#1F6FD6);color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px"> Criar Vaga de Horário</button>
+              <button onclick="criarVagaHorarioTab()" style="width:100%;padding:13px;background:linear-gradient(135deg,#0B3D91,#1F6FD6);color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">📅 Criar Vaga de Horário</button>
             </div>
             <div class="card">
-              <div class="card-title"><div class="icon" style="background:#EAF1FB"></div>Horários Cadastrados</div>
+              <div class="card-title"><div class="icon" style="background:#EAF1FB">🕐</div>Horários Cadastrados</div>
               <div id="horariosTabList"><div style="text-align:center;padding:20px;color:#8899aa;font-size:13px">Nenhum horário ainda.</div></div>
             </div>
           </div>
@@ -1050,15 +1050,15 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F4F7FC;min-height:1
             <div style="margin-bottom:14px">
               <div style="font-size:11px;font-weight:700;color:#0B3D91;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px"> Mensagens Rápidas</div>
               <div class="wpp-templates">
-                <button class="wpp-tpl-btn" onclick="setWppTemplate('convite')"> Convite para entrevista</button>
-                <button class="wpp-tpl-btn" onclick="setWppTemplate('confirmacao')"> Confirmar presença</button>
+                <button class="wpp-tpl-btn" onclick="setWppTemplate('convite')">📨 Convite para entrevista</button>
+                <button class="wpp-tpl-btn" onclick="setWppTemplate('confirmacao')">✅ Confirmar presença</button>
                 <button class="wpp-tpl-btn" onclick="setWppTemplate('lembrete')">⏰ Lembrete geral</button>
-                <button class="wpp-tpl-btn" onclick="setWppTemplate('lembreteAmanha')" style="border-color:#C9A227;color:#0B3D91;"> Lembrete — 1 dia antes</button>
-                <button class="wpp-tpl-btn" onclick="setWppTemplate('lembrete30min')" style="border-color:#f48fb1;color:#880e4f;"> Lembrete — 30 min antes</button>
-                <button class="wpp-tpl-btn" onclick="setWppTemplate('aprovado')"> Aprovado — parabéns</button>
-                <button class="wpp-tpl-btn" onclick="setWppTemplate('reprovado')"> Não aprovado (curto)</button>
-                <button class="wpp-tpl-btn" onclick="setWppTemplate('reprovadoCompleto')" style="border-color:#ef9a9a;color:#c0392b;"> Não aprovado (completo)</button>
-                <button class="wpp-tpl-btn" onclick="setWppTemplate('treinamento')"> Início do treinamento</button>
+                <button class="wpp-tpl-btn" onclick="setWppTemplate('lembreteAmanha')" style="border-color:#C9A227;color:#0B3D91;">📅 Lembrete — 1 dia antes</button>
+                <button class="wpp-tpl-btn" onclick="setWppTemplate('lembrete30min')" style="border-color:#f48fb1;color:#880e4f;">⏰ Lembrete — 30 min antes</button>
+                <button class="wpp-tpl-btn" onclick="setWppTemplate('aprovado')">🎉 Aprovado — parabéns</button>
+                <button class="wpp-tpl-btn" onclick="setWppTemplate('reprovado')">❌ Não aprovado (curto)</button>
+                <button class="wpp-tpl-btn" onclick="setWppTemplate('reprovadoCompleto')" style="border-color:#ef9a9a;color:#c0392b;">❌ Não aprovado (completo)</button>
+                <button class="wpp-tpl-btn" onclick="setWppTemplate('treinamento')">🎓 Início do treinamento</button>
               </div>
             </div>
             <!-- Busca -->
@@ -1075,14 +1075,14 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F4F7FC;min-height:1
 <!-- MODAL: ENVIO -->
 <div class="mo" id="mEnvio">
   <div class="modal">
-    <h2 id="mEnvioTitle"> Enviar Convite</h2>
+    <h2 id="mEnvioTitle">📨 Enviar Convite</h2>
     <p id="mEnvioDesc"></p>
     <div id="resendBadge" class="rbadge" style="display:none"> Reenvio de convite</div>
-    <div class="sb"><div class="sbl"> Via WhatsApp</div><div class="si2" id="wppInfo"></div><div class="mp" id="mWppText"></div><a class="btn btn-wpp full-btn" id="wppLink" href="#" target="_blank" style="margin-top:10px"> Abrir WhatsApp e Enviar</a></div>
+    <div class="sb"><div class="sbl"> Via WhatsApp</div><div class="si2" id="wppInfo"></div><div class="mp" id="mWppText"></div><a class="btn btn-wpp full-btn" id="wppLink" href="#" target="_blank" style="margin-top:10px">📲 Abrir WhatsApp e Enviar</a></div>
     <div class="sb" style="margin-top:12px" id="emailBlock"><div class="sbl"> Via E-mail</div><div class="si2" id="emailInfo"></div><div class="mp mail" id="mEmailText"></div><a class="btn btn-mail full-btn" id="emailLink" href="#" style="margin-top:10px"> Abrir E-mail e Enviar</a></div>
     <div style="margin-top:16px;display:flex;gap:8px">
       <button class="btn btn-outline" onclick="closeM('mEnvio')" style="flex:1;justify-content:center;padding:11px;font-size:14px;font-weight:600;border-radius:9px">Fechar</button>
-      <button class="btn btn-primary" onclick="markSent()" style="flex:2;font-size:14px" id="markSentBtn"> Marcar como enviado</button>
+      <button class="btn btn-primary" onclick="markSent()" style="flex:2;font-size:14px" id="markSentBtn">✓ Marcar como enviado</button>
     </div>
     <p style="font-size:11px;color:#aab;text-align:center;margin-top:10px">Clique nos botões para abrir o WhatsApp/E-mail. Depois clique em "Marcar como enviado".</p>
   </div>
@@ -1106,7 +1106,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F4F7FC;min-height:1
       <h2 id="cvViewerTitle"> Currículo</h2>
       <div style="display:flex;gap:8px;align-items:center">
         <a id="cvDownloadBtn" class="btn btn-cv" style="font-size:13px;padding:7px 14px" href="#" download=""> Baixar</a>
-        <button class="btn btn-outline" onclick="closeM('mCvViewer')" style="padding:5px 10px;font-size:13px;border-radius:8px;font-weight:600"> Fechar</button>
+        <button class="btn btn-outline" onclick="closeM('mCvViewer')" style="padding:5px 10px;font-size:13px;border-radius:8px;font-weight:600">✕ Fechar</button>
       </div>
     </div>
     <div class="cv-viewer-body" id="cvViewerBody"></div>
@@ -1119,8 +1119,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F4F7FC;min-height:1
     <h2> Resultado da Entrevista</h2>
     <p id="mResDesc"></p>
     <div class="mbtns">
-      <button class="btn btn-danger" onclick="setResult('reprovado')"> Não Aprovado</button>
-      <button class="btn btn-success" onclick="setResult('aprovado')"> Aprovado</button>
+      <button class="btn btn-danger" onclick="setResult('reprovado')">❌ Não Aprovado</button>
+      <button class="btn btn-success" onclick="setResult('aprovado')">🎉 Aprovado</button>
     </div>
   </div>
 </div>
@@ -1204,7 +1204,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F4F7FC;min-height:1
       <div style="background:rgba(123,79,207,.1);border-radius:8px;padding:10px 13px;font-size:12px;color:#4a148c;line-height:1.7">
         <strong>Passo a passo:</strong><br>
         1⃣ Abra o arquivo HTML <em>antigo</em> no navegador<br>
-        2⃣ Entre na área ADM → clique em <strong> Backup</strong><br>
+        2⃣ Entre na área ADM → clique em <strong>💾 Backup</strong><br>
         3⃣ Clique em <strong> Baixar backup</strong><br>
         4⃣ Volte neste arquivo e clique em <strong> Importar</strong>
       </div>
@@ -1219,7 +1219,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F4F7FC;min-height:1
     <p style="text-align:center">Todos os candidatos serão removidos permanentemente.</p>
     <div class="mbtns" style="margin-top:20px">
       <button class="btn btn-outline" onclick="closeM('mClearAll')" style="flex:1;justify-content:center;padding:11px;font-size:14px;font-weight:600;border-radius:9px">Cancelar</button>
-      <button class="btn btn-danger" onclick="clearAll()" style="flex:1;justify-content:center"> Apagar tudo</button>
+      <button class="btn btn-danger" onclick="clearAll()" style="flex:1;justify-content:center">🗑️ Apagar tudo</button>
     </div>
   </div>
 </div>
@@ -1295,8 +1295,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F4F7FC;min-height:1
       <input type="email" id="recruiterEmailInput" placeholder="rh@atlasrh.com.br" style="font-size:14px" />
     </div>
 
-    <button class="btn btn-primary" onclick="saveEmailJsConfig()" style="font-size:15px;margin-bottom:10px"> Salvar e ativar e-mails automáticos</button>
-    <button class="btn" onclick="testEmailJs()" style="width:100%;justify-content:center;background:#7b4fcf;color:#fff;font-size:14px;border-radius:9px;padding:10px"> Enviar e-mail de teste</button>
+    <button class="btn btn-primary" onclick="saveEmailJsConfig()" style="font-size:15px;margin-bottom:10px">💾 Salvar e ativar e-mails automáticos</button>
+    <button class="btn" onclick="testEmailJs()" style="width:100%;justify-content:center;background:#7b4fcf;color:#fff;font-size:14px;border-radius:9px;padding:10px">✉️ Enviar e-mail de teste</button>
 
     <div id="ejsSaveMsg" style="display:none;margin-top:10px;background:#e8f5e9;border:1.5px solid #4caf50;border-radius:8px;padding:10px 14px;font-size:13px;color:#1a8a4a"></div>
     <div id="ejsErrMsg" style="display:none;margin-top:10px;background:#fde8e8;border:1.5px solid #e74c3c;border-radius:8px;padding:10px 14px;font-size:13px;color:#c0392b"></div>
@@ -1333,7 +1333,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F4F7FC;min-height:1
 
     <div style="display:flex;gap:8px;margin-top:16px">
       <button class="btn btn-outline" onclick="closeM('mReenviarPresenca')" style="flex:1;justify-content:center;padding:11px;font-size:14px;font-weight:600;border-radius:9px">Fechar</button>
-      <button class="btn btn-success" onclick="markReenvioPresenca()" style="flex:2;justify-content:center;font-size:14px" id="mRPMarkBtn"> Marcar como Reenviado</button>
+      <button class="btn btn-success" onclick="markReenvioPresenca()" style="flex:2;justify-content:center;font-size:14px" id="mRPMarkBtn">✓ Marcar como Reenviado</button>
     </div>
     <p style="font-size:11px;color:#aab;text-align:center;margin-top:8px">Envie a mensagem antes de clicar em "Marcar como Reenviado".</p>
   </div>
@@ -1692,8 +1692,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F4F7FC;min-height:1
         <option value="aguardando">⏳ Aguardando convite</option>
         <option value="enviado"> Convite enviado</option>
         <option value="confirmado"> Confirmado</option>
-        <option value="aprovado"> Aprovado</option>
-        <option value="reprovado"> Não Aprovado</option>
+        <option value="aprovado">🎉 Aprovado</option>
+        <option value="reprovado">❌ Não Aprovado</option>
       </select>
     </div>
     <div class="edit-field"><label>Anotações / Observações</label><textarea id="ed_obs" placeholder="Ex: Candidato pontual, boa comunicação, experiência em vendas..."></textarea></div>
@@ -1720,7 +1720,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F4F7FC;min-height:1
 
     <div style="display:flex;gap:8px;margin-top:16px">
       <button class="btn btn-outline" onclick="closeM('mEditar')" style="flex:1;justify-content:center;padding:11px;font-size:14px;font-weight:600;border-radius:9px">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveEdit()" style="flex:2;font-size:14px" id="edSaveBtn"> Salvar Alterações</button>
+      <button class="btn btn-primary" onclick="saveEdit()" style="flex:2;font-size:14px" id="edSaveBtn">💾 Salvar Alterações</button>
     </div>
   </div>
 </div>
@@ -1737,7 +1737,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F4F7FC;min-height:1
       <div class="sbl"> Mensagem WhatsApp</div>
       <div class="si2" id="trainWppInfo"></div>
       <div class="mp" id="mTrainWppText"></div>
-      <a class="btn btn-wpp full-btn" id="trainWppLink" href="#" target="_blank" style="margin-top:10px"> Abrir WhatsApp e Enviar</a>
+      <a class="btn btn-wpp full-btn" id="trainWppLink" href="#" target="_blank" style="margin-top:10px">📲 Abrir WhatsApp e Enviar</a>
     </div>
     <div class="sb" style="margin-top:12px" id="trainEmailBlock">
       <div class="sbl"> E-mail</div>
@@ -1746,7 +1746,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F4F7FC;min-height:1
     </div>
     <div style="margin-top:16px;display:flex;gap:8px">
       <button class="btn btn-outline" onclick="closeM('mTreinamento')" style="flex:1;justify-content:center;padding:11px;font-size:14px;font-weight:600;border-radius:9px">Fechar</button>
-      <button class="btn btn-train" onclick="markTrainSent()" style="flex:2;font-size:14px" id="markTrainBtn"> Marcar como notificado</button>
+      <button class="btn btn-train" onclick="markTrainSent()" style="flex:2;font-size:14px" id="markTrainBtn">✓ Marcar como notificado</button>
     </div>
   </div>
 </div>
@@ -2807,7 +2807,7 @@ function openConfirmAlertModal(cand){
       <h2 style="font-size:20px;font-weight:800;color:#1a1a2e;margin-bottom:4px">Candidato Confirmado!</h2>
       <p style="font-size:16px;color:#0B3D91;font-weight:700;margin-bottom:2px">${cand.nome}</p>
       <p style="font-size:13px;color:#5a6a7e;margin-bottom:18px"> ${cand.phone} |  ${cand.cvNome||'Currículo enviado'}</p>
-      <p style="font-size:12px;color:#1a8a4a;background:#e8f5e9;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-weight:600"> Status atualizado para CONFIRMADO no painel</p>
+      <p style="font-size:12px;color:#1a8a4a;background:#e8f5e9;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-weight:600">✅ Status atualizado para CONFIRMADO no painel</p>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
         <a href="https://wa.me/${pw(cand.phone)}?text=${encodeURIComponent(wppTxt)}" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:7px;background:#25d366;color:#fff;font-size:14px;font-weight:700;padding:12px;border-radius:10px;text-decoration:none"> Enviar confirmação ao candidato (WhatsApp)</a>
         ${cand.email?`<a href="mailto:${cand.email}?subject=${encodeURIComponent(emailSub)}&body=${encodeURIComponent(emailTxt)}" style="display:flex;align-items:center;justify-content:center;gap:7px;background:#0B3D91;color:#fff;font-size:14px;font-weight:700;padding:12px;border-radius:10px;text-decoration:none"> Enviar confirmação ao candidato (E-mail)</a>`:''}
@@ -2834,14 +2834,14 @@ function openDetalhes(id){
   document.getElementById('mdNome').textContent=cand.nome;
   document.getElementById('mdStatus').innerHTML=getPill(cand.status)+(cand.treinamentoData?` <span class="pill pill-training" style="margin-left:4px"> Treinamento agendado</span>`:'');
   let stamp='';
-  if(cand.resultado==='aprovado')stamp=`<div style="text-align:center;margin:14px 0"><span class="as"> Aprovado</span></div>`;
-  else if(cand.resultado==='reprovado')stamp=`<div style="text-align:center;margin:14px 0"><span class="rs"> Não Aprovado</span></div>`;
+  if(cand.resultado==='aprovado')stamp=`<div style="text-align:center;margin:14px 0"><span class="as">🎉 Aprovado</span></div>`;
+  else if(cand.resultado==='reprovado')stamp=`<div style="text-align:center;margin:14px 0"><span class="rs">❌ Não Aprovado</span></div>`;
   const cvData=localStorage.getItem('fc_cv_'+cand.id);
   const hasCv=cvData&&cand.cvNome;
   let cvBtn='';
   if(hasCv){
     cvBtn=`<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
-      <button class="btn btn-cv-view" onclick="openCvViewer('${cand.id}')" style="font-size:14px;padding:11px;border-radius:9px;border:none;cursor:pointer"> Visualizar Currículo — ${cand.cvNome}</button>
+      <button class="btn btn-cv-view" onclick="openCvViewer('${cand.id}')" style="font-size:14px;padding:11px;border-radius:9px;border:none;cursor:pointer">📄 Visualizar Currículo — ${cand.cvNome}</button>
       <a class="btn btn-cv" href="${cvData}" download="${cand.cvNome}" style="width:100%;font-size:13px;padding:9px;border-radius:9px;justify-content:center"> Baixar Currículo</a>
     </div>`;
   }else if(cand.cvNome){
@@ -2879,16 +2879,16 @@ function openDetalhes(id){
   let btns='<div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">';
   btns+=cvBtn;
   // Botão de EDITAR sempre visível
-  btns+=`<button class="btn btn-edit" style="font-size:14px;width:100%" onclick="closeM('mDetalhes');openEditar('${cand.id}')"> Editar Candidato / Agendar Treinamento</button>`;
+  btns+=`<button class="btn btn-edit" style="font-size:14px;width:100%" onclick="closeM('mDetalhes');openEditar('${cand.id}')">✏️ Editar Candidato / Agendar Treinamento</button>`;
   // Botão FICHA DE ENTREVISTA — disponível para confirmados e qualquer status durante a entrevista
-  btns+=`<button class="btn" style="font-size:14px;width:100%;background:#7b4fcf;color:#fff;justify-content:center" onclick="closeM('mDetalhes');openFicha('${cand.id}')"> Abrir Ficha de Entrevista</button>`;
-  if(cand.status==='aprovado'&&!cand.treinamentoData)btns+=`<button class="btn btn-train" style="font-size:14px;width:100%" onclick="closeM('mDetalhes');openEditar('${cand.id}',true)"> Agendar Treinamento na Loja</button>`;
-  if(cand.treinamentoData&&!cand.treinamentoNotificado)btns+=`<button class="btn btn-train" style="font-size:14px;width:100%" onclick="closeM('mDetalhes');openTreinamentoModal('${cand.id}')"> Enviar notificação de treinamento</button>`;
-  if(canSend)btns+=`<button class="btn btn-primary" style="font-size:14px" onclick="closeM('mDetalhes');openEnvioModal(candidates.find(c=>c.id==='${cand.id}'),false)"> Enviar Convite</button>`;
-  if(canResend)btns+=`<button class="btn btn-resend" style="font-size:14px" onclick="closeM('mDetalhes');openEnvioModal(candidates.find(c=>c.id==='${cand.id}'),true)"> Reenviar Convite</button>`;
-  if(['enviado','confirmado'].includes(cand.status))btns+=`<button class="btn" style="font-size:14px;width:100%;background:#0288d1;color:#fff;justify-content:center" onclick="closeM('mDetalhes');openReenviarPresenca('${cand.id}')"> Reenviar Confirmação de Presença</button>`;
-  if(canResult)btns+=`<button class="btn btn-success" style="font-size:14px;justify-content:center" onclick="closeM('mDetalhes');openResultado('${cand.id}')"> Registrar Resultado da Entrevista</button>`;
-  btns+=`<div class="dz"><p>Zona de perigo</p><button class="btn btn-danger" style="font-size:13px;justify-content:center;width:100%" onclick="confirmDeleteOne('${cand.id}')"> Excluir este candidato</button></div></div>`;
+  btns+=`<button class="btn" style="font-size:14px;width:100%;background:#7b4fcf;color:#fff;justify-content:center" onclick="closeM('mDetalhes');openFicha('${cand.id}')">📄 Abrir Ficha de Entrevista</button>`;
+  if(cand.status==='aprovado'&&!cand.treinamentoData)btns+=`<button class="btn btn-train" style="font-size:14px;width:100%" onclick="closeM('mDetalhes');openEditar('${cand.id}',true)">🎓 Agendar Treinamento na Loja</button>`;
+  if(cand.treinamentoData&&!cand.treinamentoNotificado)btns+=`<button class="btn btn-train" style="font-size:14px;width:100%" onclick="closeM('mDetalhes');openTreinamentoModal('${cand.id}')">🔔 Enviar notificação de treinamento</button>`;
+  if(canSend)btns+=`<button class="btn btn-primary" style="font-size:14px" onclick="closeM('mDetalhes');openEnvioModal(candidates.find(c=>c.id==='${cand.id}'),false)">📨 Enviar Convite</button>`;
+  if(canResend)btns+=`<button class="btn btn-resend" style="font-size:14px" onclick="closeM('mDetalhes');openEnvioModal(candidates.find(c=>c.id==='${cand.id}'),true)">🔄 Reenviar Convite</button>`;
+  if(['enviado','confirmado'].includes(cand.status))btns+=`<button class="btn" style="font-size:14px;width:100%;background:#0288d1;color:#fff;justify-content:center" onclick="closeM('mDetalhes');openReenviarPresenca('${cand.id}')">🔄 Reenviar Confirmação de Presença</button>`;
+  if(canResult)btns+=`<button class="btn btn-success" style="font-size:14px;justify-content:center" onclick="closeM('mDetalhes');openResultado('${cand.id}')">📝 Registrar Resultado da Entrevista</button>`;
+  btns+=`<div class="dz"><p>Zona de perigo</p><button class="btn btn-danger" style="font-size:13px;justify-content:center;width:100%" onclick="confirmDeleteOne('${cand.id}')">🗑️ Excluir este candidato</button></div></div>`;
   document.getElementById('mdBody').innerHTML=`
     <div style="margin:14px 0">
       <div class="dr"><span class="dl">Telefone</span><span class="dv"> ${cand.phone}</span></div>
@@ -2916,7 +2916,7 @@ function openDetalhes(id){
     </div>${obsInfo}${stamp}${trainInfo}
     <div class="card-title" style="font-size:11px;margin-bottom:0;margin-top:14px">Progresso</div>
     ${tl}
-    <div class="card-title" style="font-size:11px;margin-bottom:8px;margin-top:14px"> Histórico de ações</div>
+    <div class="card-title" style="font-size:11px;margin-bottom:8px;margin-top:14px">📜 Histórico de ações</div>
     ${renderHistorico(cand)}
     ${btns}`;
   openM('mDetalhes');
@@ -3522,8 +3522,8 @@ function renderAgenda(){
           ${c.obs?`<div style="font-size:11px;color:#082C66;margin-top:2px"> ${c.obs}</div>`:''}
         </div>
         <div style="display:flex;flex-direction:column;gap:4px">
-          <button class="btn btn-edit" style="font-size:11px;padding:5px 10px" onclick="event.stopPropagation();openEditar('${c.id}')"> Definir Data</button>
-          <button class="btn btn-primary" style="font-size:11px;padding:5px 10px" onclick="event.stopPropagation();openEnvioModal(candidates.find(c=>c.id==='${c.id}'),false)"> Enviar</button>
+          <button class="btn btn-edit" style="font-size:11px;padding:5px 10px" onclick="event.stopPropagation();openEditar('${c.id}')">📅 Definir Data</button>
+          <button class="btn btn-primary" style="font-size:11px;padding:5px 10px" onclick="event.stopPropagation();openEnvioModal(candidates.find(c=>c.id==='${c.id}'),false)">📨 Enviar</button>
         </div>
       </div>`;
     });
@@ -3573,8 +3573,8 @@ function renderAgenda(){
           ${c.obs?`<div class="notes-badge" style="margin-top:4px"> ${c.obs}</div>`:''}
         </div>
         <div style="display:flex;flex-direction:column;gap:5px;align-self:center">
-          <button class="btn btn-edit" style="font-size:11px;padding:5px 10px" onclick="event.stopPropagation();openEditar('${c.id}')"> Editar</button>
-          ${isTrain?`<button class="btn btn-train" style="font-size:11px;padding:5px 10px" onclick="event.stopPropagation();openTreinamentoModal('${c.id}')"> Notificar</button>`:`<div style="display:flex;flex-direction:column;gap:4px"><button class="btn btn-success" style="font-size:11px;padding:5px 8px" onclick="event.stopPropagation();openResultado('${c.id}')"> Resultado</button><button class="btn" style="font-size:11px;padding:5px 8px;background:#0288d1;color:#fff" onclick="event.stopPropagation();openReenviarPresenca('${c.id}')"> Confirm.</button></div>`}
+          <button class="btn btn-edit" style="font-size:11px;padding:5px 10px" onclick="event.stopPropagation();openEditar('${c.id}')">✏️ Editar</button>
+          ${isTrain?`<button class="btn btn-train" style="font-size:11px;padding:5px 10px" onclick="event.stopPropagation();openTreinamentoModal('${c.id}')">🔔 Notificar</button>`:`<div style="display:flex;flex-direction:column;gap:4px"><button class="btn btn-success" style="font-size:11px;padding:5px 8px" onclick="event.stopPropagation();openResultado('${c.id}')">📝 Resultado</button><button class="btn" style="font-size:11px;padding:5px 8px;background:#0288d1;color:#fff" onclick="event.stopPropagation();openReenviarPresenca('${c.id}')">✅ Confirm.</button></div>`}
         </div>
       </div>`;
     });
@@ -4254,7 +4254,7 @@ function renderWppTab(){
       </div>
       <div class="wpp-cand-actions" onclick="event.stopPropagation()">
         <button onclick="openWppDirect('${cand.id}')" title="Abrir WhatsApp direto" style="background:#25d366;color:#fff;border:none;padding:7px 10px;border-radius:8px;font-size:16px;cursor:pointer;line-height:1"></button>
-        <button onclick="openWppChat('${cand.id}')" title="Enviar mensagem com templates" style="background:#EAF1FB;color:#0B3D91;border:1.5px solid #E6CF7A;padding:7px 10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap"> Msg</button>
+        <button onclick="openWppChat('${cand.id}')" title="Enviar mensagem com templates" style="background:#EAF1FB;color:#0B3D91;border:1.5px solid #E6CF7A;padding:7px 10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">💬 Msg</button>
       </div>
     </div>`;
   }).join('');
@@ -4573,7 +4573,7 @@ function checkLembretes(){
         <span class="lembrete-item-badge ${horas<=24?'amanha':''}">${label}</span>
         ${jaEnviou
           ? '<span class="lembrete-enviado"> Lembrete enviado</span>'
-          : `<button class="lembrete-individual" id="lbtn-${c.id}" onclick="enviarLembreteIndividual('${c.id}')"> Enviar</button>`
+          : `<button class="lembrete-individual" id="lbtn-${c.id}" onclick="enviarLembreteIndividual('${c.id}')">📨 Enviar</button>`
         }
       </div>
     </div>`;
@@ -4584,7 +4584,7 @@ function checkLembretes(){
     <h3> ${lista.length} candidato${lista.length>1?'s':''} com entrevista nas próximas 48h</h3>
     <p>${totalSem > 0 ? `${totalSem} ainda não recebeu${totalSem>1?'am':''} lembrete. Envie agora para evitar faltas!` : ' Todos os candidatos já receberam lembrete.'}</p>
     <div class="lembrete-lista">${itens}</div>
-    ${totalSem > 0 ? `<button class="lembrete-btn-mass" onclick="enviarLembreteMassa()"> Enviar lembrete para todos (${totalSem})</button>` : ''}
+    ${totalSem > 0 ? `<button class="lembrete-btn-mass" onclick="enviarLembreteMassa()">📲 Enviar lembrete para todos (${totalSem})</button>` : ''}
   `;
 
   area.prepend(banner);
@@ -4939,7 +4939,7 @@ function imprimirFichaInline() {
         <div id="wppChatName" style="font-size:15px;font-weight:700;color:#fff"></div>
         <div id="wppChatPhone" style="font-size:12px;color:rgba(255,255,255,.75)"></div>
       </div>
-      <button onclick="closeM('mWppChat')" style="background:rgba(255,255,255,.15);border:none;color:#fff;padding:6px 10px;border-radius:8px;font-size:13px;cursor:pointer"> Fechar</button>
+      <button onclick="closeM('mWppChat')" style="background:rgba(255,255,255,.15);border:none;color:#fff;padding:6px 10px;border-radius:8px;font-size:13px;cursor:pointer">✕ Fechar</button>
     </div>
     <!-- Body estilo chat -->
     <div style="background:#e5ddd5;padding:16px;min-height:160px;max-height:260px;overflow-y:auto" id="wppChatBody">
@@ -4951,22 +4951,22 @@ function imprimirFichaInline() {
     <div style="background:#f0f0f0;padding:12px 16px;border-top:1px solid #ddd">
       <div style="font-size:11px;font-weight:700;color:#5a6a7e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px"> Escolha a mensagem</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
-        <button onclick="previewWppMsg('convite')" style="background:#fff;border:1.5px solid #ccc;color:#333;font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;cursor:pointer;transition:all .15s" id="tplConvite"> Convite</button>
-        <button onclick="previewWppMsg('confirmacao')" style="background:#fff;border:1.5px solid #ccc;color:#333;font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;cursor:pointer" id="tplConfirmacao"> Confirmação</button>
+        <button onclick="previewWppMsg('convite')" style="background:#fff;border:1.5px solid #ccc;color:#333;font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;cursor:pointer;transition:all .15s" id="tplConvite">📨 Convite</button>
+        <button onclick="previewWppMsg('confirmacao')" style="background:#fff;border:1.5px solid #ccc;color:#333;font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;cursor:pointer" id="tplConfirmacao">✅ Confirmação</button>
         <button onclick="previewWppMsg('lembrete')" style="background:#fff;border:1.5px solid #ccc;color:#333;font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;cursor:pointer" id="tplLembrete">⏰ Lembrete</button>
         <button onclick="previewWppMsg('lembreteAmanha')" style="background:#EAF1FB;border:1.5px solid #C9A227;color:#0B3D91;font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;cursor:pointer" id="tplLembreteAmanha"> 1 dia antes</button>
         <button onclick="previewWppMsg('lembrete30min')" style="background:#fce4ec;border:1.5px solid #f48fb1;color:#880e4f;font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;cursor:pointer" id="tplLembrete30min"> 30 min antes</button>
-        <button onclick="previewWppMsg('aprovado')" style="background:#fff;border:1.5px solid #ccc;color:#333;font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;cursor:pointer" id="tplAprovado"> Aprovado</button>
-        <button onclick="previewWppMsg('reprovado')" style="background:#fff;border:1.5px solid #ef9a9a;color:#c0392b;font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;cursor:pointer" id="tplReprovado"> Não aprovado</button>
-        <button onclick="previewWppMsg('reprovadoCompleto')" style="background:#fde8e8;border:1.5px solid #ef9a9a;color:#c0392b;font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;cursor:pointer" id="tplReprovadoCompleto"> Não aprovado +</button>
-        <button onclick="previewWppMsg('treinamento')" style="background:#fff;border:1.5px solid #ccc;color:#333;font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;cursor:pointer" id="tplTreinamento"> Treinamento</button>
-        <button onclick="previewWppMsg('livre')" style="background:#fff;border:1.5px solid #ccc;color:#333;font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;cursor:pointer" id="tplLivre"> Livre</button>
+        <button onclick="previewWppMsg('aprovado')" style="background:#fff;border:1.5px solid #ccc;color:#333;font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;cursor:pointer" id="tplAprovado">🎉 Aprovado</button>
+        <button onclick="previewWppMsg('reprovado')" style="background:#fff;border:1.5px solid #ef9a9a;color:#c0392b;font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;cursor:pointer" id="tplReprovado">❌ Não aprovado</button>
+        <button onclick="previewWppMsg('reprovadoCompleto')" style="background:#fde8e8;border:1.5px solid #ef9a9a;color:#c0392b;font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;cursor:pointer" id="tplReprovadoCompleto">❌ Não aprovado +</button>
+        <button onclick="previewWppMsg('treinamento')" style="background:#fff;border:1.5px solid #ccc;color:#333;font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;cursor:pointer" id="tplTreinamento">🎓 Treinamento</button>
+        <button onclick="previewWppMsg('livre')" style="background:#fff;border:1.5px solid #ccc;color:#333;font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;cursor:pointer" id="tplLivre">✏️ Livre</button>
       </div>
       <!-- Compose area -->
       <textarea id="wppChatMsg" placeholder="Digite sua mensagem..." style="width:100%;padding:10px 13px;border:1.5px solid #ccc;border-radius:10px;font-size:13px;color:#1a1a2e;resize:none;height:80px;font-family:inherit;outline:none;background:#fff" oninput="updateWppPreview()"></textarea>
       <div style="display:flex;gap:8px;margin-top:10px">
         <button onclick="closeM('mWppChat')" style="flex:1;padding:10px;background:#f0f0f0;color:#5a6a7e;border:1.5px solid #ddd;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer">Cancelar</button>
-        <button onclick="sendWppChatMsg()" style="flex:2;padding:10px;background:#25d366;color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px"> Abrir WhatsApp e Enviar</button>
+        <button onclick="sendWppChatMsg()" style="flex:2;padding:10px;background:#25d366;color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px">📲 Abrir WhatsApp e Enviar</button>
       </div>
     </div>
   </div>
