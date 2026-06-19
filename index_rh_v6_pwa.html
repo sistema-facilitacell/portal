@@ -2892,6 +2892,14 @@ function navigateDebounced(mod,delay=150){
   },delay);
 }
 
+// ── Rastreador de interacao (para evitar re-render durante o uso) ──────────────
+// Registra o ultimo momento em que o usuario interagiu com a tela. Usado pelo
+// auto-refresh para nao re-renderizar e travar enquanto a pessoa esta mexendo.
+window._lastUserInteractTs = Date.now();
+['pointerdown','keydown','input','scroll','touchstart'].forEach(function(ev){
+  window.addEventListener(ev, function(){ window._lastUserInteractTs = Date.now(); }, { passive:true, capture:true });
+});
+
 // ════════════════════════════════════════════════════
 // MODAL & TOAST
 // ════════════════════════════════════════════════════
@@ -4431,9 +4439,17 @@ function rPonto(){
       const bioEntrada=bio?.ins?.[0]||'';
       const bioSaida=bio?.outs?.[bio.outs.length-1]||'';
 
-      // A partir de 01/06/2026: usa biométrico automaticamente se disponível
-      const ent = isBioCutoff ? (bioEntrada||r?.entrada||'') : (r?.entrada||'');
-      const sai = isBioCutoff ? (bioSaida||r?.saida||'')   : (r?.saida||'');
+      // A partir de 01/06/2026: usa biométrico automaticamente se disponível.
+      // EXCEÇÃO: se o RH editou este dia manualmente (_editadoEm), a edição
+      // manual TEM PRIORIDADE sobre a batida biométrica — caso contrário a
+      // batida sobrescrevia visualmente a correção do RH.
+      const _editadoManual = !!(r && r._editadoEm);
+      const ent = _editadoManual
+        ? (r?.entrada||bioEntrada||'')
+        : (isBioCutoff ? (bioEntrada||r?.entrada||'') : (r?.entrada||''));
+      const sai = _editadoManual
+        ? (r?.saida||bioSaida||'')
+        : (isBioCutoff ? (bioSaida||r?.saida||'')   : (r?.saida||''));
       const st=r?.status||'';
 
       let saldoLabel='', saldoCor='';
@@ -4512,7 +4528,10 @@ function rPonto(){
           ${MESES_NOME[mes]} ${ano}
           ${isBioCutoff?'<span style="font-size:10px;background:#059669;color:#fff;border-radius:4px;padding:2px 7px;margin-left:8px;font-weight:700">🔬 Auto-Biométrico</span>':'<span style="font-size:10px;background:#C9A84C;color:#fff;border-radius:4px;padding:2px 7px;margin-left:8px;font-weight:700">✏️ Manual</span>'}
         </div>
-        <button class="btn btn-sm" style="background:#fff2;color:#fff;border:1px solid #fff4;font-size:11px" onclick="imprimirCartaoPontoMensal('${eid}',${mes},${ano})">📋 Fechar Mês</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-sm" style="background:#fff2;color:#fff;border:1px solid #fff4;font-size:11px" onclick="abrirGestaoFeriados()">🎉 Feriados</button>
+          <button class="btn btn-sm" style="background:#fff2;color:#fff;border:1px solid #fff4;font-size:11px" onclick="imprimirCartaoPontoMensal('${eid}',${mes},${ano})">📋 Fechar Mês</button>
+        </div>
       </div>
       <div style="padding:12px 14px">
         <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:6px">
@@ -4607,6 +4626,38 @@ function openDia(d){
   const pm=APP.pontos[`${empId}_${ano}_${mes}`]||{};
   const r=pm[d]||{};
   const dtFmt=`${zp2(d)}/${zp2(mes+1)}/${ano}`;
+  // Carrega as batidas biométricas reais do dia para pré-preencher os campos
+  // quando ainda não houve edição manual (assim o RH edita a partir do valor
+  // real registrado, não do horário padrão do funcionário).
+  const _dataISObio=`${ano}-${zp2(mes+1)}-${zp2(d)}`;
+  const _bioCpfD=(emp?.cpf||'').replace(/\D/g,'');
+  const _bioDia=(typeof BIO_DATA!=='undefined'?BIO_DATA.punches:[]||[])
+    .filter(p=>{
+      if(p.date!==_dataISObio) return false;
+      if(p.hrEmpId&&p.hrEmpId===empId) return true;
+      if(_bioCpfD&&p.cpf&&p.cpf.replace(/\D/g,'')===_bioCpfD) return true;
+      return (p.empName||'').toLowerCase().trim()===(emp?.nome||'').toLowerCase().trim();
+    })
+    .sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+  const _bioVal={};
+  if(typeof _mapearBatidasPontos==='function'){
+    _mapearBatidasPontos(_bioVal, _bioDia);
+  } else {
+    const _bioCampos=['entrada','saida_almoco','volta_almoco','saida_cafe','volta_cafe','saida'];
+    _bioDia.forEach((p,i)=>{ if(i<_bioCampos.length) _bioVal[_bioCampos[i]]=p.time; });
+  }
+  // Detecta se este dia é feriado (nacional ou municipal da cidade do funcionário)
+  const _dataISO=`${ano}-${zp2(mes+1)}-${zp2(d)}`;
+  let _ferAviso='';
+  try{
+    if(typeof ehFeriado==='function'){
+      const _fer=ehFeriado(_dataISO, emp?.cidade);
+      if(_fer.feriado && r.status!=='feriado_folga' && r.status!=='feriado_trabalhado'){
+        _ferAviso=`<div style="background:#F5F3FF;border:1px solid #DDD6FE;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#6D28D9">
+          🎉 <strong>${esc(_fer.nome)}</strong> — selecione <em>Feriado (folga paga)</em> ou <em>Feriado trabalhado</em> no status do dia, conforme o caso.</div>`;
+      }
+    }
+  }catch(_){}
   // Calcula preview das horas ao abrir
   const _pt=t=>{if(!t)return null;const[h,m]=(t||'00:00').split(':').map(Number);return h*60+m;};
   const _entH=_pt(emp?.horarioEntrada||'09:00')||9*60;
@@ -4618,6 +4669,7 @@ function openDia(d){
   const _pausas=Math.max(0,(_almVolt||780)-(_almSai||720))+Math.max(0,(_cafVolt||930)-(_cafSai||900));
   const _diaEsp=Math.max(0,(_saiH-_entH)-_pausas);
   openModal(`✏️ Editar Ponto — ${esc(emp?.nome||'')} — ${dtFmt}`,`
+    ${_ferAviso}
     <div id="ponto-hora-preview" style="background:#F0F9FF;border:1px solid #BAE6FD;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;display:flex;gap:16px;flex-wrap:wrap">
       <span>⏰ Horário esperado: <strong>${emp?.horarioEntrada||'09:00'} → ${emp?.horarioSaida||'17:50'}</strong></span>
       <span>✅ Tolerância entrada: <strong style="color:#059669">10 min</strong></span>
@@ -4629,19 +4681,21 @@ function openDia(d){
       <option value="atestado"${r.status==='atestado'?' selected':''}>🏥 Atestado Médico</option>
       <option value="folga"${r.status==='folga'?' selected':''}>🔵 Folga / Compensação</option>
       <option value="ferias"${r.status==='ferias'?' selected':''}>🏖 Férias</option>
+      <option value="feriado_folga"${r.status==='feriado_folga'?' selected':''}>🎉 Feriado (folga paga)</option>
+      <option value="feriado_trabalhado"${r.status==='feriado_trabalhado'?' selected':''}>🎉 Feriado trabalhado (extra)</option>
     </select></div>
     <div style="font-size:12px;font-weight:700;color:var(--mt);text-transform:uppercase;margin:12px 0 8px">Horários</div>
     <div class="g2">
-      <div class="fld"><label>🟢 Entrada</label><input type="time" id="pd-e" value="${r.entrada||emp?.horarioEntrada||'09:00'}" oninput="_calcPontoPreview()"></div>
-      <div class="fld"><label>🔴 Saída</label><input type="time" id="pd-sd" value="${r.saida||emp?.horarioSaida||'17:50'}" oninput="_calcPontoPreview()"></div>
+      <div class="fld"><label>🟢 Entrada</label><input type="time" id="pd-e" value="${r.entrada||_bioVal.entrada||emp?.horarioEntrada||'09:00'}" oninput="_calcPontoPreview()"></div>
+      <div class="fld"><label>🔴 Saída</label><input type="time" id="pd-sd" value="${r.saida||_bioVal.saida||emp?.horarioSaida||'17:50'}" oninput="_calcPontoPreview()"></div>
     </div>
     <div class="g2">
-      <div class="fld"><label>🍽 Saída Almoço</label><input type="time" id="pd-sa" value="${r.saida_almoco||emp?.horarioAlmoco||'12:00'}" oninput="_calcPontoPreview()"></div>
-      <div class="fld"><label>↩ Volta Almoço</label><input type="time" id="pd-va" value="${r.volta_almoco||emp?.horarioVoltaAlmoco||'13:00'}" oninput="_calcPontoPreview()"></div>
+      <div class="fld"><label>🍽 Saída Almoço</label><input type="time" id="pd-sa" value="${r.saida_almoco||_bioVal.saida_almoco||emp?.horarioAlmoco||'12:00'}" oninput="_calcPontoPreview()"></div>
+      <div class="fld"><label>↩ Volta Almoço</label><input type="time" id="pd-va" value="${r.volta_almoco||_bioVal.volta_almoco||emp?.horarioVoltaAlmoco||'13:00'}" oninput="_calcPontoPreview()"></div>
     </div>
     <div class="g2">
-      <div class="fld"><label>☕ Saída Café</label><input type="time" id="pd-sc" value="${r.saida_cafe||emp?.horarioCafe||'15:00'}" oninput="_calcPontoPreview()"></div>
-      <div class="fld"><label>↩ Volta Café</label><input type="time" id="pd-vc" value="${r.volta_cafe||emp?.horarioVoltaCafe||'15:30'}" oninput="_calcPontoPreview()"></div>
+      <div class="fld"><label>☕ Saída Café</label><input type="time" id="pd-sc" value="${r.saida_cafe||_bioVal.saida_cafe||emp?.horarioCafe||'15:00'}" oninput="_calcPontoPreview()"></div>
+      <div class="fld"><label>↩ Volta Café</label><input type="time" id="pd-vc" value="${r.volta_cafe||_bioVal.volta_cafe||emp?.horarioVoltaCafe||'15:30'}" oninput="_calcPontoPreview()"></div>
     </div>
     <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px 12px;font-size:12px;margin-top:4px">
       💡 Alterações aqui ficam salvas no <strong>Cartão Ponto</strong> e são usadas no Holerite.
@@ -4692,7 +4746,7 @@ function imprimirCartaoPontoMensal(empId, mes, ano){
 
   // Gera linhas da tabela
   const DIAS_SEMANA=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-  const STATUS_LABEL={normal:'✅ Normal',falta:'❌ Falta',atestado:'🏥 Atestado',folga:'🔵 Folga',ferias:'🏖 Férias'};
+  const STATUS_LABEL={normal:'✅ Normal',falta:'❌ Falta',atestado:'🏥 Atestado',folga:'🔵 Folga',ferias:'🏖 Férias',feriado_folga:'🎉 Feriado',feriado_trabalhado:'🎉 Feriado (trab.)'};
   const STATUS_COLOR={normal:'#059669',falta:'#DC2626',atestado:'#D97706',folga:'#7C3AED',ferias:'#2563EB'};
 
   let rows='';
@@ -10333,7 +10387,8 @@ async function bioSyncToPonto(){
       (cpfCleanS&&x.cpf&&x.cpf===cpfCleanS)||
       ((x.empName||'').toLowerCase().trim()===(he.nome||'').toLowerCase().trim())
     ))||[]).sort((a,b)=>a.time.localeCompare(b.time));
-    dayPunches.forEach((punch,idx)=>{if(idx<_campos6s.length)APP.pontos[k][d][_campos6s[idx]]=punch.time;});
+    if(typeof _mapearBatidasPontos==='function'){ _mapearBatidasPontos(APP.pontos[k][d], dayPunches); }
+    else { dayPunches.forEach((punch,idx)=>{if(idx<_campos6s.length)APP.pontos[k][d][_campos6s[idx]]=punch.time;}); }
     APP.pontos[k][d].status='normal';
   });
   // Filtra apenas adjustments do mês selecionado
@@ -10361,9 +10416,48 @@ async function bioSyncToPonto(){
 // Debounce: evita múltiplas execuções simultâneas (boot + polling + listener)
 let _bioSyncDebounceTimer = null;
 let _bioSyncPending = null;
+// Mapeia batidas biométricas para os 6 campos do ponto, suportando
+// jornadas de 4 batidas (sem café) ou 6 batidas (com café).
+// Regra: 1ª batida = entrada; última 'out' = saída final; as do meio
+// preenchem almoço (e café quando houver 6).
+function _mapearBatidasPontos(reg, batidas){
+  if(!reg || !Array.isArray(batidas) || batidas.length===0) return;
+  const times = batidas.map(b=>b.time).filter(Boolean);
+  const n = times.length;
+  reg.entrada = times[0] || '';
+  if(n===1){
+    return;
+  } else if(n===2){
+    // entrada + saída
+    reg.saida = times[1];
+  } else if(n===3){
+    // entrada, saída-almoço, saída (sem volta registrada)
+    reg.saida_almoco = times[1];
+    reg.saida = times[2];
+  } else if(n===4){
+    // jornada padrão de 4 pontos: entrada, saída-almoço, volta-almoço, saída
+    reg.saida_almoco = times[1];
+    reg.volta_almoco = times[2];
+    reg.saida = times[3];
+  } else if(n===5){
+    // 5 batidas: entrada, s-almoço, v-almoço, s-café, saída
+    reg.saida_almoco = times[1];
+    reg.volta_almoco = times[2];
+    reg.saida_cafe = times[3];
+    reg.saida = times[4];
+  } else {
+    // 6+ batidas: usa as 6 primeiras posicionalmente, última 'out' = saída
+    reg.saida_almoco = times[1];
+    reg.volta_almoco = times[2];
+    reg.saida_cafe = times[3];
+    reg.volta_cafe = times[4];
+    reg.saida = times[5];
+  }
+}
+window._mapearBatidasPontos = _mapearBatidasPontos;
+
 async function _bioSyncAllPontosDoMes(monthKey){
   if(!FBASE||!APP.employees||APP.employees.length===0)return;
-  // Usa o mês explicitamente passado; fallback para BIO_ANO/BIO_MES quando disponíveis,
   // e só então Date() como último recurso — garante que navegar para mês passado funcione.
   if(!monthKey){
     if(typeof BIO_ANO!=='undefined'&&typeof BIO_MES!=='undefined'){
@@ -10396,6 +10490,9 @@ async function _bioSyncAllPontosDoMes(monthKey){
       processed.add(dayKey);
       const k=`${he.id}_${yr}_${m}`;
       if(!APP.pontos[k])APP.pontos[k]={};
+      // PROTEÇÃO: se o RH editou este dia manualmente, NÃO sobrescreve.
+      // A edição manual sempre vence a batida biométrica.
+      if(APP.pontos[k][d] && APP.pontos[k][d]._editadoEm){ return; }
       if(!APP.pontos[k][d])APP.pontos[k][d]={status:'normal',entrada:'',saida_almoco:'',volta_almoco:'',saida_cafe:'',volta_cafe:'',saida:''};
       const cpfClean=(he.cpf||'').replace(/\D/g,'');
       const todasDoDia=BIO_DATA.punches
@@ -10403,7 +10500,8 @@ async function _bioSyncAllPontosDoMes(monthKey){
         .sort((a,b)=>a.time.localeCompare(b.time));
       const campos=['entrada','saida_almoco','volta_almoco','saida_cafe','volta_cafe','saida'];
       campos.forEach(cx=>{APP.pontos[k][d][cx]='';});
-      todasDoDia.forEach((px,i)=>{if(i<campos.length)APP.pontos[k][d][campos[i]]=px.time;});
+      // Mapeamento inteligente por tipo (in/out), suporta 4 OU 6 batidas:
+      _mapearBatidasPontos(APP.pontos[k][d], todasDoDia);
       if(!APP.pontos[k][d].status||APP.pontos[k][d].status==='normal')
         APP.pontos[k][d].status=todasDoDia.length>0?'normal':'';
     });
@@ -10442,6 +10540,15 @@ function bioAplicarBatidaLocal(punch){
   const idx=BIO_DATA.punches.findIndex(x=>x.id===punch.id);
   if(idx>=0)BIO_DATA.punches[idx]=punch;
   else BIO_DATA.punches.push(punch);
+  // PROTEÇÃO: dia editado manualmente pelo RH não é sobrescrito por novas batidas.
+  if(APP.pontos[k][d] && APP.pontos[k][d]._editadoEm){
+    save('pontos');
+    if(!isModalOpen()){
+      if(MOD==='ponto')navigateDebounced('ponto',300);
+      if(MOD==='biometrico')navigateDebounced('biometrico',300);
+    }
+    return;
+  }
   // Remapeia o dia completo em ordem cronológica
   const cpfClean=(he.cpf||'').replace(/\D/g,'');
   const todasDoDia=BIO_DATA.punches
@@ -10453,7 +10560,8 @@ function bioAplicarBatidaLocal(punch){
     .sort((a,b)=>a.time.localeCompare(b.time));
   const campos=['entrada','saida_almoco','volta_almoco','saida_cafe','volta_cafe','saida'];
   campos.forEach(c=>{APP.pontos[k][d][c]='';});
-  todasDoDia.forEach((p,i)=>{if(i<campos.length)APP.pontos[k][d][campos[i]]=p.time;});
+  if(typeof _mapearBatidasPontos==='function'){ _mapearBatidasPontos(APP.pontos[k][d], todasDoDia); }
+  else { todasDoDia.forEach((p,i)=>{if(i<campos.length)APP.pontos[k][d][campos[i]]=p.time;}); }
   if(!APP.pontos[k][d].status||APP.pontos[k][d].status==='normal')
     APP.pontos[k][d].status=todasDoDia.length>0?'normal':'';
   save('pontos');
@@ -10461,8 +10569,8 @@ function bioAplicarBatidaLocal(punch){
   toast(`✅ Ponto registrado: ${he.nome} — ${tipo} ${punch.time}`,'ok',3500);
   // NÃO navega com modal aberto
   if(!isModalOpen()){
-    if(MOD==='ponto')navigate('ponto');
-    if(MOD==='biometrico')navigate('biometrico');
+    if(MOD==='ponto')navigateDebounced('ponto',300);
+    if(MOD==='biometrico')navigateDebounced('biometrico',300);
   }
 }
 
@@ -10514,8 +10622,8 @@ function bioStartPolling(){
         if(monthVis!==monthAtual) await _bioSyncAllPontosDoMes(monthAtual);
         // NÃO faz navigate se modal estiver aberto — evita fechar modal e reverter edições do usuário
         if(!isModalOpen()){
-          if(MOD==='ponto')navigate('ponto');
-          if(MOD==='biometrico')navigate('biometrico');
+          if(MOD==='ponto')navigateDebounced('ponto',300);
+          if(MOD==='biometrico')navigateDebounced('biometrico',300);
         }
         console.log('[Bio Polling] Sincronizado — '+fresh.length+' batidas ('+mesesParaBuscar.join(', ')+')');
       }
@@ -10636,8 +10744,8 @@ function bioStartRealtimeListener(){
             if(change.type==='added')toast(`🔬 Batida sincronizada: ${_nomeCollab} — ${_tipoMsg} ${_horaBatida}`,'ok',4000);
             // NÃO faz navigate se modal aberto — evita fechar modal e reverter edições do usuário
             if(!isModalOpen()){
-              if(MOD==='biometrico')navigate('biometrico');
-              if(MOD==='ponto')navigate('ponto');
+              if(MOD==='biometrico')navigateDebounced('biometrico',300);
+              if(MOD==='ponto')navigateDebounced('ponto',300);
             }
 
             // 6. Atualiza Banco de Horas automaticamente a partir de 18/05/2026
@@ -10707,7 +10815,7 @@ function bioStartRealtimeListener(){
       .onSnapshot(
         snap => {
           BIO_DATA.justificativas = snap.docs.map(d => d.data());
-          if(MOD==='biometrico' && !isModalOpen()) navigate('biometrico');
+          if(MOD==='biometrico' && !isModalOpen()) navigateDebounced('biometrico',300);
         },
         err => { console.warn('[Bio] justificativasListener erro:',err); }
       );
@@ -15004,7 +15112,14 @@ setInterval(function(){
   if(agora - _lastLoadCloudTs < _LOAD_CLOUD_MIN_INTERVAL) return;
   loadCloud().then(()=>{
     _lastLoadCloudTs = Date.now();
-    try{ navigate(MOD); }catch(e){}
+    // So re-renderiza se nao houver modal aberto e o usuario estiver ocioso
+    // ha pelo menos 20s. Re-render durante o uso causa travamento percebido.
+    try{
+      const _modalAberto = (typeof isModalOpen==='function' && isModalOpen()) ||
+                           document.querySelector('.modal-overlay,[id$="-overlay"],#bio-multi-overlay');
+      const _ocioso = !window._lastUserInteractTs || (agora - window._lastUserInteractTs > 20000);
+      if(!_modalAberto && _ocioso){ navigate(MOD); }
+    }catch(e){}
   }).catch(()=>{});
 }, 5 * 60 * 1000);
 
@@ -16681,12 +16796,17 @@ function rBancoHoras(){
     return '';
   })()}
 
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px">
-    ${[['⬆️','Total Créditos',fmtMin(totCred),'#059669'],
-      ['⬇️','Total Débitos',fmtMin(totDeb),'#DC2626'],
-      ['⚖️','Saldo Geral',fmtMin(Math.max(0,totCred-totDeb)),'#2563EB'],
-      ['👥','Funcionários',ativos.length,'#7C3AED']
-    ].map(([ic,l,vv,c])=>`
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px">
+    ${(()=>{
+      const _saldoGeral=totCred-totDeb;
+      const _corG=_saldoGeral>0?'#059669':_saldoGeral<0?'#DC2626':'#6B7280';
+      const _sinalG=_saldoGeral>0?'+':_saldoGeral<0?'−':'';
+      const _labelG=_saldoGeral>0?'Saldo Geral (a receber)':_saldoGeral<0?'Saldo Geral (a compensar)':'Saldo Geral';
+      return [['⚖️',_labelG,_sinalG+fmtMin(Math.abs(_saldoGeral)),_corG],
+        ['👥','Funcionários',ativos.length,'#7C3AED'],
+        ['📅','Mês de Referência',(typeof MESES_NOME!=='undefined'&&typeof BIO_MES!=='undefined'?MESES_NOME[BIO_MES]:''),'#2563EB']
+      ];
+    })().map(([ic,l,vv,c])=>`
     <div class="card" style="border-top:3px solid ${c};text-align:center;padding:16px">
       <div style="font-size:26px;margin-bottom:4px">${ic}</div>
       <div style="font-size:10px;color:var(--mt);font-weight:700;text-transform:uppercase;margin-bottom:4px">${l}</div>
@@ -16697,21 +16817,20 @@ function rBancoHoras(){
   <div class="card">
     <div style="font-size:14px;font-weight:700;margin-bottom:14px">📋 Saldo por Funcionário</div>
     ${ativos.length===0?'<p style="color:var(--mt);font-size:13px">Nenhum funcionário ativo.</p>':
-    `<table><thead><tr><th>Funcionário</th><th>Cargo</th><th>Créditos</th><th>Débitos</th><th>Saldo</th><th>Situação</th><th>Ações</th></tr></thead>
+    `<table><thead><tr><th>Funcionário</th><th>Cargo</th><th>Saldo do Banco de Horas</th><th>Situação</th><th>Ações</th></tr></thead>
     <tbody>${ativos.map(e=>{
       const ls=_bhLs(e.id).filter(l=>l.data>=_bhCutoff());
       const cred=ls.filter(l=>l.tipo==='credito').reduce((s,l)=>s+l.minutos,0);
       const deb=ls.filter(l=>l.tipo==='debito').reduce((s,l)=>s+l.minutos,0);
-      // P3 FIX: usa saldo real com sinal (não clampeia em 0) para que devedores apareçam em vermelho
+      // Saldo final = créditos já abatidos dos débitos. Uma única informação.
       const saldo=cred-deb;
       const cor=saldo>0?'#059669':saldo<0?'#DC2626':'#6B7280';
-      const sit=saldo>120?'Bom Saldo':saldo>0?'Positivo':saldo<0?'Devedor':'Zerado';
+      const sit=saldo>0?'Horas a receber':saldo<0?'Horas a compensar':'Em dia';
+      const sinal=saldo>0?'+':saldo<0?'−':'';
       return`<tr>
         <td><div style="display:flex;align-items:center;gap:8px">${av(e.nome,e.id,28)}<span style="font-weight:600;font-size:13px">${esc(e.nome)}</span></div></td>
         <td style="font-size:12px;color:var(--mt)">${esc(e.cargo)}</td>
-        <td style="font-weight:700;color:#059669;text-align:center">${fmtMin(cred)}</td>
-        <td style="font-weight:700;color:#DC2626;text-align:center">${fmtMin(deb)}</td>
-        <td style="text-align:center"><span style="font-size:18px;font-weight:900;color:${cor}">${fmtMin(saldo)}</span></td>
+        <td style="text-align:center"><span style="font-size:20px;font-weight:900;color:${cor}">${sinal}${fmtMin(Math.abs(saldo))}</span></td>
         <td><span style="background:${cor}22;color:${cor};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">${sit}</span></td>
         <td><div style="display:flex;gap:5px">
           <button class="btn btn-sm btn-icon-blue" onclick="openBHForm('${e.id}')">+ Lançar</button>
@@ -32755,7 +32874,10 @@ function _renderCalendarioMensal() {
 
   // ── Helper: calcula saldo de horas de um registro do cartão ponto ──
   function _calcSaldoMin(reg, emp) {
-    if (!reg || !reg.entrada || !reg.saida) return null;
+    if (!reg) return null;
+    // Feriado em folga: dia pago, nao gera credito nem debito de horas.
+    if (reg.status === 'feriado_folga') return 0;
+    if (!reg.entrada || !reg.saida) return null;
     const pt = t => { if (!t || !String(t).includes(':')) return null; const [h, m] = String(t).split(':').map(Number); return (h||0)*60+(m||0); };
     const entH = pt(emp && emp.horarioEntrada) || 9*60;
     const saiH = pt(emp && emp.horarioSaida)   || 17*60+50;
@@ -32778,6 +32900,9 @@ function _renderCalendarioMensal() {
     if (va !== null) { if (sc !== null && sc > va) worked += sc - va; else if (s > va) worked += s - va; }
     if (vc !== null && s > vc) worked += s - vc;
     if (worked === 0 && s > eEfet) worked = Math.max(0, (s - eEfet) - pausaMin);
+    // Feriado trabalhado: TODAS as horas trabalhadas viram credito (extra),
+    // pois nao havia jornada esperada nesse dia.
+    if (reg.status === 'feriado_trabalhado') return worked;
     return worked - diaEsp; // positivo = extra, negativo = falta horas
   }
 
@@ -42020,18 +42145,23 @@ window.aiaEhPedidoDoc=aiaEhPedidoDoc;
 // Override de rBiometrico: injeta a aba "Análise IA" e renderiza seu conteúdo.
 const _rBiometrico_final = window.rBiometrico || (typeof rBiometrico==='function'?rBiometrico:null);
 window.rBiometrico = function(){
-  if(typeof BIO_TAB!=='undefined' && BIO_TAB==='ia'){
-    // Reconstrói só a barra de abas + painel IA
-    const tabs=[['hoje','🏠 Hoje'],['funcionarios','👥 Colaboradores'],['mensal','📅 Mensal'],['fechamento','📊 Fechamento'],['justificativas','📎 Justificativas'],['comunicados','📢 Comunicados'],['geo','📍 Geolocalização'],['solicitacoes','📋 Solicitações'],['ia','🧠 Análise IA']];
+  // ABA "Análise IA" usa id PRÓPRIO ('analiseia') para não colidir com o
+  // "IA Monitor" (id 'ia'). Antes ambas usavam 'ia' e clicar em IA Monitor
+  // caía na Análise IA.
+  if(typeof BIO_TAB!=='undefined' && BIO_TAB==='analiseia'){
+    // Reconstrói só a barra de abas + painel Análise IA
+    const tabs=[['hoje','🏠 Hoje'],['ia','🤖 IA Monitor'],['funcionarios','👥 Colaboradores'],['mensal','📅 Mensal'],['fechamento','📊 Fechamento'],['justificativas','📎 Justificativas'],['comunicados','📢 Comunicados'],['geo','📍 Geolocalização'],['solicitacoes','📋 Solicitações'],['analiseia','🧠 Análise IA']];
     const bar=`<div style="display:flex;gap:6px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:14px;flex-wrap:wrap">
-      ${tabs.map(([id,lbl])=>`<button onclick="BIO_TAB='${id}';navigate('biometrico')" class="btn btn-sm" style="${id==='ia'?'background:#0B1E35;color:#fff':'background:#F1F5F9;color:#475569'}">${lbl}</button>`).join('')}
+      ${tabs.map(([id,lbl])=>`<button onclick="BIO_TAB='${id}';navigate('biometrico')" class="btn btn-sm" style="${id==='analiseia'?'background:#0B1E35;color:#fff':'background:#F1F5F9;color:#475569'}">${lbl}</button>`).join('')}
       <button onclick="bioLoadData().then(()=>navigate('biometrico'))" class="btn btn-sm" style="background:#EFF6FF;color:var(--blue);margin-left:auto">🔄 Atualizar</button>
     </div>`;
     return `<div>${bar}${(typeof window.rBioIA==='function'?window.rBioIA():rBioIA())}</div>`;
   }
-  // Para as demais abas: usa o render original e injeta o botão "Análise IA" na barra
+  // Para as demais abas (incluindo 'ia' = IA Monitor): usa o render original
+  // e injeta o botão "Análise IA" (id 'analiseia') na barra.
   let html = _rBiometrico_final ? _rBiometrico_final() : '';
-  const novaAba = `<button onclick="BIO_TAB='ia';navigate('biometrico')" class="btn btn-sm" style="background:#F1F5F9;color:#475569;font-weight:700">🧠 Análise IA</button>`;
+  const _ativa = (typeof BIO_TAB!=='undefined' && BIO_TAB==='analiseia');
+  const novaAba = `<button onclick="BIO_TAB='analiseia';navigate('biometrico')" class="btn btn-sm" style="${_ativa?'background:#0B1E35;color:#fff':'background:#F1F5F9;color:#475569'};font-weight:700">🧠 Análise IA</button>`;
   html = html.replace(/(<button onclick="sincronizarTudo)/, novaAba + '$1');
   return html;
 };
@@ -42242,6 +42372,177 @@ window.bioaiExportarPDF=bioaiExportarPDF;
 })();
 
 console.log('[Atlas IA] Gerador de documentos por IA + Exportar PDF carregados ✅');
+</script>
+
+<script>
+// ════════════════════════════════════════════════════════════════════
+// [ATLAS] GESTÃO DE FERIADOS — Nacionais (auto) + Municipais por cidade
+// ════════════════════════════════════════════════════════════════════
+// Estrutura: APP_FERIADOS_MUNICIPAIS = { "Foz do Iguaçu": ["02-19","11-21"], ... }
+// As datas municipais sao guardadas como "MM-DD" (recorrentes todo ano).
+// Persiste no Firestore em hr_data/feriados_municipais.
+
+let APP_FERIADOS_MUNICIPAIS = {};
+
+// Carrega config municipal do Firestore (com fallback ao Foz legado)
+async function loadFeriadosMunicipais(){
+  try{
+    if(typeof FBASE!=='undefined' && FBASE){
+      const snap = await FBASE.collection('hr_data').doc('feriados_municipais').get();
+      if(snap.exists && snap.data().cidades){
+        APP_FERIADOS_MUNICIPAIS = snap.data().cidades || {};
+        return APP_FERIADOS_MUNICIPAIS;
+      }
+    }
+  }catch(_){}
+  // Fallback: migra o legado de Foz (terça de carnaval, aniversário 21/11)
+  if(Object.keys(APP_FERIADOS_MUNICIPAIS).length===0){
+    APP_FERIADOS_MUNICIPAIS = { 'Foz do Iguaçu': ['02-19','02-22','11-21'] };
+  }
+  return APP_FERIADOS_MUNICIPAIS;
+}
+
+async function salvarFeriadosMunicipais(){
+  try{
+    if(typeof FBASE!=='undefined' && FBASE){
+      await FBASE.collection('hr_data').doc('feriados_municipais').set({
+        cidades: APP_FERIADOS_MUNICIPAIS,
+        atualizadoEm: new Date().toISOString()
+      });
+    }
+  }catch(e){ console.warn('[Feriados] erro ao salvar municipais:', e.message); }
+  try{ localStorage.setItem('fcrh_feriados_municipais', JSON.stringify(APP_FERIADOS_MUNICIPAIS)); }catch(_){}
+}
+
+// Normaliza nome de cidade para comparacao (sem acento, minusculo)
+function _normCidade(c){
+  return String(c||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+}
+
+// Verifica se uma data (YYYY-MM-DD) é feriado para um funcionário (considera cidade)
+// Retorna {feriado:bool, tipo:'nacional'|'municipal'|null, nome:string}
+function ehFeriado(dataISO, cidadeFunc){
+  if(!dataISO || dataISO.length<10) return {feriado:false, tipo:null, nome:''};
+  // Nacionais: APP_FERIADOS contém datas completas YYYY-MM-DD
+  const nacionais = (typeof APP_FERIADOS!=='undefined') ? APP_FERIADOS : [];
+  if(nacionais.includes(dataISO)){
+    return {feriado:true, tipo:'nacional', nome:'Feriado Nacional'};
+  }
+  // Municipais: comparados por MM-DD, restritos à cidade do funcionário
+  const mmdd = dataISO.slice(5); // "MM-DD"
+  const alvo = _normCidade(cidadeFunc);
+  for(const cidade in APP_FERIADOS_MUNICIPAIS){
+    // Se nao informou cidade do funcionario, considera todas as cidades cadastradas.
+    // Se informou, só aplica a cidade correspondente.
+    if(alvo && _normCidade(cidade)!==alvo) continue;
+    const datas = APP_FERIADOS_MUNICIPAIS[cidade] || [];
+    if(datas.includes(mmdd)){
+      return {feriado:true, tipo:'municipal', nome:'Feriado Municipal — '+cidade};
+    }
+  }
+  return {feriado:false, tipo:null, nome:''};
+}
+window.ehFeriado = ehFeriado;
+
+// ── Tela de gestão de feriados ───────────────────────────────────────
+function abrirGestaoFeriados(){
+  const ano = new Date().getFullYear();
+  const nacionais = (typeof APP_FERIADOS!=='undefined'?APP_FERIADOS:[]).filter(d=>d.startsWith(ano+'')).sort();
+  // Cidades conhecidas: das filiais + das ja cadastradas
+  const cidadesFiliais = (typeof EMPRESAS_FILIAIS!=='undefined'?EMPRESAS_FILIAIS:[]).map(f=>f && f.cidade).filter(Boolean);
+  const cidadesCad = Object.keys(APP_FERIADOS_MUNICIPAIS);
+  const cidades = [...new Set([...cidadesFiliais, ...cidadesCad])].filter(Boolean).sort();
+
+  const nacHtml = nacionais.length
+    ? nacionais.map(d=>{
+        const [a,m,dia]=d.split('-');
+        return '<span style="display:inline-block;background:#EEF2FF;color:#3730A3;border:1px solid #C7D2FE;border-radius:8px;padding:4px 10px;font-size:12px;margin:3px;font-weight:600">'+dia+'/'+m+'</span>';
+      }).join('')
+    : '<span style="color:var(--mt);font-size:12px">Carregando da BrasilAPI…</span>';
+
+  const munHtml = cidades.map(cid=>{
+    const datas = (APP_FERIADOS_MUNICIPAIS[cid]||[]).slice().sort();
+    const chips = datas.length
+      ? datas.map(mmdd=>{
+          const [m,dia]=mmdd.split('-');
+          return '<span style="display:inline-flex;align-items:center;gap:5px;background:#F5F3FF;color:#6D28D9;border:1px solid #DDD6FE;border-radius:8px;padding:4px 8px;font-size:12px;margin:3px;font-weight:600">'+
+            dia+'/'+m+
+            '<button onclick="_removerFeriadoMunicipal(\''+cid.replace(/'/g,"\\'")+'\',\''+mmdd+'\')" style="background:none;border:none;color:#DC2626;cursor:pointer;font-weight:800;font-size:13px;padding:0;line-height:1">×</button>'+
+            '</span>';
+        }).join('')
+      : '<span style="color:var(--mt);font-size:11px;font-style:italic">Nenhum feriado municipal</span>';
+    const cidId = _normCidade(cid).replace(/[^a-z0-9]/g,'_');
+    return '<div style="background:#FAFAFA;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px">'+
+      '<div style="font-size:13px;font-weight:700;color:#1E3A5F;margin-bottom:8px">🏙️ '+esc(cid)+'</div>'+
+      '<div style="margin-bottom:8px">'+chips+'</div>'+
+      '<div style="display:flex;gap:6px;align-items:center">'+
+        '<input type="date" id="novofer_'+cidId+'" style="padding:6px 8px;border:1px solid var(--border);border-radius:7px;font-size:12px">'+
+        '<button class="btn btn-sm" style="background:#7C3AED;color:#fff" onclick="_adicionarFeriadoMunicipal(\''+cid.replace(/'/g,"\\'")+'\',\''+cidId+'\')">+ Adicionar</button>'+
+      '</div>'+
+      '</div>';
+  }).join('');
+
+  openModal('🎉 Gestão de Feriados',
+    '<div style="max-height:70vh;overflow-y:auto;padding-right:6px">'+
+    '<div style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:10px;padding:14px;margin-bottom:16px">'+
+      '<div style="font-size:13px;font-weight:700;color:#3730A3;margin-bottom:8px">🇧🇷 Feriados Nacionais '+ano+' <span style="font-weight:400;font-size:11px;color:#6366F1">(automáticos via BrasilAPI)</span></div>'+
+      '<div>'+nacHtml+'</div>'+
+    '</div>'+
+    '<div style="font-size:13px;font-weight:700;color:#6D28D9;margin-bottom:6px">🏙️ Feriados Municipais por Cidade</div>'+
+    '<div style="font-size:11px;color:var(--mt);margin-bottom:12px">Cada feriado municipal só vale para funcionários da cidade correspondente. Use a data — só o dia/mês é guardado (repete todo ano).</div>'+
+    (munHtml || '<div style="color:var(--mt);font-size:12px">Nenhuma cidade cadastrada nas filiais.</div>')+
+    '<div style="margin-top:12px;display:flex;gap:6px;align-items:center;background:#F8FAFC;border:1px dashed var(--border);border-radius:8px;padding:10px">'+
+      '<input id="nova_cidade_fer" placeholder="Adicionar outra cidade" style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:12px">'+
+      '<button class="btn btn-sm" style="background:#F1F5F9;color:#475569" onclick="_adicionarCidadeFeriado()">+ Cidade</button>'+
+    '</div>'+
+    '</div>'+
+    '<div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">'+
+      '<button class="btn btn-ghost" onclick="closeModal()">Fechar</button>'+
+    '</div>',
+    640
+  );
+}
+window.abrirGestaoFeriados = abrirGestaoFeriados;
+
+function _adicionarFeriadoMunicipal(cidade, cidId){
+  const inp = document.getElementById('novofer_'+cidId);
+  const val = inp && inp.value; // YYYY-MM-DD
+  if(!val){ toast('Escolha uma data.','err'); return; }
+  const mmdd = val.slice(5);
+  if(!APP_FERIADOS_MUNICIPAIS[cidade]) APP_FERIADOS_MUNICIPAIS[cidade]=[];
+  if(!APP_FERIADOS_MUNICIPAIS[cidade].includes(mmdd)){
+    APP_FERIADOS_MUNICIPAIS[cidade].push(mmdd);
+    salvarFeriadosMunicipais();
+    toast('Feriado adicionado em '+cidade,'ok');
+  }
+  abrirGestaoFeriados();
+}
+window._adicionarFeriadoMunicipal = _adicionarFeriadoMunicipal;
+
+function _removerFeriadoMunicipal(cidade, mmdd){
+  if(APP_FERIADOS_MUNICIPAIS[cidade]){
+    APP_FERIADOS_MUNICIPAIS[cidade] = APP_FERIADOS_MUNICIPAIS[cidade].filter(x=>x!==mmdd);
+    salvarFeriadosMunicipais();
+    toast('Feriado removido.','ok');
+  }
+  abrirGestaoFeriados();
+}
+window._removerFeriadoMunicipal = _removerFeriadoMunicipal;
+
+function _adicionarCidadeFeriado(){
+  const inp = document.getElementById('nova_cidade_fer');
+  const cid = inp && inp.value.trim();
+  if(!cid){ toast('Digite o nome da cidade.','err'); return; }
+  if(!APP_FERIADOS_MUNICIPAIS[cid]) APP_FERIADOS_MUNICIPAIS[cid]=[];
+  salvarFeriadosMunicipais();
+  abrirGestaoFeriados();
+}
+window._adicionarCidadeFeriado = _adicionarCidadeFeriado;
+
+// Carrega municipais ao iniciar
+(async ()=>{ try{ await loadFeriadosMunicipais(); }catch(_){} })();
+
+console.log('[Atlas] Módulo de Gestão de Feriados carregado ✅');
 </script>
 
 </body>
