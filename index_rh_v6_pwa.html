@@ -2653,7 +2653,7 @@ const NAV_GROUPS = [
   ]},
   { label: 'Contratação', items: [
     {id:'candidatos',label:'Candidatos',icon:'<path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>'},
-    {id:'recrutamento',label:'Recrutamento 2ª Fase',icon:'<path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/>'},
+    {id:'recrutamento',label:'Recrutamento Atlas',icon:'<path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/>'},
     {id:'admissao',label:'Admissão',icon:'<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>'},
     {id:'demissao',label:'Demissão',icon:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>'},
     {id:'contratos',label:'Contratos & Docs',icon:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>'},
@@ -2675,7 +2675,7 @@ const NAV_GROUPS = [
 ];
 // Mantém NAV flat para compatibilidade com MOD, navigate(), etc.
 const NAV = NAV_GROUPS.flatMap(g => g.items);
-const PAGE_TITLES={dashboard:'Dashboard',portaislinks:'Links dos Portais',funcionarios:'Funcionários',ponto:'Cartão Ponto',financeiro:'Financeiro',holerite:'Holerite',atestados:'Atestados Médicos',candidatos:'Candidatos',admissao:'Admissão',demissao:'Demissão',metadiaria:'Meta Diária',salarios:'Salários & Metas',biometrico:'Ponto Biométrico',relatorio:'Relatório Financeiro Mensal',advertencias:'Advertências e Suspensões',suspensao:'Suspensões Disciplinares',ferias:'Controle de Férias',desempenho:'Avaliação de Desempenho',comunicados:'Comunicados & Avisos',bancohoras:'Banco de Horas',recrutamento:'Recrutamento 2ª Fase',contratos:'Contratos & Documentos Admissionais',comprovantes:'Comprovantes de Pagamento',workflows:'Workflows Automáticos',assinatura_digital:'Assinatura Digital',alarmes_portal:'Alarmes do Portal',solicitacoes_portal:'Solicitações do Portal',absenteismo:'Dashboard de Absenteísmo',agenda_rh:'Agenda de RH',doc_templates:'Templates de Documentos'};
+const PAGE_TITLES={dashboard:'Dashboard',portaislinks:'Links dos Portais',funcionarios:'Funcionários',ponto:'Cartão Ponto',financeiro:'Financeiro',holerite:'Holerite',atestados:'Atestados Médicos',candidatos:'Candidatos',admissao:'Admissão',demissao:'Demissão',metadiaria:'Meta Diária',salarios:'Salários & Metas',biometrico:'Ponto Biométrico',relatorio:'Relatório Financeiro Mensal',advertencias:'Advertências e Suspensões',suspensao:'Suspensões Disciplinares',ferias:'Controle de Férias',desempenho:'Avaliação de Desempenho',comunicados:'Comunicados & Avisos',bancohoras:'Banco de Horas',recrutamento:'Recrutamento Atlas',contratos:'Contratos & Documentos Admissionais',comprovantes:'Comprovantes de Pagamento',workflows:'Workflows Automáticos',assinatura_digital:'Assinatura Digital',alarmes_portal:'Alarmes do Portal',solicitacoes_portal:'Solicitações do Portal',absenteismo:'Dashboard de Absenteísmo',agenda_rh:'Agenda de RH',doc_templates:'Templates de Documentos'};
 
 // ── Helper: gera array de anos dinâmico ──────────
 function anosDisponiveis(extra=1){
@@ -20428,41 +20428,30 @@ td,th{font-size:15px!important;}
 // RECRUTAMENTO 2ª FASE — Módulo Integrado
 // ════════════════════════════════════════════════════
 function rRecrutamento(){
-  return document.getElementById('rec-adm-template').innerHTML;
+  return `<div style="display:flex;flex-direction:column;height:calc(100vh - 120px);min-height:600px;border-radius:14px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.1);">
+    <div style="background:linear-gradient(135deg,#e65100,#ff6d00);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="font-size:20px;">🎯</div>
+        <div>
+          <div style="font-size:15px;font-weight:800;color:#fff;">Recrutamento Atlas</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.8);">Sistema de Recrutamento</div>
+        </div>
+      </div>
+      <button onclick="window.open('recrutamento.html','_blank')" style="background:rgba(255,255,255,0.2);color:#fff;border:1.5px solid rgba(255,255,255,0.4);padding:7px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
+        🔗 Abrir em Nova Aba
+      </button>
+    </div>
+    <iframe
+      src="recrutamento.html"
+      style="flex:1;width:100%;border:none;background:#fff;"
+      allow="camera; microphone; fullscreen"
+      title="Sistema de Recrutamento Atlas"
+    ></iframe>
+  </div>`;
 }
 
 async function rec_postNavigate(){
-  currentView='adm';
-  // Ativa a view ADM (CSS: .view{display:none} .view.active{display:block})
-  ['viewCandidato','viewLogin','viewAdm','viewFichaInline'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.classList.remove('active');
-  });
-  const viewAdm=document.getElementById('viewAdm');
-  if(viewAdm) viewAdm.classList.add('active');
-  ejsInit();
-  // Setup form masks
-  ['a_cpf'].forEach(id=>applyMask(id,maskCPF));
-  ['a_phone'].forEach(id=>applyMask(id,maskPhone));
-  // Init date fields
-  const admDateEl=document.getElementById('a_data_date');
-  const admTimeEl=document.getElementById('a_data_time');
-  if(admDateEl){const _nd2=new Date();_nd2.setDate(_nd2.getDate()+1);admDateEl.value=_nd2.toISOString().slice(0,10);}
-  if(admTimeEl&&!admTimeEl.value)admTimeEl.value='09:00';
-  // Setup modal backdrop clicks for rec modals
-  document.querySelectorAll('.mo').forEach(el=>{
-    el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('show');});
-  });
-  // Load candidates
-  if(typeof rec_loadLocal==='function') rec_loadLocal();
-  if(typeof renderAll==='function') renderAll();
-  if(typeof _checkDadosVazios==='function') _checkDadosVazios();
-  setTimeout(()=>{ if(typeof checkLembretes==='function') checkLembretes(); }, 500);
-  if(FBASE){
-    jbLoad()
-      .then(()=>{if(typeof renderAll==='function')renderAll();if(typeof _checkDadosVazios==='function')_checkDadosVazios();setTimeout(()=>{if(typeof checkLembretes==='function')checkLembretes();},500);})
-      .catch(()=>{if(typeof renderAll==='function')renderAll();});
-  }
+  // Sistema de Recrutamento Atlas — renderizado via iframe, sem inicialização adicional necessária
 }
 
 </script>
