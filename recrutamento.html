@@ -3604,14 +3604,14 @@ function renderRow(cand){
   const hasCv=!!localStorage.getItem('fc_cv_'+cand.id);
   const hasTrain=!!cand.treinamentoData;
   let btns='<div class="abtns">';
-  btns+=`<button class="btn btn-edit" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation();openEditar('${cand.id}')"></button>`;
-  btns+=`<button class="btn" style="font-size:11px;padding:5px 9px;background:#7b4fcf;color:#fff" onclick="event.stopPropagation();openFicha('${cand.id}')" title="Abrir ficha de entrevista"></button>`;
-  if(cand.status==='confirmado')btns+=`<button class="btn btn-success" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation();openResultado('${cand.id}')"></button>`;
-  if(hasTrain)btns+=`<button class="btn btn-train" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation();openTreinamentoModal('${cand.id}')" title="Enviar notificação de treinamento"></button>`;
-  else if(!['aprovado','reprovado'].includes(cand.status)){const first=cand.status==='aguardando';btns+=`<button class="btn btn-resend" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation();openEnvioModal(candidates.find(c=>c.id==='${cand.id}'),${!first})">${first?'':''}</button>`;}
+  btns+=`<button class="btn btn-edit" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation();openEditar('${cand.id}')" title="Editar candidato">✏️</button>`;
+  btns+=`<button class="btn" style="font-size:11px;padding:5px 9px;background:#7b4fcf;color:#fff" onclick="event.stopPropagation();openFicha('${cand.id}')" title="Abrir ficha de entrevista">📋</button>`;
+  if(cand.status==='confirmado')btns+=`<button class="btn btn-success" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation();openResultado('${cand.id}')" title="Registrar resultado">📝</button>`;
+  if(hasTrain)btns+=`<button class="btn btn-train" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation();openTreinamentoModal('${cand.id}')" title="Enviar notificação de treinamento">🔔</button>`;
+  else if(!['aprovado','reprovado'].includes(cand.status)){const first=cand.status==='aguardando';btns+=`<button class="btn btn-resend" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation();openEnvioModal(candidates.find(c=>c.id==='${cand.id}'),${!first})" title="${first?'Enviar convite':'Reenviar convite'}">${first?'📨':'🔄'}</button>`;}
   btns+='</div>';
-  const trainBadge=hasTrain?`<span style="font-size:10px;color:#1a8a4a"> ${fmtDate(cand.treinamentoData).split(' ')[0]}</span>`:'';
-  const obsBadge=cand.obs?`<span style="font-size:10px;color:#082C66" title="${cand.obs}"></span>`:'';
+  const trainBadge=hasTrain?`<span style="font-size:10px;color:#1a8a4a">🎓 ${fmtDate(cand.treinamentoData).split(' ')[0]}</span>`:'';
+  const obsBadge=cand.obs?`<span style="font-size:10px;color:#082C66" title="${cand.obs}">📌</span>`:'';
   // Mini nota da ficha
   let miniNota='';
   if(cand.avaliacao){
