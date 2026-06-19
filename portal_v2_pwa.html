@@ -7744,6 +7744,34 @@ async function abrirBioPonto() {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   }
 
+  // ── Captura GPS robusta ──────────────────────────────────────────────────────
+  // Estrategia em 3 niveis para nunca travar a batida por GPS preso:
+  //   1) alta precisao (chip GPS) com timeout curto
+  //   2) baixa precisao (Wi-Fi / torre de celular) - funciona indoor
+  //   3) ultima leitura recente em cache (maximumAge alto)
+  function _geoOnce(opts) {
+    return new Promise((res, rej) =>
+      navigator.geolocation.getCurrentPosition(res, rej, opts)
+    );
+  }
+  async function _capturarPosicaoRobusta() {
+    // 1) GPS de alta precisao, aceitando leitura de ate 30s atras
+    try {
+      return await _geoOnce({ enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 });
+    } catch (e1) {
+      // Se foi permissao negada, nao adianta tentar de novo
+      if (e1 && e1.code === 1) throw e1;
+    }
+    // 2) Baixa precisao (rede) - resolve dentro de loja/predio
+    try {
+      return await _geoOnce({ enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 });
+    } catch (e2) {
+      if (e2 && e2.code === 1) throw e2;
+    }
+    // 3) Ultima tentativa: qualquer leitura em cache (ate 5 min)
+    return await _geoOnce({ enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 });
+  }
+
   // ── Verifica geo ─────────────────────────────────────────────────────────────
   async function verificarGeoZona() {
     let cfg = {};
@@ -7758,25 +7786,29 @@ async function abrirBioPonto() {
     if (locs.length === 0) return { ok: true, geoData: null };
     let pos;
     try {
-      pos = await new Promise((res, rej) =>
-        navigator.geolocation.getCurrentPosition(res, rej, { timeout: 12000, enableHighAccuracy: true })
-      );
+      // Captura robusta: alta precisao (GPS) -> rede (Wi-Fi/torre) -> cache.
+      // Resolve "GPS indisponivel" dentro de loja/predio.
+      pos = await _capturarPosicaoRobusta();
     } catch(gpsErr) {
       if (cfg.requireGeo) {
-        const msg = gpsErr.code === 1
-          ? 'Permissão de localização negada. Permita o GPS nas configurações.'
-          : 'GPS indisponível. Aproxime-se de uma área com sinal.';
+        const msg = gpsErr && gpsErr.code === 1
+          ? 'Permissao de localizacao negada. Toque no cadeado da barra de endereco e libere o acesso a localizacao.'
+          : 'Nao foi possivel obter o GPS. Confira se a localizacao do celular esta ligada e tente de novo - se persistir, aproxime-se de uma janela.';
         return { ok: false, geoData: null, errMsg: '⛔ Localização necessária\n\n' + msg };
       }
       return { ok: true, geoData: null };
     }
     const myLat = pos.coords.latitude, myLng = pos.coords.longitude;
+    // Margem de tolerancia: quando a posicao vem por rede (indoor), accuracy
+    // pode ser de dezenas de metros. Soma metade da imprecisao (limitada a 60m)
+    // ao raio para nao bloquear quem esta de fato na porta da loja.
+    const _acc = Math.min(60, Math.max(0, (pos.coords.accuracy || 0) / 2));
     let bestDist = Infinity, bestLoc = null;
     for (const loc of locs) {
       const d = _hav(myLat, myLng, loc.lat, loc.lng);
       if (d < bestDist) { bestDist = d; bestLoc = loc; }
     }
-    const within = locs.some(loc => _hav(myLat, myLng, loc.lat, loc.lng) <= (loc.radius || 50));
+    const within = locs.some(loc => _hav(myLat, myLng, loc.lat, loc.lng) <= ((loc.radius || 50) + _acc));
     const geoData = { dist: Math.round(bestDist), locName: bestLoc?.name || '', withinAny: within, lat: myLat, lng: myLng, reqRadius: bestLoc?.radius || 50 };
     if (cfg.requireGeo && !within) {
       return { ok: false, geoData, errMsg: `⛔ Você está fora da área permitida.\n\n📍 Distância: ${geoData.dist}m\n🏪 Local: ${geoData.locName || 'Loja'}\n🔵 Raio permitido: ${geoData.reqRadius}m` };
@@ -7979,7 +8011,7 @@ async function abrirBioPonto() {
     let groqFrameUsado   = null;  // canvas salvo para Groq
     let groqCooldownAte  = 0;     // timestamp até quando não chamar Groq novamente
     let groqTentativas   = 0;
-    const GROQ_COOLDOWN  = 5000;  // 5s entre chamadas Groq
+    const GROQ_COOLDOWN  = 3500;  // 3.5s entre chamadas Groq (mais responsivo)
     const GROQ_MAX_TENT  = 3;     // máximo de chamadas Groq antes de fallback só face-api
 
     // Estado face-api
@@ -8050,7 +8082,7 @@ async function abrirBioPonto() {
     }
 
     // Dispara Groq 500ms após câmera pronta
-    if (_groqDisponivel) setTimeout(_dispararGroq, 500);
+    if (_groqDisponivel) setTimeout(_dispararGroq, 250);
 
     // ── Loop de frames ────────────────────────────────────────────────────────
     async function bioLoop() {
@@ -8072,15 +8104,56 @@ async function abrirBioPonto() {
         cancelAnimationFrame(BIO_AUTO_LOOP);
         bioSetRing(1, '#EF4444');
         bioShowMove(false);
-        bioMostrarResultado(false, 'Rosto não reconhecido');
-        setTimeout(() => bioFecharModal(), 2500);
+        // Diferencia o motivo da falha para orientar o colaborador:
+        //  - nunca detectou rosto  -> problema de iluminacao/camera (acionavel)
+        //  - detectou mas nao bateu -> identidade nao confirmada
+        let _falhaMsg;
+        if (totalFramesOk === 0) {
+          _falhaMsg = (!FACEAPI_READY && !_groqDisponivel)
+            ? 'Verificacao indisponivel no momento. Tente novamente em alguns segundos.'
+            : 'Nao foi possivel ler o rosto. Procure um local mais iluminado, evite luz forte atras de voce e mantenha o rosto dentro do circulo.';
+        } else {
+          _falhaMsg = 'Rosto nao reconhecido. Tente novamente mantendo o rosto bem iluminado e centralizado.';
+        }
+        bioMostrarResultado(false, _falhaMsg);
+        setTimeout(() => bioFecharModal(), 3800);
         processando = false; return;
       }
 
       // Captura frame
       try {
         const _vw = video.videoWidth || 480, _vh = video.videoHeight || 360;
-        camCanvas.getContext('2d').drawImage(video, 0, 0, Math.min(_vw,480), Math.min(_vh,360));
+        const _cctx = camCanvas.getContext('2d');
+        _cctx.drawImage(video, 0, 0, Math.min(_vw,480), Math.min(_vh,360));
+        // Auto-realce: se o frame esta escuro (contraluz/pouca luz), aplica
+        // ganho de brilho/contraste para o detector enxergar o rosto.
+        // So roda enquanto nenhum rosto foi captado ainda, para nao custar FPS.
+        if (totalFramesOk === 0) {
+          try {
+            const _cw = camCanvas.width, _ch = camCanvas.height;
+            const _id = _cctx.getImageData(0, 0, _cw, _ch);
+            const _d = _id.data;
+            // Brilho medio amostrado (passo 40 px para ser barato)
+            let _sum = 0, _n = 0;
+            for (let i = 0; i < _d.length; i += 160) {
+              _sum += (_d[i] + _d[i+1] + _d[i+2]) / 3; _n++;
+            }
+            const _avg = _n ? _sum / _n : 128;
+            if (_avg < 90) {
+              // Quanto mais escuro, mais ganho (ate ~1.8x) + leve contraste
+              const _gain = Math.min(1.8, 90 / Math.max(_avg, 20));
+              const _contrast = 1.15;
+              for (let i = 0; i < _d.length; i += 4) {
+                for (let k = 0; k < 3; k++) {
+                  let v = _d[i+k] * _gain;
+                  v = (v - 128) * _contrast + 128;
+                  _d[i+k] = v < 0 ? 0 : v > 255 ? 255 : v;
+                }
+              }
+              _cctx.putImageData(_id, 0, 0);
+            }
+          } catch(_realceErr) {}
+        }
       } catch(e) { processando = false; return; }
 
       // ── FASE A: Groq aprovou → exige liveness → registra ─────────────────────
@@ -8090,7 +8163,7 @@ async function abrirBioPonto() {
         if (!livOk && FACEAPI_READY) {
           try {
             const det = await faceapi
-              .detectSingleFace(camCanvas, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.12 }))
+              .detectSingleFace(camCanvas, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.08 }))
               .withFaceLandmarks();
             if (det?.landmarks) _liveProcessFrame(det.landmarks);
             livOk = _liveMovOk;
@@ -8138,7 +8211,7 @@ async function abrirBioPonto() {
         if (storedDescReady && FACEAPI_READY) {
           try {
             const det = await faceapi
-              .detectSingleFace(camCanvas, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.12 }))
+              .detectSingleFace(camCanvas, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.08 }))
               .withFaceLandmarks().withFaceDescriptor();
             if (det) {
               const d = faceapi.euclideanDistance(det.descriptor, storedDesc);
@@ -8164,7 +8237,7 @@ async function abrirBioPonto() {
       if (storedDescReady && FACEAPI_READY) {
         try {
           const det = await faceapi
-            .detectSingleFace(camCanvas, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.12 }))
+            .detectSingleFace(camCanvas, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.08 }))
             .withFaceLandmarks().withFaceDescriptor();
 
           if (!BIO_MODAL_ABERTO) { processando = false; return; }
@@ -8199,10 +8272,15 @@ async function abrirBioPonto() {
             // Zona segura face-api (muito confiante)
             if (distance <= ZONA_SEGURA && _liveMovOk) {
               acertos++;
-              statusEl.innerHTML = acertos >= ACERTOS_NECES
+              // Via expressa: match excelente (bem abaixo da zona segura) aprova
+              // em 1 frame so. Acelera o caso comum sem afrouxar seguranca, pois
+              // exige distancia MUITO menor que o limite de aprovacao normal.
+              const _matchExcelente = distance <= (_fileMode ? 0.45 : 0.38);
+              const _acertosNecessarios = _matchExcelente ? 1 : ACERTOS_NECES;
+              statusEl.innerHTML = acertos >= _acertosNecessarios
                 ? '<span style="color:#34D399;font-weight:700">Identidade confirmada — registrando ponto</span>'
                 : `<span style="color:#34D399;font-weight:700">Identidade reconhecida</span><br><span style="font-size:11px;color:#64748B">Concluindo verificação${timer}</span>`;
-              if (acertos >= ACERTOS_NECES) {
+              if (acertos >= _acertosNecessarios) {
                 BIO_REGISTRANDO = true;
                 cancelAnimationFrame(BIO_AUTO_LOOP);
                 bioSetRing(1, '#10B981'); bioShowMove(false);
