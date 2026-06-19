@@ -3823,7 +3823,10 @@ function rFuncs(){
     <div style="position:relative">
       <input value="${esc(EMP_SEARCH)}" oninput="EMP_SEARCH=this.value;navigateDebounced('funcionarios')" placeholder="🔍  Buscar funcionário..." style="width:280px;padding:8px 12px">
     </div>
-    <button class="btn btn-blue" onclick="openEmpForm(null)">+ Novo Funcionário</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-sm" style="background:#F0FDF4;color:#059669;border:1px solid #BBF7D0;font-weight:700" onclick="abrirConfigFiliais()">🏪 Lojas</button>
+      <button class="btn btn-blue" onclick="openEmpForm(null)">+ Novo Funcionário</button>
+    </div>
   </div>
   ${fil.length===0
     ? `<div class="card" style="text-align:center;padding:56px 20px">
@@ -3904,7 +3907,7 @@ function rEmpView(){
 }
 
 function openEmpForm(id){
-  const base={id:uid(),nome:'',cpf:'',rg:'',dataNasc:'',email:'',telefone:'',cargo:'',departamento:'',dataAdmissao:'',salario:'',banco:'',tipoPix:'CPF',chavePix:'',horarioEntrada:'08:00',horarioAlmoco:'12:00',horarioCafe:'15:00',horarioSaida:'17:00',status:'ativo',temFilhos:false,filhos:[],experiencia:{dias30:false,data30:'',dias45:false,data45:'',prorrogacao:false,dataProrrogacao:''},meta:'',observacoes:''};
+  const base={id:uid(),nome:'',cpf:'',rg:'',dataNasc:'',email:'',telefone:'',cargo:'',departamento:'',loja:'',dataAdmissao:'',salario:'',banco:'',tipoPix:'CPF',chavePix:'',horarioEntrada:'08:00',horarioAlmoco:'12:00',horarioCafe:'15:00',horarioSaida:'17:00',status:'ativo',temFilhos:false,filhos:[],experiencia:{dias30:false,data30:'',dias45:false,data45:'',prorrogacao:false,dataProrrogacao:''},meta:'',observacoes:''};
   const e=id?{...base,...APP.employees.find(x=>x.id===id)}:base;
   const ex=e.experiencia||{};
   window._ef={id:e.id,filhos:[...(e.filhos||[])],fotoPerfil:e.fotoPerfil||null};
@@ -3938,6 +3941,7 @@ function openEmpForm(id){
   <div class="g2">
     <div class="fld"><label>Cargo</label><input id="ef-cargo" value="${esc(e.cargo)}"></div>
     <div class="fld"><label>Departamento</label><select id="ef-dept">${DEPTS.map(d=>`<option${e.departamento===d?' selected':''}>${d}</option>`).join('')}</select></div>
+    <div class="fld"><label>Loja / Unidade</label><select id="ef-loja"><option value="">— Selecione a loja —</option>${(typeof EMPRESAS_FILIAIS!=='undefined'?EMPRESAS_FILIAIS:[]).map(f=>`<option value="${esc(f.label)}"${e.loja===f.label?' selected':''}>${esc(f.label)}</option>`).join('')}</select></div>
     <div class="fld"><label>Data de Admissão</label><input type="date" id="ef-adm" value="${esc(e.dataAdmissao)}"></div>
     <div class="fld"><label>Salário (R$)</label><input type="number" id="ef-sal" value="${esc(e.salario)}"></div>
     <div class="fld"><label>Meta Mensal (R$)</label><input type="number" id="ef-meta" value="${esc(e.meta)}"></div>
@@ -4127,7 +4131,7 @@ async function saveEmp(){
   const c=i=>document.getElementById(i)?.checked||false;
   const emp={
     id:window._ef.id,nome:g('ef-nome'),cpf:g('ef-cpf'),rg:g('ef-rg'),dataNasc:g('ef-nasc'),
-    email:g('ef-email'),telefone:g('ef-tel'),cargo:g('ef-cargo'),departamento:g('ef-dept'),
+    email:g('ef-email'),telefone:g('ef-tel'),cargo:g('ef-cargo'),departamento:g('ef-dept'),loja:g('ef-loja'),
     dataAdmissao:g('ef-adm'),salario:g('ef-sal'),meta:g('ef-meta'),status:g('ef-status'),
     banco:g('ef-banco'),tipoPix:g('ef-pixt'),chavePix:g('ef-pix'),
     // SEC-03: senhaPortal será hasheada antes de salvar (veja _finalizarSaveEmp)
@@ -4506,12 +4510,34 @@ function rPonto(){
       const badgeBio = hasBioDay&&isBioCutoff ? `<div style="position:absolute;top:3px;right:3px;width:6px;height:6px;border-radius:50%;background:#059669" title="Biométrico"></div>` : '';
       const badgeHoje = ehHoje ? `<div style="position:absolute;top:3px;left:3px;width:6px;height:6px;border-radius:50%;background:#C9A84C"></div>` : '';
 
+      // SELO "editado pelo RH": dias ajustados manualmente recebem marca azul
+      const _foiEditado = !!(r && r._editadoEm);
+      const badgeEditado = _foiEditado ? `<div style="position:absolute;bottom:3px;right:4px;font-size:9px" title="Editado manualmente pelo RH">✏️</div>` : '';
+
+      // ALERTA de inconsistência: detecta problemas que merecem revisão antes
+      // de fechar o mês (batidas faltando, saída antes da entrada, jornada absurda).
+      let _alertaIncon='';
+      if(!isDom&&!ehFuturo&&!st){
+        const _eMin=ent?pt(ent):null, _sMin=sai?pt(sai):null;
+        if(ent&&!sai){
+          _alertaIncon=`<div style="position:absolute;top:3px;right:12px;font-size:10px" title="Falta a batida de saída">🔴</div>`;
+        } else if(!ent&&sai){
+          _alertaIncon=`<div style="position:absolute;top:3px;right:12px;font-size:10px" title="Falta a batida de entrada">🔴</div>`;
+        } else if(_eMin!==null&&_sMin!==null){
+          if(_sMin<=_eMin){
+            _alertaIncon=`<div style="position:absolute;top:3px;right:12px;font-size:10px" title="Saída anterior ou igual à entrada — verifique">⛔</div>`;
+          } else if((_sMin-_eMin)>16*60){
+            _alertaIncon=`<div style="position:absolute;top:3px;right:12px;font-size:10px" title="Jornada acima de 16h — verifique">⚠️</div>`;
+          }
+        }
+      }
+
       celulas+=`<div onclick="${canEdit?`_openDiaFull(${ano},${mes},${d})`:'undefined'}"
         style="position:relative;border:1.5px solid ${borderCard};border-radius:10px;padding:6px 5px 5px;min-height:78px;background:${bgCard};cursor:${canEdit?'pointer':'default'};transition:box-shadow .15s${ehHoje?';box-shadow:0 0 0 2px #C9A84C40':''}"
         onmouseover="${canEdit?`this.style.boxShadow='0 2px 8px #0001'`:''}"
         onmouseout="${canEdit?`this.style.boxShadow='${ehHoje?'0 0 0 2px #C9A84C40':'none'}'`:''}"
         title="${isDom?'Domingo':ehFuturo?'Dia futuro':`Clique para ${isBioCutoff?'ver/editar':'preencher'} — ${String(d).padStart(2,'0')}/${String(mes+1).padStart(2,'0')}/${ano}`}">
-        ${badgeBio}${badgeHoje}
+        ${badgeBio}${badgeHoje}${badgeEditado}${_alertaIncon}
         <div style="font-size:13px;font-weight:800;color:${numCor};margin-bottom:3px;line-height:1">${d}</div>
         ${ent?`<div style="font-size:10px;color:#059669;font-weight:600;line-height:1.3">${ent}</div>`:''}
         ${sai?`<div style="font-size:10px;color:#DC2626;font-weight:600;line-height:1.3">${sai}</div>`:''}
@@ -4658,7 +4684,26 @@ function openDia(d){
       }
     }
   }catch(_){}
-  // Calcula preview das horas ao abrir
+  // TRILHA DE AUDITORIA: se este dia já foi editado, mostra quem e quando.
+  let _auditAviso='';
+  try{
+    const _auditKey=`fcrh_ponto_audit_${empId}_${ano}_${mes}_${d}`;
+    const _hist=JSON.parse(localStorage.getItem(_auditKey)||'[]');
+    if(_hist.length>0){
+      const _ult=_hist[_hist.length-1];
+      const _quando=_ult.ts?new Date(_ult.ts).toLocaleString('pt-BR'):'—';
+      const _quem=_ult.por||'RH';
+      const _linhas=_hist.slice(-3).reverse().map(h=>{
+        const _q=h.ts?new Date(h.ts).toLocaleString('pt-BR'):'—';
+        const _dp=h.depois||{};
+        return `<div style="font-size:11px;color:#475569;padding:2px 0">• ${_q} — ${esc(h.por||'RH')}: ${_dp.entrada||'--'}/${_dp.saida||'--'} (${_dp.status||'normal'})</div>`;
+      }).join('');
+      _auditAviso=`<details style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:8px 14px;margin-bottom:12px">
+        <summary style="font-size:12px;color:#475569;cursor:pointer;font-weight:600">🔍 Editado por <strong>${esc(_quem)}</strong> em ${_quando} — ver histórico (${_hist.length})</summary>
+        <div style="margin-top:8px;border-top:1px solid #E2E8F0;padding-top:8px">${_linhas}</div>
+      </details>`;
+    }
+  }catch(_){}
   const _pt=t=>{if(!t)return null;const[h,m]=(t||'00:00').split(':').map(Number);return h*60+m;};
   const _entH=_pt(emp?.horarioEntrada||'09:00')||9*60;
   const _saiH=_pt(emp?.horarioSaida||'17:50')||17*60+50;
@@ -4670,6 +4715,7 @@ function openDia(d){
   const _diaEsp=Math.max(0,(_saiH-_entH)-_pausas);
   openModal(`✏️ Editar Ponto — ${esc(emp?.nome||'')} — ${dtFmt}`,`
     ${_ferAviso}
+    ${_auditAviso}
     <div id="ponto-hora-preview" style="background:#F0F9FF;border:1px solid #BAE6FD;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;display:flex;gap:16px;flex-wrap:wrap">
       <span>⏰ Horário esperado: <strong>${emp?.horarioEntrada||'09:00'} → ${emp?.horarioSaida||'17:50'}</strong></span>
       <span>✅ Tolerância entrada: <strong style="color:#059669">10 min</strong></span>
@@ -4927,9 +4973,19 @@ function _executarSaveDia(d,k,status,entrada,saida_almoco,volta_almoco,saida_caf
   // Guarda histórico de edições para auditoria (localStorage)
   const auditKey=`fcrh_ponto_audit_${k}_${d}`;
   const hist=JSON.parse(localStorage.getItem(auditKey)||'[]');
-  hist.push({antes:anterior||null,depois:novo,ts:new Date().toISOString()});
+  const _quem=(typeof _auditUser==='function'?_auditUser():(APP?.currentUser?.email||'RH'));
+  hist.push({antes:anterior||null,depois:novo,ts:new Date().toISOString(),por:_quem});
   if(hist.length>10)hist.shift(); // Mantém apenas os últimos 10 registros
   localStorage.setItem(auditKey,JSON.stringify(hist));
+
+  // Registra também no Audit Log central (trilha de auditoria global)
+  try{
+    if(typeof auditLog==='function'){
+      const _emp=APP.employees.find(e=>e.id===empId);
+      const _resumo=`${_emp?.nome||empId} — dia ${d} — ${entrada||'--'}/${saida||'--'} (${status||'normal'})`;
+      auditLog('Editou ponto', _resumo, 'cartao_ponto');
+    }
+  }catch(_){}
 
   save('pontos');
   closeModal();
@@ -10873,7 +10929,7 @@ async function geoLoadConfig(empId){
     if(!snap.exists && docId!=='main'){
       snap=await FBASE.collection('bio_config').doc('main').get();
     }
-    GEO_CFG={locations:[],requireGeo:false,...(snap.exists?snap.data():{})};
+    GEO_CFG={locations:[],requireGeo:false,geoPorLoja:false,...(snap.exists?snap.data():{})};
     GEO_EMP_ID=empId||null;
     GEO_LOADED=true;
   }catch(e){console.warn('geo load error',e);}
@@ -10951,6 +11007,18 @@ function rBioGeo(){
           <div style="font-size:11px;color:var(--mt)">${GEO_CFG.requireGeo?'Fora do raio = ponto negado':'Localização registrada mas não bloqueia'}</div>
         </div>
       </label>
+    </div>
+  </div>
+
+  <!-- GEO POR LOJA (modo seguro) -->
+  <div class="card" style="margin-bottom:14px;border-left:4px solid #7C3AED">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div style="flex:1;min-width:240px">
+        <div style="font-size:14px;font-weight:800;color:#6D28D9;margin-bottom:4px">🏪 Geo por Loja ${GEO_CFG.geoPorLoja?'<span style="background:#DCFCE7;color:#16A34A;border-radius:10px;padding:2px 8px;font-size:11px;margin-left:6px">ATIVO</span>':'<span style="background:#FEF3C7;color:#B45309;border-radius:10px;padding:2px 8px;font-size:11px;margin-left:6px">INATIVO</span>'}</div>
+        <div style="font-size:12px;color:var(--mt)">Cada funcionário só bate ponto na <strong>loja dele</strong> (definida no cadastro). Quem não tem loja atribuída continua na regra normal — ninguém trava de surpresa.</div>
+        <div style="font-size:11px;color:#94A3B8;margin-top:6px">Requer GPS cadastrado em cada loja (Funcionários → 🏪 Lojas).</div>
+      </div>
+      <button class="btn" style="background:${GEO_CFG.geoPorLoja?'#FEF2F2':'#F0FDF4'};color:${GEO_CFG.geoPorLoja?'#DC2626':'#059669'};border:1px solid ${GEO_CFG.geoPorLoja?'#FECACA':'#BBF7D0'};font-weight:700;white-space:nowrap" onclick="toggleGeoPorLoja(${GEO_CFG.geoPorLoja?'false':'true'})">${GEO_CFG.geoPorLoja?'Desativar':'Ativar geo por loja'}</button>
     </div>
   </div>
 
@@ -16834,6 +16902,7 @@ function rBancoHoras(){
         <td><span style="background:${cor}22;color:${cor};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">${sit}</span></td>
         <td><div style="display:flex;gap:5px">
           <button class="btn btn-sm btn-icon-blue" onclick="openBHForm('${e.id}')">+ Lançar</button>
+          ${saldo<0?`<button class="btn btn-sm" style="background:#DCFCE7;color:#16A34A;border:1px solid #86EFAC;font-size:11px" onclick="avisarBHWhatsApp('${e.id}')" title="Avisar colaborador sobre saldo negativo">📱 Avisar</button>`:''}
           ${ls.length>0?`<button class="btn btn-sm" style="background:#F3F4F6;color:#374151;font-size:11px" onclick="verExtratoBH('${e.id}')">📄 Extrato</button><button class="btn btn-sm" style="background:#F0FDF4;color:#059669;font-size:11px" onclick="exportExtratoBHPDF('${e.id}')">⬇️ PDF BH</button><button class="btn btn-sm" style="background:#EFF6FF;color:#2563EB;border:1px solid #BFDBFE;font-size:11px" onclick="exportarEspelhoIndividualPDF('${e.id}')">&#128424;&#65039; Espelho</button><button class="btn btn-sm" style="background:#F5F3FF;color:#7C3AED;border:1px solid #DDD6FE;font-size:11px" onclick="exportarEspelhoIndividualXLSX('${e.id}')">&#128202; XLSX</button>`:''}
         </div></td>
       </tr>`;}).join('')}
@@ -16859,6 +16928,52 @@ function rBancoHoras(){
     </tbody></table>
   </div>`:''}`;
 }
+// ── Avisos por WhatsApp (gera link wa.me com mensagem pronta) ──────────────────
+// PWA não envia sozinho; abre o WhatsApp com o texto preenchido para o RH enviar.
+function _bhSaldoMin(empId){
+  const _ls=(Array.isArray(APP.bancohoras[empId])?APP.bancohoras[empId]:[]);
+  const _co=(()=>{const d=new Date();d.setFullYear(d.getFullYear()-1);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;})();
+  const f=_ls.filter(l=>l.data>=_co);
+  const cred=f.filter(l=>l.tipo==='credito').reduce((a,l)=>a+l.minutos,0);
+  const deb=f.filter(l=>l.tipo==='debito').reduce((a,l)=>a+l.minutos,0);
+  return cred-deb;
+}
+function _waLinkEmp(emp, msg){
+  const tel=(emp.telefone||'').replace(/\D/g,'');
+  const enc=encodeURIComponent(msg);
+  return tel?`https://wa.me/55${tel}?text=${enc}`:`https://web.whatsapp.com/send?text=${enc}`;
+}
+function avisarBHWhatsApp(empId){
+  const emp=APP.employees.find(e=>e.id===empId);
+  if(!emp){ toast('Funcionário não encontrado.','err'); return; }
+  const saldo=_bhSaldoMin(empId);
+  const fmt=m=>{const neg=m<0;const v=Math.abs(m);return (neg?'-':'')+Math.floor(v/60)+'h'+String(v%60).padStart(2,'0');};
+  const empresa=(APP.empresaCfg&&APP.empresaCfg.nome)||'Atlas RH';
+  const primeiro=(emp.nome||'').split(' ')[0];
+  const msg=`Olá, ${primeiro}! 👋\n\nAviso do RH (${empresa}): seu Banco de Horas está com saldo negativo de ${fmt(saldo)}.\n\nIsso significa que há horas a compensar. Procure o RH para combinar a reposição ou esclarecer dúvidas.\n\nObrigado!`;
+  if(!emp.telefone){
+    if(!confirm('Este funcionário não tem telefone cadastrado. Abrir o WhatsApp Web para escolher o contato manualmente?')) return;
+  }
+  window.open(_waLinkEmp(emp,msg),'_blank');
+  try{ if(typeof auditLog==='function') auditLog('Avisou saldo negativo (WhatsApp)', `${emp.nome} — ${fmt(saldo)}`, 'banco_horas'); }catch(_){}
+}
+window.avisarBHWhatsApp=avisarBHWhatsApp;
+
+// Aviso de ponto pendente (dia sem batida de saída ou sem registro)
+function avisarPontoPendenteWhatsApp(empId, diaStr){
+  const emp=APP.employees.find(e=>e.id===empId);
+  if(!emp){ toast('Funcionário não encontrado.','err'); return; }
+  const empresa=(APP.empresaCfg&&APP.empresaCfg.nome)||'Atlas RH';
+  const primeiro=(emp.nome||'').split(' ')[0];
+  const msg=`Olá, ${primeiro}! 👋\n\nAviso do RH (${empresa}): identificamos um registro de ponto pendente no dia ${diaStr||'recente'} (batida incompleta ou faltando).\n\nPor favor, regularize com o RH o quanto antes para evitar desconto indevido.\n\nObrigado!`;
+  if(!emp.telefone){
+    if(!confirm('Sem telefone cadastrado. Abrir o WhatsApp Web para escolher o contato?')) return;
+  }
+  window.open(_waLinkEmp(emp,msg),'_blank');
+  try{ if(typeof auditLog==='function') auditLog('Avisou ponto pendente (WhatsApp)', `${emp.nome} — dia ${diaStr||''}`, 'cartao_ponto'); }catch(_){}
+}
+window.avisarPontoPendenteWhatsApp=avisarPontoPendenteWhatsApp;
+
 function openBHForm(empId){
   const ativos=APP.employees.filter(e=>e.status==='ativo');
   openModal('⏰ Lançar no Banco de Horas',`
@@ -23650,11 +23765,46 @@ function selecionarFilial(filialId){
 }
 
 function salvarFiliais(){
-  try{ localStorage.setItem('fc_filiais', JSON.stringify(EMPRESAS_FILIAIS.map(f=>({id:f.id,label:f.label,nome:f.nome,cnpj:f.cnpj,endereco:f.endereco,cidade:f.cidade,uf:f.uf,comarca:f.comarca})))); }catch(e){}
+  try{ localStorage.setItem('fc_filiais', JSON.stringify(EMPRESAS_FILIAIS.map(f=>({id:f.id,label:f.label,nome:f.nome,cnpj:f.cnpj,endereco:f.endereco,cidade:f.cidade,uf:f.uf,comarca:f.comarca,lat:f.lat,lng:f.lng,raio:f.raio})))); }catch(e){}
 }
 
+// Sincroniza as coordenadas das lojas para bio_config/main, para o portal
+// usar na validação de "geo por loja".
+async function _syncLojasParaGeo(){
+  if(typeof FBASE==='undefined'||!FBASE) return;
+  try{
+    const lojasGeo = EMPRESAS_FILIAIS
+      .filter(f=>f.lat!=null && f.lng!=null)
+      .map(f=>({ label:f.label, lat:f.lat, lng:f.lng, raio:f.raio||80 }));
+    const ref = FBASE.collection('bio_config').doc('main');
+    const snap = await ref.get();
+    const atual = snap.exists ? snap.data() : {};
+    await ref.set({ ...atual, lojasGeo }, { merge:true });
+    console.log('[GeoLoja] '+lojasGeo.length+' loja(s) com GPS sincronizadas para bio_config/main');
+  }catch(e){ console.warn('[GeoLoja] erro ao sincronizar:', e.message); }
+}
+window._syncLojasParaGeo=_syncLojasParaGeo;
+
+// Liga/desliga o modo "geo por loja" (cada um só bate na loja dele).
+// Modo seguro: quem não tem loja atribuída continua na regra antiga.
+async function toggleGeoPorLoja(ativar){
+  if(typeof FBASE==='undefined'||!FBASE){ toast('Firebase não conectado.','err'); return; }
+  try{
+    const ref = FBASE.collection('bio_config').doc('main');
+    const snap = await ref.get();
+    const atual = snap.exists ? snap.data() : {};
+    await ref.set({ ...atual, geoPorLoja: !!ativar }, { merge:true });
+    // Garante que as lojas com GPS estão sincronizadas
+    await _syncLojasParaGeo();
+    toast(ativar?'✅ Geo por loja ATIVADO. Cada um só bate na loja dele.':'⚠️ Geo por loja DESATIVADO. Voltou à regra antiga.','ok',4500);
+    try{ if(typeof auditLog==='function') auditLog(ativar?'Ativou geo por loja':'Desativou geo por loja','','biometrico'); }catch(_){}
+    if(typeof navigate==='function') navigate('biometrico');
+  }catch(e){ toast('Erro ao alterar modo: '+e.message,'err'); }
+}
+window.toggleGeoPorLoja=toggleGeoPorLoja;
+
 function abrirConfigFiliais(){
-  openModal('🏢 Configurar as 10 Filiais Atlas RH',
+  openModal('🏪 Cadastro de Lojas / Filiais',
     '<div style="max-height:70vh;overflow-y:auto;padding-right:8px">' +
     EMPRESAS_FILIAIS.slice(1).map((f,idx)=>{
       const i = idx+1;
@@ -23666,6 +23816,11 @@ function abrirConfigFiliais(){
         '<div style="grid-column:1/-1"><label style="font-size:11px;font-weight:700;color:var(--mt)">ENDEREÇO</label><input id="fil_end_'+i+'" value="'+esc(f.endereco)+'" placeholder="Rua, Nº — Bairro" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;margin-top:3px"></div>' +
         '<div><label style="font-size:11px;font-weight:700;color:var(--mt)">CIDADE</label><input id="fil_cid_'+i+'" value="'+esc(f.cidade)+'" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;margin-top:3px"></div>' +
         '<div><label style="font-size:11px;font-weight:700;color:var(--mt)">NOME DA FILIAL</label><input id="fil_label_'+i+'" value="'+esc(f.label)+'" placeholder="Ex: Filial Centro" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;margin-top:3px"></div>' +
+        '<div style="grid-column:1/-1;border-top:1px dashed var(--border);margin-top:6px;padding-top:10px"><label style="font-size:11px;font-weight:700;color:#7C3AED">📍 GEOLOCALIZAÇÃO (para ponto biométrico por loja)</label></div>' +
+        '<div><label style="font-size:11px;font-weight:700;color:var(--mt)">LATITUDE</label><input id="fil_lat_'+i+'" value="'+(f.lat!=null?f.lat:'')+'" placeholder="-25.5163" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;margin-top:3px"></div>' +
+        '<div><label style="font-size:11px;font-weight:700;color:var(--mt)">LONGITUDE</label><input id="fil_lng_'+i+'" value="'+(f.lng!=null?f.lng:'')+'" placeholder="-54.5854" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;margin-top:3px"></div>' +
+        '<div><label style="font-size:11px;font-weight:700;color:var(--mt)">RAIO (metros)</label><input id="fil_raio_'+i+'" type="number" value="'+(f.raio!=null?f.raio:80)+'" placeholder="80" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;margin-top:3px"></div>' +
+        '<div style="display:flex;align-items:flex-end"><button class="btn btn-sm" style="background:#EFF6FF;color:#2563EB;border:1px solid #BFDBFE;width:100%" onclick="_filialUsarGPSAtual('+i+')">📡 Usar GPS atual</button></div>' +
         '</div></div>';
     }).join('') +
     '</div>' +
@@ -23685,12 +23840,38 @@ function gravarFiliais(){
     const end   = document.getElementById('fil_end_'+i)?.value   ||f.endereco;
     const cid   = document.getElementById('fil_cid_'+i)?.value   ||f.cidade;
     const label = document.getElementById('fil_label_'+i)?.value ||f.label;
-    Object.assign(f,{nome,cnpj,endereco:end,cidade:cid,label});
+    const _latV = document.getElementById('fil_lat_'+i)?.value;
+    const _lngV = document.getElementById('fil_lng_'+i)?.value;
+    const _raioV= document.getElementById('fil_raio_'+i)?.value;
+    const lat = (_latV!==''&&_latV!=null&&!isNaN(parseFloat(_latV)))?parseFloat(_latV):null;
+    const lng = (_lngV!==''&&_lngV!=null&&!isNaN(parseFloat(_lngV)))?parseFloat(_lngV):null;
+    const raio= (_raioV!==''&&_raioV!=null&&!isNaN(parseInt(_raioV)))?parseInt(_raioV):80;
+    Object.assign(f,{nome,cnpj,endereco:end,cidade:cid,label,lat,lng,raio});
   });
   salvarFiliais();
+  // Sincroniza as coordenadas das lojas para a config de geo do ponto
+  try{ if(typeof _syncLojasParaGeo==='function') _syncLojasParaGeo(); }catch(_){}
   closeModal();
-  toast('✅ Filiais salvas! Agora aparecem no seletor de contratos.','ok',4000);
+  toast('✅ Lojas salvas! GPS sincronizado com o ponto biométrico.','ok',4000);
 }
+
+// Captura GPS atual para preencher coordenadas de uma loja
+function _filialUsarGPSAtual(i){
+  if(!navigator.geolocation){ toast('GPS não disponível neste dispositivo.','err'); return; }
+  toast('📡 Obtendo localização...','info',2000);
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      const latEl=document.getElementById('fil_lat_'+i);
+      const lngEl=document.getElementById('fil_lng_'+i);
+      if(latEl) latEl.value=pos.coords.latitude.toFixed(6);
+      if(lngEl) lngEl.value=pos.coords.longitude.toFixed(6);
+      toast('✅ Coordenadas capturadas! Confira e salve.','ok',3000);
+    },
+    err=>{ toast('Não foi possível obter o GPS. Digite manualmente.','err',4000); },
+    { enableHighAccuracy:true, timeout:10000, maximumAge:30000 }
+  );
+}
+window._filialUsarGPSAtual=_filialUsarGPSAtual;
 
 
 const DOC_NAMES_MAP = {
@@ -36484,6 +36665,7 @@ function rAbsenteismo() {
 
   // Coleta dados de faltas/ausências por funcionário e departamento
   const porDept = {}; // { dept: { faltas, atestados, totalEmp } }
+  const porLoja = {}; // { loja: { faltas, atestados, ausencias, total } }
   const ranking  = []; // [ { nome, dept, faltas, atestados, ausencias } ]
   const trendMes = {}; // { 'YYYY-MM': totalFaltas }
 
@@ -36503,11 +36685,18 @@ function rAbsenteismo() {
     ausencias = Math.max(0, diasUteis - diasComPonto - faltas - atestados);
 
     const dept = emp.departamento || 'Sem Departamento';
+    const _loja = emp.loja || 'Sem Loja';
     if (!porDept[dept]) porDept[dept] = { faltas: 0, atestados: 0, ausencias: 0, total: 0 };
     porDept[dept].faltas    += faltas;
     porDept[dept].atestados += atestados;
     porDept[dept].ausencias += ausencias;
     porDept[dept].total++;
+    // Agrupa também por loja
+    if (!porLoja[_loja]) porLoja[_loja] = { faltas: 0, atestados: 0, ausencias: 0, total: 0 };
+    porLoja[_loja].faltas    += faltas;
+    porLoja[_loja].atestados += atestados;
+    porLoja[_loja].ausencias += ausencias;
+    porLoja[_loja].total++;
 
     if (faltas + atestados + ausencias > 0) {
       ranking.push({ nome: emp.nome, dept, faltas, atestados, ausencias, total: faltas + atestados + ausencias });
@@ -36515,6 +36704,40 @@ function rAbsenteismo() {
   });
 
   ranking.sort((a, b) => b.total - a.total);
+
+  // ── TENDÊNCIA: absenteísmo dos últimos 6 meses ───────────────────────────────
+  // Conta faltas + atestados por mês a partir dos adjustments do BIO_DATA.
+  const _trend6=[];
+  for(let i=5;i>=0;i--){
+    const _dd=new Date(ano, mes-i, 1);
+    const _mk=`${_dd.getFullYear()}-${String(_dd.getMonth()+1).padStart(2,'0')}`;
+    let _f=0,_a=0;
+    (BIO_DATA?.adjustments||[]).forEach(x=>{
+      if(x.date?.startsWith(_mk)){
+        if(x.type==='falta')_f++; else if(x.type==='atestado')_a++;
+      }
+    });
+    const _du=_diasUteisMes(_dd.getMonth(), _dd.getFullYear());
+    const _hd=ativos.length*_du;
+    const _tx=_hd>0?(((_f+_a)/_hd)*100):0;
+    _trend6.push({ mesKey:_mk, label:_dd.toLocaleDateString('pt-BR',{month:'short'}), faltas:_f, atestados:_a, taxa:_tx });
+  }
+  const _maxTrend=Math.max(1,..._trend6.map(t=>t.faltas+t.atestados));
+  const trendBars=_trend6.map(t=>{
+    const _tot=t.faltas+t.atestados;
+    const _h=Math.round((_tot/_maxTrend)*90)+4; // altura px (min 4)
+    const _cor=t.taxa>5?'#DC2626':t.taxa>2?'#D97706':'#059669';
+    const _ehAtual=t.mesKey===mesKey;
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+      <div style="font-size:10px;color:#64748B;font-weight:700">${_tot||''}</div>
+      <div style="width:60%;max-width:36px;height:${_h}px;background:${_cor};border-radius:4px 4px 0 0;${_ehAtual?'box-shadow:0 0 0 2px #C9A84C':''}" title="${t.taxa.toFixed(1)}% — ${t.faltas} faltas, ${t.atestados} atestados"></div>
+      <div style="font-size:10px;color:${_ehAtual?'#0B1E35':'#94A3B8'};font-weight:${_ehAtual?'800':'600'};text-transform:capitalize">${t.label}</div>
+    </div>`;
+  }).join('');
+  // Tendência: comparação mês atual vs anterior
+  const _txAtual=_trend6[5]?.taxa||0, _txAnt=_trend6[4]?.taxa||0;
+  const _delta=_txAtual-_txAnt;
+  const _setaTrend=_delta>0.3?`<span style="color:#DC2626">▲ subindo ${_delta.toFixed(1)}pp</span>`:_delta<-0.3?`<span style="color:#059669">▼ caindo ${Math.abs(_delta).toFixed(1)}pp</span>`:`<span style="color:#64748B">▬ estável</span>`;
   const totalFaltas    = ativos.reduce((s, e) => { const a = BIO_DATA?.adjustments?.filter(x => bioNormName(x.empName) === bioNormName(e.nome) && x.date?.startsWith(mesKey) && x.type === 'falta').length || 0; return s + a; }, 0);
   const totalAtestados = ativos.reduce((s, e) => { const a = BIO_DATA?.adjustments?.filter(x => bioNormName(x.empName) === bioNormName(e.nome) && x.date?.startsWith(mesKey) && x.type === 'atestado').length || 0; return s + a; }, 0);
   const totalDiasUteis = _diasUteisMes(mes, ano);
@@ -36538,7 +36761,22 @@ function rAbsenteismo() {
     </div>`;
   }).join('');
 
-  // Ranking top absenteísmo
+  // Barras das lojas
+  const maxLojaFaltas = Math.max(1, ...Object.values(porLoja).map(d => d.faltas + d.atestados));
+  const lojaBars = Object.entries(porLoja).sort((a,b) => (b[1].faltas+b[1].atestados)-(a[1].faltas+a[1].atestados)).map(([loja, d]) => {
+    const tot  = d.faltas + d.atestados;
+    const pct  = Math.round((tot / maxLojaFaltas) * 100);
+    const cor  = tot === 0 ? '#059669' : tot < 3 ? '#D97706' : '#DC2626';
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+        <span style="font-weight:600;color:#1E293B">🏪 ${_escHtml(loja)}</span>
+        <span style="color:${cor};font-weight:700">${tot} ocorrência(s) · ${d.total} func.</span>
+      </div>
+      <div style="height:8px;background:#F1F5F9;border-radius:4px;overflow:hidden">
+        <div style="height:8px;width:${pct}%;background:${cor};border-radius:4px;transition:width .4s"></div>
+      </div>
+    </div>`;
+  }).join('');
   const rankRows = ranking.slice(0, 10).map((r, i) => `
     <tr>
       <td style="padding:8px;font-weight:700;color:#64748B">${i+1}</td>
@@ -36549,6 +36787,10 @@ function rAbsenteismo() {
     </tr>`).join('');
 
   return `
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+    <div style="font-size:13px;color:#64748B">Absenteísmo de ${new Date(ano,mes,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</div>
+    <button class="btn btn-sm" style="background:#F0FDF4;color:#059669;border:1px solid #BBF7D0;font-weight:700" onclick="abrirConfigFiliais()">🏪 Cadastro de Lojas</button>
+  </div>
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:16px">
     <div class="card" style="text-align:center;padding:16px">
       <div style="font-size:28px;font-weight:800;color:#DC2626">${totalFaltas}</div>
@@ -36569,10 +36811,26 @@ function rAbsenteismo() {
     </div>
   </div>
 
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div style="font-size:14px;font-weight:800">📈 Tendência de Absenteísmo — últimos 6 meses</div>
+      <div style="font-size:12px;font-weight:700">${_setaTrend}</div>
+    </div>
+    <div style="display:flex;align-items:flex-end;gap:8px;height:120px;padding:0 4px">
+      ${trendBars}
+    </div>
+    <div style="font-size:11px;color:#94A3B8;margin-top:10px;text-align:center">Altura = faltas + atestados no mês · cor pela taxa (verde ≤2%, laranja ≤5%, vermelho &gt;5%) · mês atual destacado em dourado</div>
+  </div>
+
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
     <div class="card">
-      <div style="font-size:14px;font-weight:800;margin-bottom:14px">📊 Faltas por Departamento</div>
-      ${deptBars || '<div style="color:#94A3B8;font-size:13px">Nenhum registro este mês.</div>'}
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <span style="font-size:14px;font-weight:800">📊 Faltas por</span>
+        <button id="abs-tab-loja" class="btn btn-sm" style="background:#0B1E35;color:#fff" onclick="_absToggleGrupo('loja')">🏪 Loja</button>
+        <button id="abs-tab-dept" class="btn btn-sm" style="background:#F1F5F9;color:#475569" onclick="_absToggleGrupo('dept')">🏢 Departamento</button>
+      </div>
+      <div id="abs-grupo-loja">${lojaBars || '<div style="color:#94A3B8;font-size:13px">Nenhuma loja com registros. Cadastre a loja nos funcionários.</div>'}</div>
+      <div id="abs-grupo-dept" style="display:none">${deptBars || '<div style="color:#94A3B8;font-size:13px">Nenhum registro este mês.</div>'}</div>
     </div>
     <div class="card">
       <div style="font-size:14px;font-weight:800;margin-bottom:14px">🏆 Ranking Absenteísmo — ${new Date(ano,mes,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</div>
@@ -36608,6 +36866,23 @@ function rAbsenteismo() {
     </div>
   </div>`;
 }
+
+function _absToggleGrupo(grupo){
+  const gl=document.getElementById('abs-grupo-loja');
+  const gd=document.getElementById('abs-grupo-dept');
+  const tl=document.getElementById('abs-tab-loja');
+  const td=document.getElementById('abs-tab-dept');
+  if(!gl||!gd)return;
+  const ativo='background:#0B1E35;color:#fff', inativo='background:#F1F5F9;color:#475569';
+  if(grupo==='dept'){
+    gl.style.display='none'; gd.style.display='block';
+    if(tl)tl.style.cssText='background:#F1F5F9;color:#475569'; if(td)td.style.cssText='background:#0B1E35;color:#fff';
+  } else {
+    gl.style.display='block'; gd.style.display='none';
+    if(tl)tl.style.cssText='background:#0B1E35;color:#fff'; if(td)td.style.cssText='background:#F1F5F9;color:#475569';
+  }
+}
+window._absToggleGrupo=_absToggleGrupo;
 
 function _diasUteisMes(mes, ano) {
   const fim = new Date(ano, mes+1, 0).getDate();
