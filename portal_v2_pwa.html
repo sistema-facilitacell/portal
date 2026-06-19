@@ -1787,6 +1787,9 @@ async function loadAll() {
   await Promise.all([loadHol(), loadPonto(), loadAdvs(), loadComunicados(), loadJustificativas(), loadComprovantes(), loadContratosEmp(), loadAssinaturasDigital(), loadEspelhoSigs(), loadSolicitacoes(), _loadAdvsPortal()]);
   // Atualiza badge e card rápido de saldo de banco de horas
   _atualizarBadgeBancoHoras();
+  // Refresh automático do banco de horas: reflete alterações que o RH fizer
+  // sem o colaborador precisar recarregar a página.
+  _iniciarAutoRefreshBancoHoras();
   // Verifica documentos pendentes de assinatura e dispara push/notificação
   _notificarDocumentosPendentes();
   _atualizarBadgeSolic();
@@ -1863,6 +1866,35 @@ async function _atualizarBadgeBancoHoras() {
     // Salva saldo em variável global para o card rápido no perfil/home
     window._BH_SALDO = { saldo, fmtSaldo: fmtM(saldo), cred, deb, fmtCred: fmtM(cred), fmtDeb: fmtM(deb) };
   } catch(e) { console.warn('[BH Badge]', e); }
+}
+
+// ── Auto-refresh do banco de horas ──────────────────────────────
+// Mantém o saldo do colaborador em dia com o que o RH altera, sem
+// precisar recarregar a página. Atualiza periodicamente e também
+// quando o colaborador volta para a aba do portal.
+let _bhAutoRefreshIniciado = false;
+function _iniciarAutoRefreshBancoHoras() {
+  if (_bhAutoRefreshIniciado) return;
+  _bhAutoRefreshIniciado = true;
+  const _refresh = async () => {
+    if (document.visibilityState !== 'visible') return; // não gasta rede em background
+    const _saldoAntes = window._BH_SALDO ? window._BH_SALDO.saldo : null;
+    await _atualizarBadgeBancoHoras();
+    const _saldoDepois = window._BH_SALDO ? window._BH_SALDO.saldo : null;
+    // Se o saldo mudou E a aba de banco de horas está aberta, re-renderiza
+    if (_saldoAntes !== _saldoDepois) {
+      if (typeof CURRENT_TAB !== 'undefined' && CURRENT_TAB === 'bancohoras') {
+        const _cont = document.getElementById('content');
+        if (_cont) { try { renderBancoHoras(_cont); } catch(_) {} }
+      }
+    }
+  };
+  // A cada 60s
+  setInterval(_refresh, 60000);
+  // Ao voltar para a aba (caso mais comum: pessoa volta depois de um tempo)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') _refresh();
+  });
 }
 
 // ── Notificação de documentos pendentes de assinatura ──────────
@@ -7768,8 +7800,25 @@ async function abrirBioPonto() {
     } catch(e) {
       return { ok: false, geoData: null, errMsg: '⛔ Erro ao verificar localização. Tente novamente.' };
     }
-    const locs = cfg.locations || [];
+    let locs = cfg.locations || [];
     if (locs.length === 0) return { ok: true, geoData: null };
+
+    // ── GEO POR LOJA (modo seguro) ──────────────────────────────────────────
+    // Se o geo-por-loja está ativo E o funcionário tem uma loja COM coordenada,
+    // restringe a validação somente à loja dele. Se ele não tem loja atribuída
+    // ou a loja não tem GPS, mantém o comportamento antigo (todos os locais) —
+    // assim ninguém trava de surpresa.
+    try {
+      if (cfg.geoPorLoja && EMP && EMP.loja) {
+        const _lojaDele = (cfg.lojasGeo || []).find(l =>
+          (l.label||'').trim().toLowerCase() === (EMP.loja||'').trim().toLowerCase()
+          && l.lat != null && l.lng != null
+        );
+        if (_lojaDele) {
+          locs = [{ name: _lojaDele.label, lat: _lojaDele.lat, lng: _lojaDele.lng, radius: _lojaDele.raio || 80 }];
+        }
+      }
+    } catch(_) {}
     let pos;
     try {
       // Captura robusta: alta precisao (GPS) -> rede (Wi-Fi/torre) -> cache.
