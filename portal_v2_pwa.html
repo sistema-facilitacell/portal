@@ -6545,20 +6545,12 @@ async function renderBancoHoras(c) {
   c.innerHTML = `
     <div class="sh">⏰ Meu Banco de Horas</div>
 
-    <!-- Cards de saldo -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
-      <div class="card" style="border-top:3px solid #059669;text-align:center;padding:16px">
-        <div style="font-size:10px;color:#94A3B8;font-weight:700;text-transform:uppercase;margin-bottom:4px">Créditos</div>
-        <div style="font-size:20px;font-weight:900;color:#059669">${fmtM(cred)}</div>
-      </div>
-      <div class="card" style="border-top:3px solid #DC2626;text-align:center;padding:16px">
-        <div style="font-size:10px;color:#94A3B8;font-weight:700;text-transform:uppercase;margin-bottom:4px">Débitos</div>
-        <div style="font-size:20px;font-weight:900;color:#DC2626">${fmtM(deb)}</div>
-      </div>
-      <div class="card" style="border-top:3px solid ${corSaldo};text-align:center;padding:16px">
-        <div style="font-size:10px;color:#94A3B8;font-weight:700;text-transform:uppercase;margin-bottom:4px">Saldo Atual</div>
-        <div style="font-size:20px;font-weight:900;color:${corSaldo}">${fmtM(saldo)}</div>
-        <div style="font-size:11px;color:${corSaldo};margin-top:2px">${saldo>0?'crédito disponível':saldo<0?'⚠ negativo':'zerado'}</div>
+    <!-- Card único de saldo -->
+    <div style="margin-bottom:16px">
+      <div class="card" style="border-top:4px solid ${corSaldo};text-align:center;padding:24px 16px">
+        <div style="font-size:11px;color:#94A3B8;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Saldo do Banco de Horas</div>
+        <div style="font-size:40px;font-weight:900;color:${corSaldo}">${saldo>0?'+':saldo<0?'−':''}${fmtM(Math.abs(saldo))}</div>
+        <div style="font-size:13px;color:${corSaldo};margin-top:4px;font-weight:600">${saldo>0?'⏫ horas a receber':saldo<0?'⚠️ horas a compensar':'✅ em dia'}</div>
       </div>
     </div>
 
@@ -7077,20 +7069,14 @@ function renderPerfil() {
     const bg  = bh.saldo > 0 ? '#F0FDF4' : bh.saldo < 0 ? '#FEF2F2' : '#F8FAFC';
     const brd = bh.saldo > 0 ? '#86EFAC' : bh.saldo < 0 ? '#FECACA' : '#E2E8F0';
     const ico = bh.saldo > 0 ? '⏫' : bh.saldo < 0 ? '⚠️' : '✅';
-    const label = bh.saldo > 0 ? 'crédito disponível' : bh.saldo < 0 ? 'horas negativas' : 'saldo zerado';
-    bhCard = `<div style="background:${bg};border:1.5px solid ${brd};border-radius:12px;padding:14px 16px;margin-bottom:14px;cursor:pointer" onclick="showTab('bancohoras')">
-      <div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">⏰ Banco de Horas</div>
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-        <div>
-          <div style="font-size:22px;font-weight:900;color:${cor}">${ico} ${bh.fmtSaldo}</div>
-          <div style="font-size:11px;color:${cor};margin-top:1px">${label}</div>
-        </div>
-        <div style="display:flex;gap:12px">
-          <div style="text-align:center"><div style="font-size:11px;color:#94A3B8">Créditos</div><div style="font-size:13px;font-weight:700;color:#059669">${bh.fmtCred}</div></div>
-          <div style="text-align:center"><div style="font-size:11px;color:#94A3B8">Débitos</div><div style="font-size:13px;font-weight:700;color:#DC2626">${bh.fmtDeb}</div></div>
-        </div>
-      </div>
-      <div style="font-size:11px;color:#94A3B8;margin-top:6px">Toque para ver o extrato completo →</div>
+    const sinal = bh.saldo > 0 ? '+' : bh.saldo < 0 ? '−' : '';
+    const saldoAbs = (typeof fmtM==='function') ? fmtM(Math.abs(bh.saldo)) : bh.fmtSaldo;
+    const label = bh.saldo > 0 ? 'horas a receber' : bh.saldo < 0 ? 'horas a compensar' : 'em dia';
+    bhCard = `<div style="background:${bg};border:1.5px solid ${brd};border-radius:12px;padding:16px;margin-bottom:14px;cursor:pointer" onclick="showTab('bancohoras')">
+      <div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">⏰ Banco de Horas</div>
+      <div style="font-size:30px;font-weight:900;color:${cor}">${ico} ${sinal}${saldoAbs}</div>
+      <div style="font-size:13px;color:${cor};margin-top:2px;font-weight:600">${label}</div>
+      <div style="font-size:11px;color:#94A3B8;margin-top:8px">Toque para ver o extrato completo →</div>
     </div>`;
   }
 
