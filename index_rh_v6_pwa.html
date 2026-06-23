@@ -3145,14 +3145,15 @@ async function abrirModalTokenPortal(empId){
 // ── Chave da API Anthropic (salva no navegador, não vai para o servidor) ──
 // ── Chave da API Anthropic — salva na nuvem (Firebase) e localmente ──────
 // Ordem de prioridade: Firebase (nuvem) > localStorage > chave padrão embutida
-const ANTHROPIC_KEY_DEFAULT = localStorage.getItem('fcrh_anthropic_key') || '';
+const ANTHROPIC_KEY_HARD = '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';
+const ANTHROPIC_KEY_DEFAULT = localStorage.getItem('fcrh_anthropic_key') || ANTHROPIC_KEY_HARD;
 let ANTHROPIC_KEY = ANTHROPIC_KEY_DEFAULT;
 
 // ── Chave da API Groq ──────────────────────────────────────────────────────
 // Groq oferece inferência ultrarrápida com modelos open-source (Llama, Mixtral, etc.)
-const GROQ_KEY_DEFAULT = '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';
-// Migração: se o navegador tem a chave antiga (expirada) salva, troca pela nova.
-(function(){ const _oldKey='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'; if(localStorage.getItem('fcrh_groq_key')===_oldKey){ localStorage.setItem('fcrh_groq_key', GROQ_KEY_DEFAULT); } })();
+const GROQ_KEY_DEFAULT = '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';
+// Migração: se o navegador tem chave antiga (expirada) salva, troca pela nova.
+(function(){ const _oldKeys=['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','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']; if(_oldKeys.includes(localStorage.getItem('fcrh_groq_key'))){ localStorage.setItem('fcrh_groq_key', GROQ_KEY_DEFAULT); } })();
 let GROQ_KEY = localStorage.getItem('fcrh_groq_key') || GROQ_KEY_DEFAULT;
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL_DEFAULT = 'openai/gpt-oss-120b';
@@ -5581,8 +5582,27 @@ function _holCalcLinhas(emp, ano, mes){
     ? +((diasFalta / diasUteisAprox) * domingosNoMes * valorDiario).toFixed(2)
     : 0;
 
+  // ── HORAS EXTRAS PAGAS (liquidações do Banco de Horas) ──────────────
+  // Lê liquidações por pagamento gravadas via confirmarLiquidacaoBH().
+  // CLT: HE integra a base de INSS (Art. 28 Lei 8.212/91).
+  const heLista = Array.isArray(salRec[`_he_liquidacoes_${ano}_${mes}`])
+    ? salRec[`_he_liquidacoes_${ano}_${mes}`]
+    : (APP.holRascunho[salKey] && Array.isArray(APP.holRascunho[salKey][`_he_liquidacoes_${ano}_${mes}`])
+        ? APP.holRascunho[salKey][`_he_liquidacoes_${ano}_${mes}`] : []);
+  // Agrupa por adicional (50% e 100% viram linhas separadas no holerite)
+  let he50min=0, he50val=0, he100min=0, he100val=0, heOutroMin=0, heOutroVal=0;
+  heLista.forEach(h=>{
+    const mn=parseInt(h.minutos||0), vl=parseFloat(h.valor||0);
+    if(h.adicional==50){ he50min+=mn; he50val+=vl; }
+    else if(h.adicional==100){ he100min+=mn; he100val+=vl; }
+    else { heOutroMin+=mn; heOutroVal+=vl; }
+  });
+  he50val=+he50val.toFixed(2); he100val=+he100val.toFixed(2); heOutroVal=+heOutroVal.toFixed(2);
+  const heTotalVal=+(he50val+he100val+heOutroVal).toFixed(2);
+  const _fmtHE=mn=>{const h=Math.floor(mn/60),m=mn%60;return h+'h'+(m>0?String(m).padStart(2,'0'):'');};
+
   // BUG-FIX: inssBase inclui metaDiariaTotal — meta é salário variável e incide INSS
-  const inssBase = +(salProp + comissaoCel + difManual + metaDiariaTotal).toFixed(2);
+  const inssBase = +(salProp + comissaoCel + difManual + metaDiariaTotal + heTotalVal).toFixed(2);
   const inssAuto = calcINSS(inssBase);
   const inssPerc = inssBase > 0 ? ((inssAuto / inssBase) * 100).toFixed(2).replace('.', ',') : '0,00';
 
@@ -5594,6 +5614,13 @@ function _holCalcLinhas(emp, ano, mes){
     linhas.push({ cod:'80', desc:'COMPLEMENTO / DIFERENCA SALARIAL', ref:'', venc:String(+difManual.toFixed(2)), desc_val:'' });
   if(metaDiariaTotal > 0)
     linhas.push({ cod:'85', desc:'META DIARIA', ref:'', venc:String(+metaDiariaTotal.toFixed(2)), desc_val:'' });
+  // ── Linhas de Horas Extras pagas (CLT Art. 59) ──
+  if(he50val > 0)
+    linhas.push({ cod:'2', desc:'HORAS EXTRAS 50% — '+_fmtHE(he50min), ref:_fmtHE(he50min), venc:String(he50val), desc_val:'' });
+  if(he100val > 0)
+    linhas.push({ cod:'3', desc:'HORAS EXTRAS 100% — '+_fmtHE(he100min), ref:_fmtHE(he100min), venc:String(he100val), desc_val:'' });
+  if(heOutroVal > 0)
+    linhas.push({ cod:'4', desc:'HORAS EXTRAS — '+_fmtHE(heOutroMin), ref:_fmtHE(heOutroMin), venc:String(heOutroVal), desc_val:'' });
   linhas.push({ cod:'93', desc:'INSS '+inssPerc+'%', ref:String(+inssBase.toFixed(2)), venc:'', desc_val:String(+inssAuto.toFixed(2)) });
   if(descFalta > 0)
     linhas.push({ cod:'61', desc:'FALTAS — '+diasFalta+' dia(s) × '+valorDiario.toLocaleString('pt-BR',{minimumFractionDigits:2}), ref:String(diasFalta), venc:'', desc_val:String(+descFalta.toFixed(2)) });
@@ -10676,6 +10703,19 @@ function bioStartPolling(){
         // Sincroniza apenas quando há batidas novas — evita save desnecessário a cada poll
         await _bioSyncAllPontosDoMes(monthVis);
         if(monthVis!==monthAtual) await _bioSyncAllPontosDoMes(monthAtual);
+        // ── Recalcula Banco de Horas pela fonte única v19 após atualizar pontos ──
+        try{
+          if(typeof window.bhSyncSilencioso==='function'){
+            const _av=parseInt(monthVis.slice(0,4)), _mv=parseInt(monthVis.slice(5,7))-1;
+            window.bhSyncSilencioso(_av,_mv,null);
+            if(monthVis!==monthAtual){
+              const _aa=parseInt(monthAtual.slice(0,4)), _ma=parseInt(monthAtual.slice(5,7))-1;
+              window.bhSyncSilencioso(_aa,_ma,null);
+            }
+            if(typeof save==='function') save('bancohoras');
+            if(MOD==='bancohoras' && !isModalOpen()) navigateDebounced('bancohoras',300);
+          }
+        }catch(_e){ console.warn('[Bio Polling→BH] erro:',_e); }
         // NÃO faz navigate se modal estiver aberto — evita fechar modal e reverter edições do usuário
         if(!isModalOpen()){
           if(MOD==='ponto')navigateDebounced('ponto',300);
@@ -10877,6 +10917,32 @@ function bioStartRealtimeListener(){
       );
 
     console.log('[Bio] ✅ Listener em tempo real ativo (punches + justificativas)');
+
+    // ── AUTO-RECÁLCULO DO BANCO DE HORAS APÓS CARGA INICIAL ──────────────
+    // A rajada de onSnapshot 'added' termina dentro da janela de silêncio
+    // (_bioListenerSilenceUntil). Após ela, APP.pontos já está completo com
+    // todas as batidas do Firebase. Disparamos UMA vez o recálculo consolidado
+    // pela fonte única v19 (_syncBHMes), garantindo que o saldo exibido bata
+    // com o Cartão Ponto sem o RH precisar clicar em "Sincronizar Tudo".
+    if(!window._bhAutoRecalcAgendado){
+      window._bhAutoRecalcAgendado = true;
+      const _delay = Math.max(2000, (_bioListenerSilenceUntil - Date.now()) + 1500);
+      setTimeout(()=>{
+        try{
+          if(typeof window.bhSyncSilencioso === 'function'){
+            const _a = (typeof BIO_ANO!=='undefined') ? BIO_ANO : new Date().getFullYear();
+            const _m = (typeof BIO_MES!=='undefined') ? BIO_MES : new Date().getMonth();
+            const r = window.bhSyncSilencioso(_a, _m, null);
+            if(typeof save==='function') save('bancohoras');
+            console.log('[BH auto-recalc] Recalculado do Cartão Ponto:', r);
+            // Re-renderiza só se o usuário estiver no BH e sem modal aberto
+            if(MOD==='bancohoras' && typeof isModalOpen==='function' && !isModalOpen()){
+              navigateDebounced('bancohoras',300);
+            }
+          }
+        }catch(e){ console.warn('[BH auto-recalc] erro:', e); }
+      }, _delay);
+    }
   }catch(e){console.warn('[Bio] Listener erro:',e);}
 }
 
@@ -16902,6 +16968,7 @@ function rBancoHoras(){
         <td><span style="background:${cor}22;color:${cor};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">${sit}</span></td>
         <td><div style="display:flex;gap:5px">
           <button class="btn btn-sm btn-icon-blue" onclick="openBHForm('${e.id}')">+ Lançar</button>
+          ${saldo>0?`<button class="btn btn-sm" style="background:#ECFDF5;color:#047857;border:1px solid #6EE7B7;font-size:11px;font-weight:700" onclick="liquidarBHForm('${e.id}')" title="Pagar horas extras ou converter em folga — debita o saldo automaticamente">💵 Liquidar</button>`:''}
           ${saldo<0?`<button class="btn btn-sm" style="background:#DCFCE7;color:#16A34A;border:1px solid #86EFAC;font-size:11px" onclick="avisarBHWhatsApp('${e.id}')" title="Avisar colaborador sobre saldo negativo">📱 Avisar</button>`:''}
           ${ls.length>0?`<button class="btn btn-sm" style="background:#F3F4F6;color:#374151;font-size:11px" onclick="verExtratoBH('${e.id}')">📄 Extrato</button><button class="btn btn-sm" style="background:#F0FDF4;color:#059669;font-size:11px" onclick="exportExtratoBHPDF('${e.id}')">⬇️ PDF BH</button><button class="btn btn-sm" style="background:#EFF6FF;color:#2563EB;border:1px solid #BFDBFE;font-size:11px" onclick="exportarEspelhoIndividualPDF('${e.id}')">&#128424;&#65039; Espelho</button><button class="btn btn-sm" style="background:#F5F3FF;color:#7C3AED;border:1px solid #DDD6FE;font-size:11px" onclick="exportarEspelhoIndividualXLSX('${e.id}')">&#128202; XLSX</button>`:''}
         </div></td>
@@ -17007,6 +17074,20 @@ async function saveBH(){
 }
 async function delBH(empId,id){
   if(!await confirmDialog('Remover este lançamento?'))return;
+  // Se for uma liquidação por pagamento, remove também a HE do holerite
+  try{
+    const lanc=(Array.isArray(APP.bancohoras[empId])?APP.bancohoras[empId]:[]).find(l=>l.id===id);
+    if(lanc && lanc.liquidacao && lanc.liquidacao.forma==='pagamento'){
+      const _d=new Date(lanc.data+'T00:00:00');
+      const salKey=`${empId}_${_d.getFullYear()}_${_d.getMonth()}`;
+      const chaveHE=`_he_liquidacoes_${_d.getFullYear()}_${_d.getMonth()}`;
+      if(APP.holRascunho[salKey] && Array.isArray(APP.holRascunho[salKey][chaveHE])){
+        APP.holRascunho[salKey][chaveHE]=APP.holRascunho[salKey][chaveHE].filter(h=>h.id!==id);
+        delete APP.holRascunho[salKey][`_hol_linhas_${_d.getFullYear()}_${_d.getMonth()}`];
+        save('holRascunho');
+      }
+    }
+  }catch(e){ console.warn('[delBH→holerite]', e); }
   APP.bancohoras[empId]=( Array.isArray(APP.bancohoras[empId]) ? APP.bancohoras[empId] : []).filter(l=>l.id!==id);
   save('bancohoras');toast('Removido');navigate('bancohoras');
 }
@@ -17060,6 +17141,183 @@ async function saveEditBH(empId, id){
   toast('✅ Lançamento atualizado!');
   navigate('bancohoras');
 }
+
+// ════════════════════════════════════════════════════════════════════
+// LIQUIDAÇÃO DE HORAS EXTRAS — paga em dinheiro OU converte em folga,
+// e abate AUTOMATICAMENTE o saldo positivo do Banco de Horas lançando
+// um débito (mantém a fonte única v19: é só um lançamento manual a mais).
+// ════════════════════════════════════════════════════════════════════
+function _bhSaldoPositivo(empId){
+  const _ls=(Array.isArray(APP.bancohoras[empId])?APP.bancohoras[empId]:[]);
+  const _co=(()=>{const d=new Date();d.setFullYear(d.getFullYear()-1);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;})();
+  const f=_ls.filter(l=>l.data>=_co);
+  const cred=f.filter(l=>l.tipo==='credito').reduce((a,l)=>a+l.minutos,0);
+  const deb=f.filter(l=>l.tipo==='debito').reduce((a,l)=>a+l.minutos,0);
+  return Math.max(0,cred-deb);
+}
+function liquidarBHForm(empId){
+  const emp=APP.employees.find(e=>e.id===empId);
+  if(!emp){toast('Funcionário não encontrado.','err');return;}
+  const saldoMin=_bhSaldoPositivo(empId);
+  if(saldoMin<=0){toast('Este colaborador não tem saldo positivo a liquidar.','warn');return;}
+  const fmt=m=>Math.floor(m/60)+'h'+String(m%60).padStart(2,'0');
+  const sal=parseFloat(emp.salario||0);
+  // Base CLT: valor-hora = salário ÷ horas mensais.
+  // Horas mensais padrão = 220 (jornada 44h/semana). Configurável no modal.
+  const jornadaMensalPadrao=220;
+  const valorHora=sal>0?sal/jornadaMensalPadrao:0;
+  const hoje=(()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;})();
+  openModal('💵 Liquidar Horas Extras — '+esc(emp.nome),`
+  <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:12px 14px;margin-bottom:14px">
+    <div style="font-size:11px;color:#065F46;font-weight:700;text-transform:uppercase">Saldo disponível para liquidar</div>
+    <div style="font-size:26px;font-weight:900;color:#059669">+${fmt(saldoMin)}</div>
+    <div style="font-size:11px;color:#047857;margin-top:2px">Valor-hora: R$ <span id="liq-vh-show">${valorHora.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span> (salário R$ ${sal.toLocaleString('pt-BR',{minimumFractionDigits:2})} ÷ <span id="liq-jor-show">${jornadaMensalPadrao}</span>h/mês)</div>
+  </div>
+  <div class="g2">
+    <div class="fld"><label>Forma de liquidação</label>
+      <select id="liq-forma" onchange="_liqToggleForma()">
+        <option value="pagamento">💵 Pagamento em dinheiro</option>
+        <option value="folga">🏖️ Folga compensada</option>
+      </select>
+    </div>
+    <div class="fld"><label>Jornada mensal (h)</label><input type="number" id="liq-jornada" value="${jornadaMensalPadrao}" min="1" max="240" oninput="_liqRecalcVH()" title="220h = 44h/sem · 200h = 40h/sem · 180h = 36h/sem"></div>
+  </div>
+  <div class="g2">
+    <div class="fld"><label>Data da liquidação</label><input type="date" id="liq-data" value="${hoje}"></div>
+    <div class="fld"></div>
+  </div>
+  <div class="g2">
+    <div class="fld"><label>Horas a liquidar</label><input type="number" id="liq-h" value="${Math.floor(saldoMin/60)}" min="0" max="${Math.floor(saldoMin/60)}" oninput="_liqCalc()"></div>
+    <div class="fld"><label>Minutos</label><input type="number" id="liq-m" value="${saldoMin%60}" min="0" max="59" oninput="_liqCalc()"></div>
+  </div>
+  <div id="liq-bloco-pag">
+    <div class="fld"><label>Adicional de hora extra (%)</label>
+      <select id="liq-adic" onchange="_liqCalc()">
+        <option value="50">50% (HE dias úteis — CLT Art.59 §1º)</option>
+        <option value="100">100% (domingo/feriado)</option>
+        <option value="0">Sem adicional (hora simples)</option>
+      </select>
+    </div>
+    <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:12px 14px;margin:4px 0 12px">
+      <div style="font-size:11px;color:#1E40AF;font-weight:700;text-transform:uppercase">Valor a pagar</div>
+      <div id="liq-valor" style="font-size:24px;font-weight:900;color:#2563EB">R$ 0,00</div>
+    </div>
+  </div>
+  <div class="fld"><label>Observação (opcional)</label><input id="liq-obs" placeholder="Ex: pago na folha de competência 06/2026"></div>
+  <input type="hidden" id="liq-emp" value="${empId}">
+  <input type="hidden" id="liq-vh" value="${valorHora}">
+  <input type="hidden" id="liq-sal" value="${sal}">
+  <input type="hidden" id="liq-saldo" value="${saldoMin}">
+  <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-blue" onclick="confirmarLiquidacaoBH()">✅ Confirmar Liquidação</button></div>`,520);
+  _liqToggleForma();
+  _liqCalc();
+}
+function _liqRecalcVH(){
+  const sal=parseFloat(v('liq-sal')||0);
+  const jor=parseFloat(v('liq-jornada')||220)||220;
+  const vh=sal>0?sal/jor:0;
+  const hid=document.getElementById('liq-vh');
+  if(hid) hid.value=vh;
+  const sh=document.getElementById('liq-vh-show');
+  if(sh) sh.textContent=vh.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  const js=document.getElementById('liq-jor-show');
+  if(js) js.textContent=jor;
+  _liqCalc();
+}
+function _liqToggleForma(){
+  const forma=v('liq-forma');
+  const bloco=document.getElementById('liq-bloco-pag');
+  if(bloco) bloco.style.display = forma==='pagamento' ? 'block' : 'none';
+}
+function _liqCalc(){
+  const vh=parseFloat(v('liq-vh')||0);
+  const h=parseInt(v('liq-h')||0), m=parseInt(v('liq-m')||0);
+  const adic=parseFloat(v('liq-adic')||0);
+  const horasDec=h + m/60;
+  const valor=horasDec * vh * (1+adic/100);
+  const el=document.getElementById('liq-valor');
+  if(el) el.textContent='R$ '+valor.toLocaleString('pt-BR',{minimumFractionDigits:2});
+}
+async function confirmarLiquidacaoBH(){
+  const empId=v('liq-emp');
+  const emp=APP.employees.find(e=>e.id===empId);
+  if(!emp){toast('Funcionário não encontrado.','err');return;}
+  const h=parseInt(v('liq-h')||0), m=parseInt(v('liq-m')||0);
+  const minutos=h*60+m;
+  const saldoMax=parseInt(v('liq-saldo')||0);
+  if(minutos<=0){toast('Informe a quantidade de horas a liquidar.','err');return;}
+  if(minutos>saldoMax){toast('Não é possível liquidar mais que o saldo disponível ('+Math.floor(saldoMax/60)+'h'+String(saldoMax%60).padStart(2,'0')+').','err');return;}
+  const forma=v('liq-forma');
+  const vh=parseFloat(v('liq-vh')||0);
+  const adic=parseFloat(v('liq-adic')||0);
+  const obs=v('liq-obs')||'';
+  const horasDec=h + m/60;
+  const valor=forma==='pagamento' ? horasDec*vh*(1+adic/100) : 0;
+  const fmt=mm=>Math.floor(mm/60)+'h'+String(mm%60).padStart(2,'0');
+
+  let motivo, confMsg;
+  if(forma==='pagamento'){
+    motivo=`Liquidação — pagamento de HE (${adic>0?'+'+adic+'%':'hora simples'}) R$ ${valor.toLocaleString('pt-BR',{minimumFractionDigits:2})}${obs?' — '+obs:''}`;
+    confMsg=`Confirmar PAGAMENTO de ${fmt(minutos)} de horas extras para ${emp.nome}?\n\nValor: R$ ${valor.toLocaleString('pt-BR',{minimumFractionDigits:2})}\n\nO Banco de Horas será debitado em ${fmt(minutos)} automaticamente.`;
+  } else {
+    motivo=`Liquidação — folga compensada (${fmt(minutos)})${obs?' — '+obs:''}`;
+    confMsg=`Confirmar FOLGA compensada de ${fmt(minutos)} para ${emp.nome}?\n\nO Banco de Horas será debitado em ${fmt(minutos)} automaticamente.`;
+  }
+  if(!await confirmDialog(confMsg))return;
+
+  const rec={
+    id:uid(),
+    data:v('liq-data'),
+    tipo:'debito',
+    minutos,
+    motivo,
+    liquidacao:{ forma, valor, adicional:forma==='pagamento'?adic:null, valorHora:vh },
+    criadoEm:new Date().toISOString()
+  };
+  if(!Array.isArray(APP.bancohoras[empId])) APP.bancohoras[empId]=[];
+  APP.bancohoras[empId].push(rec);
+  lsSave('bancohoras');
+
+  // ── Se for PAGAMENTO, envia a HE para o holerite do mês da liquidação ──
+  if(forma==='pagamento' && valor>0){
+    try{
+      const _d=new Date(v('liq-data')+'T00:00:00');
+      const _ano=_d.getFullYear(), _mes=_d.getMonth(); // 0-indexed, igual ao holerite
+      const salKey=`${empId}_${_ano}_${_mes}`;
+      if(!APP.holRascunho[salKey]) APP.holRascunho[salKey]={};
+      const chaveHE=`_he_liquidacoes_${_ano}_${_mes}`;
+      const lista=Array.isArray(APP.holRascunho[salKey][chaveHE])?APP.holRascunho[salKey][chaveHE]:[];
+      lista.push({
+        id:rec.id,
+        minutos,
+        adicional:adic,         // 50, 100 ou 0
+        valorHora:vh,
+        valor:+valor.toFixed(2),
+        data:v('liq-data'),
+        criadoEm:rec.criadoEm
+      });
+      APP.holRascunho[salKey][chaveHE]=lista;
+      // Invalida linhas congeladas do holerite p/ recálculo incluir a HE
+      delete APP.holRascunho[salKey][`_hol_linhas_${_ano}_${_mes}`];
+      save('holRascunho');
+    }catch(e){ console.warn('[Liquidação→Holerite] erro:', e); }
+  }
+
+  try{
+    const _fbA=typeof firebase!=='undefined'&&typeof firebase.auth==='function'?firebase.auth():null;
+    if(_fbA&&!_fbA.currentUser) await _fbA.signInAnonymously();
+  }catch(_){}
+  save('bancohoras');
+  try{ if(typeof auditLog==='function') auditLog('Liquidou horas extras', `${emp.nome} — ${fmt(minutos)} — ${forma==='pagamento'?'pagamento R$ '+valor.toLocaleString('pt-BR',{minimumFractionDigits:2})+' (enviado ao holerite)':'folga'}`, 'banco_horas'); }catch(_){}
+  closeModal();
+  toast('✅ '+(forma==='pagamento'?'Horas pagas — lançadas no holerite do mês':'Folga lançada')+' — saldo debitado!');
+  navigate('bancohoras');
+}
+window.liquidarBHForm=liquidarBHForm;
+window.confirmarLiquidacaoBH=confirmarLiquidacaoBH;
+window._liqToggleForma=_liqToggleForma;
+window._liqCalc=_liqCalc;
+window._liqRecalcVH=_liqRecalcVH;
 
 // ── Remove debitos automaticos incorretos gerados pelo biometrico ──
 // Util para limpar dados acumulados antes da correcao do bug
@@ -29456,6 +29714,36 @@ async function aprovarSolicitacaoBH(id) {
       criadoEm: new Date().toISOString(), _solId: id
     });
     save('bancohoras');
+
+    // ── Marca o dia no Cartão Ponto para não virar falta ────────────────
+    // Folga de dia inteiro → status 'folga' (o cálculo do BH pula esse dia,
+    // evitando débito duplicado). Saída antecipada / entrada tardia → grava
+    // a justificativa no registro do dia SEM zerar batidas (o débito do BH
+    // já representa a baixa; o dia segue contabilizado normalmente).
+    try{
+      if(sol.data){
+        const _d=new Date(sol.data+'T00:00:00');
+        const _ano=_d.getFullYear(), _mes=_d.getMonth(), _dia=_d.getDate();
+        const _pk=`${sol.empId}_${_ano}_${_mes}`;
+        if(!APP.pontos[_pk]) APP.pontos[_pk]={};
+        if(!APP.pontos[_pk][_dia]) APP.pontos[_pk][_dia]={status:'normal',entrada:'',saida_almoco:'',volta_almoco:'',saida_cafe:'',volta_cafe:'',saida:''};
+        const _reg=APP.pontos[_pk][_dia];
+        if(sol.tipo==='folga_dia'){
+          _reg.status='folga';
+          _reg.obs=`Folga compensatória aprovada (BH) — ${sol.justificativa||''}`.trim();
+        } else {
+          // saída antecipada / entrada tardia / outro — não muda o status do dia
+          _reg.compensacao={
+            tipo:sol.tipo, minutos:sol.minutos,
+            justificativa:sol.justificativa||'', solId:id,
+            aprovadoEm:new Date().toISOString()
+          };
+          if(!_reg.obs) _reg.obs=`Compensação aprovada (BH): ${sol.tipo==='saida_antecipada'?'saída antecipada':sol.tipo==='entrada_tardia'?'entrada tardia':'compensação'}`;
+        }
+        save('pontos');
+        try{ if(typeof auditLog==='function') auditLog('Compensação marcada no Cartão Ponto', `dia ${sol.data} — ${sol.tipo}`, 'cartao_ponto'); }catch(_){}
+      }
+    }catch(_pErr){ console.warn('[aprovarSolic→ponto] erro:', _pErr); }
     // Notifica colaborador via portal_notificacoes
     try {
       await FBASE.collection('portal_notificacoes').add({
@@ -29720,12 +30008,13 @@ async function _bhMostrarSolicitacoes(){
   openModal('📋 Solicitações de Compensação',
     '<div style="text-align:center;padding:32px;color:var(--mt)"><div style="font-size:28px;margin-bottom:8px">⏳</div><div style="font-size:14px">Carregando solicitações do Firestore...</div></div>',
     660);
-  await _loadBHSolicFirestore();
-  // Tenta atualizar o corpo do modal já aberto
-  const modalContent = document.querySelector('.modal-content');
-  if (modalContent) {
-    const body = modalContent.querySelector('.modal-body') || modalContent.lastElementChild;
-    if (body) body.innerHTML = '<div id="bh-solic-container">' + _htmlBHSolicitacoes() + '</div>';
+  try {
+    await _loadBHSolicFirestore();
+  } catch(e){ console.warn('[BH solic] erro ao carregar:', e); }
+  // Atualiza o corpo do modal já aberto — openModal usa #mbody (não .modal-body)
+  const mbd = document.getElementById('mbody');
+  if (mbd) {
+    mbd.innerHTML = '<div id="bh-solic-container">' + _htmlBHSolicitacoes() + '</div>';
   }
 }
 
