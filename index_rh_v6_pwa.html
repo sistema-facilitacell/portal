@@ -13113,13 +13113,23 @@ async function bioAprovarJustificativa(id,tipo,date,empId,empNome){
       const [ay,am,adStr]=date.split('-');
       const pontoKey=`${empId}_${ay}_${parseInt(am)-1}`;
       const dNum=parseInt(adStr);
-      const statusMap={falta:'falta',atestado:'atestado',saiu_cedo:'normal',atraso:'normal',outro:'normal'};
+      const statusMap={falta:'falta',atestado:'atestado',saiu_cedo:'atestado',atraso:'atestado',outro:'normal'};
       const novoStatus=statusMap[tipo]||'normal';
       if(!APP.pontos[pontoKey])APP.pontos[pontoKey]={};
       if(!APP.pontos[pontoKey][dNum])
         APP.pontos[pontoKey][dNum]={status:novoStatus,entrada:'',saida_almoco:'',volta_almoco:'',saida:'',origemPortal:true};
       else
         APP.pontos[pontoKey][dNum].status=novoStatus;
+      // PROTEÇÃO: marca como editado/justificado para que o _bioSyncAllPontosDoMes
+      // NÃO sobrescreva esta marcação na próxima sincronização do biométrico.
+      // (sem isso, o atestado aprovado era apagado e voltava a virar manual)
+      APP.pontos[pontoKey][dNum]._editadoEm=new Date().toISOString();
+      APP.pontos[pontoKey][dNum]._justificativaId=id;
+      if(tipo==='atestado') APP.pontos[pontoKey][dNum].obs='Atestado aprovado (portal)';
+      else if(tipo==='saiu_cedo') APP.pontos[pontoKey][dNum].obs='Saída antecipada justificada (portal)';
+      else if(tipo==='atraso') APP.pontos[pontoKey][dNum].obs='Atraso justificado (portal)';
+      // Gravação imediata (não debounced) para refletir na hora no Cartão Ponto
+      try{ lsSave('pontos'); }catch(_){}
       save('pontos');
 
       // ── BUG-BH FIX: recalcula Banco de Horas do funcionário para o mês afetado ──
