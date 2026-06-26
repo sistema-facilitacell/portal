@@ -32387,6 +32387,18 @@ body.dark-mode #rh-chat-emp-selector select { background: #1E293B; color: #E2E8F
 }
 .rh-chat-msg.rh { align-self: flex-end; align-items: flex-end; }
 .rh-chat-msg.colaborador { align-self: flex-start; align-items: flex-start; }
+/* Linha avatar + bolha */
+.rh-chat-row { display: flex; align-items: flex-end; gap: 7px; }
+.rh-chat-msg.rh .rh-chat-row { flex-direction: row-reverse; }
+.rh-chat-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; color: #fff;
+  background-size: cover; background-position: center; background-repeat: no-repeat;
+  border: 1.5px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.15);
+}
+.rh-chat-avatar.rh { background: linear-gradient(135deg,#6366F1,#7C3AED); }
+.rh-chat-avatar.colaborador { background: linear-gradient(135deg,#0EA5E9,#0284C7); }
 .rh-chat-bubble {
   padding: 9px 13px;
   border-radius: 14px;
@@ -32892,10 +32904,25 @@ function rhChatRenderMessages(docs, emp) {
     const ts = msg.ts?.toDate ? msg.ts.toDate() : (msg.ts ? new Date(msg.ts) : new Date());
     const timeStr = ts.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
     const dateStr = ts.toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'});
-    const senderLabel = isRH ? 'RH' : esc(emp.nome.split(' ')[0]);
+    const primeiroNome = (emp.nome||'?').split(' ')[0];
+    const senderLabel = isRH ? 'RH' : esc(primeiroNome);
+    // Avatar: RH = inicial "RH"; colaborador = foto de perfil ou inicial do nome
+    let avatarHtml;
+    if(isRH){
+      avatarHtml = `<div class="rh-chat-avatar rh">RH</div>`;
+    } else {
+      const fp = emp.fotoPerfil || '';
+      const inicial = (primeiroNome[0]||'?').toUpperCase();
+      avatarHtml = fp
+        ? `<div class="rh-chat-avatar colaborador" style="background-image:url('${fp}')"></div>`
+        : `<div class="rh-chat-avatar colaborador">${inicial}</div>`;
+    }
     return `<div class="rh-chat-msg ${isRH ? 'rh' : 'colaborador'}">
       <div class="rh-chat-sender">${senderLabel}</div>
-      <div class="rh-chat-bubble">${esc(msg.texto || '')}</div>
+      <div class="rh-chat-row">
+        ${avatarHtml}
+        <div class="rh-chat-bubble">${esc(msg.texto || '')}</div>
+      </div>
       <div class="rh-chat-time">${dateStr} ${timeStr}${isRH && msg.lida ? ' ✓✓' : ''}</div>
     </div>`;
   }).join('');
@@ -35179,8 +35206,16 @@ console.log('[v18] ✅ Módulo Assinatura Digital carregado — canvas + SHA-256
         worked = manha + tarde;
       }
     } else if (sa !== null && va === null) {
-      // Só saiu para almoço mas não voltou → computa até saída almoço
-      worked = Math.max(0, sa - eEfet);
+      // Saiu para o almoço mas não bateu a volta.
+      // Se há saída final plausível DEPOIS do almoço, a pessoa claramente voltou
+      // a trabalhar — apenas esqueceu de registrar a volta. Conta a jornada
+      // entrada→saída descontando a pausa padrão (evita débito falso por batida
+      // incompleta). Só computa até a saída-almoço se NÃO houver saída posterior.
+      if (s !== null && s > sa) {
+        worked = Math.max(0, (s - eEfet) - pausaTotal);
+      } else {
+        worked = Math.max(0, sa - eEfet);
+      }
     } else {
       // Nenhuma batida de almoço → desconta pausa total cadastrada
       worked = Math.max(0, (s - eEfet) - pausaTotal);
@@ -35225,8 +35260,15 @@ console.log('[v18] ✅ Módulo Assinatura Digital carregado — canvas + SHA-256
 
       const diff = worked - diaEsp;
       // Tolerância de 5 min para não gerar débito por pequenos atrasos de relógio
-      if (diff > 2)    credMin += diff;
-      else if (diff < -5) debMin += Math.abs(diff);
+      if (diff > 2) {
+        credMin += diff;
+      } else if (diff < -5) {
+        // TETO DE DÉBITO DIÁRIO: ninguém "deve" mais que a própria jornada num dia.
+        // Débitos maiores que isso indicam batida incompleta/horário mal cadastrado,
+        // não falta real — então limitamos ao valor da jornada esperada.
+        const debDia = Math.min(Math.abs(diff), diaEsp);
+        debMin += debDia;
+      }
     }
 
     return { credMin, debMin };
