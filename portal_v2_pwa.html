@@ -6583,6 +6583,17 @@ async function renderBancoHoras(c) {
         <div style="font-size:11px;color:#94A3B8;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Saldo do Banco de Horas</div>
         <div style="font-size:40px;font-weight:900;color:${corSaldo}">${saldo>0?'+':saldo<0?'−':''}${fmtM(Math.abs(saldo))}</div>
         <div style="font-size:13px;color:${corSaldo};margin-top:4px;font-weight:600">${saldo>0?'⏫ horas a receber':saldo<0?'⚠️ horas a compensar':'✅ em dia'}</div>
+        <div style="display:flex;justify-content:center;gap:24px;margin-top:14px;padding-top:14px;border-top:1px solid #F1F5F9">
+          <div>
+            <div style="font-size:10px;color:#94A3B8;font-weight:700;text-transform:uppercase">Créditos</div>
+            <div style="font-size:16px;font-weight:800;color:#059669">+${fmtM(cred)}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:#94A3B8;font-weight:700;text-transform:uppercase">Débitos</div>
+            <div style="font-size:16px;font-weight:800;color:#DC2626">−${fmtM(deb)}</div>
+          </div>
+        </div>
+        <div style="font-size:10px;color:#CBD5E1;margin-top:10px">Atualizado conforme o Cartão Ponto registrado pelo RH</div>
       </div>
     </div>
 
