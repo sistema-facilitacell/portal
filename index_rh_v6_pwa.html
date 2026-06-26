@@ -2937,6 +2937,41 @@ function openModal(title,html,width=680,noScroll=false){
   mbd.innerHTML=tmp.innerHTML;
 }
 function closeModal(){document.getElementById('overlay').classList.remove('open');}
+
+// ════════════════════════════════════════════════════════════════════
+// LIGHTBOX — abre imagem ou PDF de justificativa/atestado em tela cheia.
+// Aceita data:image/*, data:application/pdf, http(s) e blob URLs.
+// ════════════════════════════════════════════════════════════════════
+function abrirAnexoFull(url, titulo){
+  if(!url){ if(typeof toast==='function') toast('Anexo indisponível.','warn'); return; }
+  const isPdf = url.startsWith('data:application/pdf') || /\.pdf($|\?)/i.test(url) || url.includes('application/pdf');
+  let lb=document.getElementById('lb-anexo');
+  if(!lb){
+    lb=document.createElement('div');
+    lb.id='lb-anexo';
+    lb.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.92);display:none;align-items:center;justify-content:center;flex-direction:column;padding:16px';
+    lb.addEventListener('click',e=>{ if(e.target===lb) fecharAnexoFull(); });
+    document.body.appendChild(lb);
+    document.addEventListener('keydown',e=>{ if(e.key==='Escape') fecharAnexoFull(); });
+  }
+  const safeTit = (titulo||'Anexo').replace(/</g,'&lt;');
+  const conteudo = isPdf
+    ? `<iframe src="${url}" style="width:min(92vw,1000px);height:86vh;border:none;border-radius:10px;background:#fff"></iframe>`
+    : `<img src="${url}" style="max-width:94vw;max-height:84vh;object-fit:contain;border-radius:10px;background:#fff" alt="${safeTit}">`;
+  lb.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;width:min(94vw,1000px);margin-bottom:10px;color:#fff">
+      <div style="font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px">${isPdf?'📄':'🖼'} ${safeTit}</div>
+      <div style="display:flex;gap:8px">
+        <a href="${url}" download style="text-decoration:none;background:rgba(255,255,255,.15);color:#fff;padding:6px 14px;border-radius:8px;font-size:13px;font-weight:600">⬇ Baixar</a>
+        <button onclick="fecharAnexoFull()" style="background:rgba(255,255,255,.15);color:#fff;border:none;padding:6px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">✕ Fechar</button>
+      </div>
+    </div>
+    ${conteudo}`;
+  lb.style.display='flex';
+}
+function fecharAnexoFull(){ const lb=document.getElementById('lb-anexo'); if(lb) lb.style.display='none'; }
+window.abrirAnexoFull=abrirAnexoFull;
+window.fecharAnexoFull=fecharAnexoFull;
 // Retorna true se algum modal estiver aberto — usado para pausar navigate() automático
 // do polling/listener enquanto o usuário está editando, evitando perda de dados.
 function isModalOpen(){return !!(document.getElementById('overlay')?.classList.contains('open'));}
@@ -12702,7 +12737,7 @@ function bioEditDia(ds, empName){
       <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:6px">📎 Justificativa enviada pelo colaborador</div>
       <div style="font-size:13px;font-weight:700">${{falta:'❌ Falta',saiu_cedo:'⏰ Saiu cedo',atraso:'⏱ Atraso',atestado:'🏥 Atestado',outro:'📝 Outro'}[just.tipo]||just.tipo}</div>
       ${just.motivo?`<div style="font-size:13px;color:#374151;margin:4px 0">${esc(just.motivo)}</div>`:''}
-      ${just.fotoUrl?`<img src="${just.fotoUrl}" style="max-width:100%;max-height:180px;border-radius:8px;margin-top:8px;object-fit:contain;border:1px solid #BFDBFE" alt="Atestado">`:''}
+      ${just.fotoUrl?`<img src="${just.fotoUrl}" onclick="abrirAnexoFull('${just.fotoUrl}','Atestado — ${esc((just.nome||'')).replace(/'/g,'')}')" style="max-width:100%;max-height:180px;border-radius:8px;margin-top:8px;object-fit:contain;border:1px solid #BFDBFE;cursor:zoom-in" title="Clique para ver em tela cheia" alt="Atestado">`:''}
       <div style="font-size:11px;color:var(--mt);margin-top:6px">Enviado em: ${just.enviadoEm?new Date(just.enviadoEm).toLocaleString('pt-BR'):''}</div>
       <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
         ${just.status==='aprovado'?
@@ -12960,8 +12995,8 @@ function rBioJustificativas(){
       ${j.motivo?`<div style="font-size:13px;color:#374151;margin-bottom:8px;line-height:1.5">${esc(j.motivo)}</div>`:''}\r
       ${j.retroativo?`<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:7px 12px;margin-bottom:8px;font-size:12px;color:#1E3A8A;display:flex;flex-wrap:wrap;gap:8px;align-items:center"><strong>⏱ Retroativo</strong>${j.horarioEntrada?` · Entrada: <strong>${esc(j.horarioEntrada)}</strong>`:''} ${j.horarioSaida?` · Saída: <strong>${esc(j.horarioSaida)}</strong>`:''}</div>`:''}
       ${j.fotoUrl?`<div style="margin-bottom:8px">${j.fotoUrl.startsWith('data:application/pdf')||j.fotoUrl.includes('pdf')?
-        `<span style="display:inline-flex;align-items:center;gap:6px;background:#EFF6FF;color:#1E40AF;padding:4px 12px;border-radius:8px;font-size:12px;font-weight:600">📄 Atestado PDF enviado</span>`:
-        `<img src="${j.fotoUrl}" style="max-width:100%;max-height:140px;border-radius:8px;border:1px solid #E2E8F0;object-fit:contain">`}</div>`:''}
+        `<button onclick="abrirAnexoFull('${j.fotoUrl}','Atestado PDF')" style="display:inline-flex;align-items:center;gap:6px;background:#EFF6FF;color:#1E40AF;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid #BFDBFE;cursor:pointer">📄 Ver Atestado PDF</button>`:
+        `<img src="${j.fotoUrl}" onclick="abrirAnexoFull('${j.fotoUrl}','Atestado')" style="max-width:100%;max-height:140px;border-radius:8px;border:1px solid #E2E8F0;object-fit:contain;cursor:zoom-in" title="Clique para ver em tela cheia">`}</div>`:''}
       ${j.statusObs?`<div style="font-size:12px;color:#64748B;font-style:italic;margin-bottom:8px">Obs: ${esc(j.statusObs)}</div>`:''}
       ${showActions&&(j.status==='pendente'||!j.status)?`
         <div style="display:flex;gap:6px;margin-top:6px">
@@ -38585,18 +38620,22 @@ document.addEventListener('DOMContentLoaded', () => {
 <script>
 function _bioFotoLightbox(el) {
   const src   = el.dataset.src   || '';
-  const label = el.dataset.label || '';
+  const label = el.dataset.label || 'Registro biométrico';
+  // Usa o lightbox robusto (criado dinamicamente, não depende de modal estático)
+  if (typeof abrirAnexoFull === 'function') { abrirAnexoFull(src, label); return; }
+  // Fallback: modal estático legado
   const modal = document.getElementById('_bioFotoLightboxModal');
-  document.getElementById('_bioFotoLightboxImg').src   = src;
-  document.getElementById('_bioFotoLightboxLabel').textContent = label;
-  const link = document.getElementById('_bioFotoLightboxLink');
-  if (src.startsWith('data:')) {
-    link.style.display = 'none'; // base64 não abre em nova aba
-  } else {
-    link.href = src;
-    link.style.display = 'block';
+  if(!modal) return;
+  const img=document.getElementById('_bioFotoLightboxImg');
+  const lbl=document.getElementById('_bioFotoLightboxLabel');
+  const link=document.getElementById('_bioFotoLightboxLink');
+  if(img) img.src=src;
+  if(lbl) lbl.textContent=label;
+  if(link){
+    if (src.startsWith('data:')) { link.style.display='none'; }
+    else { link.href=src; link.style.display='block'; }
   }
-  modal.style.display = 'flex';
+  modal.style.display='flex';
 }
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') document.getElementById('_bioFotoLightboxModal').style.display = 'none';
