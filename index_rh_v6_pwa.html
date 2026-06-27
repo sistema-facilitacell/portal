@@ -2171,6 +2171,24 @@ const _SAVE_DEBOUNCE_MS       = 8000; // 8 segundos — agrupa saves em rajada d
 const _SAVE_DEBOUNCE_MS_FAST  = 1200; // 1.2s — chaves de edição manual (employees, ferias etc.)
 const _SAVE_DEBOUNCE_FAST_KEYS = new Set(['employees','financeiro','salarios','holRascunho','contratos','advertencias','admissoes','demissoes','ferias','atestados']);
 
+// ── saveAgora(k) — grava IMEDIATAMENTE no Firebase, pulando o debounce ──
+// Usado em AÇÕES MANUAIS INTENCIONAIS do RH (editar dia no cartão ponto,
+// liquidar banco de horas) onde o atraso de 8s do debounce causava perda de
+// dados: o onSnapshot da nuvem podia recarregar APP antes do write sair,
+// revertendo a edição. Aqui forçamos a persistência na hora.
+function saveAgora(k){
+  if(!_VALID_KEYS.has(k)){ console.error('[saveAgora] Chave inválida:',k); return; }
+  lsSave(k);
+  if(FBASE){
+    clearTimeout(_saveDebounceTimers[k]); // cancela qualquer write debounced pendente
+    try{ fbSave(k); }catch(e){ console.warn('[saveAgora] fbSave erro:',e); }
+  } else { FB_SAVE_QUEUE[k]=true; }
+  if(typeof SB_SENSITIVE_KEYS!=='undefined' && SB_SENSITIVE_KEYS.has(k) && typeof SB_READY!=='undefined' && SB_READY && typeof sbSave==='function'){
+    try{ sbSave(k); }catch(_){}
+  }
+}
+window.saveAgora=saveAgora;
+
 function save(k){
   if(!_VALID_KEYS.has(k)){ console.error('[save] Chave inválida:',k); return; }
   // 1. localStorage (imediato — garante que UI não perde dados)
@@ -5023,7 +5041,7 @@ function _executarSaveDia(d,k,status,entrada,saida_almoco,volta_almoco,saida_caf
     }
   }catch(_){}
 
-  save('pontos');
+  saveAgora('pontos'); // grava imediato no Firebase — evita perda por debounce/snapshot
   closeModal();
   toast('Ponto registrado!');
 
@@ -5040,6 +5058,7 @@ function _executarSaveDia(d,k,status,entrada,saida_almoco,volta_almoco,saida_caf
   } catch(_bh_err) {
     console.warn('[saveDia→BH] Erro ao atualizar banco de horas:', _bh_err);
   }
+  try{ saveAgora('bancohoras'); }catch(_){} // persiste o BH recalculado na hora
   // ────────────────────────────────────────────────────────────────
 
   // Preserva posição do scroll após salvar (evita voltar ao topo)
@@ -17316,6 +17335,7 @@ async function confirmarLiquidacaoBH(){
     tipo:'debito',
     minutos,
     motivo,
+    _liquidacao:true,        // protege contra _limparLancamentosAutoMes (nunca é auto)
     liquidacao:{ forma, valor, adicional:forma==='pagamento'?adic:null, valorHora:vh },
     criadoEm:new Date().toISOString()
   };
@@ -17352,7 +17372,7 @@ async function confirmarLiquidacaoBH(){
     const _fbA=typeof firebase!=='undefined'&&typeof firebase.auth==='function'?firebase.auth():null;
     if(_fbA&&!_fbA.currentUser) await _fbA.signInAnonymously();
   }catch(_){}
-  save('bancohoras');
+  saveAgora('bancohoras'); // grava imediato — evita que re-sync reverta o débito
   try{ if(typeof auditLog==='function') auditLog('Liquidou horas extras', `${emp.nome} — ${fmt(minutos)} — ${forma==='pagamento'?'pagamento R$ '+valor.toLocaleString('pt-BR',{minimumFractionDigits:2})+' (enviado ao holerite)':'folga'}`, 'banco_horas'); }catch(_){}
   closeModal();
   toast('✅ '+(forma==='pagamento'?'Horas pagas — lançadas no holerite do mês':'Folga lançada')+' — saldo debitado!');
