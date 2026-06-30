@@ -2304,6 +2304,44 @@ async function loadCloud(){
         loaded++;
         return;
       }
+      // pontos: merge nuvem + local preservando dias editados manualmente (_editadoEm).
+      // SEM isso, a nuvem sobrescrevia APP.pontos inteiro e a edição que o RH
+      // acabou de fazer era perdida se o loadCloud rodasse antes do write sair —
+      // a tela voltava a mostrar só o que o colaborador bateu no portal.
+      if(k==='pontos'){
+        const local=lsLoad('pontos')||{};
+        const nuvem=(typeof d==='object'&&d!==null)?d:{};
+        const merged={...nuvem};
+        let preservados=0;
+        Object.keys(local).forEach(pk=>{
+          const localDias=local[pk]||{};
+          if(typeof localDias!=='object')return;
+          if(!merged[pk]) merged[pk]={};
+          Object.keys(localDias).forEach(dia=>{
+            const lReg=localDias[dia];
+            const nReg=merged[pk][dia];
+            if(!lReg||typeof lReg!=='object')return;
+            // Dia editado manualmente: local vence se for mais novo (ou nuvem não tem edição)
+            if(lReg._editadoEm){
+              const nuvemEditadoEm = nReg && nReg._editadoEm ? nReg._editadoEm : '';
+              if(!nuvemEditadoEm || lReg._editadoEm >= nuvemEditadoEm){
+                merged[pk][dia]=lReg;
+                preservados++;
+                return;
+              }
+            }
+            // Caso normal: mantém o que veio da nuvem (já está em merged via spread)
+          });
+        });
+        APP.pontos=merged;
+        lsSave('pontos');
+        if(preservados>0){
+          console.log(`[loadCloud/pontos] ${preservados} dia(s) editado(s) pelo RH preservado(s)`);
+          fbSave('pontos'); // garante que a edição preservada suba para a nuvem
+        }
+        loaded++;
+        return;
+      }
       // Demais chaves: nuvem sobrescreve local
       if(Array.isArray(APP[k])){APP[k]=Array.isArray(d)?d:[];}
       else{APP[k]=(typeof d==='object'&&d!==null)?d:APP[k];}
@@ -4994,19 +5032,38 @@ function saveDia(d){
   const volta_cafe=document.getElementById('pd-vc')?.value||'';
   const saida=document.getElementById('pd-sd').value;
 
-  // ── Validação inteligente de inconsistências ──────────────────────
+  // ── Validação de horários ────────────────────────────────────────
+  // ERROS (bloqueiam): sequências impossíveis que quebram o cálculo do dia.
+  // AVISOS (só confirmam): valores suspeitos mas possíveis.
   if(status==='normal'&&entrada&&saida){
     const pt=t=>{const[h,m]=t.split(':').map(Number);return h*60+m;};
     const eMin=pt(entrada), sMin=pt(saida);
+    const erros=[];
     const avisos=[];
-    if(sMin<=eMin) avisos.push('⚠️ Horário de saída ('+saida+') é anterior ou igual à entrada ('+entrada+'). Verifique os valores.');
-    if(saida_almoco&&pt(saida_almoco)<=eMin) avisos.push('⚠️ Saída do almoço ('+saida_almoco+') é antes da entrada ('+entrada+').');
-    if(volta_almoco&&saida_almoco&&pt(volta_almoco)<pt(saida_almoco)) avisos.push('⚠️ Volta do almoço ('+volta_almoco+') é antes da saída ('+saida_almoco+').');
-    if(saida_cafe&&pt(saida_cafe)<=eMin) avisos.push('⚠️ Saída do café ('+saida_cafe+') é antes da entrada.');
-    if(volta_cafe&&saida_cafe&&pt(volta_cafe)<pt(saida_cafe)) avisos.push('⚠️ Volta do café ('+volta_cafe+') é antes da saída do café.');
-    if((sMin-eMin)>14*60) avisos.push('⚠️ Total de horas parece muito alto ('+Math.round((sMin-eMin)/60)+'h). Confirme se os horários estão corretos.');
+    // ERROS bloqueantes — ordem cronológica impossível
+    if(sMin<=eMin) erros.push('• Saída ('+saida+') não pode ser antes ou igual à Entrada ('+entrada+').');
+    if(saida_almoco&&pt(saida_almoco)<=eMin) erros.push('• Saída do Almoço ('+saida_almoco+') não pode ser antes ou igual à Entrada ('+entrada+').');
+    if(volta_almoco&&saida_almoco&&pt(volta_almoco)<pt(saida_almoco)) erros.push('• Volta do Almoço ('+volta_almoco+') não pode ser antes da Saída do Almoço ('+saida_almoco+').');
+    if(saida_almoco&&pt(saida_almoco)>=sMin) erros.push('• Saída do Almoço ('+saida_almoco+') não pode ser depois ou igual à Saída ('+saida+').');
+    if(volta_almoco&&pt(volta_almoco)>sMin) erros.push('• Volta do Almoço ('+volta_almoco+') não pode ser depois da Saída ('+saida+').');
+    if(saida_cafe&&pt(saida_cafe)<=eMin) erros.push('• Saída do Café ('+saida_cafe+') não pode ser antes ou igual à Entrada.');
+    if(volta_cafe&&saida_cafe&&pt(volta_cafe)<pt(saida_cafe)) erros.push('• Volta do Café ('+volta_cafe+') não pode ser antes da Saída do Café ('+saida_cafe+').');
+    if(saida_cafe&&pt(saida_cafe)>=sMin) erros.push('• Saída do Café ('+saida_cafe+') não pode ser depois ou igual à Saída.');
+    if(volta_cafe&&pt(volta_cafe)>sMin) erros.push('• Volta do Café ('+volta_cafe+') não pode ser depois da Saída.');
+    // Café x Almoço sobrepostos (se ambos preenchidos, café costuma ser à tarde)
+    if(saida_cafe&&volta_almoco&&pt(saida_cafe)<pt(volta_almoco)&&pt(saida_cafe)>pt(saida_almoco||'00:00'))
+      erros.push('• Os horários de Café e Almoço estão sobrepostos. Confira a sequência.');
+
+    if(erros.length>0){
+      // BLOQUEIA — não salva enquanto a sequência estiver impossível
+      toast('Corrija os horários antes de salvar.','err',5000);
+      alert('❌ Não é possível salvar — horários impossíveis:\n\n'+erros.join('\n')+'\n\nA sequência correta é: Entrada → Saída Almoço → Volta Almoço → Saída Café → Volta Café → Saída.');
+      return;
+    }
+
+    // AVISOS — possíveis mas suspeitos: pede confirmação
+    if((sMin-eMin)>14*60) avisos.push('⚠️ Total de horas muito alto ('+Math.round((sMin-eMin)/60)+'h). Confirme se está correto.');
     if(avisos.length>0){
-      // Usa confirmDialog assíncrono (compatível com Chrome mobile / iframes)
       confirmDialog(avisos.join('\n\n')+'\n\nDeseja salvar mesmo assim?').then(ok=>{
         if(ok) _executarSaveDia(d,k,status,entrada,saida_almoco,volta_almoco,saida_cafe,volta_cafe,saida,empId,mes,ano);
       });
@@ -5021,7 +5078,16 @@ function _executarSaveDia(d,k,status,entrada,saida_almoco,volta_almoco,saida_caf
   // ── Salva com registro no histórico de auditoria ──────────────────
   if(!APP.pontos[k])APP.pontos[k]={};
   const anterior=APP.pontos[k][d];
-  const novo={status,entrada,saida_almoco,volta_almoco,saida_cafe,volta_cafe,saida,_editadoEm:new Date().toISOString()};
+  // Grava EXATAMENTE o que o RH digitou. _editadoEm + _edicaoManual blindam o
+  // dia contra qualquer sobrescrita por batidas/sync/loadCloud — o valor do RH
+  // é a fonte de verdade deste dia.
+  const novo={
+    status,entrada,saida_almoco,volta_almoco,saida_cafe,volta_cafe,saida,
+    _editadoEm:new Date().toISOString(),
+    _edicaoManual:true,
+    _editadoPor:(typeof _auditUser==='function'?_auditUser():(APP?.currentUser?.email||'RH')),
+    origemPortal:false
+  };
   APP.pontos[k][d]=novo;
 
   // Guarda histórico de edições para auditoria (localStorage)
