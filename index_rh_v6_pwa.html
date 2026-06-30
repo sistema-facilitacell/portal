@@ -4777,6 +4777,7 @@ function openDia(d){
   const emp=APP.employees.find(e=>e.id===empId);
   const pm=APP.pontos[`${empId}_${ano}_${mes}`]||{};
   const r=pm[d]||{};
+  console.log('%c[DIAG-OPEN] Abrindo dia '+d+' de '+`${empId}_${ano}_${mes}`+':','color:#2563EB;font-weight:bold',JSON.stringify(r));
   const dtFmt=`${zp2(d)}/${zp2(mes+1)}/${ano}`;
   // Carrega as batidas biométricas reais do dia para pré-preencher os campos
   // quando ainda não houve edição manual (assim o RH edita a partir do valor
@@ -5130,6 +5131,8 @@ function _executarSaveDia(d,k,status,entrada,saida_almoco,volta_almoco,saida_caf
     origemPortal:false
   };
   APP.pontos[k][d]=novo;
+  console.log('%c[DIAG-SAVE] Gravou dia '+d+' em '+k+':','color:#16A34A;font-weight:bold',JSON.stringify(novo));
+  console.log('%c[DIAG-SAVE] APP.pontos['+k+']['+d+'] agora =','color:#16A34A',JSON.stringify(APP.pontos[k][d]));
 
   // ── CAMADA DE PROTEÇÃO PERSISTENTE ──────────────────────────────────
   // Guarda a edição num registro SEPARADO (fcrh_ponto_overrides) que é
