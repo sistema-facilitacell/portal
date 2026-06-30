@@ -8343,11 +8343,30 @@ function gSalRec(eid){
   if(!APP.salarios[k])APP.salarios[k]={salContabil:'',celulares:'0'};
   return APP.salarios[k];
 }
-function setSalRec(eid,field,val){
+function salvarTodosSalarios(){
+  // Persiste imediatamente no Firebase tudo que foi digitado na tela de Salários.
+  // Botão de segurança para o RH garantir a gravação antes de trocar de dispositivo.
+  try{
+    if(typeof saveAgora==='function') saveAgora('salarios');
+    else save('salarios');
+    // Também grava holRascunho (HE liquidadas, assinaturas, datas de pagamento)
+    if(APP.holRascunho){ if(typeof saveAgora==='function') saveAgora('holRascunho'); else save('holRascunho'); }
+    toast('✅ Salários e metas salvos na nuvem!');
+  }catch(e){
+    console.error('[salvarTodosSalarios]',e);
+    toast('Erro ao salvar: '+e.message,'err');
+  }
+}
+window.salvarTodosSalarios=salvarTodosSalarios;
+
+function setSalRec(eid,field,val,imediato){
   const k=`${eid}_${SAL_STATE.ano}_${SAL_STATE.mes}`;
   if(!APP.salarios[k])APP.salarios[k]={salContabil:'',celulares:'0'};
   APP.salarios[k][field]=val;
-  save('salarios');
+  // oninput → save debounced (cálculo ao vivo). onblur (imediato) → grava na hora
+  // no Firebase, evitando perda ao trocar de dispositivo/fechar antes dos 8s.
+  if(imediato && typeof saveAgora==='function') saveAgora('salarios');
+  else save('salarios');
   const el=document.getElementById('sal-total-'+eid);
   if(el){const r=calcSal(eid);el.innerHTML=buildSalTotal(eid,r);}
   updateSalStats();
@@ -8437,6 +8456,7 @@ function rSalarios(){
       ${anosDisponiveis().map(y=>`<option${ano===y?' selected':''}>${y}</option>`).join('')}
     </select>
     <div style="margin-left:auto;display:flex;gap:10px">
+      <button class="btn btn-blue" onclick="salvarTodosSalarios()">💾 Salvar Tudo</button>
       <button class="btn btn-navy" onclick="imprimirTodosHolerites()">🖨️ Emitir Todos os Holerites</button>
       <button class="btn btn-green" onclick="REL_STATE.mes=SAL_STATE.mes;REL_STATE.ano=SAL_STATE.ano;navigate('relatorio')">📊 Relatório Financeiro</button>
     </div>
@@ -8484,18 +8504,21 @@ function rSalarios(){
           <label>💼 Salário (calculado pela contabilidade)</label>
           <input type="number" min="0" step="0.01" value="${s.salContabil||''}" placeholder="Ex: 2299,00"
             oninput="setSalRec('${e.id}','salContabil',this.value)"
+            onblur="setSalRec('${e.id}','salContabil',this.value,true)"
             style="border-color:#059669">
         </div>
         <div class="fld" style="margin:0">
           <label>⚖️ Diferença de Salário (manual)</label>
           <input type="number" min="0" step="0.01" value="${s.difManual||''}" placeholder="Ex: 1701,00"
             oninput="setSalRec('${e.id}','difManual',this.value)"
+            onblur="setSalRec('${e.id}','difManual',this.value,true)"
             style="border-color:#7C3AED">
         </div>
         <div class="fld" style="margin:0">
           <label>📱 Cel. Vendidos no Mês</label>
           <input type="number" min="0" value="${s.celulares||0}"
             oninput="setSalRec('${e.id}','celulares',this.value)"
+            onblur="setSalRec('${e.id}','celulares',this.value,true)"
             style="border-color:#2563EB">
         </div>
       </div>
@@ -8504,6 +8527,7 @@ function rSalarios(){
           <label>📅 Data de Pagamento (editável)</label>
           <input type="date" value="${getDefaultDataPag(s)}"
             oninput="setSalRec('${e.id}','dataPagamento',this.value)"
+            onblur="setSalRec('${e.id}','dataPagamento',this.value,true)"
             style="border-color:#D97706">
           <div style="font-size:10px;color:var(--mt);margin-top:2px">⚡ Auto: 5º dia útil do mês seguinte</div>
         </div>
