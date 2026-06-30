@@ -4777,7 +4777,6 @@ function openDia(d){
   const emp=APP.employees.find(e=>e.id===empId);
   const pm=APP.pontos[`${empId}_${ano}_${mes}`]||{};
   const r=pm[d]||{};
-  console.log('%c[DIAG-OPEN] Abrindo dia '+d+' de '+`${empId}_${ano}_${mes}`+':','color:#2563EB;font-weight:bold',JSON.stringify(r));
   const dtFmt=`${zp2(d)}/${zp2(mes+1)}/${ano}`;
   // Carrega as batidas biométricas reais do dia para pré-preencher os campos
   // quando ainda não houve edição manual (assim o RH edita a partir do valor
@@ -5079,21 +5078,25 @@ function saveDia(d){
   // AVISOS (só confirmam): valores suspeitos mas possíveis.
   if(status==='normal'&&entrada&&saida){
     const pt=t=>{const[h,m]=t.split(':').map(Number);return h*60+m;};
+    // "Preenchido" = tem valor E não é 00:00 (campo de café/almoço vazio fica 00:00).
+    // Sem isso, um café em branco (00:00) era lido como "antes da entrada" e
+    // BLOQUEAVA o salvamento de qualquer dia — era a causa de "não salva".
+    const _ok=t=>!!t && t!=='00:00' && t!=='00:00:00';
     const eMin=pt(entrada), sMin=pt(saida);
     const erros=[];
     const avisos=[];
-    // ERROS bloqueantes — ordem cronológica impossível
+    // ERROS bloqueantes — ordem cronológica impossível (só valida campos preenchidos)
     if(sMin<=eMin) erros.push('• Saída ('+saida+') não pode ser antes ou igual à Entrada ('+entrada+').');
-    if(saida_almoco&&pt(saida_almoco)<=eMin) erros.push('• Saída do Almoço ('+saida_almoco+') não pode ser antes ou igual à Entrada ('+entrada+').');
-    if(volta_almoco&&saida_almoco&&pt(volta_almoco)<pt(saida_almoco)) erros.push('• Volta do Almoço ('+volta_almoco+') não pode ser antes da Saída do Almoço ('+saida_almoco+').');
-    if(saida_almoco&&pt(saida_almoco)>=sMin) erros.push('• Saída do Almoço ('+saida_almoco+') não pode ser depois ou igual à Saída ('+saida+').');
-    if(volta_almoco&&pt(volta_almoco)>sMin) erros.push('• Volta do Almoço ('+volta_almoco+') não pode ser depois da Saída ('+saida+').');
-    if(saida_cafe&&pt(saida_cafe)<=eMin) erros.push('• Saída do Café ('+saida_cafe+') não pode ser antes ou igual à Entrada.');
-    if(volta_cafe&&saida_cafe&&pt(volta_cafe)<pt(saida_cafe)) erros.push('• Volta do Café ('+volta_cafe+') não pode ser antes da Saída do Café ('+saida_cafe+').');
-    if(saida_cafe&&pt(saida_cafe)>=sMin) erros.push('• Saída do Café ('+saida_cafe+') não pode ser depois ou igual à Saída.');
-    if(volta_cafe&&pt(volta_cafe)>sMin) erros.push('• Volta do Café ('+volta_cafe+') não pode ser depois da Saída.');
-    // Café x Almoço sobrepostos (se ambos preenchidos, café costuma ser à tarde)
-    if(saida_cafe&&volta_almoco&&pt(saida_cafe)<pt(volta_almoco)&&pt(saida_cafe)>pt(saida_almoco||'00:00'))
+    if(_ok(saida_almoco)&&pt(saida_almoco)<=eMin) erros.push('• Saída do Almoço ('+saida_almoco+') não pode ser antes ou igual à Entrada ('+entrada+').');
+    if(_ok(volta_almoco)&&_ok(saida_almoco)&&pt(volta_almoco)<pt(saida_almoco)) erros.push('• Volta do Almoço ('+volta_almoco+') não pode ser antes da Saída do Almoço ('+saida_almoco+').');
+    if(_ok(saida_almoco)&&pt(saida_almoco)>=sMin) erros.push('• Saída do Almoço ('+saida_almoco+') não pode ser depois ou igual à Saída ('+saida+').');
+    if(_ok(volta_almoco)&&pt(volta_almoco)>sMin) erros.push('• Volta do Almoço ('+volta_almoco+') não pode ser depois da Saída ('+saida+').');
+    if(_ok(saida_cafe)&&pt(saida_cafe)<=eMin) erros.push('• Saída do Café ('+saida_cafe+') não pode ser antes ou igual à Entrada.');
+    if(_ok(volta_cafe)&&_ok(saida_cafe)&&pt(volta_cafe)<pt(saida_cafe)) erros.push('• Volta do Café ('+volta_cafe+') não pode ser antes da Saída do Café ('+saida_cafe+').');
+    if(_ok(saida_cafe)&&pt(saida_cafe)>=sMin) erros.push('• Saída do Café ('+saida_cafe+') não pode ser depois ou igual à Saída.');
+    if(_ok(volta_cafe)&&pt(volta_cafe)>sMin) erros.push('• Volta do Café ('+volta_cafe+') não pode ser depois da Saída.');
+    // Café x Almoço sobrepostos (só se AMBOS realmente preenchidos)
+    if(_ok(saida_cafe)&&_ok(volta_almoco)&&pt(saida_cafe)<pt(volta_almoco)&&pt(saida_cafe)>pt(_ok(saida_almoco)?saida_almoco:'00:00'))
       erros.push('• Os horários de Café e Almoço estão sobrepostos. Confira a sequência.');
 
     if(erros.length>0){
@@ -5131,8 +5134,6 @@ function _executarSaveDia(d,k,status,entrada,saida_almoco,volta_almoco,saida_caf
     origemPortal:false
   };
   APP.pontos[k][d]=novo;
-  console.log('%c[DIAG-SAVE] Gravou dia '+d+' em '+k+':','color:#16A34A;font-weight:bold',JSON.stringify(novo));
-  console.log('%c[DIAG-SAVE] APP.pontos['+k+']['+d+'] agora =','color:#16A34A',JSON.stringify(APP.pontos[k][d]));
 
   // ── CAMADA DE PROTEÇÃO PERSISTENTE ──────────────────────────────────
   // Guarda a edição num registro SEPARADO (fcrh_ponto_overrides) que é
