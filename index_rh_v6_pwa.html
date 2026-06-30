@@ -2229,6 +2229,38 @@ function loadLocal(){
   });
 }
 
+// ── Reaplica edições manuais do RH sobre APP.pontos ──────────────────
+// Chamada após loadCloud e antes de renderizar o cartão ponto. Garante que
+// nenhuma carga da nuvem ou sync biométrico apague o que o RH editou à mão.
+// Só sobrepõe se o override for MAIS RECENTE que o registro atual (assim,
+// se outro dispositivo editar depois, a versão mais nova vence).
+function _reaplicarOverridesPonto(){
+  let _ov;
+  try{ _ov=JSON.parse(localStorage.getItem('fcrh_ponto_overrides')||'{}'); }catch(_){ return; }
+  if(!_ov||typeof _ov!=='object')return;
+  let aplicados=0;
+  Object.keys(_ov).forEach(k=>{
+    const dias=_ov[k]; if(!dias||typeof dias!=='object')return;
+    if(!APP.pontos[k])APP.pontos[k]={};
+    Object.keys(dias).forEach(d=>{
+      const ovReg=dias[d];
+      if(!ovReg||!ovReg._editadoEm)return;
+      const atual=APP.pontos[k][d];
+      // Aplica se: não existe atual, atual não foi editado, ou override é mais novo
+      const atualEditadoEm = atual&&atual._editadoEm ? atual._editadoEm : '';
+      if(!atualEditadoEm || ovReg._editadoEm >= atualEditadoEm){
+        APP.pontos[k][d]=ovReg;
+        aplicados++;
+      }
+    });
+  });
+  if(aplicados>0){
+    lsSave('pontos');
+    console.log(`[overrides] ${aplicados} edição(ões) manual(is) do RH reaplicada(s)`);
+  }
+}
+window._reaplicarOverridesPonto=_reaplicarOverridesPonto;
+
 // Carrega da nuvem — nuvem é a fonte da verdade, com merge inteligente para bancohoras
 let _cloudLoadCount = 0; // conta quantas vezes loadCloud rodou na sessão
 async function loadCloud(){
@@ -2360,6 +2392,7 @@ async function loadCloud(){
     }
   });
   console.log(`[loadCloud] ✅ ${loaded}/${keys.length} chaves carregadas da nuvem`);
+  try{ _reaplicarOverridesPonto(); }catch(_){} // restaura edições manuais do RH
 }
 
 function updateFbUI(state){
@@ -4433,6 +4466,7 @@ async function rhTogglePortalBlock(empId){
 const PONTO_BIO_CUTOFF = '2026-06-01';
 
 function rPonto(){
+  try{ if(typeof _reaplicarOverridesPonto==='function') _reaplicarOverridesPonto(); }catch(_){}
   const {empId}=PONTO_STATE;
   const emp=APP.employees.find(e=>e.id===empId)||APP.employees.filter(e=>e.status==='ativo')[0];
   const eid=emp?.id||'';
@@ -5096,6 +5130,18 @@ function _executarSaveDia(d,k,status,entrada,saida_almoco,volta_almoco,saida_caf
     origemPortal:false
   };
   APP.pontos[k][d]=novo;
+
+  // ── CAMADA DE PROTEÇÃO PERSISTENTE ──────────────────────────────────
+  // Guarda a edição num registro SEPARADO (fcrh_ponto_overrides) que é
+  // re-aplicado sobre APP.pontos após QUALQUER carga da nuvem ou sync.
+  // Garante que a edição do RH nunca seja perdida, mesmo se algum save
+  // falhar ou um snapshot recarregar os dados.
+  try{
+    const _ov=JSON.parse(localStorage.getItem('fcrh_ponto_overrides')||'{}');
+    if(!_ov[k]) _ov[k]={};
+    _ov[k][d]=novo;
+    localStorage.setItem('fcrh_ponto_overrides',JSON.stringify(_ov));
+  }catch(_ovErr){ console.warn('[overrides] erro ao gravar:',_ovErr); }
 
   // Guarda histórico de edições para auditoria (localStorage)
   const auditKey=`fcrh_ponto_audit_${k}_${d}`;
@@ -10718,6 +10764,7 @@ async function _bioSyncAllPontosDoMes(monthKey){
         APP.pontos[k][d].status=todasDoDia.length>0?'normal':'';
     });
     save('pontos'); // debounced 8s — múltiplas chamadas viram 1 write
+    try{ if(typeof _reaplicarOverridesPonto==='function') _reaplicarOverridesPonto(); }catch(_){}
     console.log('[bioSync] Sync completo — '+punches.length+' batidas do mês '+month+' → APP.pontos');
   }catch(e){console.warn('[_bioSyncAllPontosDoMes]',e);}
 }
