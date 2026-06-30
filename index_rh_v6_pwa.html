@@ -35518,7 +35518,10 @@ console.log('[v18] ✅ Módulo Assinatura Digital carregado — canvas + SHA-256
       }
     });
 
-    if (typeof save === 'function') save('bancohoras');
+    // Grava IMEDIATO no Firebase (não debounced) para que o Portal do Colaborador
+    // leia o saldo recalculado na hora — mantém RH e portal sempre com o mesmo número.
+    if (typeof saveAgora === 'function') saveAgora('bancohoras');
+    else if (typeof save === 'function') save('bancohoras');
 
     return { nCred, nDeb, nSemDados, total: ativos.length };
   }
