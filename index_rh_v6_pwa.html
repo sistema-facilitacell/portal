@@ -4912,7 +4912,14 @@ function imprimirCartaoPontoMensal(empId, mes, ano){
       if(sMin > saiMinRel && sMin >= saiRazoavelRel){
         // chegou antes → extra; dentro de 10min → neutro; além → negativo
         const eEfet = (eMin > entH && eMin <= entH+10) ? entH : eMin;
-        trabMin=Math.max(0,(sMin-eEfet)-pausas);
+        // REGRA DE PAUSA: desconta o MAIOR entre a pausa real registrada e a
+        // cadastrada (1h30). Mantém o cálculo idêntico ao _calcDia e ao preview.
+        let pausaReal = 0;
+        if(saAlm && vtAlm){ const _sa=pt(saAlm), _va=pt(vtAlm); if(_va>_sa) pausaReal += _va-_sa; }
+        const _sc=r?.saida_cafe?pt(r.saida_cafe):null, _vc=r?.volta_cafe?pt(r.volta_cafe):null;
+        if(_sc!==null && _vc!==null && _vc>_sc && _sc>=(vtAlm?pt(vtAlm):0) && _vc<=sMin) pausaReal += _vc-_sc;
+        const descontoPausa = Math.max(pausaReal, pausas);
+        trabMin=Math.max(0,(sMin-eEfet)-descontoPausa);
         saldoMin=trabMin-diaEsp;
         totalTrab+=trabMin;
         if(saldoMin>2){totalExtra+=saldoMin;saldoTxt='+'+fmtMin(saldoMin);saldoColor='#059669';}
@@ -5169,7 +5176,9 @@ function _calcPontoPreview(entH, saiH, pausas, diaEsp){
     const sc=_pt(scEl.value),vc=_pt(vcEl.value);
     if(vc>sc)pausasReal+=vc-sc;
   }
-  const pausasUsadas = (saEl&&saEl.value)?pausasReal:pausas;
+  // MESMA REGRA do BH: desconta o MAIOR entre a pausa real e a cadastrada (1h30).
+  // Pausa ≤ 1h30 → desconta 1h30 (café absorvido). Pausa > 1h30 → desconta o real.
+  const pausasUsadas = (saEl&&saEl.value) ? Math.max(pausasReal, pausas) : pausas;
   // Tolerância: se chegou até entH+10min, conta como entH
   const eEfet=(eMin>entH&&eMin<=entH+10)?entH:eMin;
   const trab=Math.max(0,(sMin-eEfet)-pausasUsadas);
@@ -35287,33 +35296,33 @@ console.log('[v18] ✅ Módulo Assinatura Digital carregado — canvas + SHA-256
 
     let worked = 0;
 
-    // Constrói segmentos com base nos campos preenchidos
+    // ── REGRA DE PAUSA (almoço + café) ──────────────────────────────
+    // O desconto da pausa é o MAIOR entre a pausa real registrada e a pausa
+    // cadastrada na jornada (pausaTotal, normalmente 1h30 = 1h almoço + 30min café).
+    //   • Pausa real ≤ 1h30 → desconta 1h30 (o café é "absorvido"; quem fez só 1h
+    //     de almoço sem bater café não é penalizado nem premiado pelos 30min).
+    //   • Pausa real > 1h30 → desconta o tempo real todo (excedente penaliza).
+    // Isso atende os dois regimes sem campo extra: quem tem café separado e quem
+    // tem pausa única de 1h30 — ambos têm pausaTotal=1h30 na jornada cadastrada.
     if (sa !== null && va !== null) {
-      // Tem saída e volta do almoço: 2 segmentos (manhã + tarde)
-      const manha = Math.max(0, sa - eEfet);
-      let tarde = 0;
-      if (sc !== null && vc !== null) {
-        // Tem café também: 3 segmentos
-        tarde = Math.max(0, sc - va);
-        const noite = Math.max(0, s - vc);
-        worked = manha + tarde + noite;
-      } else {
-        tarde = Math.max(0, s - va);
-        worked = manha + tarde;
-      }
+      // Calcula a pausa REAL somando os intervalos válidos (almoço + café, se houver)
+      let pausaReal = Math.max(0, va - sa); // almoço
+      const cafeValido = sc !== null && vc !== null && sc >= va && vc >= sc && vc <= s;
+      if (cafeValido) pausaReal += Math.max(0, vc - sc); // café (só se sequência válida)
+      // Desconto = maior entre pausa real e pausa cadastrada (limite de 1h30)
+      const descontoPausa = Math.max(pausaReal, pausaTotal);
+      worked = Math.max(0, (s - eEfet) - descontoPausa);
     } else if (sa !== null && va === null) {
-      // Saiu para o almoço mas não bateu a volta.
-      // Se há saída final plausível DEPOIS do almoço, a pessoa claramente voltou
-      // a trabalhar — apenas esqueceu de registrar a volta. Conta a jornada
-      // entrada→saída descontando a pausa padrão (evita débito falso por batida
-      // incompleta). Só computa até a saída-almoço se NÃO houver saída posterior.
+      // Saiu para o almoço mas não bateu a volta. Se há saída final depois do
+      // almoço, voltou a trabalhar — só esqueceu de registrar. Desconta a pausa
+      // cadastrada (1h30). Senão, computa só até a saída do almoço.
       if (s !== null && s > sa) {
         worked = Math.max(0, (s - eEfet) - pausaTotal);
       } else {
         worked = Math.max(0, sa - eEfet);
       }
     } else {
-      // Nenhuma batida de almoço → desconta pausa total cadastrada
+      // Nenhuma batida de almoço → desconta pausa cadastrada (1h30)
       worked = Math.max(0, (s - eEfet) - pausaTotal);
     }
 
