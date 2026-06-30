@@ -11754,8 +11754,8 @@ function bioRenderEdicaoHoje(){
       <div style="font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase;margin-bottom:10px">Adicionar registro</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <select id="beh-tipo" style="flex:1;min-width:100px;border:1px solid var(--border);border-radius:8px;padding:8px">
-          <option value="in">🟢 Entrada</option>
-          <option value="out">🔴 Saída</option>
+          <option value="in"${punches.length%2===0?' selected':''}>🟢 Entrada</option>
+          <option value="out"${punches.length%2===1?' selected':''}>🔴 Saída</option>
         </select>
         <input type="time" id="beh-time" value="${nowTime}"
           style="font-family:monospace;font-size:14px;border:1px solid var(--border);border-radius:8px;padding:8px;width:130px">
@@ -11779,6 +11779,25 @@ function bioRenderEdicaoHoje(){
 
   // Sempre usa openModal para garantir que .mft seja extraído corretamente para fora da área scroll
   openModal(`✏️ Editar Ponto — ${esc(empName)} — ${dtFmt}`, html, 500);
+}
+
+// ── Reatribui tipos das batidas pela ordem cronológica ──────────────
+// Garante alternância correta: 1ª batida=entrada, 2ª=saída, 3ª=entrada, etc.
+// Independe de como cada batida foi criada — a ordem dos horários manda.
+// Resolve o bug de várias batidas aparecerem como "Entrada".
+function _bioReatribuirTipos(empName, ds){
+  const doDia=BIO_DATA.punches
+    .filter(p=>p.empName===empName && p.date===ds)
+    .sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+  let mudou=[];
+  doDia.forEach((p,idx)=>{
+    const tipoCerto = idx%2===0 ? 'in' : 'out';
+    if(p.type!==tipoCerto){
+      p.type=tipoCerto;
+      mudou.push(p);
+    }
+  });
+  return mudou; // lista de punches cujo tipo foi corrigido (para persistir)
 }
 
 async function bioAdicionarHoje(){
@@ -11814,6 +11833,12 @@ async function bioAdicionarHoje(){
     await FBASE.collection('bio_punches').doc(pid).set(punch);
     BIO_DATA.punches.push(punch);
     _bioEditIds.push(pid);
+    // Reatribui os tipos de TODAS as batidas do dia pela ordem cronológica e
+    // persiste no Firebase as que mudaram — mantém a alternância entrada/saída.
+    const corrigidos=_bioReatribuirTipos(empName, ds);
+    for(const pc of corrigidos){
+      try{ await FBASE.collection('bio_punches').doc(pc.id).update({type:pc.type}); }catch(_){}
+    }
     toast('✅ Registro adicionado!');
     bioRenderEdicaoHoje(); // re-renderiza modal com novo registro
   }catch(e){toast('Erro: '+e.message,'err');}
@@ -11870,6 +11895,12 @@ async function bioSalvarEdicaoHoje(){
       // Atualiza cache local imediatamente para evitar revert no bioLoadData
       p.time = el.value;
     }
+  }
+  // Reatribui os tipos pela nova ordem cronológica (editar horário pode trocar a
+  // posição de uma batida). Persiste no Firebase as que mudaram de in↔out.
+  const _tiposCorrigidos=_bioReatribuirTipos(empName, ds);
+  for(const pc of _tiposCorrigidos){
+    batch.push(FBASE.collection('bio_punches').doc(pc.id).update({type:pc.type}));
   }
   // Status/ajuste
   const stVal=document.getElementById('beh-status')?.value||'';
