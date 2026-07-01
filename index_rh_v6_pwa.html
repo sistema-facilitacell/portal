@@ -32846,6 +32846,9 @@ td,th{font-size:15px!important;}
   <!-- Aviso sem Firebase -->
   <div id="rh-chat-status">⚠ Firebase necessário para o chat em tempo real</div>
 
+  <!-- Lista de conversas com mensagens não lidas (clique para responder) -->
+  <div id="rh-chat-inbox" style="display:none;border-bottom:1px solid #E2E8F0;max-height:150px;overflow-y:auto"></div>
+
   <!-- Seletor de colaborador -->
   <div id="rh-chat-emp-selector">
     <select id="rh-chat-emp-select" onchange="rhChatSelectEmp(this.value)" style="width:100%">
@@ -32971,10 +32974,57 @@ function rhChatStartGlobalListener() {
       RH_CHAT.unreadByEmp = novosUnread;
       RH_CHAT.unreadTotal = Object.values(novosUnread).reduce((s,v)=>s+v,0);
       rhChatUpdateBadge();
+      rhChatRenderInbox();
     }, err => {
       console.warn('[Chat RH] Listener global erro:', err.message);
     });
 }
+
+// Renderiza a lista de conversas com mensagens não lidas (clique para responder)
+function rhChatRenderInbox(){
+  const box=document.getElementById('rh-chat-inbox');
+  if(!box) return;
+  const unread=RH_CHAT.unreadByEmp||{};
+  const comMsg=Object.keys(unread).filter(id=>unread[id]>0);
+  if(comMsg.length===0){
+    box.style.display='none';
+    box.innerHTML='';
+    return;
+  }
+  // Ordena por quem tem mais mensagens não lidas
+  comMsg.sort((a,b)=>(unread[b]||0)-(unread[a]||0));
+  box.style.display='block';
+  box.innerHTML=`<div style="padding:8px 12px;font-size:10px;font-weight:800;color:#DC2626;text-transform:uppercase;letter-spacing:.06em;background:#FEF2F2">📬 ${comMsg.length} colaborador(es) aguardando resposta</div>`+
+    comMsg.map(id=>{
+      const emp=(APP.employees||[]).find(e=>e.id===id);
+      const nome=emp?emp.nome:'Colaborador';
+      const primeiro=nome.split(' ').slice(0,2).join(' ');
+      const inicial=(nome[0]||'?').toUpperCase();
+      const fp=emp&&emp.fotoPerfil?emp.fotoPerfil:'';
+      const n=unread[id];
+      const ativo=RH_CHAT.empId===id;
+      const avatar=fp
+        ? `<div style="width:34px;height:34px;border-radius:50%;background-image:url('${fp}');background-size:cover;background-position:center;flex-shrink:0;border:2px solid #DC2626"></div>`
+        : `<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#0EA5E9,#0284C7);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;border:2px solid #DC2626">${inicial}</div>`;
+      return `<div onclick="rhChatSelectFromInbox('${id}')" style="display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;border-bottom:1px solid #F1F5F9;background:${ativo?'#EFF6FF':'#fff'}" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='${ativo?'#EFF6FF':'#fff'}'">
+        ${avatar}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:#0F172A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(primeiro)}</div>
+          <div style="font-size:11px;color:#DC2626;font-weight:600">${n} nova${n>1?'s':''} mensage${n>1?'ns':'m'}</div>
+        </div>
+        <div style="min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:#DC2626;color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">${n}</div>
+      </div>`;
+    }).join('');
+}
+
+// Seleciona colaborador a partir da lista de conversas e sincroniza o dropdown
+function rhChatSelectFromInbox(empId){
+  const sel=document.getElementById('rh-chat-emp-select');
+  if(sel) sel.value=empId;
+  rhChatSelectEmp(empId);
+}
+window.rhChatRenderInbox=rhChatRenderInbox;
+window.rhChatSelectFromInbox=rhChatSelectFromInbox;
 
 // Atualiza badge de não-lidas no item do menu lateral
 function rhChatUpdateBadge() {
@@ -33079,6 +33129,7 @@ function rhChatOpen(empId) {
 
   // Popula select novamente (pode ter novos funcionários)
   rhChatPopulateSelect();
+  rhChatRenderInbox(); // mostra lista de quem enviou mensagem
 }
 
 // Fecha o painel
