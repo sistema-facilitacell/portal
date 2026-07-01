@@ -7655,9 +7655,10 @@ async function registrarPontoNoBanco(method, extra) {
     }
   }
 
-  // Próximo tipo: alterna Entrada/Saída com base na última batida de hoje
-  const lastType = TODAY_PUNCHES.length > 0 ? TODAY_PUNCHES[TODAY_PUNCHES.length - 1].type : null;
-  const type = lastType === 'in' ? 'out' : 'in';
+  // Próximo tipo: alterna pela QUANTIDADE de batidas do dia (não pelo tipo da
+  // última) — mantém entrada/saída/entrada/saída mesmo se uma batida antiga
+  // tiver ficado com o tipo errado. Par=entrada, ímpar=saída.
+  const type = (TODAY_PUNCHES.length % 2 === 0) ? 'in' : 'out';
   const tipo = type === 'in' ? 'Entrada' : 'Saída';
 
   // Sequência da marcação no dia (1ª Entrada, 1ª Saída, etc.) — útil para auditoria
