@@ -1879,7 +1879,7 @@ function calcIRRF(b){
 // O módulo usa caminho próprio de persistência (Firestore collection separada +
 // localStorage 'fcrh_comprovantes') — não entra em _VALID_KEYS/fbLoad para não
 // conflitar com a lógica da collection comprovantes_pagamento.
-let APP={employees:[],candidates:[],pontos:{},financeiro:{},atestados:[],admissoes:{},demissoes:{},salarios:{},holRascunho:{},metaDiaria:{},faltaPagar:[],advertencias:[],ferias:[],avaliacoes:[],comunicados:[],bancohoras:{},contratos:[],comprovantes:[],bhSolicitacoes:[],empresaCfg:{},lancamentos_bh:{},wf_ferias:[],wf_contratos_alertas:[],wf_holerite_auto:[],wf_onboarding:[],portalSolicitacoes:[],ocorrenciasContratados:[]};
+let APP={employees:[],candidates:[],pontos:{},financeiro:{},atestados:[],admissoes:{},demissoes:{},salarios:{},holRascunho:{},metaDiaria:{},faltaPagar:[],advertencias:[],ferias:[],avaliacoes:[],comunicados:[],bancohoras:{},contratos:[],comprovantes:[],bhSolicitacoes:[],empresaCfg:{},lancamentos_bh:{},wf_ferias:[],wf_contratos_alertas:[],wf_holerite_auto:[],wf_onboarding:[],portalSolicitacoes:[],ocorrenciasContratados:[],agendaEventos:[]};
 
 // FIX-BUG2: helper para escapar HTML em mensagens de erro (previne XSS)
 function _escHtml(s){
@@ -2113,33 +2113,32 @@ async function fbFlushQueue(){
 }
 
 async function fbLoad(k){
-  if(!FBASE)return null;
-  // FIX-TIMEOUT: usa resolve(null) no timer ao invés de reject — garante que a promise
-  // SEMPRE resolve em ≤8s mesmo quando o SDK Firebase fica em retry infinito offline
-  // (Promise.race com reject só funcionava se o .get() estava pendente; se o SDK travava
-  // a microtask queue internamente, o reject nunca propagava antes do timeout externo de 15s)
+  if(!FBASE)return {ok:false, data:null};
+  // Retorna { ok, data }:
+  //   ok=true  → leitura bem-sucedida (data pode ser o conteúdo OU null se o doc não existe)
+  //   ok=false → ERRO/timeout (NÃO confundir com nuvem vazia — nunca sobrescrever a nuvem nesse caso)
   return new Promise(function(resolve){
     let _done=false;
     const _timer=setTimeout(function(){
       if(_done)return;
       _done=true;
-      console.warn('[Firebase] ⚠ Timeout ao carregar '+k+' — pulando');
-      resolve(null);
+      console.warn('[Firebase] ⚠ Timeout ao carregar '+k+' — pulando (NÃO sobrescreve nuvem)');
+      resolve({ok:false, data:null});
     },8000);
     FBASE.collection('hr').doc(k).get().then(function(s){
       if(_done)return;
       _done=true;
       clearTimeout(_timer);
-      if(!s.exists){resolve(null);return;}
+      if(!s.exists){resolve({ok:true, data:null});return;} // sucesso: doc não existe = vazio real
       const data=s.data();
-      try{resolve(data.d?JSON.parse(data.d):null);}
-      catch(_e){console.error('[fbLoad] JSON inválido:',_e);resolve(null);}
+      try{resolve({ok:true, data:data.d?JSON.parse(data.d):null});}
+      catch(_e){console.error('[fbLoad] JSON inválido:',_e);resolve({ok:false, data:null});}
     }).catch(function(e){
       if(_done)return;
       _done=true;
       clearTimeout(_timer);
       console.error('[Firebase] ❌ Erro ao carregar '+k+':',e);
-      resolve(null);
+      resolve({ok:false, data:null});
     });
   });
 }
@@ -2155,6 +2154,7 @@ const _VALID_KEYS=new Set(['employees','candidates','pontos','financeiro','atest
   'wf_onboarding',         // workflow de onboarding
   'portalSolicitacoes',    // solicitações do portal do colaborador
   'ocorrenciasContratados',// faltas/atestados/saídas de contratados sem registro de ponto
+  'agendaEventos',         // eventos manuais da Agenda de RH
 ]);
 
 // ── save(k) — salva local + Firebase + Supabase (dados sensíveis) ──
@@ -2271,12 +2271,21 @@ async function loadCloud(){
   // Timeout global de 15s — se a nuvem não responder, segue com o que tiver
   const loadWithTimeout = (k) => Promise.race([
     fbLoad(k),
-    new Promise(resolve=>setTimeout(()=>{console.debug('[loadCloud] Timeout:',k);resolve(null);},20000))
+    new Promise(resolve=>setTimeout(()=>{console.debug('[loadCloud] Timeout:',k);resolve({ok:false,data:null});},20000))
   ]);
   const results=await Promise.all(keys.map(k=>loadWithTimeout(k)));
   let loaded=0;
-  results.forEach((d,i)=>{
+  results.forEach((res,i)=>{
     const k=keys[i];
+    const ok = res && res.ok;
+    const d = res ? res.data : null;
+    // Se a leitura FALHOU (timeout/erro), NÃO toca em nada — mantém o que já está
+    // em memória/localStorage e NUNCA sobe local por cima da nuvem. Isso evita
+    // que um notebook com internet lenta apague dados salvos por outro dispositivo.
+    if(!ok){
+      console.warn('[loadCloud] Leitura falhou para "'+k+'" — preservando dados atuais (sem sobrescrever nuvem)');
+      return;
+    }
     if(d!==null){
       // bancohoras: merge nuvem + local para não perder lançamentos salvos só no localStorage
       // (acontece quando fbSave falha por falta de auth em file:// ou conexão instável)
@@ -2380,9 +2389,12 @@ async function loadCloud(){
       lsSave(k); // sincroniza localStorage com nuvem
       loaded++;
     } else {
-      // Nuvem vazia para esta chave → sobe o localStorage para nuvem
-      // Só na 1ª carga da sessão — evita writes desnecessários em reloads de visibilitychange
-      if(isFirstLoad){
+      // Nuvem vazia (leitura OK, doc não existe) → sobe o localStorage para nuvem.
+      // Só na 1ª carga da sessão. EXCEÇÃO: chaves críticas (salarios, holRascunho)
+      // nunca sobem automaticamente — só via ação explícita do RH (botão Salvar Tudo),
+      // para eliminar qualquer risco de um dispositivo sobrescrever dados de outro.
+      const _criticas=['salarios','holRascunho'];
+      if(isFirstLoad && !_criticas.includes(k)){
         const local=lsLoad(k);
         if(local!==null&&(Array.isArray(local)?local.length>0:Object.keys(local||{}).length>0)){
           console.log('[loadCloud] Subindo local→nuvem:',k);
@@ -4928,8 +4940,10 @@ function imprimirCartaoPontoMensal(empId, mes, ano){
     const r=pm[d];
     // Bio desse dia
     const bioDia=bioDoMes.filter(p=>p.date===`${ano}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`).sort((a,b)=>a.time.localeCompare(b.time));
-    const bioEnt=bioDia.filter(p=>p.type==='in')[0]?.time||'';
-    const bioSai=bioDia.filter(p=>p.type==='out').slice(-1)[0]?.time||'';
+    // Usa a PRIMEIRA e ÚLTIMA batida cronológica do dia (não filtra por type,
+    // que pode estar errado). Consistente com _mapearBatidasPontos e o cálculo BH.
+    const bioEnt=bioDia[0]?.time||'';
+    const bioSai=bioDia.length>1?bioDia[bioDia.length-1].time:'';
     const ent=r?.entrada||bioEnt||'';
     const sai=r?.saida||bioSai||'';
     const saAlm=r?.saida_almoco||'';
@@ -8343,18 +8357,38 @@ function gSalRec(eid){
   if(!APP.salarios[k])APP.salarios[k]={salContabil:'',celulares:'0'};
   return APP.salarios[k];
 }
-function salvarTodosSalarios(){
-  // Persiste imediatamente no Firebase tudo que foi digitado na tela de Salários.
-  // Botão de segurança para o RH garantir a gravação antes de trocar de dispositivo.
+async function salvarTodosSalarios(){
+  // Persiste DIRETO no Firestore e AGUARDA confirmação real (não usa o fbSave
+  // com debounce/fila, que podia mascarar falhas). Mostra erro claro se falhar.
+  if(!FBASE){
+    toast('❌ Firebase não conectado! Abra pelo site (não file://). Dados NÃO foram salvos na nuvem.','err',8000);
+    return;
+  }
+  const btn=document.querySelector('button[onclick="salvarTodosSalarios()"]');
+  const txtOrig=btn?btn.textContent:'';
+  if(btn){ btn.textContent='⏳ Salvando...'; btn.disabled=true; }
   try{
-    if(typeof saveAgora==='function') saveAgora('salarios');
-    else save('salarios');
-    // Também grava holRascunho (HE liquidadas, assinaturas, datas de pagamento)
-    if(APP.holRascunho){ if(typeof saveAgora==='function') saveAgora('holRascunho'); else save('holRascunho'); }
-    toast('✅ Salários e metas salvos na nuvem!');
+    // Garante autenticação antes de gravar (rules exigem)
+    const _fbAuth=typeof firebase!=='undefined'&&typeof firebase.auth==='function'?firebase.auth():null;
+    if(_fbAuth&&!_fbAuth.currentUser){
+      await _fbAuth.signInAnonymously();
+    }
+    lsSave('salarios'); lsSave('holRascunho');
+    // Escrita direta com confirmação (await de verdade)
+    await FBASE.collection('hr').doc('salarios').set({d:JSON.stringify(APP.salarios),ts:Date.now(),k:'salarios'});
+    await FBASE.collection('hr').doc('holRascunho').set({d:JSON.stringify(APP.holRascunho),ts:Date.now(),k:'holRascunho'});
+    console.log('[SalvarTudo] ✅ salarios + holRascunho confirmados no Firestore');
+    if(btn){ btn.textContent='✅ Salvo na nuvem!'; }
+    toast('✅ Salários e metas confirmados na nuvem! Pode abrir em outro dispositivo.','ok',5000);
+    setTimeout(()=>{ if(btn){ btn.textContent=txtOrig; btn.disabled=false; } },2500);
   }catch(e){
-    console.error('[salvarTodosSalarios]',e);
-    toast('Erro ao salvar: '+e.message,'err');
+    console.error('[SalvarTudo] ERRO:',e);
+    if(btn){ btn.textContent=txtOrig; btn.disabled=false; }
+    let msg=e.message||String(e);
+    if(e.code==='permission-denied'||msg.includes('permission')) msg='Permissão negada nas regras do Firestore. Verifique as Firestore Rules.';
+    if(e.code==='unavailable'||msg.includes('offline')) msg='Sem conexão com a internet. Verifique sua rede.';
+    toast('❌ NÃO salvou na nuvem: '+msg,'err',9000);
+    alert('❌ Os dados NÃO foram salvos na nuvem:\n\n'+msg+'\n\nOs dados estão salvos apenas neste dispositivo (localStorage). Resolva o problema acima antes de trocar de computador.');
   }
 }
 window.salvarTodosSalarios=salvarTodosSalarios;
@@ -10708,7 +10742,13 @@ let _bioSyncPending = null;
 // preenchem almoço (e café quando houver 6).
 function _mapearBatidasPontos(reg, batidas){
   if(!reg || !Array.isArray(batidas) || batidas.length===0) return;
-  const times = batidas.map(b=>b.time).filter(Boolean);
+  // CORREÇÃO CRÍTICA: ordena por horário e remove duplicatas ANTES de mapear.
+  // As batidas vêm do Firebase por ordem de gravação, não cronológica — sem
+  // ordenar, entrada/saída ficavam trocadas. Duplicatas (mesma hora batida 2x)
+  // também eram contadas, bagunçando a sequência almoço/café.
+  const times = [...new Set(
+    batidas.map(b=>b.time).filter(Boolean)
+  )].sort((a,b)=>a.localeCompare(b));
   const n = times.length;
   reg.entrada = times[0] || '';
   if(n===1){
@@ -10732,12 +10772,13 @@ function _mapearBatidasPontos(reg, batidas){
     reg.saida_cafe = times[3];
     reg.saida = times[4];
   } else {
-    // 6+ batidas: usa as 6 primeiras posicionalmente, última 'out' = saída
+    // 6+ batidas: entrada + 4 pausas + saída. A ÚLTIMA batida é sempre a saída
+    // (não a 6ª posicional), para não perder a saída real quando há batidas extras.
     reg.saida_almoco = times[1];
     reg.volta_almoco = times[2];
     reg.saida_cafe = times[3];
     reg.volta_cafe = times[4];
-    reg.saida = times[5];
+    reg.saida = times[n-1];
   }
 }
 window._mapearBatidasPontos = _mapearBatidasPontos;
@@ -23042,8 +23083,11 @@ td,th{font-size:15px!important;}
         const today=pbioToday();
         let todayPunches=[];
         try{const ps=await db.collection('bio_punches').where('cpf','==',cpf).where('date','==',today).orderBy('time').get();todayPunches=ps.docs.map(d=>d.data());}catch(e){console.warn('[Portal Ponto] bio_punches query falhou:',e);}
-        const lastType=todayPunches.length>0?todayPunches[todayPunches.length-1].type:null;
-        PBIO.nextType=lastType==='in'?'out':'in';
+        // Determina o tipo da PRÓXIMA batida pela QUANTIDADE de batidas do dia,
+        // não pelo tipo da última — assim, mesmo que uma batida tenha tipo errado,
+        // a alternância entrada/saída/entrada/saída se mantém correta.
+        // 0 batidas → entrada; 1 → saída; 2 → entrada; 3 → saída...
+        PBIO.nextType = (todayPunches.length % 2 === 0) ? 'in' : 'out';
         const badge=document.getElementById('pbio-badge');
         if(badge){badge.textContent=PBIO.nextType==='in'?'▶ ENTRADA':'■ SAÍDA';badge.style.background=PBIO.nextType==='in'?'rgba(16,185,129,.25)':'rgba(244,63,94,.25)';badge.style.color=PBIO.nextType==='in'?'#10b981':'#f43f5e';}
         await pbioOpenCamera();
@@ -35441,7 +35485,10 @@ console.log('[v18] ✅ Módulo Assinatura Digital carregado — canvas + SHA-256
     const pontoKey = `${emp.id}_${ano}_${mes}`;
     const pm = APP.pontos[pontoKey] || {};
     const diasMes = new Date(ano, mes + 1, 0).getDate();
-    const todayStr = (new Date()).toISOString().slice(0, 10);
+    // Data de HOJE em horário LOCAL (não UTC) — toISOString() usava UTC e, após
+    // 21h no Brasil (UTC-3), pulava para o dia seguinte, processando dias futuros.
+    const _hj = new Date();
+    const todayStr = `${_hj.getFullYear()}-${_zp2(_hj.getMonth()+1)}-${_zp2(_hj.getDate())}`;
     const entH = _pt(emp.horarioEntrada) || 9 * 60;
     const saiH = _pt(emp.horarioSaida)   || 17 * 60 + 50;
     const almSai  = _pt(emp.horarioAlmoco)        || 12 * 60;
@@ -35458,7 +35505,7 @@ console.log('[v18] ✅ Módulo Assinatura Digital carregado — canvas + SHA-256
       if (ds > todayStr) break; // não processa dias futuros
 
       const dow = new Date(ano, mes, d).getDay();
-      if (dow === 0 || dow === 6) continue; // fim de semana
+      if (dow === 0) continue; // só domingo é folga; sábado é dia útil normal
 
       const reg = pm[d];
       if (!reg) continue; // dia sem registro = ausência, não gera débito no BH
@@ -41695,7 +41742,7 @@ let _agendaAno = new Date().getFullYear();
 function rAgendaRH(){
   return `
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-    <p style="font-size:13px;color:var(--mt);margin:0">Férias programadas, aniversários, vencimentos de experiência e suspensões ativas</p>
+    <p style="font-size:13px;color:var(--mt);margin:0">Clique em qualquer dia para adicionar eventos · Férias, aniversários, vencimentos e suspensões aparecem automaticamente</p>
     <div style="display:flex;align-items:center;gap:8px">
       <button class="btn btn-ghost btn-sm" onclick="_agendaMes--;if(_agendaMes<0){_agendaMes=11;_agendaAno--;}navigate('agenda_rh')">&#x2039; Anterior</button>
       <span style="font-weight:700;font-size:15px;min-width:140px;text-align:center">${MONTHS[_agendaMes]} ${_agendaAno}</span>
@@ -41708,6 +41755,95 @@ function rAgendaRH(){
     ${_rAgendaSidebar()}
   </div>`;
 }
+
+// ── EVENTOS MANUAIS DA AGENDA (editáveis pelo RH) ────────────────────
+function abrirAgendaDia(ds){
+  const dt=new Date(ds+'T00:00:00');
+  const dataFmt=dt.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  const eventos=(APP.agendaEventos||[]).filter(e=>e.data===ds).sort((a,b)=>(a.hora||'').localeCompare(b.hora||''));
+  const cores=[['#0891B2','Ciano'],['#2563EB','Azul'],['#059669','Verde'],['#D97706','Laranja'],['#DC2626','Vermelho'],['#7C3AED','Roxo'],['#DB2777','Rosa'],['#475569','Cinza']];
+  const listaHtml = eventos.length>0 ? eventos.map(ev=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#F8FAFC;border-radius:8px;margin-bottom:8px;border-left:4px solid ${ev.cor||'#0891B2'}">
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:13px">${ev.hora?`<span style="color:${ev.cor||'#0891B2'};font-family:monospace">${ev.hora}</span> · `:''}${esc(ev.titulo||'Evento')}</div>
+        ${ev.descricao?`<div style="font-size:12px;color:var(--mt);margin-top:2px">${esc(ev.descricao)}</div>`:''}
+      </div>
+      <button class="btn btn-sm" style="background:#EFF6FF;color:#2563EB;padding:4px 8px;font-size:11px" onclick="editarAgendaEvento('${ev.id}','${ds}')">✏️</button>
+      <button class="btn btn-sm" style="background:#FEF2F2;color:#DC2626;padding:4px 8px;font-size:11px" onclick="excluirAgendaEvento('${ev.id}','${ds}')">🗑</button>
+    </div>`).join('') : '<p style="font-size:13px;color:var(--mt);margin:0 0 12px">Nenhum evento manual neste dia.</p>';
+
+  openModal(`📅 ${dataFmt}`, `
+    ${listaHtml}
+    <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:10px">
+      <div style="font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase;margin-bottom:10px">Novo evento</div>
+      <input type="hidden" id="ag-ev-id" value="">
+      <input type="hidden" id="ag-ev-data" value="${ds}">
+      <div class="fld"><label>Título</label><input id="ag-ev-titulo" placeholder="Ex: Reunião de equipe, Entrega de documento..."></div>
+      <div class="g2">
+        <div class="fld"><label>Hora (opcional)</label><input type="time" id="ag-ev-hora"></div>
+        <div class="fld"><label>Cor</label>
+          <select id="ag-ev-cor">${cores.map(([c,n])=>`<option value="${c}">${n}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div class="fld"><label>Descrição (opcional)</label><textarea id="ag-ev-desc" rows="2" placeholder="Detalhes do evento..."></textarea></div>
+      <div class="mft">
+        <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+        <button class="btn btn-blue" onclick="salvarAgendaEvento()">💾 Adicionar Evento</button>
+      </div>
+    </div>`, 520);
+}
+
+function editarAgendaEvento(id, ds){
+  const ev=(APP.agendaEventos||[]).find(e=>e.id===id);
+  if(!ev) return;
+  abrirAgendaDia(ds);
+  // Preenche o formulário com o evento a editar (após o modal renderizar)
+  setTimeout(()=>{
+    const set=(elId,val)=>{const el=document.getElementById(elId);if(el)el.value=val;};
+    set('ag-ev-id',ev.id);
+    set('ag-ev-titulo',ev.titulo||'');
+    set('ag-ev-hora',ev.hora||'');
+    set('ag-ev-cor',ev.cor||'#0891B2');
+    set('ag-ev-desc',ev.descricao||'');
+    const btn=document.querySelector('.mft .btn-blue');
+    if(btn) btn.textContent='💾 Salvar Alterações';
+  },60);
+}
+
+function salvarAgendaEvento(){
+  const titulo=(document.getElementById('ag-ev-titulo')?.value||'').trim();
+  if(!titulo){ toast('Informe o título do evento.','err'); return; }
+  const id=document.getElementById('ag-ev-id')?.value||'';
+  const data=document.getElementById('ag-ev-data')?.value;
+  const hora=document.getElementById('ag-ev-hora')?.value||'';
+  const cor=document.getElementById('ag-ev-cor')?.value||'#0891B2';
+  const descricao=(document.getElementById('ag-ev-desc')?.value||'').trim();
+  if(!Array.isArray(APP.agendaEventos)) APP.agendaEventos=[];
+  if(id){
+    const ev=APP.agendaEventos.find(e=>e.id===id);
+    if(ev){ ev.titulo=titulo; ev.data=data; ev.hora=hora; ev.cor=cor; ev.descricao=descricao; ev.editadoEm=new Date().toISOString(); }
+  } else {
+    APP.agendaEventos.push({ id:uid(), titulo, data, hora, cor, descricao, criadoEm:new Date().toISOString() });
+  }
+  if(typeof saveAgora==='function') saveAgora('agendaEventos'); else save('agendaEventos');
+  try{ if(typeof auditLog==='function') auditLog(id?'Editou evento da agenda':'Criou evento na agenda', titulo+' — '+data, 'agenda'); }catch(_){}
+  closeModal();
+  toast('✅ Evento salvo!');
+  navigate('agenda_rh');
+}
+
+async function excluirAgendaEvento(id, ds){
+  if(!await confirmDialog('Excluir este evento?')) return;
+  APP.agendaEventos=(APP.agendaEventos||[]).filter(e=>e.id!==id);
+  if(typeof saveAgora==='function') saveAgora('agendaEventos'); else save('agendaEventos');
+  toast('Evento excluído.');
+  closeModal();
+  navigate('agenda_rh');
+}
+window.abrirAgendaDia=abrirAgendaDia;
+window.editarAgendaEvento=editarAgendaEvento;
+window.salvarAgendaEvento=salvarAgendaEvento;
+window.excluirAgendaEvento=excluirAgendaEvento;
 
 function _agendaGetEvents(){
   const mes = _agendaMes, ano = _agendaAno;
@@ -41766,6 +41902,15 @@ function _agendaGetEvents(){
     }
   });
 
+  // Eventos manuais criados pelo RH (reuniões, prazos, lembretes, etc.)
+  (APP.agendaEventos||[]).forEach(ev=>{
+    if(!ev.data) return;
+    const [ey,em] = ev.data.split('-').map(Number);
+    if(ey===ano && (em-1)===mes){
+      addEv(ev.data,{tipo:'manual',label:ev.titulo||'Evento',cor:ev.cor||'#0891B2',manualId:ev.id,descricao:ev.descricao||'',hora:ev.hora||''});
+    }
+  });
+
   return events;
 }
 
@@ -41790,7 +41935,7 @@ function _rAgendaCalendar(){
     const dow=(firstDay+d-1)%7;
     const isWeekend=dow===0||dow===6;
     const bord=isSel?'var(--navy)':isToday?'var(--blue)':evs.length?evs[0].cor:'var(--border)';
-    html+=`<div onclick="window._agendaSelDay='${ds}';navigate('agenda_rh')" style="min-height:64px;border-radius:7px;border:1.5px solid ${bord};padding:5px;cursor:pointer;background:${isSel?'#EFF6FF':isToday?'#F0F9FF':isWeekend?'#F8FAFC':'#fff'};" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">
+    html+=`<div onclick="window._agendaSelDay='${ds}';abrirAgendaDia('${ds}')" style="min-height:64px;border-radius:7px;border:1.5px solid ${bord};padding:5px;cursor:pointer;background:${isSel?'#EFF6FF':isToday?'#F0F9FF':isWeekend?'#F8FAFC':'#fff'};" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">
       <div style="font-weight:${isToday?'800':'600'};font-size:12px;color:${isToday?'var(--blue)':isWeekend?'var(--mt)':'var(--tx)'};margin-bottom:3px">${d}</div>
       ${evs.slice(0,3).map(ev=>`<div style="font-size:9px;font-weight:700;background:${ev.cor}20;color:${ev.cor};border-radius:3px;padding:1px 3px;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ev.label)}</div>`).join('')}
       ${evs.length>3?`<div style="font-size:9px;color:var(--mt)">+${evs.length-3}</div>`:''}
@@ -41815,6 +41960,13 @@ function _rAgendaSidebar(){
       <div class="sh" style="margin-top:0;font-size:12px">${sel===today()?'Hoje':'📅 '+new Date(sel+'T00:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'long'})}</div>
       ${hoje.length===0?`<p style="font-size:13px;color:var(--mt)">Nenhum evento.</p>`:
         hoje.map(ev=>{
+          if(ev.tipo==='manual'){
+            return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
+              <div style="width:28px;height:28px;border-radius:7px;background:${ev.cor}20;color:${ev.cor};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">📌</div>
+              <div style="flex:1"><div style="font-size:12px;font-weight:700">${ev.hora?`<span style="color:${ev.cor};font-family:monospace">${ev.hora}</span> · `:''}${esc(ev.label)}</div>
+              ${ev.descricao?`<div style="font-size:11px;color:var(--mt)">${esc(ev.descricao)}</div>`:''}</div>
+            </div>`;
+          }
           const emp=APP.employees.find(e=>e.id===ev.empId);
           return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
             ${av(emp?emp.nome:'?',ev.empId,28)}
@@ -41823,10 +41975,11 @@ function _rAgendaSidebar(){
           </div>`;
         }).join('')
       }
+      <button class="btn btn-blue btn-sm" style="width:100%;margin-top:10px" onclick="abrirAgendaDia(window._agendaSelDay||today())">+ Adicionar evento neste dia</button>
     </div>
     <div class="card" style="margin-bottom:12px">
       <div class="sh" style="margin-top:0;font-size:12px">Legenda</div>
-      ${[['🏖️','Ferias','#2563EB'],['🎂','Aniversario','#DB2777'],['📋','Venc. Experiencia','#D97706'],['🚫','Suspensao','#DC2626']].map(([ic,lb,cor])=>
+      ${[['🏖️','Ferias','#2563EB'],['🎂','Aniversario','#DB2777'],['📋','Venc. Experiencia','#D97706'],['🚫','Suspensao','#DC2626'],['📌','Evento manual','#0891B2']].map(([ic,lb,cor])=>
         `<div style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:5px"><div style="width:10px;height:10px;border-radius:3px;background:${cor};flex-shrink:0"></div>${ic} ${lb}</div>`
       ).join('')}
     </div>
