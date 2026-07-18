@@ -956,7 +956,17 @@ async function _uploadFotoCloudinaryPunch(canvas) {
     fd.append('file', blob, 'punch_' + Date.now() + '.jpg');
     fd.append('upload_preset', CLOUDINARY_PRESET);
     fd.append('folder', 'ponto_biometrico');
-    const r = await fetch(CLOUDINARY_URL, { method: 'POST', body: fd });
+    // Timeout defensivo: sem isso, uma rede ruim (comum dentro da loja) deixa a
+    // batida pendurada por minutos. A foto é evidência acessória — se demorar,
+    // desiste e segue com o registro do ponto.
+    const _ac = new AbortController();
+    const _to = setTimeout(() => _ac.abort(), 8000);
+    let r;
+    try {
+      r = await fetch(CLOUDINARY_URL, { method: 'POST', body: fd, signal: _ac.signal });
+    } finally {
+      clearTimeout(_to);
+    }
     if (!r.ok) { console.warn('[PunchFoto] Cloudinary HTTP', r.status); return null; }
     const d = await r.json();
     return d.secure_url || null;
@@ -7442,7 +7452,7 @@ function bioEnviarComprovanteWhats(dados) {
 
 
 // ── COMPROVANTE DE REGISTRO (padrão RH corporativo / Portaria MTE 671) ────────
-function bioMostrarComprovante({ tipo, rotulo, timeStr, nsr, nome, metodo, geo, geoOk }) {
+function bioMostrarComprovante({ tipo, rotulo, timeStr, nsr, nome, metodo, geo, geoOk, pendente }) {
   const ov = document.getElementById('bio-resultado-overlay');
   if (!ov) { bioMostrarResultado(true, `${tipo} registrada às ${timeStr}`); return; }
   const ehEntrada = tipo === 'Entrada';
@@ -7451,7 +7461,7 @@ function bioMostrarComprovante({ tipo, rotulo, timeStr, nsr, nome, metodo, geo, 
     : 'linear-gradient(160deg,#B91C1C,#7F1D1D)';
   const dataExt = new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'long', year:'numeric' });
   // Guarda os dados para o botão "Enviar no WhatsApp"
-  window._ultimoComprovante = { tipo, rotulo, timeStr, nsr, nome, metodo, geo, geoOk, dataExt };
+  window._ultimoComprovante = { tipo, rotulo, timeStr, nsr, nome, metodo, geo, geoOk, dataExt, pendente };
   const temTel = !!_normalizarTelBR(EMP && EMP.telefone);
   // Quebra o overlay para tela cheia (não fica preso à altura do card da câmera)
   ov.style.position = 'fixed';
@@ -7472,6 +7482,11 @@ function bioMostrarComprovante({ tipo, rotulo, timeStr, nsr, nome, metodo, geo, 
           <div style="font-size:11px;opacity:.85;margin-top:2px;text-transform:uppercase;letter-spacing:.08em">${rotulo || tipo}</div>
         </div>
         <div style="padding:16px 18px;text-align:left">
+          ${pendente ? `
+          <div style="margin-bottom:12px;padding:10px 12px;background:#FFFBEB;border:1.5px solid #FDE68A;border-radius:10px;text-align:center">
+            <div style="font-size:11px;color:#92400E;font-weight:800">📴 Registro salvo no aparelho</div>
+            <div style="font-size:10px;color:#B45309;margin-top:3px;line-height:1.45">Sem conexão no momento. O ponto será enviado ao RH automaticamente assim que a internet voltar — mantenha o app instalado e não limpe os dados do navegador.</div>
+          </div>` : ''}
           <div style="text-align:center;margin-bottom:14px">
             <div style="font-size:38px;font-weight:900;color:#0F172A;letter-spacing:-.02em;font-variant-numeric:tabular-nums">${timeStr}</div>
             <div style="font-size:11px;color:#64748B;text-transform:capitalize;margin-top:1px">${dataExt}</div>
@@ -7639,16 +7654,42 @@ async function registrarPontoNoBanco(method, extra) {
   const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const cpfClean = (EMP.cpf || '').replace(/\D/g, '');
 
+  // ── Batidas pendentes de sincronização (offline) ────────────────────────────
+  // Precisam entrar na contagem do dia, senão o tipo (entrada/saída) e a
+  // sequência saem errados quando o colaborador recarrega a página com uma
+  // batida ainda na fila do IndexedDB.
+  let _pendentesHoje = [];
+  try {
+    if (typeof _idbGetAll === 'function') {
+      const _todos = await _idbGetAll();
+      const _jaNaLista = new Set(TODAY_PUNCHES.map(p => p.id));
+      _pendentesHoje = (_todos || []).filter(p =>
+        p && p.empId === EMP.id && p.date === today && !_jaNaLista.has(p.id)
+      );
+    }
+  } catch (_) { _pendentesHoje = []; }
+
+  // Visão consolidada do dia = servidor/local + pendentes offline, ordenada
+  // cronologicamente pelo instante real de criação.
+  const _tsDe = p => {
+    const t = Date.parse(p && p.criadoEm);
+    if (!isNaN(t)) return t;
+    // Fallback para registros antigos sem criadoEm: reconstrói de date+time
+    const [hh, mm] = String((p && p.time) || '00:00').split(':').map(Number);
+    const d = new Date(now);
+    d.setHours(hh || 0, mm || 0, 0, 0);
+    return d.getTime();
+  };
+  const PUNCHES_DIA = [...TODAY_PUNCHES, ..._pendentesHoje].sort((a, b) => _tsDe(a) - _tsDe(b));
+
   // ── GUARDA ANTI-DUPLICIDADE (padrão RH corporativo) ─────────────────────────
   // Bloqueia uma nova batida se a última do dia ocorreu há menos de 60s.
-  // Evita registros acidentais duplicados (duplo clique, reconhecimento repetido).
+  // Usa o timestamp real (criadoEm), não hora:minuto reconstruído — assim não
+  // falha na virada da meia-noite nem libera duplicata por arredondamento.
   const ANTI_DUP_SEG = 60;
-  if (TODAY_PUNCHES.length > 0) {
-    const ult = TODAY_PUNCHES[TODAY_PUNCHES.length - 1];
-    const [uh, um] = (ult.time || '00:00').split(':').map(Number);
-    const ultMin = uh * 60 + um;
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    const difSeg = (nowMin - ultMin) * 60;
+  if (PUNCHES_DIA.length > 0) {
+    const ult    = PUNCHES_DIA[PUNCHES_DIA.length - 1];
+    const difSeg = Math.floor((now.getTime() - _tsDe(ult)) / 1000);
     if (difSeg >= 0 && difSeg < ANTI_DUP_SEG) {
       const falta = ANTI_DUP_SEG - difSeg;
       throw new Error(`Registro muito próximo do anterior (${ult.time}). Aguarde ${falta}s para registrar novamente.`);
@@ -7658,20 +7699,24 @@ async function registrarPontoNoBanco(method, extra) {
   // Próximo tipo: alterna pela QUANTIDADE de batidas do dia (não pelo tipo da
   // última) — mantém entrada/saída/entrada/saída mesmo se uma batida antiga
   // tiver ficado com o tipo errado. Par=entrada, ímpar=saída.
-  const type = (TODAY_PUNCHES.length % 2 === 0) ? 'in' : 'out';
+  const type = (PUNCHES_DIA.length % 2 === 0) ? 'in' : 'out';
   const tipo = type === 'in' ? 'Entrada' : 'Saída';
 
   // Sequência da marcação no dia (1ª Entrada, 1ª Saída, etc.) — útil para auditoria
-  const seqDia = TODAY_PUNCHES.length + 1;
+  const seqDia = PUNCHES_DIA.length + 1;
   // Rótulo descritivo profissional (Entrada / Saída p/ intervalo / Retorno / Saída)
   const rotulo = (() => {
     if (type === 'in')  return seqDia === 1 ? 'Entrada' : 'Retorno do intervalo';
-    return TODAY_PUNCHES.filter(p => p.type === 'out').length === 0 && seqDia < 4
+    return PUNCHES_DIA.filter(p => p.type === 'out').length === 0 && seqDia < 4
       ? 'Saída para intervalo' : 'Saída';
   })();
 
   // NSR — Número Sequencial de Registro (rastreabilidade / comprovante)
-  const nsr = `${today.replace(/-/g, '')}${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
+  // Inclui sufixo derivado do colaborador + milissegundos para não colidir
+  // entre pessoas que batem no mesmo segundo (exigência de unicidade).
+  const _nsrSufixo = (String(EMP.id).replace(/\W/g, '').slice(-3).toUpperCase() || 'XXX')
+                   + String(now.getMilliseconds()).padStart(3, '0');
+  const nsr = `${today.replace(/-/g, '')}${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}${_nsrSufixo}`;
 
   const id = `${EMP.id}_${today.replace(/-/g, '')}_${now.getTime()}`;
 
@@ -7690,6 +7735,7 @@ async function registrarPontoNoBanco(method, extra) {
   TODAY_PUNCHES.sort((a, b) => a.time.localeCompare(b.time));
   MONTH_PUNCHES.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
 
+  let pendente = false;
   try {
     if (!DB || !navigator.onLine) throw new Error('offline');
     await DB.collection('bio_punches').doc(id).set(doc);
@@ -7699,6 +7745,7 @@ async function registrarPontoNoBanco(method, extra) {
     // Sem conexão ou falha no envio — guarda offline para sincronizar depois
     try {
       await _idbSavePunch({ ...doc, _offline: true });
+      pendente = true;
       if (typeof _atualizarIndicadorOffline === 'function') _atualizarIndicadorOffline();
     } catch (e2) {
       // Nem servidor, nem offline — desfaz a atualização otimista
@@ -7708,7 +7755,7 @@ async function registrarPontoNoBanco(method, extra) {
     }
   }
 
-  return { tipo, timeStr, nsr, rotulo, seqDia };
+  return { tipo, timeStr, nsr, rotulo, seqDia, pendente };
 }
 
 
@@ -7785,21 +7832,23 @@ async function abrirBioPonto() {
     );
   }
   async function _capturarPosicaoRobusta() {
+    // Timeouts enxutos: o pior caso somado fica em ~13s em vez de ~28s, para a
+    // batida nao parecer travada. Cada nivel ja aceita leitura em cache.
     // 1) GPS de alta precisao, aceitando leitura de ate 30s atras
     try {
-      return await _geoOnce({ enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 });
+      return await _geoOnce({ enableHighAccuracy: true, timeout: 5000, maximumAge: 30000 });
     } catch (e1) {
       // Se foi permissao negada, nao adianta tentar de novo
       if (e1 && e1.code === 1) throw e1;
     }
     // 2) Baixa precisao (rede) - resolve dentro de loja/predio
     try {
-      return await _geoOnce({ enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 });
+      return await _geoOnce({ enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 });
     } catch (e2) {
       if (e2 && e2.code === 1) throw e2;
     }
     // 3) Ultima tentativa: qualquer leitura em cache (ate 5 min)
-    return await _geoOnce({ enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 });
+    return await _geoOnce({ enableHighAccuracy: false, timeout: 3000, maximumAge: 300000 });
   }
 
   // ── Verifica geo ─────────────────────────────────────────────────────────────
@@ -7864,7 +7913,21 @@ async function abrirBioPonto() {
   }
 
   // ── Aprovar ponto ─────────────────────────────────────────────────────────────
+  let _aprovarEmCurso = false;
   async function aprovar(method, extra) {
+    // Trava de reentrada: aprovar() é async e demora (GPS + upload + Firestore).
+    // Sem isso, um frame do bioLoop já agendado pode disparar uma 2ª chamada
+    // antes da 1ª concluir, gerando batida duplicada.
+    if (_aprovarEmCurso) return;
+    _aprovarEmCurso = true;
+    try {
+      await _aprovarInterno(method, extra);
+    } finally {
+      _aprovarEmCurso = false;
+    }
+  }
+
+  async function _aprovarInterno(method, extra) {
     statusEl.innerHTML = `<span style="color:#60A5FA;font-weight:700">Verificando localização</span>`;
     const geoResult = await verificarGeoZona();
     if (!geoResult.ok) {
@@ -7912,7 +7975,7 @@ async function abrirBioPonto() {
       } catch(_) {}
 
       const _fotoExtra = _punchFotoUrl ? { fotoUrl: _punchFotoUrl } : (_punchFotoB64 ? { fotoBase64: _punchFotoB64 } : {});
-      const { tipo, timeStr, nsr, rotulo } = await registrarPontoNoBanco(method, { ...extra, ...geoExtra, ..._fotoExtra });
+      const { tipo, timeStr, nsr, rotulo, pendente } = await registrarPontoNoBanco(method, { ...extra, ...geoExtra, ..._fotoExtra });
 
       if (!BIO_MODAL_ABERTO) return;
       const isIA = method.includes('groq') || method.includes('claude');
@@ -7924,7 +7987,7 @@ async function abrirBioPonto() {
         tipo, rotulo, timeStr, nsr,
         nome: EMP?.nome || '',
         metodo: 'Reconhecimento facial',
-        geo: geoTag, geoOk: !!geoResult.geoData
+        geo: geoTag, geoOk: !!geoResult.geoData, pendente
       });
     } catch(e) {
       bioMostrarResultado(false, e?.message || 'Erro ao registrar o ponto.');
@@ -7943,6 +8006,16 @@ async function abrirBioPonto() {
                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const _isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
   const _isIOSSafari = _isIOS || _isSafari;
+
+  // ── Checagem prévia: API de câmera precisa existir no contexto atual ────────
+  // Se a página não está em HTTPS (ou não é localhost/file:), navigator.mediaDevices
+  // vem undefined e o navegador NUNCA chega a perguntar a permissão — o app trava
+  // silenciosamente sem pedir autorização nenhuma. Detectamos isso antes de tentar
+  // usar a API, para dar uma mensagem clara em vez de um erro genérico.
+  if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    statusEl.textContent = '❌ Câmera indisponível neste endereço. Abra o link com https:// (não http://) para poder usar a câmera.';
+    return;
+  }
 
   let stream = null;
   try {
