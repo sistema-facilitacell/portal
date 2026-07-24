@@ -1072,6 +1072,10 @@ async function exportarExtratoBHPortalPDF() {
   if (win) { win.document.write(html); win.document.close(); }
 }
 let HOL = [], PONTOS = {}, TODAY_PUNCHES = [], MONTH_PUNCHES = [], ADVS = [], JUSTIFS = [], COMUNICADOS = [], METAS = [], COMP_LIST = [], CONTRATOS_EMP = [], ASSINATURAS_DIGITAL = [];
+// Limiar de distância euclidiana do reconhecimento facial (face-api).
+// Declarado aqui para não depender de global implícita criada em loadAll():
+// se o carregamento da config falhar, o valor seguro já está definido.
+let MATCH_THRESHOLD = 0.55;
 let ESPELHO_SIGS = {}; // { 'empId_ano_mes': { sig: dataURL, ts: string } }
 let CHAT_MSGS = [];
 let CHAT_UNSUB = null;
@@ -1790,9 +1794,14 @@ async function loadAll() {
   try {
     const cfgSnap = await DB.collection('hr').doc('config').get();
     const cfg = cfgSnap.exists ? cfgSnap.data() : {};
-    MATCH_THRESHOLD = cfg.bioThreshold ?? 0.60;
+    // 0.55: meio-termo. 0.60 (original) é o teto da face-api e admite falso
+    // positivo; 0.50 mostrou-se rigoroso demais em uso real com uma única foto
+    // de referência. Ao cadastrar 3-5 fotos por colaborador, dá para baixar
+    // para 0.50 com segurança.
+    const _t = Number(cfg.bioThreshold);
+    MATCH_THRESHOLD = (isFinite(_t) && _t >= 0.35 && _t <= 0.65) ? _t : 0.55;
   } catch (e) {
-    MATCH_THRESHOLD = 0.60; // fallback se config não existir
+    MATCH_THRESHOLD = 0.55; // fallback se config não existir
   }
   await Promise.all([loadHol(), loadPonto(), loadAdvs(), loadComunicados(), loadJustificativas(), loadComprovantes(), loadContratosEmp(), loadAssinaturasDigital(), loadEspelhoSigs(), loadSolicitacoes(), _loadAdvsPortal()]);
   // Atualiza badge e card rápido de saldo de banco de horas
@@ -7297,7 +7306,16 @@ let _liveNoseRef    = null;   // posição do nariz em repouso
 let _liveMovOk      = false;  // movimento detectado
 let _liveStartTs    = 0;
 let _liveFrames     = 0;
-const LIVE_MOV_THRESHOLD = 0.010; // desvio relativo ao tamanho do rosto (mais sensível = mais rápido)
+// Marca quando a batida foi liberada sem prova de vida verificavel (face-api
+// indisponivel). Gravado no registro para nao afirmar liveness que nao houve.
+let _livenessNaoVerificado = false;
+let _liveMovHits    = 0;   // frames consecutivos com desvio acima do limiar
+// 0.010 (1% da distancia entre os olhos) era tremor natural da mao segurando o
+// celular — qualquer imagem levemente tremida passava como "prova de vida".
+// 0.045 exige deslocamento real da cabeca. Alem disso exigimos que o desvio
+// apareca em 2 frames, para ruido isolado do detector nao aprovar sozinho.
+const LIVE_MOV_THRESHOLD = 0.045;
+const LIVE_MOV_FRAMES    = 2;
 const LIVE_TIMEOUT_MS    = 4000;  // tempo máximo aguardando movimento antes de liberar
 
 function _liveReset() {
@@ -7305,6 +7323,8 @@ function _liveReset() {
   _liveMovOk   = false;
   _liveStartTs = Date.now();
   _liveFrames  = 0;
+  _liveMovHits = 0;
+  _livenessNaoVerificado = false;
 }
 
 function _liveProcessFrame(landmarks) {
@@ -7325,10 +7345,17 @@ function _liveProcessFrame(landmarks) {
   const dy = Math.abs(nose.y - _liveNoseRef.y) / faceW;
   const mov = Math.max(dx, dy);
 
+  // Exige o desvio em frames consecutivos: um pico isolado costuma ser ruido
+  // do detector de landmarks, nao movimento real da pessoa.
   if (mov > LIVE_MOV_THRESHOLD) {
-    _liveMovOk = true;
-    BIO_BLINK_OK = true; // sync external flag
-    bioShowMove(false);
+    _liveMovHits++;
+    if (_liveMovHits >= LIVE_MOV_FRAMES) {
+      _liveMovOk = true;
+      BIO_BLINK_OK = true; // sync external flag
+      bioShowMove(false);
+    }
+  } else {
+    _liveMovHits = 0;
   }
 }
 
@@ -7616,12 +7643,12 @@ async function extrairDescriptorDeFoto(base64) {
           c.width = size; c.height = size;
           c.getContext('2d').drawImage(img, 0, 0, size, size);
           const det = await faceapi
-            .detectSingleFace(c, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.12 }))
+            .detectSingleFace(c, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.25 }))
             .withFaceLandmarks().withFaceDescriptor();
           if (det) { resolve(det.descriptor); return; }
         }
         const det = await faceapi
-          .detectSingleFace(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.12 }))
+          .detectSingleFace(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.25 }))
           .withFaceLandmarks().withFaceDescriptor();
         resolve(det ? det.descriptor : null);
       } catch(e) { reject(e); }
@@ -7854,12 +7881,18 @@ async function abrirBioPonto() {
   // ── Verifica geo ─────────────────────────────────────────────────────────────
   async function verificarGeoZona() {
     let cfg = {};
+    let _cfgLida = false;
     try {
       let s = EMP?.id ? await DB.collection('bio_config').doc(EMP.id).get() : null;
       if (!s || !s.exists) s = await DB.collection('bio_config').doc('main').get();
       if (s && s.exists) cfg = s.data();
+      _cfgLida = true;
     } catch(e) {
-      return { ok: false, geoData: null, errMsg: '⛔ Erro ao verificar localização. Tente novamente.' };
+      // Falha de REDE ao ler a config (nao e violacao de zona). Bloquear aqui
+      // impedia o ponto mesmo em empresa que nem usa geolocalizacao. Segue sem
+      // validacao geografica e marca que ela nao pode ser conferida.
+      console.warn('[Geo] Falha ao ler bio_config:', e && e.message);
+      return { ok: true, geoData: null, geoIndisponivel: true };
     }
     let locs = cfg.locations || [];
     if (locs.length === 0) return { ok: true, geoData: null };
@@ -7944,7 +7977,7 @@ async function abrirBioPonto() {
     try {
       const geoExtra = geoResult.geoData
         ? { lat: geoResult.geoData.lat, lng: geoResult.geoData.lng, dist: geoResult.geoData.dist, locName: geoResult.geoData.locName, geoVerificado: true }
-        : { geoVerificado: false };
+        : { geoVerificado: false, ...(geoResult.geoIndisponivel ? { geoMotivo: 'config_indisponivel' } : {}) };
 
       // Captura foto evidência
       let _punchFotoUrl = null, _punchFotoB64 = null;
@@ -7956,7 +7989,11 @@ async function abrirBioPonto() {
         if (typeof _bioLastCanvas !== 'undefined' && _bioLastCanvas?.width > 0) {
           _ctx.drawImage(_bioLastCanvas, 0, 0, 320, 240);
         } else if (_vEl && _vEl.readyState >= 2) {
-          _ctx.drawImage(_vEl, 0, 0, Math.min(_vEl.videoWidth || 320, 320), Math.min(_vEl.videoHeight || 240, 240));
+          // Redimensiona o frame inteiro para 320x240. Antes usava
+          // Math.min(videoWidth,320) como LARGURA DE DESTINO, o que recortava
+          // o canto do vídeo em vez de encaixar a imagem toda — a foto de
+          // evidência saía cortada, muitas vezes sem o rosto.
+          _ctx.drawImage(_vEl, 0, 0, 320, 240);
         }
         const _ts = new Date().toLocaleString('pt-BR');
         _ctx.fillStyle = 'rgba(0,0,0,.60)'; _ctx.fillRect(0, 208, 320, 32);
@@ -8125,6 +8162,43 @@ async function abrirBioPonto() {
     let ultimoFrame   = 0;
     let processando   = false;
 
+    // ── Prova de vida configuravel pelo RH ────────────────────────────────────
+    // Lida de bio_config/{empId} com fallback para bio_config/main, mesmo
+    // padrao ja usado pela geolocalizacao. Campo: exigirLiveness (boolean).
+    //   true  (padrao) -> exige movimento real de cabeca
+    //   false          -> dispensa a prova de vida para ESTE colaborador
+    // Use false apenas em excecao (colaborador com dificuldade de leitura),
+    // pois sem prova de vida uma foto do colaborador consegue bater o ponto.
+    let EXIGIR_LIVENESS = true;
+    try {
+      // Timeout curto: essa leitura nao pode atrasar a abertura da camera.
+      // Se demorar, segue com o padrao seguro.
+      const _lerCfgBio = (async () => {
+        let _sc = EMP?.id ? await DB.collection('bio_config').doc(EMP.id).get() : null;
+        let _cfgBio = (_sc && _sc.exists) ? _sc.data() : null;
+        if (!_cfgBio || _cfgBio.exigirLiveness === undefined) {
+          const _sm = await DB.collection('bio_config').doc('main').get();
+          if (_sm.exists && _sm.data().exigirLiveness !== undefined) {
+            _cfgBio = { ...(_cfgBio || {}), exigirLiveness: _sm.data().exigirLiveness };
+          }
+        }
+        return _cfgBio;
+      })();
+      const _cfgBio = await Promise.race([
+        _lerCfgBio,
+        new Promise(res => setTimeout(() => res(null), 2500))
+      ]);
+      if (_cfgBio && _cfgBio.exigirLiveness === false) EXIGIR_LIVENESS = false;
+    } catch(_) { /* falha de rede -> mantem o padrao seguro (exige) */ }
+    if (!EXIGIR_LIVENESS) console.warn('[Bio] Prova de vida DESATIVADA para este colaborador (config do RH)');
+
+    // Prova de vida satisfeita? Se o RH dispensou para este colaborador,
+    // retorna sempre true. Caso contrario exige movimento real detectado.
+    function _liveOK() {
+      if (!EXIGIR_LIVENESS) { _livenessNaoVerificado = true; return true; }
+      return _liveMovOk;
+    }
+
     // Estado Groq
     let groqRodando      = false;
     let groqResultado    = null;  // 'APROVADO' | 'NEGADO' | 'ERRO' | null
@@ -8142,23 +8216,64 @@ async function abrirBioPonto() {
     let melhorDistancia  = 999;
     let acertos          = 0;
     let totalFramesOk    = 0;
-    const MATCH_THRESHOLD = _fileMode ? 0.68 : 0.60;   // mais generoso em file://
-    const ACERTOS_NECES   = _fileMode ? 1    : 2;       // 1 frame suficiente em file://
-    const ZONA_SEGURA     = _fileMode ? 0.55 : 0.45;    // zona de aprovação direta
+    // Threshold efetivo: usa o valor configurado pelo RH no Firestore
+    // (hr/config -> bioThreshold), carregado em loadAll(). ANTES esta linha
+    // declarava um `const MATCH_THRESHOLD` local que SOMBREAVA a variável
+    // global — o ajuste do RH era silenciosamente ignorado. Agora lemos a
+    // global e só aplicamos folga extra no modo file:// (teste local).
+    const _thrBase = (typeof MATCH_THRESHOLD === 'number' && MATCH_THRESHOLD > 0)
+      ? MATCH_THRESHOLD
+      : 0.55;                                  // alinhado ao padrão global
+    const _THR      = _fileMode ? Math.min(0.68, _thrBase + 0.08) : _thrBase;
+    // Mesmo em file:// exigimos 2 acertos: 1 único frame permitia aprovação
+    // quase indiscriminada se alguém abrisse o HTML localmente.
+    const ACERTOS_NECES   = 2;
+    const ZONA_SEGURA     = _fileMode ? Math.min(0.55, _THR - 0.10) : Math.max(0.32, _THR - 0.12);
+
+    // Motivo da indisponibilidade da referência facial — usado para avisar o
+    // colaborador em vez de deixá-lo preso numa tela que nunca reconhece.
+    let _refFalha = null;
 
     // Prepara descriptor face-api em background
     async function _prepararDescriptor() {
       if (!_rawDesc || _rawDesc.length < 128) {
         // Sem descriptor salvo → aguarda face-api e extrai da foto
         try { if (_faceapiPromise) await _faceapiPromise; } catch(e) {}
-        if (!FACEAPI_READY || !empData.fotoPerfil) return;
-        try { storedDesc = await extrairDescriptorDeFoto(empData.fotoPerfil); } catch(e) {}
+        if (!FACEAPI_READY) {
+          _refFalha = 'Não foi possível carregar o motor de reconhecimento. Verifique a conexão e tente novamente.';
+          return;
+        }
+        if (!empData.fotoPerfil) {
+          _refFalha = 'Você ainda não tem foto de referência cadastrada. Procure o RH para fazer o cadastro facial.';
+          return;
+        }
+        try {
+          storedDesc = await extrairDescriptorDeFoto(empData.fotoPerfil);
+          if (!storedDesc) {
+            _refFalha = 'Não foi possível ler o rosto na sua foto de cadastro. Procure o RH para atualizar a foto.';
+          }
+        } catch(e) {
+          _refFalha = 'Falha ao processar sua foto de cadastro. Procure o RH para atualizar a foto.';
+        }
       } else {
         storedDesc = new Float32Array(_rawDesc);
       }
-      if (storedDesc) storedDescReady = true;
+      if (storedDesc) { storedDescReady = true; _refFalha = null; }
     }
-    _prepararDescriptor().catch(() => {});
+    _prepararDescriptor()
+      .then(() => {
+        // Se não há referência facial E o Groq não está disponível, não existe
+        // caminho possível de reconhecimento — avisa na hora em vez de deixar
+        // o colaborador olhando para a câmera até o timeout.
+        if (!storedDescReady && _refFalha && !GROQ_API_KEY && BIO_MODAL_ABERTO && !BIO_REGISTRANDO) {
+          BIO_REGISTRANDO = true;
+          cancelAnimationFrame(BIO_AUTO_LOOP);
+          bioShowMove(false);
+          bioMostrarResultado(false, _refFalha);
+          setTimeout(() => bioFecharModal(), 4200);
+        }
+      })
+      .catch(() => {});
 
     // Se não tem descriptor pré-calculado, inicia face-api com prioridade
     if (!_rawDesc || _rawDesc.length < 128) {
@@ -8178,10 +8293,15 @@ async function abrirBioPonto() {
       if (!fotoUrl) return;
       groqRodando = true;
       groqTentativas++;
-      // Copia canvas atual para análise
+      // Copia canvas atual para análise.
+      // BUG CORRIGIDO: camCanvas é 480x360 e era copiado para um canvas 320x240
+      // com drawImage(src, 0, 0) — sem os argumentos de escala, isso RECORTA o
+      // canto superior esquerdo em vez de redimensionar, cortando o rosto fora
+      // do enquadramento. O Groq recebia uma imagem sem rosto e negava o ponto.
+      // Agora mantemos a resolução original (melhor leitura pela IA).
       const snp = document.createElement('canvas');
-      snp.width = 320; snp.height = 240;
-      snp.getContext('2d').drawImage(camCanvas, 0, 0);
+      snp.width = camCanvas.width; snp.height = camCanvas.height;
+      snp.getContext('2d').drawImage(camCanvas, 0, 0, snp.width, snp.height);
       groqFrameUsado = snp;
       bioSetMethod('Análise inteligente em andamento');
       try {
@@ -8228,7 +8348,12 @@ async function abrirBioPonto() {
         //  - nunca detectou rosto  -> problema de iluminacao/camera (acionavel)
         //  - detectou mas nao bateu -> identidade nao confirmada
         let _falhaMsg;
-        if (totalFramesOk === 0) {
+        if (_refFalha && !storedDescReady) {
+          // Causa raiz conhecida: não há referência facial utilizável. Sem isso
+          // o sistema NUNCA reconhece, então mostrar "tente de novo" só faria o
+          // colaborador repetir sem solução.
+          _falhaMsg = _refFalha;
+        } else if (totalFramesOk === 0) {
           _falhaMsg = (!FACEAPI_READY && !_groqDisponivel)
             ? 'Verificacao indisponivel no momento. Tente novamente em alguns segundos.'
             : 'Nao foi possivel ler o rosto. Procure um local mais iluminado, evite luz forte atras de voce e mantenha o rosto dentro do circulo.';
@@ -8283,7 +8408,7 @@ async function abrirBioPonto() {
         if (!livOk && FACEAPI_READY) {
           try {
             const det = await faceapi
-              .detectSingleFace(camCanvas, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.08 }))
+              .detectSingleFace(camCanvas, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.25 }))
               .withFaceLandmarks();
             if (det?.landmarks) _liveProcessFrame(det.landmarks);
             livOk = _liveMovOk;
@@ -8307,8 +8432,17 @@ async function abrirBioPonto() {
           bioSetRing(0.85, '#10B981');
 
           if (elapsed2 > _liveWindow) {
+            if (FACEAPI_READY && EXIGIR_LIVENESS) {
+              // Face-api disponivel e prova de vida exigida: insiste no
+              // movimento em vez de liberar por tempo (senao uma foto passa).
+              statusEl.innerHTML = `<span style="color:#FCD34D;font-weight:700">Prova de vida pendente</span><br><span style="font-size:11px;color:#64748B">Mova levemente a cabeça para concluir</span>`;
+              bioShowMove(true);
+              processando = false; return;
+            }
+            // Prova de vida dispensada pelo RH, ou sem face-api para medir.
+            // Libera, mas registra honestamente que nao foi verificada.
             livOk = true;
-            BIO_BLINK_OK = true;
+            _livenessNaoVerificado = true;
           }
         }
 
@@ -8318,7 +8452,11 @@ async function abrirBioPonto() {
           bioSetRing(1, '#10B981');
           bioShowMove(false);
           if (icon) icon.style.display = 'flex';
-          await aprovar('groq_vision_direto', { liveness: 'head_move+groq', groqTentativas });
+          await aprovar('groq_vision_direto', {
+            liveness: _livenessNaoVerificado ? 'nao_verificado_faceapi_indisponivel' : 'head_move+groq',
+            livenessVerificado: !_livenessNaoVerificado,
+            groqTentativas
+          });
           processando = false; return;
         }
 
@@ -8331,12 +8469,15 @@ async function abrirBioPonto() {
         if (storedDescReady && FACEAPI_READY) {
           try {
             const det = await faceapi
-              .detectSingleFace(camCanvas, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.08 }))
+              .detectSingleFace(camCanvas, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.25 }))
               .withFaceLandmarks().withFaceDescriptor();
             if (det) {
               const d = faceapi.euclideanDistance(det.descriptor, storedDesc);
-              if (d <= ZONA_SEGURA) {
-                // face-api muito confiante — aprova mesmo com Groq negando
+              // Override do Groq: usa o threshold normal, não só a ZONA_SEGURA.
+              // O Groq erra com frequência em foto de perfil desatualizada,
+              // óculos ou iluminação ruim — o face-api compara descritores
+              // biométricos e é mais confiável nesse desempate.
+              if (d <= _THR) {
                 groqResultado = null; // reseta para não ficar em loop
                 console.log('[Bio v3] face-api override Groq NEGADO, dist:', d.toFixed(4));
                 processando = false; return;
@@ -8348,8 +8489,12 @@ async function abrirBioPonto() {
         cancelAnimationFrame(BIO_AUTO_LOOP);
         bioSetRing(1, '#EF4444');
         bioShowMove(false);
-        bioMostrarResultado(false, 'Identidade não confirmada');
-        setTimeout(() => bioFecharModal(), 2500);
+        console.warn('[Bio v3] NEGADO. melhorDistancia:', melhorDistancia.toFixed(4),
+                     '| threshold:', _THR, '| framesOk:', totalFramesOk,
+                     '| groqTentativas:', groqTentativas);
+        bioMostrarResultado(false,
+          'Identidade nao confirmada. Se o problema persistir, procure o RH para atualizar sua foto de cadastro.');
+        setTimeout(() => bioFecharModal(), 3200);
         processando = false; return;
       }
 
@@ -8357,7 +8502,7 @@ async function abrirBioPonto() {
       if (storedDescReady && FACEAPI_READY) {
         try {
           const det = await faceapi
-            .detectSingleFace(camCanvas, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.08 }))
+            .detectSingleFace(camCanvas, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.25 }))
             .withFaceLandmarks().withFaceDescriptor();
 
           if (!BIO_MODAL_ABERTO) { processando = false; return; }
@@ -8378,11 +8523,11 @@ async function abrirBioPonto() {
             if (distance < melhorDistancia) melhorDistancia = distance;
             totalFramesOk++;
 
-            const pct = Math.round(Math.max(0, Math.min(1, 1 - distance / MATCH_THRESHOLD)) * 100);
+            const pct = Math.round(Math.max(0, Math.min(1, 1 - distance / _THR)) * 100);
             const cor  = distance <= 0.45 ? '#10B981' : distance <= 0.60 ? '#F59E0B' : '#EF4444';
             bioSetRing(0.3 + (1 - Math.min(distance, 1)) * 0.6, cor);
 
-            if (!_liveMovOk) {
+            if (!_liveOK()) {
               bioShowMove(true);
               bioMoveBar(Math.min(1, (Date.now() - _liveStartTs) / LIVE_TIMEOUT_MS));
             } else {
@@ -8390,7 +8535,7 @@ async function abrirBioPonto() {
             }
 
             // Zona segura face-api (muito confiante)
-            if (distance <= ZONA_SEGURA && _liveMovOk) {
+            if (distance <= ZONA_SEGURA && _liveOK()) {
               acertos++;
               // Via expressa: match excelente (bem abaixo da zona segura) aprova
               // em 1 frame so. Acelera o caso comum sem afrouxar seguranca, pois
@@ -8405,13 +8550,13 @@ async function abrirBioPonto() {
                 cancelAnimationFrame(BIO_AUTO_LOOP);
                 bioSetRing(1, '#10B981'); bioShowMove(false);
                 if (icon) icon.style.display = 'flex';
-                await aprovar('faceapi_zona_segura', { faceDistance: distance.toFixed(4), liveness: 'head_move+faceapi' });
+                await aprovar('faceapi_zona_segura', { faceDistance: distance.toFixed(4), liveness: _livenessNaoVerificado ? 'dispensado_pelo_rh' : 'head_move+faceapi', livenessVerificado: !_livenessNaoVerificado });
                 processando = false; return;
               }
-            } else if (distance <= ZONA_SEGURA && !_liveMovOk) {
+            } else if (distance <= ZONA_SEGURA && !_liveOK()) {
               statusEl.innerHTML = `<span style="color:#34D399;font-weight:700">Identidade confirmada</span><br><span style="font-size:11px;color:#64748B">Conclua a prova de vida</span>`;
               acertos = Math.max(0, acertos);
-            } else if (distance <= MATCH_THRESHOLD) {
+            } else if (distance <= _THR) {
               acertos = 0;
               statusEl.innerHTML = `<span style="font-weight:700;color:#93C5FD">Verificando identidade</span><br><span style="font-size:11px;color:#64748B">Mantenha o rosto centralizado${timer}</span>`;
               // Re-dispara Groq se disponível e em cooldown expirado
@@ -8427,12 +8572,12 @@ async function abrirBioPonto() {
             }
 
             // Fallback face-api: melhor leitura suficiente após muitos frames
-            if (melhorDistancia <= MATCH_THRESHOLD && totalFramesOk >= (_fileMode ? 3 : 6) && _liveMovOk) {
+            if (melhorDistancia <= _THR && totalFramesOk >= (_fileMode ? 3 : 6) && _liveOK()) {
               BIO_REGISTRANDO = true;
               cancelAnimationFrame(BIO_AUTO_LOOP);
               bioSetRing(1, '#10B981'); bioShowMove(false);
               if (icon) icon.style.display = 'flex';
-              await aprovar('faceapi_fallback', { faceDistance: melhorDistancia.toFixed(4), liveness: 'head_move+faceapi_fallback' });
+              await aprovar('faceapi_fallback', { faceDistance: melhorDistancia.toFixed(4), liveness: _livenessNaoVerificado ? 'dispensado_pelo_rh' : 'head_move+faceapi_fallback', livenessVerificado: !_livenessNaoVerificado });
               processando = false; return;
             }
           } else {
