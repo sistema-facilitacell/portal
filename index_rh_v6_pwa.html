@@ -11267,7 +11267,7 @@ async function geoLoadConfig(empId){
     if(!snap.exists && docId!=='main'){
       snap=await FBASE.collection('bio_config').doc('main').get();
     }
-    GEO_CFG={locations:[],requireGeo:false,geoPorLoja:false,...(snap.exists?snap.data():{})};
+    GEO_CFG={locations:[],requireGeo:false,geoPorLoja:false,exigirLiveness:true,...(snap.exists?snap.data():{})};
     GEO_EMP_ID=empId||null;
     GEO_LOADED=true;
   }catch(e){console.warn('geo load error',e);}
@@ -11277,7 +11277,7 @@ async function geoSaveConfig(){
   if(!FBASE){toast('Firebase não conectado','err');return;}
   const docId=_geoDocId(GEO_EMP_ID);
   try{
-    await FBASE.collection('bio_config').doc(docId).set(GEO_CFG);
+    await FBASE.collection('bio_config').doc(docId).set(GEO_CFG,{merge:true});
     const empNome=GEO_EMP_ID?(APP.employees.find(e=>e.id===GEO_EMP_ID)?.nome||'Funcionário'):'Geral';
     toast('✅ Geo salva para: '+empNome,'ok');
     navigate('biometrico');
@@ -11357,6 +11357,23 @@ function rBioGeo(){
         <div style="font-size:11px;color:#94A3B8;margin-top:6px">Requer GPS cadastrado em cada loja (Funcionários → 🏪 Lojas).</div>
       </div>
       <button class="btn" style="background:${GEO_CFG.geoPorLoja?'#FEF2F2':'#F0FDF4'};color:${GEO_CFG.geoPorLoja?'#DC2626':'#059669'};border:1px solid ${GEO_CFG.geoPorLoja?'#FECACA':'#BBF7D0'};font-weight:700;white-space:nowrap" onclick="toggleGeoPorLoja(${GEO_CFG.geoPorLoja?'false':'true'})">${GEO_CFG.geoPorLoja?'Desativar':'Ativar geo por loja'}</button>
+    </div>
+  </div>
+
+  <!-- PROVA DE VIDA -->
+  <div class="card" style="margin-bottom:14px;border-left:4px solid ${GEO_CFG.exigirLiveness===false?'#DC2626':'#059669'}">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div style="flex:1;min-width:240px">
+        <div style="font-size:14px;font-weight:800;color:${GEO_CFG.exigirLiveness===false?'#B91C1C':'#047857'};margin-bottom:4px">
+          &#128100; Prova de Vida
+          ${GEO_CFG.exigirLiveness===false
+            ?'<span style="background:#FEE2E2;color:#B91C1C;border-radius:10px;padding:2px 8px;font-size:11px;margin-left:6px">DESATIVADA</span>'
+            :'<span style="background:#DCFCE7;color:#16A34A;border-radius:10px;padding:2px 8px;font-size:11px;margin-left:6px">ATIVA</span>'}
+        </div>
+        <div style="font-size:12px;color:var(--mt)">Exige que <strong>${esc(empNome.split(' ')[0])}</strong> mova levemente a cabe&ccedil;a ao bater o ponto, provando que &eacute; uma pessoa presente e n&atilde;o uma foto.</div>
+        ${GEO_CFG.exigirLiveness===false?`<div style="font-size:11px;color:#B91C1C;font-weight:700;margin-top:6px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:8px 10px;line-height:1.5">&#9888; Aten&ccedil;&atilde;o: com a prova de vida desativada, uma <strong>foto</strong> de ${esc(empNome.split(' ')[0])} consegue registrar o ponto por ele. Os registros ficam marcados como <code>livenessVerificado: false</code> para auditoria. Use apenas enquanto houver dificuldade comprovada de leitura.</div>`:`<div style="font-size:11px;color:#94A3B8;margin-top:6px">Desative somente em caso de dificuldade persistente de reconhecimento.</div>`}
+      </div>
+      <button class="btn" style="background:${GEO_CFG.exigirLiveness===false?'#F0FDF4':'#FEF2F2'};color:${GEO_CFG.exigirLiveness===false?'#059669':'#DC2626'};border:1px solid ${GEO_CFG.exigirLiveness===false?'#BBF7D0':'#FECACA'};font-weight:700;white-space:nowrap" onclick="toggleProvaDeVida(${GEO_CFG.exigirLiveness===false?'true':'false'})">${GEO_CFG.exigirLiveness===false?'Reativar prova de vida':'Desativar prova de vida'}</button>
     </div>
   </div>
 
@@ -24388,6 +24405,36 @@ async function toggleGeoPorLoja(ativar){
   }catch(e){ toast('Erro ao alterar modo: '+e.message,'err'); }
 }
 window.toggleGeoPorLoja=toggleGeoPorLoja;
+
+// ── PROVA DE VIDA POR COLABORADOR ──────────────────────────────────────────
+// Grava bio_config/{empId}.exigirLiveness. O portal do colaborador le esse
+// campo (com fallback para bio_config/main) e, quando false, dispensa a
+// exigencia de movimento de cabeca para AQUELE colaborador.
+// ATENCAO: sem prova de vida, uma foto do colaborador consegue bater o ponto.
+// Por isso a acao pede confirmacao e fica registrada na auditoria.
+async function toggleProvaDeVida(ativar){
+  if(typeof FBASE==='undefined'||!FBASE){ toast('Firebase não conectado.','err'); return; }
+  if(!GEO_EMP_ID){ toast('Selecione um colaborador primeiro.','err'); return; }
+  const emp = (APP.employees||[]).find(e=>e.id===GEO_EMP_ID);
+  const nome = emp?.nome || 'este colaborador';
+  if(!ativar){
+    const ok = confirm('Desativar a prova de vida de '+nome+'?\n\nSem ela, uma FOTO de '+nome+' consegue registrar o ponto por ele.\n\nOs registros ficarão marcados como não verificados para auditoria.\n\nConfirmar?');
+    if(!ok) return;
+  }
+  try{
+    const ref = FBASE.collection('bio_config').doc(GEO_EMP_ID);
+    await ref.set({
+      exigirLiveness: !!ativar,
+      livenessAlteradoEm: new Date().toISOString(),
+      livenessAlteradoPor: (APP && APP.user && APP.user.nome) ? APP.user.nome : 'RH'
+    }, { merge:true });
+    GEO_CFG.exigirLiveness = !!ativar;
+    toast(ativar?('✅ Prova de vida REATIVADA para '+nome):('⚠️ Prova de vida DESATIVADA para '+nome+'. Registros ficarão marcados para auditoria.'),'ok',4500);
+    try{ if(typeof auditLog==='function') auditLog((ativar?'Reativou':'Desativou')+' prova de vida de '+nome,'','biometrico'); }catch(_){}
+    if(typeof navigate==='function') navigate('biometrico');
+  }catch(e){ toast('Erro ao alterar prova de vida: '+e.message,'err'); }
+}
+window.toggleProvaDeVida=toggleProvaDeVida;
 
 function abrirConfigFiliais(){
   openModal('🏪 Cadastro de Lojas / Filiais',
