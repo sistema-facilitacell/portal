@@ -11235,14 +11235,14 @@ function rBiometrico() {
     <div style="font-size:36px;margin-bottom:12px">🔌</div>
     <div style="font-size:16px;font-weight:700;margin-bottom:8px">Firebase não conectado</div>
     <p style="color:var(--mt)">Configure a conexão com Firebase na barra lateral.</p></div>`;
-  const tabs=[['hoje','🏠 Hoje'],['funcionarios','👥 Colaboradores'],['mensal','📅 Mensal'],['fechamento','📊 Fechamento'],['justificativas',`📎 Justificativas${(BIO_DATA.justificativas||[]).filter(j=>!j.status||j.status==='pendente').length>0?' <span style="background:#DC2626;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800">'+((BIO_DATA.justificativas||[]).filter(j=>!j.status||j.status==='pendente').length)+'</span>':''}`],['comunicados','📢 Comunicados'],['geo','📍 Geolocalização'],['solicitacoes',(()=>{const n=window._SOLIC_PENDING_COUNT||0;return '📋 Solicitações'+(n>0?' <span style="background:#E85D04;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800">'+n+'</span>':'');})()]];
+  const tabs=[['hoje','🏠 Hoje'],['funcionarios','👥 Colaboradores'],['mensal','📅 Mensal'],['fechamento','📊 Fechamento'],['justificativas',`📎 Justificativas${(BIO_DATA.justificativas||[]).filter(j=>!j.status||j.status==='pendente').length>0?' <span style="background:#DC2626;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800">'+((BIO_DATA.justificativas||[]).filter(j=>!j.status||j.status==='pendente').length)+'</span>':''}`],['comunicados','📢 Comunicados'],['geo','📍 Geolocalização'],['solicitacoes',(()=>{const n=window._SOLIC_PENDING_COUNT||0;return '📋 Solicitações'+(n>0?' <span style="background:#E85D04;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800">'+n+'</span>':'');})()],['revisao',(()=>{const n=(window._REVISAO_CACHE&&window._REVISAO_CACHE.pend)?window._REVISAO_CACHE.pend.filter(p=>p&&!p.revisadoRH).length:(BIO_DATA.punches||[]).filter(p=>p&&p.precisaRevisao===true&&!p.revisadoRH).length;return '📸 Revisão'+(n>0?' <span style="background:#DC2626;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800">'+n+'</span>':'');})()]];
   return`<div>
     <div style="display:flex;gap:6px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:14px;flex-wrap:wrap">
       ${tabs.map(([id,lbl])=>`<button onclick="BIO_TAB='${id}';navigate('biometrico')" class="btn btn-sm" style="${BIO_TAB===id?'background:var(--navy);color:#fff':'background:#F1F5F9;color:var(--mt)'}">${lbl}</button>`).join('')}
       <button onclick="sincronizarTudo({mes:BIO_MES,ano:BIO_ANO,origem:'biometrico'})" class="btn btn-sm" style="background:#7C3AED;color:#fff;font-weight:700" title="Sincroniza Biométrico → Cartão Ponto → Banco de Horas">⚡ Sincronizar Tudo</button>
       <button onclick="bioLoadData().then(()=>navigate('biometrico'))" class="btn btn-sm" style="background:#EFF6FF;color:var(--blue);margin-left:auto">🔄 Atualizar</button>
     </div>
-    ${BIO_TAB==='solicitacoes'?rBioSolicitacoes():BIO_TAB==='hoje'?rBioHoje():BIO_TAB==='funcionarios'?rBioFuncionarios():BIO_TAB==='mensal'?rBioMensal():BIO_TAB==='geo'?rBioGeo():BIO_TAB==='justificativas'?rBioJustificativas():BIO_TAB==='comunicados'?rBioComunicados():rBioFechamento()}
+    ${BIO_TAB==='revisao'?rBioRevisao():BIO_TAB==='solicitacoes'?rBioSolicitacoes():BIO_TAB==='hoje'?rBioHoje():BIO_TAB==='funcionarios'?rBioFuncionarios():BIO_TAB==='mensal'?rBioMensal():BIO_TAB==='geo'?rBioGeo():BIO_TAB==='justificativas'?rBioJustificativas():BIO_TAB==='comunicados'?rBioComunicados():rBioFechamento()}
   </div>`;
 }
 
@@ -11267,7 +11267,7 @@ async function geoLoadConfig(empId){
     if(!snap.exists && docId!=='main'){
       snap=await FBASE.collection('bio_config').doc('main').get();
     }
-    GEO_CFG={locations:[],requireGeo:false,geoPorLoja:false,exigirLiveness:true,...(snap.exists?snap.data():{})};
+    GEO_CFG={locations:[],requireGeo:false,geoPorLoja:false,exigirLiveness:true,modoFotoManual:false,...(snap.exists?snap.data():{})};
     GEO_EMP_ID=empId||null;
     GEO_LOADED=true;
   }catch(e){console.warn('geo load error',e);}
@@ -11374,6 +11374,23 @@ function rBioGeo(){
         ${GEO_CFG.exigirLiveness===false?`<div style="font-size:11px;color:#B91C1C;font-weight:700;margin-top:6px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:8px 10px;line-height:1.5">&#9888; Aten&ccedil;&atilde;o: com a prova de vida desativada, uma <strong>foto</strong> de ${esc(empNome.split(' ')[0])} consegue registrar o ponto por ele. Os registros ficam marcados como <code>livenessVerificado: false</code> para auditoria. Use apenas enquanto houver dificuldade comprovada de leitura.</div>`:`<div style="font-size:11px;color:#94A3B8;margin-top:6px">Desative somente em caso de dificuldade persistente de reconhecimento.</div>`}
       </div>
       <button class="btn" style="background:${GEO_CFG.exigirLiveness===false?'#F0FDF4':'#FEF2F2'};color:${GEO_CFG.exigirLiveness===false?'#059669':'#DC2626'};border:1px solid ${GEO_CFG.exigirLiveness===false?'#BBF7D0':'#FECACA'};font-weight:700;white-space:nowrap" onclick="toggleProvaDeVida(${GEO_CFG.exigirLiveness===false?'true':'false'})">${GEO_CFG.exigirLiveness===false?'Reativar prova de vida':'Desativar prova de vida'}</button>
+    </div>
+  </div>
+
+  <!-- MODO FOTO MANUAL -->
+  <div class="card" style="margin-bottom:14px;border-left:4px solid ${GEO_CFG.modoFotoManual===true?'#2563EB':'#94A3B8'}">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div style="flex:1;min-width:240px">
+        <div style="font-size:14px;font-weight:800;color:${GEO_CFG.modoFotoManual===true?'#1D4ED8':'#475569'};margin-bottom:4px">
+          &#128247; Registro por Foto (conting&ecirc;ncia)
+          ${GEO_CFG.modoFotoManual===true
+            ?'<span style="background:#DBEAFE;color:#1D4ED8;border-radius:10px;padding:2px 8px;font-size:11px;margin-left:6px">ATIVO</span>'
+            :'<span style="background:#F1F5F9;color:#64748B;border-radius:10px;padding:2px 8px;font-size:11px;margin-left:6px">INATIVO</span>'}
+        </div>
+        <div style="font-size:12px;color:var(--mt)">Quando o reconhecimento facial n&atilde;o funciona, ${esc(empNome.split(' ')[0])} bate o ponto tirando uma <strong>foto simples</strong>. O sistema carimba data, hora e localiza&ccedil;&atilde;o, e marca o registro para <strong>revis&atilde;o do RH</strong>.</div>
+        ${GEO_CFG.modoFotoManual===true?`<div style="font-size:11px;color:#1D4ED8;font-weight:700;margin-top:6px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:8px 10px;line-height:1.5">&#8505; Enquanto ativo, este colaborador <strong>n&atilde;o passa por reconhecimento facial</strong>. A foto serve apenas como evid&ecirc;ncia &mdash; confira os registros marcados com <code>precisaRevisao</code> antes de aprovar a jornada.</div>`:`<div style="font-size:11px;color:#94A3B8;margin-top:6px">Ative apenas em conting&ecirc;ncia (falha persistente de leitura). Lembre de desativar quando normalizar.</div>`}
+      </div>
+      <button class="btn" style="background:${GEO_CFG.modoFotoManual===true?'#FEF2F2':'#EFF6FF'};color:${GEO_CFG.modoFotoManual===true?'#DC2626':'#1D4ED8'};border:1px solid ${GEO_CFG.modoFotoManual===true?'#FECACA':'#BFDBFE'};font-weight:700;white-space:nowrap" onclick="toggleModoFotoManual(${GEO_CFG.modoFotoManual===true?'false':'true'})">${GEO_CFG.modoFotoManual===true?'Desativar modo foto':'Ativar modo foto'}</button>
     </div>
   </div>
 
@@ -13729,6 +13746,173 @@ async function bioSalvarComunicado(){}
 async function bioLimparComunicado(){}
 
 // ── TAB: SOLICITAÇÕES DO PORTAL (embutida no Biométrico IA) ──────────────
+
+// ══════════════════════════════════════════════════════════════════════════
+// REVISÃO DE PONTOS POR FOTO (contingência)
+// Busca TODOS os pontos com precisaRevisao=true diretamente do Firestore,
+// independente do mês navegado — nenhum registro de contingência fica
+// escondido por causa da navegação de mês. Usa cache para não reconsultar a
+// cada render e recarrega após cada ação de aprovar/reprovar.
+// ══════════════════════════════════════════════════════════════════════════
+window._REVISAO_CACHE = window._REVISAO_CACHE || null;  // punches pendentes/revisados (todos os meses)
+window._REVISAO_LOADING = false;
+window._REVISAO_TS = 0;  // timestamp da última carga
+
+async function carregarRevisaoPendentes(force){
+  if(!FBASE) return;
+  // cache válido por 60s, salvo se forçado
+  if(!force && window._REVISAO_CACHE && (Date.now()-window._REVISAO_TS)<60000) return;
+  if(window._REVISAO_LOADING) return;
+  window._REVISAO_LOADING=true;
+  try{
+    // Pendentes: todos os meses. Filtro único de igualdade — sem índice composto.
+    const pendSnap=await FBASE.collection('bio_punches').where('precisaRevisao','==',true).get();
+    const pend=pendSnap.docs.map(d=>d.data());
+
+    // Revisados recentes: busca os últimos por data desc (limit para não pesar).
+    // Alguns docs antigos podem não ter 'revisadoRH'; por isso filtramos client-side.
+    let revisados=[];
+    try{
+      const revSnap=await FBASE.collection('bio_punches').where('revisadoRH','==',true).get();
+      revisados=revSnap.docs.map(d=>d.data())
+        .filter(p=>p && (p.revisaoStatus==='aprovado'||p.revisaoStatus==='reprovado'))
+        .sort((a,b)=>((b.revisadoEm||'')).localeCompare(a.revisadoEm||''))
+        .slice(0,30);
+    }catch(_){ /* se faltar índice/campo, segue só com pendentes */ }
+
+    window._REVISAO_CACHE={ pend, revisados };
+    window._REVISAO_TS=Date.now();
+  }catch(e){
+    console.warn('[Revisão] Falha ao carregar pendentes:',e && e.message);
+    window._REVISAO_CACHE=window._REVISAO_CACHE||{ pend:[], revisados:[] };
+  }finally{
+    window._REVISAO_LOADING=false;
+  }
+}
+
+function rBioRevisao(){
+  if(!FBASE) return '<div class="card" style="text-align:center;padding:40px"><div style="font-size:36px;margin-bottom:12px">🔌</div><div style="font-size:16px;font-weight:700">Firebase não conectado</div></div>';
+
+  // Primeira entrada na aba: dispara a carga e mostra estado de carregando.
+  if(!window._REVISAO_CACHE){
+    carregarRevisaoPendentes(true).then(()=>{ if(BIO_TAB==='revisao'&&typeof navigate==='function') navigate('biometrico'); });
+    return '<div class="card" style="text-align:center;padding:36px;color:var(--mt)"><div style="font-size:28px;margin-bottom:10px">⏳</div><div style="font-weight:600">Carregando pontos para revisão…</div></div>';
+  }
+
+  const pend=(window._REVISAO_CACHE.pend||[])
+    .filter(p=>p && !p.revisadoRH)
+    .sort((a,b)=>((b.date||'')+(b.time||'')).localeCompare((a.date||'')+(a.time||'')));
+  const revisados=(window._REVISAO_CACHE.revisados||[]);
+
+  const cardPunch=(p,jaRev)=>{
+    const foto=p.fotoPonto||p.fotoUrl||null;
+    const nome=esc(p.empName||'—');
+    const dataFmt=p.date? p.date.split('-').reverse().join('/') : '—';
+    const tipoLbl=p.type==='in'?'Entrada':p.type==='out'?'Saída':(p.rotulo||'—');
+    const geoInfo=(p.lat&&p.lng)
+      ? `<a href="https://www.google.com/maps?q=${p.lat},${p.lng}" target="_blank" style="color:#2563EB;text-decoration:none;font-weight:600">📍 ${p.locName?esc(p.locName)+' · ':''}ver no mapa</a>${p.dist!=null?` <span style="color:#94A3B8">(${Math.round(p.dist)}m)</span>`:''}`
+      : '<span style="color:#B45309">📍 Sem localização registrada</span>';
+    const statusBadge=jaRev
+      ? (p.revisaoStatus==='reprovado'
+          ? '<span style="background:#FEE2E2;color:#B91C1C;border-radius:10px;padding:3px 10px;font-size:11px;font-weight:800">✗ Reprovado</span>'
+          : '<span style="background:#DCFCE7;color:#16A34A;border-radius:10px;padding:3px 10px;font-size:11px;font-weight:800">✓ Aprovado</span>')
+      : '<span style="background:#DBEAFE;color:#1D4ED8;border-radius:10px;padding:3px 10px;font-size:11px;font-weight:800">Aguardando revisão</span>';
+
+    return `
+    <div class="card" style="margin-bottom:12px;border-left:4px solid ${jaRev?(p.revisaoStatus==='reprovado'?'#DC2626':'#16A34A'):'#2563EB'};display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">
+      <div style="flex-shrink:0">
+        ${foto
+          ? `<img src="${esc(foto)}" alt="foto do ponto" style="width:96px;height:120px;object-fit:cover;border-radius:10px;border:1px solid var(--border);cursor:pointer" onclick="window.open('${esc(foto)}','_blank')">`
+          : `<div style="width:96px;height:120px;border-radius:10px;background:#F1F5F9;display:flex;align-items:center;justify-content:center;color:#94A3B8;font-size:11px;text-align:center;padding:6px">Sem foto</div>`}
+      </div>
+      <div style="flex:1;min-width:200px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+          <span style="font-size:15px;font-weight:800">${nome}</span>
+          ${statusBadge}
+        </div>
+        <div style="font-size:13px;color:var(--tx);margin-bottom:3px">🕐 <strong>${tipoLbl}</strong> · ${dataFmt} às ${esc(p.time||'—')}</div>
+        <div style="font-size:12px;margin-bottom:3px">${geoInfo}</div>
+        <div style="font-size:11px;color:#94A3B8">NSR: ${esc(p.nsr||'—')}${p.autorizadoPeloRh?' · autorizado pelo RH':''}</div>
+        ${jaRev&&p.revisadoPor?`<div style="font-size:11px;color:#64748B;margin-top:4px">Revisado por ${esc(p.revisadoPor)}${p.revisadoEm?' em '+new Date(p.revisadoEm).toLocaleString('pt-BR'):''}</div>`:''}
+        ${!jaRev?`
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn btn-sm" style="background:#16A34A;color:#fff;font-weight:700" onclick="revisarPonto('${esc(p.id)}','aprovado')">✓ Aprovar</button>
+          <button class="btn btn-sm" style="background:#DC2626;color:#fff;font-weight:700" onclick="revisarPonto('${esc(p.id)}','reprovado')">✗ Reprovar</button>
+        </div>`:''}
+      </div>
+    </div>`;
+  };
+
+  return `
+  <div class="card" style="border-top:3px solid #2563EB;margin-bottom:14px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:220px">
+        <div style="font-size:16px;font-weight:800;margin-bottom:4px">📸 Revisão de Pontos por Foto</div>
+        <div style="font-size:13px;color:var(--mt)">Registros feitos em modo de contingência (sem reconhecimento facial), de <strong>todos os meses</strong>. Confira a foto, data/hora e localização antes de aprovar. Aprovar valida o ponto; reprovar o marca como rejeitado.</div>
+      </div>
+      <button class="btn btn-sm" style="background:#EFF6FF;color:var(--blue);white-space:nowrap" onclick="carregarRevisaoPendentes(true).then(()=>navigate('biometrico'))">🔄 Atualizar</button>
+    </div>
+  </div>
+
+  ${pend.length===0
+    ? `<div class="card" style="text-align:center;padding:32px;color:var(--mt)"><div style="font-size:32px;margin-bottom:8px">✓</div><div style="font-weight:600">Nenhum ponto aguardando revisão</div></div>`
+    : `<div style="font-size:13px;font-weight:700;color:#1D4ED8;margin-bottom:10px">${pend.length} aguardando revisão</div>${pend.map(p=>cardPunch(p,false)).join('')}`}
+
+  ${revisados.length>0?`
+    <div style="font-size:13px;font-weight:700;color:var(--mt);margin:22px 0 10px">Revisados recentemente</div>
+    ${revisados.map(p=>cardPunch(p,true)).join('')}
+  `:''}
+  `;
+}
+window.rBioRevisao=rBioRevisao;
+window.carregarRevisaoPendentes=carregarRevisaoPendentes;
+
+// Aprova ou reprova um ponto batido por foto.
+async function revisarPonto(punchId, status){
+  if(!FBASE){ toast('Firebase não conectado.','err'); return; }
+  // procura o punch no cache de revisão (todos os meses) ou no BIO_DATA
+  let p=null;
+  if(window._REVISAO_CACHE){ p=(window._REVISAO_CACHE.pend||[]).find(x=>x.id===punchId)||(window._REVISAO_CACHE.revisados||[]).find(x=>x.id===punchId); }
+  if(!p) p=(BIO_DATA.punches||[]).find(x=>x.id===punchId);
+  const nome=p?p.empName:'colaborador';
+  if(status==='reprovado'){
+    if(!confirm('Reprovar este ponto de '+(nome||'colaborador')+'?\n\nEle será marcado como rejeitado e não deve ser contado na jornada.')) return;
+  }
+  try{
+    const rhUser=(typeof _getRHUser==='function')?_getRHUser():((APP&&APP.user&&APP.user.nome)||'RH');
+    const campos={
+      revisadoRH:true,
+      revisaoStatus:status,
+      revisadoPor:rhUser,
+      revisadoEm:new Date().toISOString(),
+      precisaRevisao:false
+    };
+    if(status==='reprovado') campos.pontoRejeitado=true;
+
+    if(typeof _punchAuditUpdate==='function'){
+      await _punchAuditUpdate(punchId, null, status, { acao:'revisao_foto', ...campos });
+    }else{
+      await FBASE.collection('bio_punches').doc(punchId).set(campos,{merge:true});
+    }
+
+    // Atualiza estado local (cache de revisão + BIO_DATA se presente)
+    if(p) Object.assign(p, campos);
+    const bp=(BIO_DATA.punches||[]).find(x=>x.id===punchId); if(bp) Object.assign(bp,campos);
+    // move do pendente para revisado no cache, sem reconsultar
+    if(window._REVISAO_CACHE){
+      window._REVISAO_CACHE.pend=(window._REVISAO_CACHE.pend||[]).filter(x=>x.id!==punchId);
+      if(p){ window._REVISAO_CACHE.revisados=[p,...(window._REVISAO_CACHE.revisados||[])].slice(0,30); }
+    }
+
+    toast(status==='aprovado'?('✅ Ponto de '+(nome||'')+' aprovado'):('Ponto de '+(nome||'')+' reprovado'),'ok');
+    try{ if(typeof auditLog==='function') auditLog((status==='aprovado'?'Aprovou':'Reprovou')+' ponto por foto de '+(nome||''),'','biometrico'); }catch(_){}
+    if(typeof navigate==='function') navigate('biometrico');
+  }catch(e){ toast('Erro ao revisar: '+e.message,'err'); }
+}
+window.revisarPonto=revisarPonto;
+
+
+
 function rBioSolicitacoes() {
   setTimeout(async function() {
     await _loadSolicRH();
@@ -24436,6 +24620,35 @@ async function toggleProvaDeVida(ativar){
 }
 window.toggleProvaDeVida=toggleProvaDeVida;
 
+// ── MODO FOTO MANUAL POR COLABORADOR ───────────────────────────────────────
+// Grava bio_config/{empId}.modoFotoManual. Quando true, o portal do
+// colaborador dispensa o reconhecimento facial: ele bate o ponto tirando uma
+// foto simples, com data/hora/GPS carimbados, e o registro fica marcado como
+// precisaRevisao=true para o RH conferir depois.
+async function toggleModoFotoManual(ativar){
+  if(typeof FBASE==='undefined'||!FBASE){ toast('Firebase não conectado.','err'); return; }
+  if(!GEO_EMP_ID){ toast('Selecione um colaborador primeiro.','err'); return; }
+  const emp = (APP.employees||[]).find(e=>e.id===GEO_EMP_ID);
+  const nome = emp?.nome || 'este colaborador';
+  if(ativar){
+    const ok = confirm('Ativar o registro por FOTO para '+nome+'?\n\nEnquanto ativo, '+nome+' NÃO passa por reconhecimento facial — bate o ponto tirando uma foto.\n\nOs registros ficarão marcados para sua revisão.\n\nUse apenas como contingência e desative quando o reconhecimento voltar a funcionar.\n\nConfirmar?');
+    if(!ok) return;
+  }
+  try{
+    const ref = FBASE.collection('bio_config').doc(GEO_EMP_ID);
+    await ref.set({
+      modoFotoManual: !!ativar,
+      modoFotoAlteradoEm: new Date().toISOString(),
+      modoFotoAlteradoPor: (APP && APP.user && APP.user.nome) ? APP.user.nome : 'RH'
+    }, { merge:true });
+    GEO_CFG.modoFotoManual = !!ativar;
+    toast(ativar?('📸 Registro por foto ATIVADO para '+nome+'. Registros irão para revisão.'):('✅ Registro por foto DESATIVADO para '+nome+'. Voltou ao reconhecimento facial.'),'ok',4500);
+    try{ if(typeof auditLog==='function') auditLog((ativar?'Ativou':'Desativou')+' registro por foto de '+nome,'','biometrico'); }catch(_){}
+    if(typeof navigate==='function') navigate('biometrico');
+  }catch(e){ toast('Erro ao alterar modo foto: '+e.message,'err'); }
+}
+window.toggleModoFotoManual=toggleModoFotoManual;
+
 function abrirConfigFiliais(){
   openModal('🏪 Cadastro de Lojas / Filiais',
     '<div style="max-height:70vh;overflow-y:auto;padding-right:8px">' +
@@ -27470,7 +27683,7 @@ async function enviarStatusPortalHoje(){
     // BUG-C1 FIX: inclui aba Justificativas com badge de pendentes
     const nJust=(BIO_DATA.justificativas||[]).filter(j=>!j.status||j.status==='pendente').length;
     const justLabel='📎 Justificativas'+(nJust>0?' <span style="background:#DC2626;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800">'+nJust+'</span>':'');
-    const tabs=[['hoje','🏠 Hoje'],['ia','🤖 IA Monitor'],['funcionarios','👥 Colaboradores'],['mensal','📅 Mensal'],['fechamento','📊 Fechamento'],['justificativas',justLabel],['comunicados','📢 Comunicados'],['geo','📍 Geolocalização'],['solicitacoes',(()=>{const n=window._SOLIC_PENDING_COUNT||0;return '📋 Solicitações'+(n>0?' <span style="background:#E85D04;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800">'+n+'</span>':'');})()]];
+    const tabs=[['hoje','🏠 Hoje'],['ia','🤖 IA Monitor'],['funcionarios','👥 Colaboradores'],['mensal','📅 Mensal'],['fechamento','📊 Fechamento'],['justificativas',justLabel],['comunicados','📢 Comunicados'],['geo','📍 Geolocalização'],['solicitacoes',(()=>{const n=window._SOLIC_PENDING_COUNT||0;return '📋 Solicitações'+(n>0?' <span style="background:#E85D04;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800">'+n+'</span>':'');})()],['revisao',(()=>{const n=(window._REVISAO_CACHE&&window._REVISAO_CACHE.pend)?window._REVISAO_CACHE.pend.filter(p=>p&&!p.revisadoRH).length:(BIO_DATA.punches||[]).filter(p=>p&&p.precisaRevisao===true&&!p.revisadoRH).length;return '📸 Revisão'+(n>0?' <span style="background:#DC2626;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800">'+n+'</span>':'');})()]];
     return'<div><div style="display:flex;gap:6px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:14px;flex-wrap:wrap">'+
       tabs.map(([id,lbl])=>{
         const isAI=id==='ia', nAl=(window.ALERTAS_CACHE||[]).filter(a=>a.tipo!=='OK').length, hasAlerts=isAI&&nAl>0;
@@ -27479,7 +27692,7 @@ async function enviarStatusPortalHoje(){
       '<button onclick="sincronizarTudo({mes:BIO_MES,ano:BIO_ANO,origem:\'biometrico\'})" class="btn btn-sm" style="background:#7C3AED;color:#fff;font-weight:700" title="Sincroniza Biométrico → Cartão Ponto → Banco de Horas">⚡ Sincronizar Tudo</button>'+
       '<button onclick="bioLoadData().then(()=>{gerarAlertasHoje();navigate(\'biometrico\')})" class="btn btn-sm" style="background:#EFF6FF;color:var(--blue);margin-left:auto">🔄 Atualizar</button></div>'+
       // BUG-C1 FIX: router chain agora inclui 'justificativas'
-      (BIO_TAB==='ia'?rBioAI():BIO_TAB==='solicitacoes'?rBioSolicitacoes():BIO_TAB==='hoje'?rBioHoje():BIO_TAB==='funcionarios'?rBioFuncionarios():BIO_TAB==='mensal'?rBioMensal():BIO_TAB==='geo'?rBioGeo():BIO_TAB==='justificativas'?rBioJustificativas():BIO_TAB==='comunicados'?rBioComunicados():rBioFechamento())+
+      (BIO_TAB==='ia'?rBioAI():BIO_TAB==='revisao'?rBioRevisao():BIO_TAB==='solicitacoes'?rBioSolicitacoes():BIO_TAB==='hoje'?rBioHoje():BIO_TAB==='funcionarios'?rBioFuncionarios():BIO_TAB==='mensal'?rBioMensal():BIO_TAB==='geo'?rBioGeo():BIO_TAB==='justificativas'?rBioJustificativas():BIO_TAB==='comunicados'?rBioComunicados():rBioFechamento())+
       '</div>';
   };
 })();
