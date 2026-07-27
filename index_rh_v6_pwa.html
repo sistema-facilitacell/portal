@@ -2648,6 +2648,141 @@ async function fbForceSyncAll(silent){
 // • downloadBackupJSON()  — download manual imediato
 // • _autoBackupWeekly()  — exportação automática se >7 dias sem backup
 // ════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════
+// RESTAURAÇÃO DE BACKUP COMPLETO (formato {_backup,data})
+// Lê um backup gerado por downloadBackupJSON e MESCLA com os dados atuais:
+// nunca apaga nada — só adiciona o que falta. Listas mesclam por 'id';
+// objetos-mapa mesclam por chave. Ao final persiste cada tipo no Firebase.
+// ════════════════════════════════════════════════════
+const BACKUP_KEYS=['employees','candidates','pontos','financeiro','atestados','admissoes',
+  'demissoes','salarios','holRascunho','metaDiaria','faltaPagar','advertencias',
+  'ferias','avaliacoes','comunicados','bancohoras','contratos','comprovantes'];
+
+// Rótulos amigáveis para o resumo
+const BACKUP_LABELS={employees:'Colaboradores',candidates:'Candidatos',pontos:'Cartão Ponto',
+  financeiro:'Financeiro',atestados:'Atestados',admissoes:'Admissões',demissoes:'Demissões',
+  salarios:'Salários',holRascunho:'Holerites (rascunho)',metaDiaria:'Metas diárias',
+  faltaPagar:'A pagar',advertencias:'Advertências',ferias:'Férias',avaliacoes:'Avaliações',
+  comunicados:'Comunicados',bancohoras:'Banco de horas',contratos:'Contratos',comprovantes:'Comprovantes'};
+
+// Analisa o backup e conta o que seria adicionado, SEM aplicar (prévia).
+function _analisarBackup(data){
+  const resumo=[];
+  BACKUP_KEYS.forEach(k=>{
+    const bak=data[k];
+    if(bak==null) return;
+    const atual=APP[k];
+    let novos=0, total=0;
+    if(Array.isArray(bak)){
+      total=bak.length;
+      const ids=new Set((Array.isArray(atual)?atual:[]).map(x=>x&&x.id).filter(Boolean));
+      bak.forEach(item=>{ if(item&&item.id!=null){ if(!ids.has(item.id)) novos++; } else novos++; });
+    }else if(typeof bak==='object'){
+      const at=(atual&&typeof atual==='object')?atual:{};
+      Object.keys(bak).forEach(key=>{ total++; if(!(key in at)) novos++; });
+    }
+    if(total>0) resumo.push({k,label:BACKUP_LABELS[k]||k,novos,total});
+  });
+  return resumo;
+}
+
+// Aplica o merge de fato e persiste.
+async function _aplicarBackup(data){
+  let totalNovos=0;
+  const chavesAlteradas=[];
+  BACKUP_KEYS.forEach(k=>{
+    const bak=data[k];
+    if(bak==null) return;
+    if(Array.isArray(bak)){
+      if(!Array.isArray(APP[k])) APP[k]=[];
+      const ids=new Set(APP[k].map(x=>x&&x.id).filter(Boolean));
+      let add=0;
+      bak.forEach(item=>{
+        if(item&&item.id!=null){ if(!ids.has(item.id)){ APP[k].push(item); ids.add(item.id); add++; } }
+        else { APP[k].push(item); add++; }
+      });
+      if(add>0){ totalNovos+=add; chavesAlteradas.push(k); }
+    }else if(typeof bak==='object'){
+      if(!APP[k]||typeof APP[k]!=='object') APP[k]={};
+      let add=0;
+      Object.keys(bak).forEach(key=>{ if(!(key in APP[k])){ APP[k][key]=bak[key]; add++; } });
+      if(add>0){ totalNovos+=add; chavesAlteradas.push(k); }
+    }
+  });
+
+  // Persiste cada tipo alterado no Firebase (reusa fbSave: tamanho/retry/etc.)
+  for(const k of chavesAlteradas){
+    try{
+      if(typeof lsSave==='function') lsSave(k);   // grava local primeiro
+      if(typeof fbSave==='function') await fbSave(k); // depois nuvem
+    }catch(e){ console.warn('[Restaurar] Falha ao persistir',k,e&&e.message); }
+  }
+  return { totalNovos, chavesAlteradas };
+}
+
+// Handler do input de arquivo do modal de restauração completa.
+async function restaurarBackupCompleto(input){
+  const file=input&&input.files&&input.files[0];
+  if(!file) return;
+  const msgEl=document.getElementById('restoreMsg');
+  const errEl=document.getElementById('restoreErr');
+  if(msgEl){ msgEl.style.display='none'; }
+  if(errEl){ errEl.style.display='none'; }
+
+  const reader=new FileReader();
+  reader.onload=async (e)=>{
+    try{
+      const parsed=JSON.parse(e.target.result);
+      // Aceita tanto {_backup,data} quanto um objeto de dados direto
+      const data=(parsed&&parsed.data&&typeof parsed.data==='object')?parsed.data:parsed;
+      if(!data||typeof data!=='object') throw new Error('Formato não reconhecido');
+
+      // valida que tem ao menos uma chave conhecida
+      const temConhecida=BACKUP_KEYS.some(k=>k in data);
+      if(!temConhecida) throw new Error('Este arquivo não parece um backup do Atlas RH');
+
+      const resumo=_analisarBackup(data);
+      const totalNovos=resumo.reduce((s,r)=>s+r.novos,0);
+
+      if(totalNovos===0){
+        if(msgEl){ msgEl.innerHTML='✅ Nada a restaurar — todos os registros do backup já existem no sistema.'; msgEl.style.display='block'; }
+        input.value=''; return;
+      }
+
+      const detalhe=resumo.filter(r=>r.novos>0)
+        .map(r=>`• ${r.label}: +${r.novos} novo(s) (de ${r.total} no backup)`).join('\n');
+      const ts=(parsed&&parsed._backup&&parsed._backup.ts)?new Date(parsed._backup.ts).toLocaleString('pt-BR'):'data desconhecida';
+
+      const ok=confirm(
+        `Restaurar backup de ${ts}?\n\n`+
+        `Serão ADICIONADOS ${totalNovos} registro(s) que não existem hoje.\n`+
+        `Nada do que já está no sistema será apagado ou alterado.\n\n`+
+        `${detalhe}\n\nConfirmar restauração?`
+      );
+      if(!ok){ input.value=''; return; }
+
+      if(msgEl){ msgEl.innerHTML='⏳ Restaurando… não feche a página.'; msgEl.style.display='block'; }
+      const res=await _aplicarBackup(data);
+
+      if(typeof renderAll==='function') renderAll();
+      if(typeof navigate==='function' && typeof MOD!=='undefined') navigate(MOD);
+
+      if(msgEl){ msgEl.innerHTML=`✅ Restauração concluída: ${res.totalNovos} registro(s) adicionado(s) em ${res.chavesAlteradas.length} categoria(s). Sincronizado com a nuvem.`; msgEl.style.display='block'; }
+      if(typeof toast==='function') toast('✅ Backup restaurado: '+res.totalNovos+' registros adicionados','ok',5000);
+      try{ if(typeof auditLog==='function') auditLog('Restaurou backup completo (+'+res.totalNovos+' registros)','','backup'); }catch(_){}
+    }catch(err){
+      console.error('[Restaurar] erro:',err);
+      if(errEl){ errEl.textContent='❌ '+(err.message||'Arquivo inválido')+'. Verifique se é um backup gerado por este sistema.'; errEl.style.display='block'; }
+    }
+    input.value='';
+  };
+  reader.readAsText(file);
+}
+window.restaurarBackupCompleto=restaurarBackupCompleto;
+window._analisarBackup=_analisarBackup;
+
+
 function downloadBackupJSON(){
   try{
     const keys=['employees','candidates','pontos','financeiro','atestados','admissoes',
@@ -14603,6 +14738,18 @@ td,th{font-size:15px!important;}
       </label>
       <div id="importMsg" style="display:none;margin-top:10px;background:#e8f5e9;border:1.5px solid #4caf50;border-radius:8px;padding:10px 14px;font-size:13px;color:#1a8a4a"></div>
       <div id="importErr" style="display:none;margin-top:10px;background:#fde8e8;border:1.5px solid #e74c3c;border-radius:8px;padding:10px 14px;font-size:13px;color:#c0392b"></div>
+    </div>
+
+    <!-- RESTAURAR BACKUP COMPLETO (todos os dados) -->
+    <div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:12px;padding:16px;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">🗄️ Restaurar backup COMPLETO</div>
+      <p style="font-size:13px;color:#1e40af;margin-bottom:12px;line-height:1.5">Restaura o arquivo <strong>backup-rh-AAAA-MM-DD.json</strong> com <strong>todos os dados</strong> (colaboradores, ponto, contratos, atestados, etc.). Os dados são <strong>mesclados</strong>: nada é apagado, só é adicionado o que falta. Uma prévia com o que será importado aparece antes de confirmar.</p>
+      <label style="display:flex;align-items:center;justify-content:center;gap:8px;background:#1d4ed8;color:#fff;padding:11px;border-radius:9px;cursor:pointer;font-size:14px;font-weight:700;width:100%;box-sizing:border-box">
+        <input type="file" accept=".json" id="restoreFile" style="display:none" onchange="restaurarBackupCompleto(this)" />
+        🗄️ Selecionar backup completo (.json)
+      </label>
+      <div id="restoreMsg" style="display:none;margin-top:10px;background:#e8f5e9;border:1.5px solid #4caf50;border-radius:8px;padding:10px 14px;font-size:13px;color:#1a8a4a;white-space:pre-line"></div>
+      <div id="restoreErr" style="display:none;margin-top:10px;background:#fde8e8;border:1.5px solid #e74c3c;border-radius:8px;padding:10px 14px;font-size:13px;color:#c0392b"></div>
     </div>
 
     <!-- RECUPERAR DO ARQUIVO ANTIGO -->
