@@ -1,0 +1,146 @@
+<!-- ===================== CALCULADORA DE HOLERITE — INICIO ===================== -->
+<style>
+.chol-overlay{position:fixed;inset:0;z-index:99999;background:rgba(6,15,35,.72);
+  display:none;align-items:center;justify-content:center;padding:24px;}
+.chol-overlay.chol-open{display:flex;}
+.chol-modal{position:relative;width:min(1400px,96vw);height:min(940px,92vh);
+  background:#EEF1F6;border-radius:16px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.45);}
+.chol-modal iframe{width:100%;height:100%;border:none;display:block;background:#EEF1F6;}
+.chol-close{position:absolute;top:14px;right:16px;z-index:5;width:34px;height:34px;
+  border-radius:50%;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.14);
+  color:#fff;font-size:17px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.chol-close:hover{background:rgba(255,255,255,.3);}
+.chol-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:system-ui,sans-serif;font-size:13px;color:#6B7480;background:#EEF1F6;}
+@media (max-width:640px){.chol-overlay{padding:0;}.chol-modal{width:100vw;height:100vh;border-radius:0;}}
+</style>
+
+<div class="chol-overlay" id="cholOverlay" onclick="cholClickFora(event)">
+  <div class="chol-modal">
+    <button class="chol-close" onclick="fecharCalculadoraHolerite()" title="Fechar (Esc)">&times;</button>
+    <div class="chol-loading" id="cholLoading">Carregando calculadora...</div>
+    <iframe id="cholFrame" title="Calculadora de Holerite"
+            onload="document.getElementById('cholLoading').style.display='none'"></iframe>
+  </div>
+</div>
+
+<script>
+function abrirCalculadoraHolerite(){
+  var ov = document.getElementById('cholOverlay');
+  var fr = document.getElementById('cholFrame');
+  if(!fr.getAttribute('src')) fr.setAttribute('src','calculadora_holerite.html');
+  ov.classList.add('chol-open');
+  document.body.style.overflow = 'hidden';
+}
+function fecharCalculadoraHolerite(){
+  document.getElementById('cholOverlay').classList.remove('chol-open');
+  document.body.style.overflow = '';
+}
+function cholClickFora(e){
+  if(e.target && e.target.id === 'cholOverlay') fecharCalculadoraHolerite();
+}
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape'){
+    var ov = document.getElementById('cholOverlay');
+    if(ov && ov.classList.contains('chol-open')) fecharCalculadoraHolerite();
+  }
+});
+// Esc apertado dentro do iframe nao sai sozinho: a calculadora avisa por postMessage.
+window.addEventListener('message', function(e){
+  if(e.data && e.data.tipo === 'fecharCalculadoraHolerite') fecharCalculadoraHolerite();
+});
+
+/* ---- Item do menu: clona o "Banco de Horas" para herdar o estilo exato ---- */
+(function(){
+  var ICONE = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"'
+    + ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+    + '<rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/>'
+    + '<line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/>'
+    + '<line x1="16" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/>'
+    + '<line x1="12" y1="18" x2="12" y2="18"/><line x1="16" y1="18" x2="16" y2="18"/></svg>';
+
+  function acharItemMenu(){
+    // tenta as ancoras em ordem de preferencia, uma de cada vez
+    var alvos = ['Banco de Horas','Absenteísmo','Absenteismo','Advertências','Férias'];
+    var todos = document.querySelectorAll('a,button,li,div,span');
+    var candidatos = [];
+    for(var a=0; a<alvos.length && !candidatos.length; a++){
+      for(var i=0;i<todos.length;i++){
+        var t = (todos[i].textContent||'').replace(/\s+/g,' ').trim();
+        if(t === alvos[a]) candidatos.push(todos[i]);
+      }
+    }
+    if(!candidatos.length) return null;
+    // o ultimo da lista eh o mais profundo (o texto); sobe ate o elemento clicavel
+    var el = candidatos[candidatos.length-1];
+    for(var n=0; n<5 && el && el.parentElement; n++){
+      if(el.tagName === 'A' || el.tagName === 'LI' || el.tagName === 'BUTTON'
+         || el.getAttribute('onclick') || /nav|menu|item|link/i.test(el.className||'')){
+        return el;
+      }
+      el = el.parentElement;
+    }
+    return candidatos[candidatos.length-1];
+  }
+
+  function injetar(){
+    if(document.getElementById('cholMenuItem')) return true;
+    var base = acharItemMenu();
+    if(!base) return false;
+
+    var novo = base.cloneNode(true);
+    novo.id = 'cholMenuItem';
+    novo.removeAttribute('href');
+    if(novo.tagName === 'A') novo.setAttribute('href','#');
+    novo.style.cursor = 'pointer';
+    novo.classList.remove('active','ativo','selected','selecionado');
+
+    // troca o texto, preservando a estrutura interna
+    var trocou = false;
+    var walker = document.createTreeWalker(novo, NodeFilter.SHOW_TEXT, null, false);
+    var no;
+    while((no = walker.nextNode())){
+      if(no.nodeValue && no.nodeValue.trim().length > 2 && !trocou){
+        no.nodeValue = 'Calculadora de Holerite';
+        trocou = true;
+      } else if(no.nodeValue && no.nodeValue.trim().length > 2){
+        no.nodeValue = '';
+      }
+    }
+    if(!trocou) novo.textContent = 'Calculadora de Holerite';
+
+    var svg = novo.querySelector('svg');
+    if(svg){
+      var tmp = document.createElement('div');
+      tmp.innerHTML = ICONE;
+      svg.parentNode.replaceChild(tmp.firstChild, svg);
+    }
+
+    novo.setAttribute('onclick','abrirCalculadoraHolerite(); return false;');
+    novo.onclick = function(e){ if(e) e.preventDefault(); abrirCalculadoraHolerite(); return false; };
+
+    base.parentNode.insertBefore(novo, base.nextSibling);
+    return true;
+  }
+
+  function tentar(){
+    if(injetar()) return;
+    var tentativas = 0;
+    var t = setInterval(function(){
+      tentativas++;
+      if(injetar() || tentativas > 20){
+        clearInterval(t);
+        if(tentativas > 20 && !document.getElementById('cholMenuItem')){
+          console.warn('[Calculadora] Nao encontrei o item "Banco de Horas" no menu. '
+            + 'Chame abrirCalculadoraHolerite() para testar o modal.');
+        }
+      }
+    }, 400);
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', tentar);
+  } else { tentar(); }
+})();
+</script>
+<!-- ====================== CALCULADORA DE HOLERITE — FIM ====================== -->
