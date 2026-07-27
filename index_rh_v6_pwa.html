@@ -1680,7 +1680,7 @@ td,th{font-size:15px!important;}
           </div>
           <button class="fb-btn" style="color:var(--blue);font-size:10px;margin-top:2px" onclick="showFbStatus()">🔍 Diagnóstico Firebase</button>
           <button class="fb-btn" id="ai-key-btn" style="color:#7C3AED;margin-top:4px" onclick="openAnthropicKeyModal()" title="Configurar chave da API Anthropic para IA">🤖 Configurar IA</button>
-          <button class="fb-btn" style="color:#059669;margin-top:4px" onclick="downloadBackupJSON()" title="Baixa todos os dados do app como JSON — proteção contra perda de dados">💾 Backup JSON</button>
+          <button class="fb-btn" style="color:#059669;margin-top:4px" onclick="openBackup()" title="Backup e restauração de todos os dados do sistema">💾 Backup & Restaurar</button>
           <button class="fb-btn" style="color:#0891B2;margin-top:4px" onclick="openEmpresaCfgModal()" title="Configurar dados da empresa e modelo de IA">⚙ Empresa & IA</button>
           <!-- Liberação portal -->
           <div id="sb-portal-acesso-wrap" style="margin-top:10px;padding:10px;background:#F8FAFC;border-radius:10px;border:1.5px solid #E2E8F0">
@@ -14719,19 +14719,26 @@ td,th{font-size:15px!important;}
       <h2>💾 Backup & Restaurar Dados</h2>
       <button class="btn btn-outline" onclick="closeM('mBackup')" style="padding:5px 10px;font-size:13px;border-radius:8px;font-weight:600">✕</button>
     </div>
-    <p style="font-size:13px;color:#5a6a7e;margin-bottom:18px;line-height:1.6">Exporte seus candidatos para um arquivo JSON e importe quando precisar — mesmo em outro dispositivo ou versão do sistema.</p>
+    <p style="font-size:13px;color:#5a6a7e;margin-bottom:18px;line-height:1.6">Faça backup e restaure os dados do sistema. Guarde os arquivos em local seguro (contêm dados pessoais — LGPD).</p>
+
+    <!-- BAIXAR BACKUP COMPLETO -->
+    <div style="background:#ecfdf5;border:1.5px solid #6ee7b7;border-radius:12px;padding:16px;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;color:#047857;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">💾 Baixar backup COMPLETO</div>
+      <p style="font-size:13px;color:#065f46;margin-bottom:12px;line-height:1.5">Salva <strong>todos os dados</strong> (colaboradores, ponto, contratos, atestados, advertências, férias, etc.) em um arquivo <strong>backup-rh-AAAA-MM-DD.json</strong>. É este arquivo que a restauração completa abaixo recupera.</p>
+      <button class="btn btn-success" style="width:100%;font-size:14px;justify-content:center" onclick="downloadBackupJSON()">⬇️ Baixar backup completo agora</button>
+    </div>
 
     <!-- EXPORTAR -->
     <div style="background:#e8f5e9;border:1.5px solid #4caf50;border-radius:12px;padding:16px;margin-bottom:14px">
-      <div style="font-size:12px;font-weight:700;color:#1a8a4a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📤 Exportar (salvar backup)</div>
-      <p style="font-size:13px;color:#2e7d32;margin-bottom:12px;line-height:1.5">Baixa um arquivo <strong>.json</strong> com todos os candidatos. Guarde-o em local seguro.</p>
+      <div style="font-size:12px;font-weight:700;color:#1a8a4a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📤 Exportar apenas candidatos</div>
+      <p style="font-size:13px;color:#2e7d32;margin-bottom:12px;line-height:1.5">Baixa um arquivo <strong>.json</strong> só com os <strong>candidatos</strong> do recrutamento. Para backup de tudo, use "Baixar backup completo" acima.</p>
       <button class="btn btn-success" style="width:100%;font-size:14px;justify-content:center" onclick="exportarDados()">⬇️ Baixar backup agora (<span id="exportCount">0</span> candidatos)</button>
     </div>
 
     <!-- IMPORTAR -->
     <div style="background:#fff3e0;border:1.5px solid #ffcc80;border-radius:12px;padding:16px;margin-bottom:14px">
-      <div style="font-size:12px;font-weight:700;color:#e65100;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📥 Importar (restaurar backup)</div>
-      <p style="font-size:13px;color:#bf360c;margin-bottom:12px;line-height:1.5">Selecione um arquivo <strong>.json</strong> exportado anteriormente. Os dados serão <strong>mesclados</strong> com os atuais (não apaga nenhum).</p>
+      <div style="font-size:12px;font-weight:700;color:#e65100;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📥 Importar apenas candidatos</div>
+      <p style="font-size:13px;color:#bf360c;margin-bottom:12px;line-height:1.5">Restaura um arquivo <strong>.json</strong> só de <strong>candidatos</strong>. Para restaurar o backup completo do sistema, use a opção azul abaixo.</p>
       <label style="display:flex;align-items:center;justify-content:center;gap:8px;background:#e65100;color:#fff;padding:11px;border-radius:9px;cursor:pointer;font-size:14px;font-weight:700;width:100%;box-sizing:border-box">
         <input type="file" accept=".json" id="importFile" style="display:none" onchange="importarDados(this)" />
         📂 Selecionar arquivo de backup
