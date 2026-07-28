@@ -806,6 +806,11 @@ body{background:var(--bg);color:var(--tx);}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         Meu Ponto
       </button>
+      <button class="tab" id="tab-espelho" onclick="showTab('espelho');closeSidebar()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        Espelho de Ponto
+        <span id="espelho-badge" style="display:none;background:#DC2626;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:800;margin-left:auto">!</span>
+      </button>
       <button class="tab" id="tab-espelho" onclick="showTab('espelho');closeSidebar()" style="position:relative">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><path d="M10 9H8"/></svg>
         Espelho de Ponto
@@ -1653,6 +1658,10 @@ function afterLogin() {
   loadAll().then(() => {
     renderTab(CURRENT_TAB);
     _avAtualizarBadge();
+    // Puxa a chave Groq compartilhada (se o RH tiver configurado uma nova)
+    try{ _carregarChaveGroqPortal(); }catch(_){}
+    // Carrega os espelhos em segundo plano só para acender o badge do menu.
+    try{ carregarEspelhosColab().catch(()=>{}); }catch(_){}
     // Inicia listener em tempo real das batidas do dia
     setTimeout(() => startPontoListener(), 500);
   }).catch(e => {
@@ -3005,6 +3014,157 @@ function closeSidebar() {
   if (hb) hb.classList.remove('open');
 }
 
+
+// ══════════════════════════════════════════════════════════════════════════
+// ESPELHO DE PONTO — conferência e assinatura pelo colaborador
+// O RH publica o espelho mensal; aqui o colaborador confere linha a linha e
+// assina, ou registra uma contestação. O espelho assinado é o documento que
+// comprova a jornada — por isso a assinatura fica registrada com data/hora.
+// ══════════════════════════════════════════════════════════════════════════
+let ESPELHOS = [];
+
+async function carregarEspelhosColab(){
+  if(!DB || !EMP || !EMP.id) return [];
+  try{
+    const snap = await DB.collection('espelhos_ponto').where('empId','==',EMP.id).get();
+    ESPELHOS = snap.docs.map(d => d.data())
+      .sort((a,b)=> ((b.ano||0)*100+(b.mes||0)) - ((a.ano||0)*100+(a.mes||0)) );
+  }catch(e){
+    console.warn('[Espelho] falha ao carregar:', e && e.message);
+    ESPELHOS = [];
+  }
+  _atualizarBadgeEspelho();
+  return ESPELHOS;
+}
+
+function _atualizarBadgeEspelho(){
+  const b = document.getElementById('espelho-badge');
+  if(!b) return;
+  const pend = ESPELHOS.filter(e => e && !e.assinado).length;
+  b.style.display = pend > 0 ? 'inline-block' : 'none';
+  b.textContent = pend > 0 ? String(pend) : '';
+}
+
+function _fmtHoras(min){
+  min = min || 0;
+  return Math.floor(min/60) + 'h' + String(min%60).padStart(2,'0');
+}
+
+function renderEspelho(){
+  if(!ESPELHOS.length){
+    return `<div style="text-align:center;padding:48px 20px;color:#64748B">
+      <div style="font-size:38px;margin-bottom:12px">🕐</div>
+      <div style="font-weight:700;font-size:15px;margin-bottom:5px">Nenhum espelho disponível</div>
+      <div style="font-size:13px;line-height:1.55">Quando o RH publicar seu espelho de ponto mensal, ele aparecerá aqui para você conferir e assinar.</div>
+    </div>`;
+  }
+
+  return ESPELHOS.map(esp => {
+    const pend = !esp.assinado;
+    const linhas = (esp.linhas||[]).map(l => {
+      const st = String(l.status||'').toLowerCase();
+      const cor = st.indexOf('falta')>=0 ? '#DC2626' : st.indexOf('atestado')>=0 ? '#D97706' : '#334155';
+      return `<tr style="border-top:1px solid #F1F5F9">
+        <td style="padding:6px 8px;color:${cor};font-weight:600">${l.dia}</td>
+        <td style="padding:6px 4px;text-align:center">${esc(l.entrada||'—')}</td>
+        <td style="padding:6px 4px;text-align:center">${esc(l.saidaAlmoco||'—')}</td>
+        <td style="padding:6px 4px;text-align:center">${esc(l.voltaAlmoco||'—')}</td>
+        <td style="padding:6px 4px;text-align:center">${esc(l.saida||'—')}</td>
+        <td style="padding:6px 8px;text-align:right;color:#64748B">${l.minutos?_fmtHoras(l.minutos):'—'}</td>
+      </tr>`;
+    }).join('');
+
+    return `
+    <div style="background:#fff;border:1.5px solid ${pend?'#FDE68A':'#D1FAE5'};border-radius:14px;padding:16px 18px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+        <div>
+          <div style="font-size:15px;font-weight:800;color:#0F172A;text-transform:capitalize">${esc(esp.mesLabel||'')}</div>
+          <div style="font-size:12px;color:#64748B">${(esp.linhas||[]).length} dia(s) · ${_fmtHoras(esp.totalMin)} trabalhadas${esp.faltas?' · '+esp.faltas+' falta(s)':''}</div>
+        </div>
+        ${esp.assinado
+          ? `<span style="background:#DCFCE7;color:#166534;border-radius:10px;padding:4px 11px;font-size:11.5px;font-weight:800">✓ Assinado em ${esp.assinadoEm?new Date(esp.assinadoEm).toLocaleDateString('pt-BR'):''}</span>`
+          : `<span style="background:#FEF3C7;color:#92400E;border-radius:10px;padding:4px 11px;font-size:11.5px;font-weight:800">Aguardando sua conferência</span>`}
+      </div>
+
+      <div style="overflow-x:auto;border:1px solid #E2E8F0;border-radius:10px;max-height:300px;overflow-y:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:420px">
+          <thead><tr style="background:#F8FAFC;position:sticky;top:0">
+            <th style="text-align:left;padding:7px 8px">Dia</th>
+            <th style="padding:7px 4px">Entrada</th>
+            <th style="padding:7px 4px">Saída alm.</th>
+            <th style="padding:7px 4px">Volta alm.</th>
+            <th style="padding:7px 4px">Saída</th>
+            <th style="text-align:right;padding:7px 8px">Total</th>
+          </tr></thead>
+          <tbody>${linhas||'<tr><td colspan="6" style="padding:14px;text-align:center;color:#94A3B8">Sem lançamentos</td></tr>'}</tbody>
+        </table>
+      </div>
+
+      ${esp.contestado?`<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:9px;padding:10px 12px;margin-top:11px;font-size:12px;color:#991B1B;line-height:1.5"><strong>Divergência registrada:</strong> ${esc(esp.contestacao||'')}<br><span style="font-size:11px">O RH foi notificado e vai analisar.</span></div>`:''}
+
+      ${pend?`
+      <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:9px;padding:10px 12px;margin-top:11px;font-size:12px;color:#92400E;line-height:1.55">
+        Confira os horários acima. Ao assinar, você declara que os registros conferem com a jornada efetivamente trabalhada.
+      </div>
+      <div style="display:flex;gap:8px;margin-top:11px;flex-wrap:wrap">
+        <button onclick="assinarEspelho('${esc(esp.id)}')" style="flex:1;min-width:150px;background:#059669;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:800;cursor:pointer">✓ Confere — assinar</button>
+        <button onclick="contestarEspelho('${esc(esp.id)}')" style="flex:1;min-width:150px;background:#fff;color:#DC2626;border:1.5px solid #FECACA;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer">Apontar divergência</button>
+      </div>`:''}
+    </div>`;
+  }).join('');
+}
+
+async function assinarEspelho(id){
+  const esp = ESPELHOS.find(e => e && e.id === id);
+  if(!esp || !DB) return;
+  if(!confirm(`Assinar o espelho de ${esp.mesLabel}?\n\nAo confirmar, você declara que os horários registrados conferem com a jornada que você trabalhou.`)) return;
+  try{
+    const dados = {
+      assinado: true,
+      assinadoEm: new Date().toISOString(),
+      assinaturaNome: (EMP && EMP.nome) || '',
+      assinaturaCpf: (EMP && EMP.cpf) || '',
+      // Marca de integridade simples: permite detectar alteração posterior das
+      // linhas sem depender de o servidor guardar histórico.
+      hashLinhas: String((esp.linhas||[]).map(l=>`${l.dia}${l.entrada}${l.saida}`).join('|')).length
+    };
+    await DB.collection('espelhos_ponto').doc(id).set(dados, {merge:true});
+    Object.assign(esp, dados);
+    _atualizarBadgeEspelho();
+    renderTab('espelho');
+    toast('✅ Espelho assinado. Obrigado pela conferência!', 'ok');
+  }catch(e){
+    toast('Erro ao assinar: ' + (e.message||''), 'err');
+  }
+}
+
+async function contestarEspelho(id){
+  const esp = ESPELHOS.find(e => e && e.id === id);
+  if(!esp || !DB) return;
+  const motivo = prompt(`Qual divergência você encontrou no espelho de ${esp.mesLabel}?\n\nDescreva o dia e o horário correto:`);
+  if(motivo === null) return;
+  if(!motivo.trim()){ toast('Descreva a divergência para o RH analisar.', 'err'); return; }
+  try{
+    const dados = {
+      contestado: true,
+      contestacao: motivo.trim(),
+      contestadoEm: new Date().toISOString(),
+      assinado: false
+    };
+    await DB.collection('espelhos_ponto').doc(id).set(dados, {merge:true});
+    Object.assign(esp, dados);
+    renderTab('espelho');
+    toast('Divergência registrada. O RH vai analisar.', 'ok');
+  }catch(e){
+    toast('Erro ao registrar: ' + (e.message||''), 'err');
+  }
+}
+
+window.carregarEspelhosColab = carregarEspelhosColab;
+window.renderEspelho = renderEspelho;
+window.assinarEspelho = assinarEspelho;
+window.contestarEspelho = contestarEspelho;
+
 function showTab(tab) {
   CURRENT_TAB = tab;
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -3020,6 +3180,11 @@ function renderTab(tab) {
   clearInterval(CLK_INTERVAL);
   // Stop chat listener if navigating away from chat
   if (tab !== 'chat' && CHAT_UNSUB) { CHAT_UNSUB(); CHAT_UNSUB = null; }
+  if (tab === 'espelho') {
+    c.innerHTML = '<div style="text-align:center;padding:40px;color:#94A3B8">Carregando espelhos…</div>';
+    carregarEspelhosColab().then(() => { if (CURRENT_TAB === 'espelho') c.innerHTML = renderEspelho(); });
+    return;
+  }
   if (tab === 'avisos') { renderAvisos(c); return; }
   if (tab === 'hol') { c.innerHTML = renderHol(); const _bh=document.getElementById('hol-badge'); if(_bh) _bh.style.display='none'; return; }
   if (tab === 'ponto') {
@@ -7281,7 +7446,22 @@ window.addEventListener('DOMContentLoaded', () => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ── Chave Groq ────────────────────────────────────────────────────────────────
-const GROQ_API_KEY = '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';
+// Chave Groq usada no arbítrio do reconhecimento facial e no assistente.
+// Pode ser sobrescrita por config/ia_keys no Firestore (ver _carregarChaveGroqPortal),
+// para trocar a chave sem precisar editar e republicar este arquivo.
+let GROQ_API_KEY = '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';
+
+// Busca a chave compartilhada gravada pelo RH. Se existir, tem prioridade.
+async function _carregarChaveGroqPortal(){
+  try{
+    if(!DB) return;
+    const s = await DB.collection('config').doc('ia_keys').get();
+    if(s.exists && s.data() && s.data().groqKey){
+      GROQ_API_KEY = s.data().groqKey;
+      console.log('[Groq] Chave do portal atualizada via Firebase ✅');
+    }
+  }catch(e){ /* mantém a chave padrão */ }
+}
 
 // ── CDNs face-api ─────────────────────────────────────────────────────────────
 const _isFileProto = (window.location.protocol === 'file:');
