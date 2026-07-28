@@ -1681,6 +1681,8 @@ td,th{font-size:15px!important;}
           <button class="fb-btn" style="color:var(--blue);font-size:10px;margin-top:2px" onclick="showFbStatus()">🔍 Diagnóstico Firebase</button>
           <button class="fb-btn" id="ai-key-btn" style="color:#7C3AED;margin-top:4px" onclick="openAnthropicKeyModal()" title="Configurar chave da API Anthropic para IA">🤖 Configurar IA</button>
           <button class="fb-btn" style="color:#059669;margin-top:4px" onclick="openBackup()" title="Backup e restauração de todos os dados do sistema">💾 Backup & Restaurar</button>
+          <button class="fb-btn" style="color:#25D366;margin-top:4px" onclick="abrirCentralAvisos()" title="Tudo que precisa de comunicação hoje, com envio por WhatsApp">🔔 Central de Avisos</button>
+          <button class="fb-btn" style="color:#2563EB;margin-top:4px" onclick="abrirEspelhoPonto()" title="Enviar espelho de ponto mensal para conferência e assinatura">🕐 Espelho de Ponto</button>
           <button class="fb-btn" style="color:#0891B2;margin-top:4px" onclick="openEmpresaCfgModal()" title="Configurar dados da empresa e modelo de IA">⚙ Empresa & IA</button>
           <!-- Liberação portal -->
           <div id="sb-portal-acesso-wrap" style="margin-top:10px;padding:10px;background:#F8FAFC;border-radius:10px;border:1.5px solid #E2E8F0">
@@ -2801,6 +2803,9 @@ function downloadBackupJSON(){
     document.body.removeChild(a);
     setTimeout(()=>URL.revokeObjectURL(url),5000);
     localStorage.setItem('fcrh_last_backup_ts', Date.now().toString());
+    // Registra a data para o alerta de "backup vencido" no dashboard
+    try{ if(typeof _backupRegistrar==='function') _backupRegistrar(); }catch(_){}
+    try{ if(typeof _dashCacheInvalidate==='function') _dashCacheInvalidate(); }catch(_){}
     toast('✅ Backup JSON baixado com sucesso!','ok',3500);
     console.log('[Backup] ✅ Backup manual exportado:', ts);
   }catch(e){
@@ -3449,10 +3454,43 @@ let ANTHROPIC_KEY = ANTHROPIC_KEY_DEFAULT;
 
 // ── Chave da API Groq ──────────────────────────────────────────────────────
 // Groq oferece inferência ultrarrápida com modelos open-source (Llama, Mixtral, etc.)
-const GROQ_KEY_DEFAULT = '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';
-// Migração: se o navegador tem chave antiga (expirada) salva, troca pela nova.
-(function(){ const _oldKeys=['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','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']; if(_oldKeys.includes(localStorage.getItem('fcrh_groq_key'))){ localStorage.setItem('fcrh_groq_key', GROQ_KEY_DEFAULT); } })();
+//
+// A chave abaixo é o PADRÃO: o sistema já funciona sem configurar nada.
+// Como este arquivo é servido publicamente, chaves aqui acabam sendo varridas
+// por bots e revogadas pelo provedor — foi o que derrubou as anteriores
+// (listadas em _oldKeys) e gerava "Groq (401): Invalid API Key".
+//
+// Por isso existe o override: se houver chave em config/ia_keys no Firestore,
+// ela tem PRIORIDADE sobre esta. Quando esta cair, basta colar a nova em
+// ⚙ Configurar IA — sem precisar editar o arquivo nem subir versão nova.
+const GROQ_KEY_DEFAULT = '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';
+// Migração: se o navegador tem chave antiga (revogada) salva, troca pela atual.
+(function(){ const _oldKeys=['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','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','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']; if(_oldKeys.includes(localStorage.getItem('fcrh_groq_key'))){ localStorage.setItem('fcrh_groq_key', GROQ_KEY_DEFAULT); } })();
 let GROQ_KEY = localStorage.getItem('fcrh_groq_key') || GROQ_KEY_DEFAULT;
+
+// Carrega a chave compartilhada do Firestore assim que o Firebase estiver pronto.
+function _carregarChavesIA(){
+  if(!FBASE) return;
+  FBASE.collection('config').doc('ia_keys').get().then(function(snap){
+    if(!snap.exists) return;
+    const d=snap.data()||{};
+    if(d.groqKey){
+      GROQ_KEY=d.groqKey;
+      try{ localStorage.setItem('fcrh_groq_key', d.groqKey); }catch(_){}
+      console.log('[Groq] Chave carregada do Firebase ✅');
+    }
+    if(d.groqModel){
+      GROQ_MODEL=d.groqModel;
+      try{ localStorage.setItem('fcrh_groq_model', d.groqModel); }catch(_){}
+    }
+    if(d.anthropicKey){
+      ANTHROPIC_KEY=d.anthropicKey;
+      try{ localStorage.setItem('fcrh_anthropic_key', d.anthropicKey); }catch(_){}
+    }
+  }).catch(function(e){ console.warn('[IA] Falha ao ler chaves do Firebase:', e&&e.message); });
+}
+if(!Array.isArray(window._firebaseReadyCallbacks)) window._firebaseReadyCallbacks = [];
+window._firebaseReadyCallbacks.push(_carregarChavesIA);
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL_DEFAULT = 'openai/gpt-oss-120b';
 // Migração automática: usuários que tinham o Llama 70b antigo salvo passam para o novo padrão.
@@ -3557,13 +3595,29 @@ async function groqCall(systemPrompt, userPrompt, fallbackMsg = '⚠ Groq tempor
 async function saveGroqKey(k){
   GROQ_KEY = k.trim() || GROQ_KEY_DEFAULT;
   localStorage.setItem('fcrh_groq_key', GROQ_KEY);
-  console.log('[Groq] Chave salva localmente ✅');
+  // Grava também no Firestore: assim a chave vale para todos os dispositivos
+  // e não precisa ficar escrita neste arquivo (que é público).
+  try{
+    if(FBASE) await FBASE.collection('config').doc('ia_keys').set({
+      groqKey: GROQ_KEY,
+      atualizadoEm: new Date().toISOString(),
+      atualizadoPor: (APP&&APP.user&&APP.user.nome)?APP.user.nome:'RH'
+    },{merge:true});
+    console.log('[Groq] Chave salva no Firebase ✅');
+  }catch(e){ console.warn('[Groq] Salvou só localmente:', e&&e.message); }
   return Promise.resolve();
+}
+
+async function saveAnthropicKeyRemote(k){
+  try{
+    if(FBASE&&k) await FBASE.collection('config').doc('ia_keys').set({anthropicKey:k},{merge:true});
+  }catch(_){}
 }
 
 async function saveGroqModel(m){
   GROQ_MODEL = (m||'').trim() || GROQ_MODEL_DEFAULT;
   localStorage.setItem('fcrh_groq_model', GROQ_MODEL);
+  try{ if(FBASE) await FBASE.collection('config').doc('ia_keys').set({groqModel:GROQ_MODEL},{merge:true}); }catch(_){}
   console.log('[Groq] Modelo selecionado:', GROQ_MODEL);
   return Promise.resolve();
 }
@@ -3826,7 +3880,7 @@ function openAnthropicKeyModal(){
     </div>
     <div class="mft">
       <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-blue" onclick="Promise.all([saveAnthropicKey(document.getElementById('ant-key').value),saveGroqKey(document.getElementById('groq-key').value),saveGroqModel(document.getElementById('groq-model').value)]).then(()=>{closeModal();toast('✅ Configurações salvas! IA ativada.','ok');})">💾 Salvar</button>
+      <button class="btn btn-blue" onclick="Promise.all([saveAnthropicKey(document.getElementById('ant-key').value),saveAnthropicKeyRemote(document.getElementById('ant-key').value),saveGroqKey(document.getElementById('groq-key').value),saveGroqModel(document.getElementById('groq-model').value)]).then(()=>{closeModal();toast('✅ Chaves salvas e sincronizadas com todos os dispositivos.','ok',4000);})">💾 Salvar</button>
     </div>`,520);
 }
 
@@ -3837,6 +3891,313 @@ function openAnthropicKeyModal(){
 // Cache por fingerprint de length + minuto. _rDashComAlertas usa window.rDash
 // portanto mantemos o nome original. O cache é checado no início do corpo.
 let _dashCache = { html: null, key: null };
+
+// ══════════════════════════════════════════════════════════════════════════
+// PAINEL DE GESTÃO — alertas de prazo, saúde do ponto, turnover e backup
+// Somente LEITURA dos dados existentes: nenhum destes blocos grava ou altera
+// registros. Se algo aqui falhar, o restante do sistema continua funcionando.
+// ══════════════════════════════════════════════════════════════════════════
+
+// ── 1. CONTRATO DE EXPERIÊNCIA ────────────────────────────────────────────
+// A CLT (art. 445, § único) limita o contrato de experiência a 90 dias, em no
+// máximo duas etapas. Passado o prazo sem providência, o contrato passa
+// AUTOMATICAMENTE a vigorar por prazo indeterminado — e o desligamento deixa
+// de ser simples fim de contrato, passando a exigir aviso prévio e multa de
+// FGTS. Por isso o alerta antecipado.
+const EXP_LIMITE_LEGAL = 90;   // dias — teto absoluto da CLT
+const EXP_AVISO_DIAS   = 15;   // antecedência do alerta
+
+function _expDiff(dataISO){
+  if(!dataISO) return null;
+  const d=new Date(dataISO+'T00:00:00');
+  if(isNaN(d)) return null;
+  const hoje=new Date(); hoje.setHours(0,0,0,0);
+  return Math.round((d-hoje)/86400000);   // dias restantes (negativo = passou)
+}
+
+// Descobre a data em que o contrato de experiência termina.
+// Prioriza a etapa mais avançada já registrada; se nenhuma houver, calcula
+// pelo teto legal a partir da admissão.
+function _expFim(emp){
+  const ex=emp&&emp.experiencia||{};
+  // Uma etapa só é considerada se a data for POSTERIOR à admissão. Datas iguais
+  // (ou anteriores) à admissão são preenchimento equivocado — o campo guarda o
+  // TÉRMINO da etapa, não o dia em que ela foi marcada. Sem esta checagem, um
+  // recém-admitido apareceria como "contrato vencido", e um alerta que mente
+  // rapidamente deixa de ser levado a sério.
+  const valida=(d)=>{
+    if(!d||!emp.dataAdmissao) return false;
+    const dd=new Date(d+'T00:00:00'), adm=new Date(emp.dataAdmissao+'T00:00:00');
+    return !isNaN(dd)&&!isNaN(adm)&&dd>adm;
+  };
+  if(ex.prorrogacao&&valida(ex.dataProrrogacao)) return {data:ex.dataProrrogacao, etapa:'prorrogação', estimado:false};
+  if(ex.dias45&&valida(ex.data45))               return {data:ex.data45,           etapa:'2ª etapa',    estimado:false};
+  if(ex.dias30&&valida(ex.data30))               return {data:ex.data30,           etapa:'1ª etapa',    estimado:false};
+  if(emp&&emp.dataAdmissao){
+    const d=new Date(emp.dataAdmissao+'T00:00:00');
+    if(!isNaN(d)){
+      d.setDate(d.getDate()+EXP_LIMITE_LEGAL);
+      return {data:d.toISOString().slice(0,10), etapa:'limite legal (90 dias)', estimado:true};
+    }
+  }
+  return null;
+}
+
+// Colaboradores ainda dentro (ou recém-saídos) do período de experiência.
+function _expPendentes(){
+  const ativos=(APP.employees||[]).filter(e=>e&&e.status==='ativo'&&e.dataAdmissao);
+  const out=[];
+  ativos.forEach(e=>{
+    // ignora quem já passou muito do prazo (contrato já é indeterminado há tempo)
+    const diasCasa=Math.round((Date.now()-new Date(e.dataAdmissao+'T00:00:00'))/86400000);
+    if(isNaN(diasCasa)||diasCasa>EXP_LIMITE_LEGAL+30) return;
+    const fim=_expFim(e);
+    if(!fim) return;
+    const restam=_expDiff(fim.data);
+    if(restam===null) return;
+    if(restam<=EXP_AVISO_DIAS) out.push({emp:e, fim, restam, diasCasa});
+  });
+  return out.sort((a,b)=>a.restam-b.restam);
+}
+
+function _cardExperiencia(){
+  let lista=[];
+  try{ lista=_expPendentes(); }catch(e){ console.warn('[Exp]',e&&e.message); return ''; }
+  if(!lista.length) return '';
+  const vencidos=lista.filter(x=>x.restam<0);
+  const urgente=vencidos.length>0;
+  return `
+  <div style="background:${urgente?'linear-gradient(135deg,#FEF2F2,#FFF5F5)':'linear-gradient(135deg,#FFFBEB,#FFFDF5)'};border:2px solid ${urgente?'#DC2626':'#F59E0B'};border-radius:14px;padding:18px 22px;margin-bottom:20px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div style="font-size:30px;line-height:1">${urgente?'⚠️':'⏳'}</div>
+      <div>
+        <div style="font-size:13px;font-weight:800;color:${urgente?'#991B1B':'#92400E'};text-transform:uppercase;letter-spacing:.06em">Contrato de experiência</div>
+        <div style="font-size:12px;color:${urgente?'#B91C1C':'#B45309'}">${urgente?'Há contrato com prazo VENCIDO — ação imediata':'Prazo se aproximando — decida antes do vencimento'}</div>
+      </div>
+    </div>
+    ${lista.map(x=>{
+      const v=x.restam<0;
+      return `<div style="background:#fff;border:1px solid ${v?'#FECACA':'#FDE68A'};border-radius:10px;padding:11px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:180px">
+          <div style="font-size:14px;font-weight:700;color:#1E293B">${esc(x.emp.nome||'—')}</div>
+          <div style="font-size:11px;color:#64748B">${esc(x.emp.cargo||'')}${x.emp.cargo?' · ':''}admitido em ${(x.emp.dataAdmissao||'').split('-').reverse().join('/')} · ${x.diasCasa} dias de casa</div>
+          <div style="font-size:11px;color:#94A3B8;margin-top:2px">Fim: ${(x.fim.data||'').split('-').reverse().join('/')} (${esc(x.fim.etapa)})${x.fim.estimado?' — <em>estimado, sem etapa registrada</em>':''}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:${v?'13':'18'}px;font-weight:800;color:${v?'#DC2626':'#D97706'}">${v?'VENCEU há '+Math.abs(x.restam)+'d':x.restam+' dia'+(x.restam===1?'':'s')}</div>
+          <button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8;margin-top:5px;font-size:11px" onclick="navigate('funcionarios')">Ver ficha</button>
+        </div>
+      </div>`;
+    }).join('')}
+    <div style="font-size:11px;color:#78716C;margin-top:6px;line-height:1.5">Passado o prazo sem providência, o contrato passa a vigorar por <strong>prazo indeterminado</strong> (CLT art. 445) — o desligamento passa a exigir aviso prévio e multa de FGTS.</div>
+  </div>`;
+}
+
+// ── 2. SAÚDE DO PONTO (hoje) ──────────────────────────────────────────────
+// Mostra o estado das batidas do dia: quem ainda não bateu, quantas vieram
+// por contingência (foto) e quantas ficaram sem prova de vida verificada.
+function _saudePonto(){
+  const hojeISO=new Date().toISOString().slice(0,10);
+  const ativos=(APP.employees||[]).filter(e=>e&&e.status==='ativo');
+  const punches=(typeof BIO_DATA!=='undefined'&&BIO_DATA&&Array.isArray(BIO_DATA.punches))?BIO_DATA.punches:[];
+  const hoje=punches.filter(p=>p&&p.date===hojeISO);
+
+  const porEmp={};
+  hoje.forEach(p=>{ const k=p.empId||p.hrEmpId; if(!k)return; (porEmp[k]=porEmp[k]||[]).push(p); });
+
+  const semBater=ativos.filter(e=>!porEmp[e.id]||porEmp[e.id].length===0);
+  const impar=ativos.filter(e=>porEmp[e.id]&&porEmp[e.id].length%2===1);
+  const porFoto=hoje.filter(p=>p.origem==='foto_manual'||p.metodo==='foto_manual');
+  const semLive=hoje.filter(p=>p.livenessVerificado===false);
+  const pendRev=hoje.filter(p=>p.precisaRevisao===true&&!p.revisadoRH);
+
+  return {ativos:ativos.length, batidasHoje:hoje.length, semBater, impar, porFoto, semLive, pendRev};
+}
+
+function _cardSaudePonto(){
+  let s;
+  try{ s=_saudePonto(); }catch(e){ console.warn('[SaudePonto]',e&&e.message); return ''; }
+  const alerta=s.semBater.length>0||s.impar.length>0||s.porFoto.length>0;
+  const pill=(cor,bg,lbl,val)=>`<div style="background:${bg};border-radius:10px;padding:10px 12px;flex:1;min-width:104px">
+      <div style="font-size:20px;font-weight:800;color:${cor};line-height:1.1">${val}</div>
+      <div style="font-size:11px;color:${cor};opacity:.85;margin-top:2px">${lbl}</div>
+    </div>`;
+  return `
+  <div style="background:#fff;border:1.5px solid ${alerta?'#FDE68A':'#E2E8F0'};border-radius:14px;padding:18px 20px;margin-bottom:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+      <div>
+        <div style="font-size:13px;font-weight:800;color:#0F172A;text-transform:uppercase;letter-spacing:.06em">🕐 Saúde do ponto — hoje</div>
+        <div style="font-size:12px;color:#64748B">Estado das batidas de ${new Date().toLocaleDateString('pt-BR')}</div>
+      </div>
+      <button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8;font-size:12px" onclick="navigate('biometrico')">Abrir biométrico</button>
+    </div>
+    <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:${(s.semBater.length||s.impar.length)?'12px':'0'}">
+      ${pill('#0369A1','#F0F9FF','Batidas hoje',s.batidasHoje)}
+      ${pill(s.semBater.length?'#B45309':'#059669', s.semBater.length?'#FFFBEB':'#ECFDF5','Sem bater',s.semBater.length)}
+      ${pill(s.impar.length?'#B45309':'#64748B', s.impar.length?'#FFFBEB':'#F8FAFC','Em aberto',s.impar.length)}
+      ${pill(s.porFoto.length?'#1D4ED8':'#64748B', s.porFoto.length?'#EFF6FF':'#F8FAFC','Por foto',s.porFoto.length)}
+      ${pill(s.pendRev.length?'#DC2626':'#64748B', s.pendRev.length?'#FEF2F2':'#F8FAFC','A revisar',s.pendRev.length)}
+    </div>
+    ${s.semBater.length?`<div style="font-size:12px;color:#92400E;background:#FFFBEB;border:1px solid #FDE68A;border-radius:9px;padding:9px 12px;margin-bottom:7px"><strong>Ainda não bateram:</strong> ${s.semBater.slice(0,8).map(e=>esc((e.nome||'').split(' ')[0])).join(', ')}${s.semBater.length>8?' +'+(s.semBater.length-8):''}</div>`:''}
+    ${s.impar.length?`<div style="font-size:12px;color:#92400E;background:#FFFBEB;border:1px solid #FDE68A;border-radius:9px;padding:9px 12px"><strong>Jornada em aberto</strong> (nº ímpar de batidas): ${s.impar.slice(0,8).map(e=>esc((e.nome||'').split(' ')[0])).join(', ')}${s.impar.length>8?' +'+(s.impar.length-8):''}</div>`:''}
+  </div>`;
+}
+
+// ── 3. TURNOVER E ABSENTEÍSMO ─────────────────────────────────────────────
+// Turnover mensal = ((admissões + desligamentos) / 2) ÷ efetivo médio × 100.
+// É a fórmula clássica de RH; guardamos também os números crus para leitura.
+function _indicadoresRH(meses){
+  meses=meses||6;
+  const emps=(APP.employees||[]);
+  const dem=(APP.demissoes||{});
+  const ref=new Date(); ref.setDate(1); ref.setHours(0,0,0,0);
+  const serie=[];
+  for(let i=meses-1;i>=0;i--){
+    const ini=new Date(ref.getFullYear(),ref.getMonth()-i,1);
+    const fim=new Date(ref.getFullYear(),ref.getMonth()-i+1,0);
+    const key=ini.toISOString().slice(0,7);
+    const admissoes=emps.filter(e=>e&&e.dataAdmissao&&e.dataAdmissao.slice(0,7)===key).length;
+    let desligamentos=0;
+    Object.keys(dem).forEach(id=>{
+      const d=dem[id];
+      if(d&&d.dataDemissao&&d.dataDemissao.slice(0,7)===key) desligamentos++;
+    });
+    // efetivo ao fim do mês: admitidos até fim e (não demitido ou demitido depois)
+    const efetivo=emps.filter(e=>{
+      if(!e||!e.dataAdmissao) return false;
+      if(new Date(e.dataAdmissao+'T00:00:00')>fim) return false;
+      const d=dem[e.id];
+      if(d&&d.dataDemissao&&new Date(d.dataDemissao+'T00:00:00')<=fim) return false;
+      return true;
+    }).length;
+    const turnover=efetivo>0?(((admissoes+desligamentos)/2)/efetivo*100):0;
+    serie.push({key, label:ini.toLocaleDateString('pt-BR',{month:'short'}), admissoes, desligamentos, efetivo, turnover});
+  }
+  return serie;
+}
+
+// Absenteísmo: faltas registradas no cartão-ponto sobre dias úteis lançados.
+function _absenteismoMes(){
+  const agora=new Date();
+  const ano=agora.getFullYear(), mes=agora.getMonth()+1;
+  const pontos=APP.pontos||{};
+  let faltas=0, diasLancados=0, atestados=0;
+  Object.keys(pontos).forEach(k=>{
+    if(!k.endsWith('_'+ano+'_'+mes)) return;
+    const dias=pontos[k]||{};
+    Object.keys(dias).forEach(d=>{
+      const reg=dias[d]; if(!reg||!reg.status) return;
+      diasLancados++;
+      const st=String(reg.status).toLowerCase();
+      if(st.indexOf('falta')>=0) faltas++;
+      if(st.indexOf('atestado')>=0) atestados++;
+    });
+  });
+  const taxa=diasLancados>0?(faltas/diasLancados*100):0;
+  return {faltas, atestados, diasLancados, taxa};
+}
+
+function _cardIndicadores(){
+  let serie, abs;
+  try{ serie=_indicadoresRH(6); abs=_absenteismoMes(); }
+  catch(e){ console.warn('[Indicadores]',e&&e.message); return ''; }
+  if(!serie.length) return '';
+  const ultimo=serie[serie.length-1];
+  const maxT=Math.max(...serie.map(s=>s.turnover),1);
+  return `
+  <div style="background:#fff;border:1.5px solid #E2E8F0;border-radius:14px;padding:18px 20px;margin-bottom:20px">
+    <div style="font-size:13px;font-weight:800;color:#0F172A;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">📊 Indicadores de RH</div>
+    <div style="font-size:12px;color:#64748B;margin-bottom:14px">Rotatividade dos últimos 6 meses e absenteísmo do mês atual</div>
+
+    <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:16px">
+      <div style="background:#F0F9FF;border-radius:10px;padding:10px 12px;flex:1;min-width:110px">
+        <div style="font-size:20px;font-weight:800;color:#0369A1;line-height:1.1">${ultimo.turnover.toFixed(1)}%</div>
+        <div style="font-size:11px;color:#0369A1;opacity:.85">Turnover do mês</div>
+      </div>
+      <div style="background:#ECFDF5;border-radius:10px;padding:10px 12px;flex:1;min-width:110px">
+        <div style="font-size:20px;font-weight:800;color:#047857;line-height:1.1">${ultimo.efetivo}</div>
+        <div style="font-size:11px;color:#047857;opacity:.85">Efetivo atual</div>
+      </div>
+      <div style="background:${abs.taxa>5?'#FEF2F2':'#F8FAFC'};border-radius:10px;padding:10px 12px;flex:1;min-width:110px">
+        <div style="font-size:20px;font-weight:800;color:${abs.taxa>5?'#DC2626':'#334155'};line-height:1.1">${abs.taxa.toFixed(1)}%</div>
+        <div style="font-size:11px;color:${abs.taxa>5?'#DC2626':'#334155'};opacity:.85">Absenteísmo</div>
+      </div>
+      <div style="background:#F8FAFC;border-radius:10px;padding:10px 12px;flex:1;min-width:110px">
+        <div style="font-size:20px;font-weight:800;color:#334155;line-height:1.1">${abs.faltas}</div>
+        <div style="font-size:11px;color:#334155;opacity:.85">Faltas no mês</div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:flex-end;gap:6px;height:96px;padding:0 2px;border-bottom:1px solid #E2E8F0">
+      ${serie.map(s=>{
+        const h=Math.max(3,Math.round(s.turnover/maxT*76));
+        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px" title="${s.label}: ${s.turnover.toFixed(1)}% · ${s.admissoes} adm · ${s.desligamentos} desl">
+          <div style="font-size:10px;color:#64748B;font-weight:700">${s.turnover>0?s.turnover.toFixed(0)+'%':''}</div>
+          <div style="width:100%;height:${h}px;background:${s.turnover>10?'#F87171':'#60A5FA'};border-radius:5px 5px 0 0"></div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="display:flex;gap:6px;padding:5px 2px 0">
+      ${serie.map(s=>`<div style="flex:1;text-align:center;font-size:10px;color:#94A3B8">${esc(s.label)}</div>`).join('')}
+    </div>
+    <div style="font-size:11px;color:#94A3B8;margin-top:9px;line-height:1.5">Turnover = ((admissões + desligamentos) ÷ 2) ÷ efetivo × 100. Absenteísmo considera faltas lançadas no cartão-ponto do mês (atestados: ${abs.atestados}).</div>
+  </div>`;
+}
+
+// ── 4. BACKUP AUTOMÁTICO ──────────────────────────────────────────────────
+// O backup depende de alguém lembrar de clicar. Aqui registramos a data do
+// último backup e avisamos quando passa do intervalo. Não baixamos o arquivo
+// sozinhos: navegadores bloqueiam download sem gesto do usuário, e um
+// download silencioso semanal encheria a pasta sem a pessoa perceber.
+const BACKUP_INTERVALO_DIAS = 7;
+
+function _backupUltimo(){
+  try{ const v=localStorage.getItem('atlas_ultimo_backup'); return v?new Date(v):null; }catch(_){ return null; }
+}
+function _backupRegistrar(){
+  try{ localStorage.setItem('atlas_ultimo_backup', new Date().toISOString()); }catch(_){}
+}
+function _backupDiasSem(){
+  const u=_backupUltimo();
+  if(!u||isNaN(u)) return null;               // nunca fez backup
+  return Math.floor((Date.now()-u.getTime())/86400000);
+}
+
+function _cardBackup(){
+  let dias;
+  try{ dias=_backupDiasSem(); }catch(e){ return ''; }
+  const nunca=(dias===null);
+  if(!nunca && dias<BACKUP_INTERVALO_DIAS) return '';   // em dia: não polui a tela
+  const critico=nunca||dias>=30;
+  return `
+  <div style="background:${critico?'#FEF2F2':'#FFFBEB'};border:2px solid ${critico?'#DC2626':'#F59E0B'};border-radius:14px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <div style="font-size:30px;line-height:1">${critico?'🚨':'💾'}</div>
+    <div style="flex:1;min-width:200px">
+      <div style="font-size:13px;font-weight:800;color:${critico?'#991B1B':'#92400E'};text-transform:uppercase;letter-spacing:.06em">Backup dos dados</div>
+      <div style="font-size:12px;color:${critico?'#B91C1C':'#B45309'};line-height:1.5;margin-top:2px">
+        ${nunca
+          ? 'Nenhum backup registrado neste dispositivo. Se perder o acesso ao Firebase, não há como recuperar os dados.'
+          : 'Último backup há <strong>'+dias+' dia'+(dias===1?'':'s')+'</strong>. O recomendado é no máximo a cada '+BACKUP_INTERVALO_DIAS+' dias.'}
+      </div>
+    </div>
+    <button class="btn" style="background:${critico?'#DC2626':'#D97706'};color:#fff;font-weight:700;white-space:nowrap" onclick="downloadBackupJSON()">⬇️ Fazer backup agora</button>
+  </div>`;
+}
+
+// Bloco completo para o topo do dashboard.
+function rPainelGestao(){
+  let html='';
+  try{ html+=_cardBackup(); }catch(e){ console.warn('[Painel] backup',e&&e.message); }
+  try{ html+=_cardExperiencia(); }catch(e){ console.warn('[Painel] exp',e&&e.message); }
+  try{ html+=_cardSaudePonto(); }catch(e){ console.warn('[Painel] ponto',e&&e.message); }
+  try{ html+=_cardIndicadores(); }catch(e){ console.warn('[Painel] indic',e&&e.message); }
+  return html;
+}
+window.rPainelGestao=rPainelGestao;
+window._backupRegistrar=_backupRegistrar;
+window._indicadoresRH=_indicadoresRH;
+window._expPendentes=_expPendentes;
+
 function _dashCacheKey(){
   const now = new Date();
   const m = now.getFullYear()+'-'+(now.getMonth()+1)+'-'+now.getDate()+'-'+now.getHours()+'-'+now.getMinutes();
@@ -3880,6 +4241,7 @@ function rDash(){
   });
 
   const _dashHtml = `
+  ${(typeof rPainelGestao==='function'?rPainelGestao():'')}
   ${aniversHoje.length>0?`
   <div style="background:linear-gradient(135deg,#FFF7ED,#FFFBF0);border:2px solid #F59E0B;border-radius:14px;padding:18px 22px;margin-bottom:20px;display:flex;align-items:center;gap:16px;box-shadow:0 4px 20px rgba(245,158,11,.15)">
     <div style="font-size:48px;line-height:1;flex-shrink:0">🎂</div>
@@ -8034,12 +8396,674 @@ td,th{font-size:15px!important;}
 // ════════════════════════════════════════════════════
 // DEMISSÃO
 // ════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════════════
+// RESCISÃO E 13º SALÁRIO — cálculo estimativo conforme CLT
+//
+// IMPORTANTE: este módulo produz uma ESTIMATIVA para conferência e
+// planejamento. O valor oficial depende de saldo real de FGTS, convenção
+// coletiva da categoria, médias de variáveis (horas extras, comissões,
+// adicionais) e eventuais verbas específicas. O TRCT deve ser conferido pela
+// contabilidade antes do pagamento — por isso todo resultado sai marcado como
+// estimativa, e nada aqui grava valor em folha automaticamente.
+// ══════════════════════════════════════════════════════════════════════════
+
+// Tipos de rescisão e o que cada um gera de direito (CLT arts. 477, 479,
+// 482, 483, 484-A e Lei 8.036/90 art. 18).
+const TIPOS_RESCISAO = {
+  sem_justa_causa: {
+    label: 'Dispensa sem justa causa',
+    aviso: 'indenizado',      // empregador paga
+    decimo: true,
+    feriasVenc: true,
+    feriasProp: true,
+    multaFgts: 0.40,
+    saqueFgts: true,
+    seguroDesemprego: true
+  },
+  pedido_demissao: {
+    label: 'Pedido de demissão',
+    aviso: 'descontado',      // se o empregado não cumprir, desconta
+    decimo: true,
+    feriasVenc: true,
+    feriasProp: true,
+    multaFgts: 0,
+    saqueFgts: false,
+    seguroDesemprego: false
+  },
+  justa_causa: {
+    label: 'Dispensa por justa causa',
+    aviso: 'nenhum',
+    decimo: false,            // perde o 13º proporcional
+    feriasVenc: true,         // férias vencidas são direito adquirido
+    feriasProp: false,        // perde as proporcionais (Súmula 171 TST)
+    multaFgts: 0,
+    saqueFgts: false,
+    seguroDesemprego: false
+  },
+  acordo: {
+    label: 'Acordo entre as partes (art. 484-A)',
+    aviso: 'metade',
+    decimo: true,
+    feriasVenc: true,
+    feriasProp: true,
+    multaFgts: 0.20,
+    saqueFgts: true,          // até 80%
+    seguroDesemprego: false
+  },
+  fim_experiencia: {
+    label: 'Término do contrato de experiência',
+    aviso: 'nenhum',
+    decimo: true,
+    feriasVenc: true,
+    feriasProp: true,
+    multaFgts: 0,
+    saqueFgts: true,
+    seguroDesemprego: false
+  }
+};
+
+// Meses de avos: fração igual ou superior a 15 dias conta como mês inteiro
+// (CLT art. 146, § único, aplicado por analogia ao 13º — Súmula 45 TST).
+function _avos(dataIni, dataFim){
+  const ini=new Date(dataIni+'T00:00:00'), fim=new Date(dataFim+'T00:00:00');
+  if(isNaN(ini)||isNaN(fim)||fim<ini) return 0;
+  let meses=(fim.getFullYear()-ini.getFullYear())*12+(fim.getMonth()-ini.getMonth());
+  const diasSobra=fim.getDate()-ini.getDate()+1;
+  if(diasSobra>=15) meses++;
+  return Math.max(0,Math.min(12,meses));
+}
+
+// Avos do 13º no ano da rescisão: conta de 1º de janeiro (ou da admissão,
+// se admitido no próprio ano) até o desligamento.
+function _avosDecimo(dataAdmissao, dataRescisao){
+  const resc=new Date(dataRescisao+'T00:00:00');
+  if(isNaN(resc)) return 0;
+  const anoIni=resc.getFullYear()+'-01-01';
+  const base=(dataAdmissao&&dataAdmissao>anoIni)?dataAdmissao:anoIni;
+  const ini=new Date(base+'T00:00:00');
+  if(isNaN(ini)||ini>resc) return 0;
+
+  // Admissão e saída no mesmo mês: decide pelos dias efetivamente trabalhados.
+  if(ini.getFullYear()===resc.getFullYear() && ini.getMonth()===resc.getMonth()){
+    return ((resc.getDate()-ini.getDate()+1)>=15)?1:0;
+  }
+
+  let meses=resc.getMonth()-ini.getMonth()+1;
+  // Mês da ADMISSÃO só conta se restaram 15 dias ou mais nele. Sem esta
+  // checagem, quem entra dia 20 ganharia um avo por 11 dias de trabalho.
+  const diasNoMesAdm=new Date(ini.getFullYear(), ini.getMonth()+1, 0).getDate();
+  if((diasNoMesAdm-ini.getDate()+1)<15) meses--;
+  // Mês da SAÍDA só conta se trabalhou 15 dias ou mais nele (Súmula 45 TST).
+  if(resc.getDate()<15) meses--;
+
+  return Math.max(0,Math.min(12,meses));
+}
+
+// Períodos aquisitivos de férias completos e ainda não gozados.
+function _feriasVencidasQtd(emp){
+  if(!emp||!emp.dataAdmissao) return 0;
+  const adm=new Date(emp.dataAdmissao+'T00:00:00');
+  const hoje=new Date();
+  if(isNaN(adm)) return 0;
+  // quantos períodos de 12 meses se completaram
+  let periodos=Math.floor((hoje-adm)/(365.25*86400000));
+  if(periodos<=0) return 0;
+  // desconta os períodos já gozados
+  const gozadas=(APP.ferias||[]).filter(f=>f&&f.empId===emp.id&&f.status==='gozado').length;
+  return Math.max(0,periodos-gozadas);
+}
+
+// ── Cálculo principal ─────────────────────────────────────────────────────
+function calcularRescisao(opts){
+  const emp=opts.emp;
+  const tipo=TIPOS_RESCISAO[opts.tipo]||TIPOS_RESCISAO.sem_justa_causa;
+  const dataResc=opts.dataRescisao;
+  const salario=parseFloat(opts.salario||emp.salario||0)||0;
+  const saldoFgtsInformado=parseFloat(opts.saldoFgts||0)||0;
+  const avisoCumprido=!!opts.avisoCumprido;
+
+  const resc=new Date(dataResc+'T00:00:00');
+  const adm=emp.dataAdmissao?new Date(emp.dataAdmissao+'T00:00:00'):null;
+  const anosCasa=adm?Math.floor((resc-adm)/(365.25*86400000)):0;
+  const diario=salario/30;
+
+  const verbas=[], descontos=[];
+
+  // 1) Saldo de salário — dias trabalhados no mês do desligamento.
+  // Usa-se o mês comercial de 30 dias; quem trabalha o mês inteiro recebe o
+  // salário integral. Sem o teto, um desligamento em dia 31 pagaria 31/30 do
+  // salário, o que estaria errado.
+  const diasSaldo=Math.min(resc.getDate(),30);
+  const vSaldo=+(diario*diasSaldo).toFixed(2);
+  verbas.push({desc:`Saldo de salário (${resc.getDate()} dia${resc.getDate()>1?'s':''})`, valor:vSaldo, tributavel:true});
+
+  // 2) Aviso prévio — 30 dias + 3 por ano de casa, limitado a 90 (Lei 12.506/11)
+  let diasAviso=Math.min(90, 30 + (anosCasa*3));
+  let vAviso=0;
+  if(tipo.aviso==='indenizado' && !avisoCumprido){
+    vAviso=+(diario*diasAviso).toFixed(2);
+    verbas.push({desc:`Aviso prévio indenizado (${diasAviso} dias)`, valor:vAviso, tributavel:false});
+  } else if(tipo.aviso==='metade' && !avisoCumprido){
+    diasAviso=Math.round(diasAviso/2);
+    vAviso=+(diario*diasAviso).toFixed(2);
+    verbas.push({desc:`Aviso prévio indenizado — 50% (${diasAviso} dias, art. 484-A)`, valor:vAviso, tributavel:false});
+  } else if(tipo.aviso==='descontado' && !avisoCumprido){
+    const vDesc=+(diario*30).toFixed(2);
+    descontos.push({desc:'Aviso prévio não cumprido (30 dias)', valor:vDesc});
+  }
+
+  // 3) 13º proporcional. No aviso indenizado, o tempo do aviso integra o
+  // contrato para fins de avos (OJ 82 SDI-1 do TST).
+  let dataBase13=dataResc;
+  if((tipo.aviso==='indenizado'||tipo.aviso==='metade') && !avisoCumprido){
+    const proj=new Date(resc); proj.setDate(proj.getDate()+diasAviso);
+    dataBase13=proj.toISOString().slice(0,10);
+  }
+  let vDecimo=0, avos13=0;
+  if(tipo.decimo){
+    avos13=_avosDecimo(emp.dataAdmissao, dataBase13);
+    vDecimo=+((salario/12)*avos13).toFixed(2);
+    if(vDecimo>0) verbas.push({desc:`13º salário proporcional (${avos13}/12)`, valor:vDecimo, tributavel:true, decimo:true});
+  }
+
+  // 4) Férias vencidas + 1/3 (períodos completos não gozados)
+  let vFeriasVenc=0;
+  const qtdVenc=tipo.feriasVenc?_feriasVencidasQtd(emp):0;
+  if(qtdVenc>0){
+    const base=salario*qtdVenc;
+    vFeriasVenc=+(base+base/3).toFixed(2);
+    verbas.push({desc:`Férias vencidas + 1/3 (${qtdVenc} período${qtdVenc>1?'s':''})`, valor:vFeriasVenc, tributavel:false});
+  }
+
+  // 5) Férias proporcionais + 1/3
+  let vFeriasProp=0, avosFerias=0;
+  if(tipo.feriasProp && adm){
+    // avos contados a partir do último aniversário de admissão
+    const ultimoAniv=new Date(adm);
+    ultimoAniv.setFullYear(resc.getFullYear());
+    if(ultimoAniv>resc) ultimoAniv.setFullYear(resc.getFullYear()-1);
+    avosFerias=_avos(ultimoAniv.toISOString().slice(0,10), dataBase13);
+    if(avosFerias>0){
+      const base=(salario/12)*avosFerias;
+      vFeriasProp=+(base+base/3).toFixed(2);
+      verbas.push({desc:`Férias proporcionais + 1/3 (${avosFerias}/12)`, valor:vFeriasProp, tributavel:false});
+    }
+  }
+
+  // 6) Multa do FGTS. Sem o extrato real, estimamos o saldo em 8% do salário
+  // por mês trabalhado — é aproximação grosseira e vem sinalizada como tal.
+  let vMulta=0, saldoFgtsUsado=saldoFgtsInformado, fgtsEstimado=false;
+  if(tipo.multaFgts>0){
+    if(!saldoFgtsUsado){
+      const mesesTotais=adm?Math.max(0,Math.round((resc-adm)/(30.44*86400000))):0;
+      saldoFgtsUsado=+(salario*0.08*mesesTotais).toFixed(2);
+      fgtsEstimado=true;
+    }
+    vMulta=+(saldoFgtsUsado*tipo.multaFgts).toFixed(2);
+    verbas.push({desc:`Multa de ${(tipo.multaFgts*100).toFixed(0)}% sobre FGTS${fgtsEstimado?' (saldo estimado)':''}`, valor:vMulta, tributavel:false});
+  }
+
+  // ── Descontos legais ────────────────────────────────────────────────────
+  // INSS e IRRF incidem sobre saldo de salário; o 13º é tributado em separado.
+  // Férias indenizadas, aviso indenizado e multa do FGTS têm natureza
+  // indenizatória e não sofrem incidência (Súmula 386 STJ / art. 28 Lei 8.212).
+  const baseINSS=vSaldo;
+  const vINSS=(typeof calcINSS==='function')?calcINSS(baseINSS):0;
+  if(vINSS>0) descontos.push({desc:'INSS sobre saldo de salário', valor:vINSS});
+
+  let vINSS13=0, vIRRF13=0;
+  if(vDecimo>0){
+    vINSS13=(typeof calcINSS==='function')?calcINSS(vDecimo):0;
+    if(vINSS13>0) descontos.push({desc:'INSS sobre 13º salário', valor:vINSS13});
+    vIRRF13=(typeof calcIRRF==='function')?calcIRRF(vDecimo-vINSS13):0;
+    if(vIRRF13>0) descontos.push({desc:'IRRF sobre 13º salário', valor:vIRRF13});
+  }
+  const vIRRF=(typeof calcIRRF==='function')?calcIRRF(baseINSS-vINSS):0;
+  if(vIRRF>0) descontos.push({desc:'IRRF sobre saldo de salário', valor:vIRRF});
+
+  const totalVerbas=+verbas.reduce((s,v)=>s+v.valor,0).toFixed(2);
+  const totalDescontos=+descontos.reduce((s,d)=>s+d.valor,0).toFixed(2);
+  const liquido=+(totalVerbas-totalDescontos).toFixed(2);
+
+  return {
+    emp, tipo, tipoKey:opts.tipo, dataRescisao:dataResc, salario, anosCasa,
+    diasAviso: (tipo.aviso==='indenizado'||tipo.aviso==='metade')?diasAviso:0,
+    verbas, descontos, totalVerbas, totalDescontos, liquido,
+    saldoFgts:saldoFgtsUsado, fgtsEstimado,
+    saqueFgts:tipo.saqueFgts, seguroDesemprego:tipo.seguroDesemprego,
+    avos13, avosFerias, feriasVencidas:qtdVenc
+  };
+}
+
+// ── 13º SALÁRIO (folha anual) ─────────────────────────────────────────────
+// 1ª parcela: até 30/11, 50% do salário, sem descontos (Lei 4.749/65).
+// 2ª parcela: até 20/12, o restante, com INSS e IRRF sobre o total.
+function calcularDecimoTerceiro(emp, ano){
+  ano=ano||new Date().getFullYear();
+  const salario=parseFloat(emp.salario||0)||0;
+  const fimAno=ano+'-12-31';
+  const avos=_avosDecimo(emp.dataAdmissao, fimAno);
+  const bruto=+((salario/12)*avos).toFixed(2);
+  const parcela1=+(bruto/2).toFixed(2);
+  const inss=(typeof calcINSS==='function')?calcINSS(bruto):0;
+  const irrf=(typeof calcIRRF==='function')?calcIRRF(bruto-inss):0;
+  const parcela2=+(bruto-parcela1-inss-irrf).toFixed(2);
+  return {emp, ano, salario, avos, bruto, parcela1, inss, irrf, parcela2, total:+(bruto-inss-irrf).toFixed(2)};
+}
+
+window.TIPOS_RESCISAO=TIPOS_RESCISAO;
+window.calcularRescisao=calcularRescisao;
+window.calcularDecimoTerceiro=calcularDecimoTerceiro;
+window._avosDecimo=_avosDecimo;
+window._avos=_avos;
+window._feriasVencidasQtd=_feriasVencidasQtd;
+
+// ── UI: CALCULADORA DE RESCISÃO ───────────────────────────────────────────
+function abrirCalcRescisao(empIdPre){
+  const ativos=(APP.employees||[]).filter(e=>e&&(e.status==='ativo'||e.id===empIdPre));
+  if(!ativos.length){ toast('Nenhum colaborador disponível.','err'); return; }
+  const hoje=new Date().toISOString().slice(0,10);
+  const opts=Object.keys(TIPOS_RESCISAO).map(k=>`<option value="${k}">${TIPOS_RESCISAO[k].label}</option>`).join('');
+  openModal('🧮 Cálculo de Rescisão',`
+    <div style="background:#FFFBEB;border:1.5px solid #FDE68A;border-radius:10px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:#92400E;line-height:1.55">
+      <strong>Estimativa para conferência.</strong> O valor oficial depende do saldo real de FGTS, da convenção coletiva da categoria e das médias de variáveis (horas extras, comissões, adicionais). Confirme com a contabilidade antes de pagar ou homologar.
+    </div>
+    <div class="fld"><label>Colaborador</label>
+      <select id="rsc-emp">${ativos.map(e=>`<option value="${e.id}" ${e.id===empIdPre?'selected':''}>${esc(e.nome)}</option>`).join('')}</select>
+    </div>
+    <div class="fld"><label>Tipo de rescisão</label><select id="rsc-tipo">${opts}</select></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="fld" style="flex:1;min-width:150px"><label>Data do desligamento</label><input type="date" id="rsc-data" value="${hoje}"></div>
+      <div class="fld" style="flex:1;min-width:150px"><label>Saldo do FGTS (opcional)</label><input type="number" id="rsc-fgts" placeholder="deixe vazio p/ estimar" step="0.01"></div>
+    </div>
+    <div class="fld" style="display:flex;align-items:center;gap:8px">
+      <input type="checkbox" id="rsc-aviso" style="width:auto;margin:0">
+      <label for="rsc-aviso" style="margin:0;cursor:pointer">Aviso prévio trabalhado (não indenizar)</label>
+    </div>
+    <div id="rsc-out" style="margin-top:14px"></div>
+    <div class="mft">
+      <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+      <button class="btn btn-blue" onclick="executarCalcRescisao()">🧮 Calcular</button>
+    </div>`,640);
+  setTimeout(()=>{ try{ executarCalcRescisao(); }catch(_){ } },80);
+}
+
+function executarCalcRescisao(){
+  const eid=document.getElementById('rsc-emp')?.value;
+  const emp=(APP.employees||[]).find(e=>e.id===eid);
+  const out=document.getElementById('rsc-out');
+  if(!emp||!out) return;
+  const tipo=document.getElementById('rsc-tipo')?.value||'sem_justa_causa';
+  const data=document.getElementById('rsc-data')?.value;
+  const fgts=document.getElementById('rsc-fgts')?.value;
+  const avisoCumprido=document.getElementById('rsc-aviso')?.checked;
+  if(!data){ out.innerHTML='<div style="color:#DC2626;font-size:13px">Informe a data do desligamento.</div>'; return; }
+
+  let r;
+  try{ r=calcularRescisao({emp,tipo,dataRescisao:data,salario:emp.salario,saldoFgts:fgts,avisoCumprido}); }
+  catch(e){ out.innerHTML='<div style="color:#DC2626;font-size:13px">Erro no cálculo: '+esc(e.message)+'</div>'; return; }
+  window._ultimaRescisao=r;
+
+  const linha=(d,v,neg)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed #E2E8F0;font-size:13px">
+      <span style="color:#334155">${esc(d)}</span><span style="font-weight:700;color:${neg?'#DC2626':'#047857'};white-space:nowrap">${neg?'− ':''}${fBRL(v)}</span></div>`;
+
+  out.innerHTML=`
+    <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:14px 16px">
+      <div style="font-size:12px;color:#64748B;margin-bottom:10px">${esc(emp.nome)} · ${esc(r.tipo.label)} · ${r.anosCasa} ano(s) de casa${r.diasAviso?' · aviso de '+r.diasAviso+' dias':''}</div>
+      <div style="font-size:11px;font-weight:800;color:#047857;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Proventos</div>
+      ${r.verbas.map(v=>linha(v.desc,v.valor,false)).join('')||'<div style="font-size:12px;color:#94A3B8;padding:6px 0">—</div>'}
+      ${r.descontos.length?`<div style="font-size:11px;font-weight:800;color:#B91C1C;text-transform:uppercase;letter-spacing:.05em;margin:12px 0 4px">Descontos</div>${r.descontos.map(d=>linha(d.desc,d.valor,true)).join('')}`:''}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:2px solid #CBD5E1">
+        <span style="font-size:14px;font-weight:800;color:#0F172A">Líquido estimado</span>
+        <span style="font-size:20px;font-weight:800;color:#047857">${fBRL(r.liquido)}</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        ${r.saqueFgts?'<span style="background:#DCFCE7;color:#166534;border-radius:8px;padding:3px 9px;font-size:11px;font-weight:700">✓ Saque do FGTS</span>':'<span style="background:#FEE2E2;color:#991B1B;border-radius:8px;padding:3px 9px;font-size:11px;font-weight:700">✗ Sem saque do FGTS</span>'}
+        ${r.seguroDesemprego?'<span style="background:#DCFCE7;color:#166534;border-radius:8px;padding:3px 9px;font-size:11px;font-weight:700">✓ Seguro-desemprego</span>':'<span style="background:#FEE2E2;color:#991B1B;border-radius:8px;padding:3px 9px;font-size:11px;font-weight:700">✗ Sem seguro-desemprego</span>'}
+        ${r.fgtsEstimado&&r.saldoFgts?'<span style="background:#FEF3C7;color:#92400E;border-radius:8px;padding:3px 9px;font-size:11px;font-weight:700">⚠ FGTS estimado em '+fBRL(r.saldoFgts)+'</span>':''}
+      </div>
+      ${r.fgtsEstimado&&r.saldoFgts?'<div style="font-size:11px;color:#92400E;margin-top:8px;line-height:1.5">O saldo do FGTS foi estimado em 8% do salário por mês trabalhado. Informe o saldo real do extrato para que a multa saia correta.</div>':''}
+      <div style="text-align:right;margin-top:12px">
+        <button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8" onclick="imprimirRescisao()">🖨 Imprimir demonstrativo</button>
+      </div>
+    </div>`;
+}
+
+function imprimirRescisao(){
+  const r=window._ultimaRescisao;
+  if(!r){ toast('Calcule primeiro.','err'); return; }
+  const emp=(APP.empresaCfg&&APP.empresaCfg.razaoSocial)?APP.empresaCfg.razaoSocial:'';
+  const w=window.open('','_blank');
+  if(!w){ toast('Permita pop-ups para imprimir.','err'); return; }
+  const lin=(d,v,neg)=>`<tr><td style="padding:5px 0;border-bottom:1px dotted #ccc">${esc(d)}</td><td style="padding:5px 0;border-bottom:1px dotted #ccc;text-align:right;white-space:nowrap">${neg?'− ':''}${fBRL(v)}</td></tr>`;
+  w.document.write(`<html><head><meta charset="utf-8"><title>Demonstrativo de Rescisão</title></head>
+  <body style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:24px auto;color:#111">
+    <h2 style="margin:0 0 2px">Demonstrativo de Rescisão — estimativa</h2>
+    ${emp?`<div style="font-size:12px;color:#555">${esc(emp)}</div>`:''}
+    <div style="font-size:13px;margin:12px 0 4px"><strong>${esc(r.emp.nome)}</strong> — ${esc(r.emp.cargo||'')}</div>
+    <div style="font-size:12px;color:#444">Admissão: ${(r.emp.dataAdmissao||'').split('-').reverse().join('/')} · Desligamento: ${(r.dataRescisao||'').split('-').reverse().join('/')} · ${esc(r.tipo.label)}</div>
+    <table style="width:100%;border-collapse:collapse;margin-top:16px;font-size:13px">
+      <tr><th colspan="2" style="text-align:left;background:#f1f5f9;padding:6px 8px">Proventos</th></tr>
+      ${r.verbas.map(v=>lin(v.desc,v.valor,false)).join('')}
+      ${r.descontos.length?`<tr><th colspan="2" style="text-align:left;background:#f1f5f9;padding:6px 8px">Descontos</th></tr>${r.descontos.map(d=>lin(d.desc,d.valor,true)).join('')}`:''}
+      <tr><td style="padding:10px 0;font-weight:bold;border-top:2px solid #333">Líquido estimado</td><td style="padding:10px 0;font-weight:bold;text-align:right;border-top:2px solid #333">${fBRL(r.liquido)}</td></tr>
+    </table>
+    <p style="font-size:11px;color:#666;margin-top:18px;line-height:1.6">Documento de conferência interna, sem valor de TRCT. Os valores são estimativos e dependem do saldo real de FGTS, da convenção coletiva aplicável e das médias de verbas variáveis. Confira com a contabilidade antes do pagamento e da homologação.</p>
+    <p style="font-size:11px;color:#666">Emitido em ${new Date().toLocaleString('pt-BR')}</p>
+  </body></html>`);
+  w.document.close();
+  setTimeout(()=>{ try{ w.print(); }catch(_){ } },300);
+}
+
+// ── UI: 13º SALÁRIO ───────────────────────────────────────────────────────
+function abrirDecimoTerceiro(){
+  const ano=new Date().getFullYear();
+  const ativos=(APP.employees||[]).filter(e=>e&&e.status==='ativo');
+  if(!ativos.length){ toast('Nenhum colaborador ativo.','err'); return; }
+  const calc=ativos.map(e=>calcularDecimoTerceiro(e,ano));
+  const tot1=calc.reduce((s,c)=>s+c.parcela1,0);
+  const tot2=calc.reduce((s,c)=>s+c.parcela2,0);
+  const totBruto=calc.reduce((s,c)=>s+c.bruto,0);
+
+  // Prazos legais (Lei 4.749/65): 1ª até 30/11, 2ª até 20/12.
+  const hoje=new Date();
+  const p1=new Date(ano,10,30), p2=new Date(ano,11,20);
+  const d1=Math.ceil((p1-hoje)/86400000), d2=Math.ceil((p2-hoje)/86400000);
+  const aviso=(d,lbl)=>d<0
+    ? `<span style="background:#FEE2E2;color:#991B1B;border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700">${lbl}: prazo vencido</span>`
+    : `<span style="background:${d<=15?'#FEF3C7':'#DCFCE7'};color:${d<=15?'#92400E':'#166534'};border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700">${lbl}: faltam ${d} dias</span>`;
+
+  openModal(`🎁 13º Salário ${ano}`,`
+    <div style="background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:10px;padding:11px 13px;margin-bottom:12px;font-size:12px;color:#1E40AF;line-height:1.55">
+      <strong>Prazos legais:</strong> 1ª parcela até 30/11 (50% do bruto, sem descontos) e 2ª parcela até 20/12 (saldo, com INSS e IRRF). O atraso sujeita a empresa a multa administrativa.
+      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px">${aviso(d1,'1ª parcela')} ${aviso(d2,'2ª parcela')}</div>
+    </div>
+    <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:12px">
+      <div style="background:#F8FAFC;border-radius:10px;padding:10px 12px;flex:1;min-width:120px"><div style="font-size:17px;font-weight:800;color:#334155">${fBRL(totBruto)}</div><div style="font-size:11px;color:#64748B">Bruto total</div></div>
+      <div style="background:#EFF6FF;border-radius:10px;padding:10px 12px;flex:1;min-width:120px"><div style="font-size:17px;font-weight:800;color:#1D4ED8">${fBRL(tot1)}</div><div style="font-size:11px;color:#1D4ED8">1ª parcela (30/11)</div></div>
+      <div style="background:#ECFDF5;border-radius:10px;padding:10px 12px;flex:1;min-width:120px"><div style="font-size:17px;font-weight:800;color:#047857">${fBRL(tot2)}</div><div style="font-size:11px;color:#047857">2ª parcela (20/12)</div></div>
+    </div>
+    <div style="max-height:320px;overflow:auto;border:1px solid #E2E8F0;border-radius:10px">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+        <thead><tr style="background:#F8FAFC;position:sticky;top:0">
+          <th style="text-align:left;padding:8px 10px">Colaborador</th>
+          <th style="text-align:center;padding:8px 6px">Avos</th>
+          <th style="text-align:right;padding:8px 6px">Bruto</th>
+          <th style="text-align:right;padding:8px 6px">1ª</th>
+          <th style="text-align:right;padding:8px 10px">2ª</th>
+        </tr></thead>
+        <tbody>${calc.map(c=>`<tr style="border-top:1px solid #F1F5F9">
+          <td style="padding:7px 10px">${esc(c.emp.nome)}</td>
+          <td style="text-align:center;padding:7px 6px;color:#64748B">${c.avos}/12</td>
+          <td style="text-align:right;padding:7px 6px">${fBRL(c.bruto)}</td>
+          <td style="text-align:right;padding:7px 6px;color:#1D4ED8">${fBRL(c.parcela1)}</td>
+          <td style="text-align:right;padding:7px 10px;color:#047857">${fBRL(c.parcela2)}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+    <div style="font-size:11px;color:#94A3B8;margin-top:9px;line-height:1.5">Avos contados pela regra dos 15 dias (Súmula 45 do TST). Valores estimativos — variáveis como horas extras e comissões entram pela média e devem ser conferidos com a contabilidade.</div>
+    <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>`,700);
+}
+
+window.abrirCalcRescisao=abrirCalcRescisao;
+window.executarCalcRescisao=executarCalcRescisao;
+window.imprimirRescisao=imprimirRescisao;
+window.abrirDecimoTerceiro=abrirDecimoTerceiro;
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// CENTRAL DE AVISOS (WhatsApp) e ESPELHO DE PONTO PARA ASSINATURA
+// ══════════════════════════════════════════════════════════════════════════
+
+// ── 7. CENTRAL DE AVISOS ──────────────────────────────────────────────────
+// A integração usa links wa.me: abre o WhatsApp com a mensagem já escrita,
+// mas exige um toque por pessoa. Não é disparo automático — para isso seria
+// necessária a API oficial do WhatsApp Business (paga, com aprovação de
+// template). Esta central junta num lugar só tudo que precisa de aviso, para
+// que o envio seja um clique em vez de uma garimpagem por várias telas.
+function _avisosPendentes(){
+  const hoje=new Date(); hoje.setHours(0,0,0,0);
+  const ativos=(APP.employees||[]).filter(e=>e&&e.status==='ativo');
+  const avisos=[];
+  const dias=(iso)=>{ if(!iso) return null; const d=new Date(iso+'T00:00:00'); return isNaN(d)?null:Math.round((d-hoje)/86400000); };
+
+  // Aniversariantes de hoje
+  ativos.forEach(e=>{
+    if(!e.dataNasc) return;
+    const [,m,d]=(e.dataNasc||'').split('-');
+    if(parseInt(d)===hoje.getDate() && parseInt(m)===hoje.getMonth()+1){
+      avisos.push({tipo:'aniversario', emp:e, prio:3, titulo:'Aniversário hoje',
+        detalhe:'Parabenizar',
+        msg:`Parabéns, ${(e.nome||'').split(' ')[0]}! 🎉 A equipe deseja um feliz aniversário e um ótimo ano pela frente!`});
+    }
+  });
+
+  // Contrato de experiência a vencer (reaproveita a regra do painel de gestão)
+  try{
+    if(typeof _expPendentes==='function'){
+      _expPendentes().forEach(x=>{
+        avisos.push({tipo:'experiencia', emp:x.emp, prio:1,
+          titulo: x.restam<0?'Experiência VENCIDA':'Experiência vencendo',
+          detalhe: x.restam<0?`venceu há ${Math.abs(x.restam)} dias`:`faltam ${x.restam} dias`,
+          interno:true,
+          msg:`Olá, ${(x.emp.nome||'').split(' ')[0]}. Precisamos conversar sobre o encerramento do seu período de experiência. Pode passar no RH?`});
+      });
+    }
+  }catch(_){}
+
+  // Férias programadas para começar nos próximos 15 dias
+  (APP.ferias||[]).forEach(f=>{
+    if(!f||f.status!=='programada'||!f.inicio) return;
+    const d=dias(f.inicio);
+    if(d===null||d<0||d>15) return;
+    const e=ativos.find(x=>x.id===f.empId); if(!e) return;
+    avisos.push({tipo:'ferias', emp:e, prio:2, titulo:'Férias em breve',
+      detalhe:`início em ${d} dia${d===1?'':'s'} (${(f.inicio||'').split('-').reverse().join('/')})`,
+      msg:`Olá, ${(e.nome||'').split(' ')[0]}! Suas férias começam em ${(f.inicio||'').split('-').reverse().join('/')} e vão até ${(f.fim||'').split('-').reverse().join('/')}. Qualquer dúvida, fale com o RH.`});
+  });
+
+  // Documentos aguardando assinatura no portal
+  (APP.contratos||[]).forEach(c=>{
+    if(!c||c.assinado||c.status==='assinado') return;
+    const e=ativos.find(x=>x.id===c.empId); if(!e) return;
+    avisos.push({tipo:'documento', emp:e, prio:2, titulo:'Documento pendente',
+      detalhe: c.tipo||c.titulo||'aguardando assinatura',
+      msg:`Olá, ${(e.nome||'').split(' ')[0]}! Há um documento aguardando sua assinatura no Portal do Colaborador. Acesse quando puder, por favor.`});
+  });
+
+  // Espelho de ponto do mês anterior ainda não assinado
+  try{
+    const esp=window._ESPELHOS_CACHE||[];
+    esp.filter(x=>x&&!x.assinado).forEach(x=>{
+      const e=ativos.find(y=>y.id===x.empId); if(!e) return;
+      avisos.push({tipo:'espelho', emp:e, prio:2, titulo:'Espelho de ponto',
+        detalhe:`${x.mesLabel||''} aguardando conferência`,
+        msg:`Olá, ${(e.nome||'').split(' ')[0]}! Seu espelho de ponto de ${x.mesLabel||'mês anterior'} está disponível no Portal para conferência e assinatura.`});
+    });
+  }catch(_){}
+
+  return avisos.sort((a,b)=>a.prio-b.prio);
+}
+
+function abrirCentralAvisos(){
+  let avisos=[];
+  try{ avisos=_avisosPendentes(); }catch(e){ toast('Erro ao montar avisos: '+e.message,'err'); return; }
+  const icone={aniversario:'🎂',experiencia:'⏳',ferias:'🏖️',documento:'📄',espelho:'🕐'};
+  const cor={aniversario:'#D97706',experiencia:'#DC2626',ferias:'#0891B2',documento:'#7C3AED',espelho:'#2563EB'};
+
+  const card=(a)=>{
+    const tel=(a.emp.telefone||'').replace(/\D/g,'');
+    const link=tel?`https://wa.me/55${tel}?text=${encodeURIComponent(a.msg)}`:`https://web.whatsapp.com/send?text=${encodeURIComponent(a.msg)}`;
+    return `<div style="border:1px solid #E2E8F0;border-left:4px solid ${cor[a.tipo]||'#94A3B8'};border-radius:10px;padding:11px 13px;margin-bottom:8px;display:flex;align-items:center;gap:11px;flex-wrap:wrap">
+      <div style="font-size:22px;line-height:1">${icone[a.tipo]||'🔔'}</div>
+      <div style="flex:1;min-width:170px">
+        <div style="font-size:13.5px;font-weight:700;color:#1E293B">${esc(a.emp.nome||'')}</div>
+        <div style="font-size:11.5px;color:${cor[a.tipo]||'#64748B'};font-weight:600">${esc(a.titulo)}${a.detalhe?' · '+esc(a.detalhe):''}</div>
+      </div>
+      ${a.interno
+        ? '<span style="font-size:11px;color:#94A3B8;font-style:italic">tratar internamente</span>'
+        : (tel
+            ? `<a href="${link}" target="_blank" class="btn btn-sm" style="background:#25D366;color:#fff;font-weight:700;text-decoration:none;white-space:nowrap">📱 WhatsApp</a>`
+            : '<span style="font-size:11px;color:#B45309">sem telefone cadastrado</span>')}
+    </div>`;
+  };
+
+  openModal('🔔 Central de Avisos',`
+    <div style="font-size:12.5px;color:#64748B;margin-bottom:12px;line-height:1.55">
+      Tudo que precisa de comunicação hoje, num lugar só. O botão abre o WhatsApp com a mensagem já escrita — revise antes de enviar.
+    </div>
+    ${avisos.length===0
+      ? '<div style="text-align:center;padding:32px;color:#94A3B8"><div style="font-size:30px;margin-bottom:8px">✓</div><div style="font-weight:600">Nenhum aviso pendente</div></div>'
+      : `<div style="font-size:12px;font-weight:700;color:#1D4ED8;margin-bottom:9px">${avisos.length} aviso(s)</div>${avisos.map(card).join('')}`}
+    <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>`,620);
+}
+
+// ── 5. ESPELHO DE PONTO PARA ASSINATURA ───────────────────────────────────
+// Gera o espelho mensal e o publica no portal para o colaborador conferir e
+// assinar. O espelho assinado é a principal defesa da empresa em discussão de
+// jornada: sem ele, a jornada alegada pelo empregado costuma prevalecer.
+async function _carregarEspelhos(force){
+  if(!FBASE) return [];
+  if(!force && window._ESPELHOS_CACHE && (Date.now()-(window._ESPELHOS_TS||0))<60000) return window._ESPELHOS_CACHE;
+  try{
+    const snap=await FBASE.collection('espelhos_ponto').get();
+    window._ESPELHOS_CACHE=snap.docs.map(d=>d.data());
+    window._ESPELHOS_TS=Date.now();
+  }catch(e){
+    console.warn('[Espelho] falha ao carregar:',e&&e.message);
+    window._ESPELHOS_CACHE=window._ESPELHOS_CACHE||[];
+  }
+  return window._ESPELHOS_CACHE;
+}
+
+// Monta os dados do espelho a partir do cartão-ponto do mês.
+function _montarEspelho(emp, ano, mes){
+  const chave=`${emp.id}_${ano}_${mes}`;
+  const dias=(APP.pontos||{})[chave]||{};
+  const linhas=[];
+  let totalMin=0, faltas=0, atestados=0;
+  const diasNoMes=new Date(ano,mes,0).getDate();
+  for(let d=1;d<=diasNoMes;d++){
+    const r=dias[String(d)];
+    if(!r) continue;
+    const st=String(r.status||'').toLowerCase();
+    if(st.indexOf('falta')>=0) faltas++;
+    if(st.indexOf('atestado')>=0) atestados++;
+    // soma jornada quando há entrada e saída
+    const min=(hi,hf)=>{
+      if(!hi||!hf) return 0;
+      const [a,b]=hi.split(':').map(Number), [c,e2]=hf.split(':').map(Number);
+      const v=((c*60+e2)-(a*60+b));
+      return v>0?v:0;
+    };
+    const trab=min(r.entrada,r.saida_almoco)+min(r.volta_almoco,r.saida);
+    totalMin+=trab;
+    linhas.push({dia:d, status:r.status||'', entrada:r.entrada||'', saidaAlmoco:r.saida_almoco||'', voltaAlmoco:r.volta_almoco||'', saida:r.saida||'', minutos:trab});
+  }
+  return {empId:emp.id, empNome:emp.nome, ano, mes, linhas, totalMin, faltas, atestados,
+    mesLabel:new Date(ano,mes-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})};
+}
+
+async function abrirEspelhoPonto(){
+  const ativos=(APP.employees||[]).filter(e=>e&&e.status==='ativo');
+  if(!ativos.length){ toast('Nenhum colaborador ativo.','err'); return; }
+  const ref=new Date(); ref.setMonth(ref.getMonth()-1);   // padrão: mês anterior
+  const ano=ref.getFullYear(), mes=ref.getMonth()+1;
+  const espelhos=await _carregarEspelhos(true);
+
+  const fmtH=(m)=>`${Math.floor(m/60)}h${String(m%60).padStart(2,'0')}`;
+  const linhas=ativos.map(e=>{
+    const esp=_montarEspelho(e,ano,mes);
+    const pub=espelhos.find(x=>x&&x.empId===e.id&&x.ano===ano&&x.mes===mes);
+    const st=!pub?'<span style="color:#94A3B8;font-size:11.5px">não enviado</span>'
+      :(pub.assinado?`<span style="color:#059669;font-weight:700;font-size:11.5px">✓ assinado</span>`
+                    :`<span style="color:#D97706;font-weight:700;font-size:11.5px">aguardando</span>`);
+    return `<tr style="border-top:1px solid #F1F5F9">
+      <td style="padding:7px 10px">${esc(e.nome)}</td>
+      <td style="text-align:center;padding:7px 6px;color:#64748B">${esp.linhas.length}</td>
+      <td style="text-align:center;padding:7px 6px">${fmtH(esp.totalMin)}</td>
+      <td style="text-align:center;padding:7px 6px;color:${esp.faltas?'#DC2626':'#94A3B8'}">${esp.faltas}</td>
+      <td style="text-align:center;padding:7px 6px">${st}</td>
+      <td style="text-align:right;padding:7px 10px">
+        <button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8;font-size:11px" onclick="publicarEspelho('${e.id}',${ano},${mes})">${pub?'Reenviar':'Enviar'}</button>
+      </td></tr>`;
+  }).join('');
+
+  openModal(`🕐 Espelho de Ponto — ${new Date(ano,mes-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}`,`
+    <div style="background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:10px;padding:11px 13px;margin-bottom:12px;font-size:12px;color:#1E40AF;line-height:1.55">
+      Envie o espelho para o colaborador conferir e assinar no Portal. <strong>O espelho assinado é a principal prova da jornada</strong> — sem ele, em discussão trabalhista costuma prevalecer a jornada alegada pelo empregado.
+    </div>
+    <div style="max-height:340px;overflow:auto;border:1px solid #E2E8F0;border-radius:10px">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+        <thead><tr style="background:#F8FAFC;position:sticky;top:0">
+          <th style="text-align:left;padding:8px 10px">Colaborador</th>
+          <th style="text-align:center;padding:8px 6px">Dias</th>
+          <th style="text-align:center;padding:8px 6px">Horas</th>
+          <th style="text-align:center;padding:8px 6px">Faltas</th>
+          <th style="text-align:center;padding:8px 6px">Status</th>
+          <th style="padding:8px 10px"></th>
+        </tr></thead><tbody>${linhas}</tbody></table>
+    </div>
+    <div style="text-align:right;margin-top:11px">
+      <button class="btn" style="background:#1D4ED8;color:#fff;font-weight:700" onclick="publicarTodosEspelhos(${ano},${mes})">📤 Enviar para todos</button>
+    </div>
+    <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>`,760);
+}
+
+async function publicarEspelho(empId, ano, mes, silencioso){
+  if(!FBASE){ toast('Firebase não conectado.','err'); return false; }
+  const emp=(APP.employees||[]).find(e=>e.id===empId);
+  if(!emp) return false;
+  try{
+    const esp=_montarEspelho(emp,ano,mes);
+    const id=`${empId}_${ano}_${mes}`;
+    await FBASE.collection('espelhos_ponto').doc(id).set({
+      id, empId, empNome:emp.nome, ano, mes, mesLabel:esp.mesLabel,
+      linhas:esp.linhas, totalMin:esp.totalMin, faltas:esp.faltas, atestados:esp.atestados,
+      publicadoEm:new Date().toISOString(),
+      publicadoPor:(APP&&APP.user&&APP.user.nome)?APP.user.nome:'RH',
+      assinado:false, assinadoEm:null, assinatura:null, contestado:false, contestacao:''
+    },{merge:true});
+    window._ESPELHOS_TS=0;   // invalida cache
+    if(!silencioso){
+      toast('📤 Espelho enviado para '+(emp.nome||'').split(' ')[0],'ok');
+      try{ if(typeof auditLog==='function') auditLog('Enviou espelho de ponto de '+emp.nome+' ('+esp.mesLabel+')','','ponto'); }catch(_){}
+      abrirEspelhoPonto();
+    }
+    return true;
+  }catch(e){ if(!silencioso) toast('Erro ao enviar: '+e.message,'err'); return false; }
+}
+
+async function publicarTodosEspelhos(ano,mes){
+  const ativos=(APP.employees||[]).filter(e=>e&&e.status==='ativo');
+  if(!ativos.length) return;
+  if(!confirm(`Enviar o espelho de ponto para ${ativos.length} colaborador(es)?\n\nCada um receberá o espelho no Portal para conferir e assinar.`)) return;
+  let ok=0;
+  for(const e of ativos){ if(await publicarEspelho(e.id,ano,mes,true)) ok++; }
+  toast(`📤 ${ok} espelho(s) enviado(s) para assinatura`,'ok',4000);
+  try{ if(typeof auditLog==='function') auditLog('Enviou espelho de ponto para '+ok+' colaboradores','','ponto'); }catch(_){}
+  abrirEspelhoPonto();
+}
+
+window.abrirCentralAvisos=abrirCentralAvisos;
+window._avisosPendentes=_avisosPendentes;
+window.abrirEspelhoPonto=abrirEspelhoPonto;
+window.publicarEspelho=publicarEspelho;
+window.publicarTodosEspelhos=publicarTodosEspelhos;
+window._montarEspelho=_montarEspelho;
+window._carregarEspelhos=_carregarEspelhos;
+
 function rDemissao(){
   const demitidos=APP.employees.filter(e=>e.status==='demitido');
   return `
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:8px;flex-wrap:wrap">
     <div style="font-size:16px;font-weight:700">Processos de Demissão</div>
-    <button class="btn btn-red" onclick="openDemForm()">+ Novo Processo</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" style="background:#EFF6FF;color:#1D4ED8;font-weight:700" onclick="abrirDecimoTerceiro()">🎁 13º Salário</button>
+      <button class="btn" style="background:#F0FDF4;color:#047857;font-weight:700" onclick="abrirCalcRescisao()">🧮 Calcular Rescisão</button>
+      <button class="btn btn-red" onclick="openDemForm()">+ Novo Processo</button>
+    </div>
   </div>
   ${demitidos.length===0?`<div class="card" style="text-align:center;padding:40px"><div style="font-size:40px;margin-bottom:12px">👤</div><p style="color:var(--mt)">Nenhum desligamento registrado.</p></div>`:''}
   ${demitidos.map(e=>{const d=APP.demissoes[e.id];return `<div class="card" style="border-left:4px solid #DC2626;margin-bottom:12px">
@@ -8049,6 +9073,7 @@ function rDemissao(){
       <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
         ${bdg('Desligado','#DC2626')}
         <button class="btn btn-sm" style="background:#1E293B;color:#C9A84C;font-size:11px;padding:4px 10px;gap:4px" onclick="abrirCartaDesligamento('${e.id}')">📄 Carta</button>
+        <button class="btn btn-sm" style="background:#F0FDF4;color:#047857;font-size:11px;padding:4px 10px" onclick="abrirCalcRescisao('${e.id}')">🧮 Rescisão</button>
         <button class="btn btn-sm" style="background:#059669;color:#fff;font-size:11px;padding:4px 10px;gap:4px" onclick="confirmarReativarColaborador('${e.id}')">↩️ Reativar</button>
       </div>
     </div>
