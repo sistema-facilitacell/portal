@@ -1680,7 +1680,10 @@ td,th{font-size:15px!important;}
           </div>
           <button class="fb-btn" style="color:var(--blue);font-size:10px;margin-top:2px" onclick="showFbStatus()">🔍 Diagnóstico Firebase</button>
           <button class="fb-btn" id="ai-key-btn" style="color:#7C3AED;margin-top:4px" onclick="openAnthropicKeyModal()" title="Configurar chave da API Anthropic para IA">🤖 Configurar IA</button>
+          <button class="fb-btn" style="color:#0891B2;margin-top:4px" onclick="abrirDiagnostico()" title="Verifica nuvem, IA, backup, ponto e dados — descobre problemas antes de virarem crise">🩺 Diagnóstico</button>
+          <button class="fb-btn" style="color:#64748B;margin-top:4px" onclick="abrirLogErros()" title="Erros registrados neste navegador">📋 Registro de Erros</button>
           <button class="fb-btn" style="color:#059669;margin-top:4px" onclick="openBackup()" title="Backup e restauração de todos os dados do sistema">💾 Backup & Restaurar</button>
+          <button class="fb-btn" style="color:#7C3AED;margin-top:4px" onclick="listarArquivoHistorico()" title="Registros antigos movidos para o arquivo quando o documento ficou grande">🗄️ Arquivo Histórico</button>
           <button class="fb-btn" style="color:#25D366;margin-top:4px" onclick="abrirCentralAvisos()" title="Tudo que precisa de comunicação hoje, com envio por WhatsApp">🔔 Central de Avisos</button>
           <button class="fb-btn" style="color:#2563EB;margin-top:4px" onclick="abrirEspelhoPonto()" title="Enviar espelho de ponto mensal para conferência e assinatura">🕐 Espelho de Ponto</button>
           <button class="fb-btn" style="color:#0891B2;margin-top:4px" onclick="openEmpresaCfgModal()" title="Configurar dados da empresa e modelo de IA">⚙ Empresa & IA</button>
@@ -2034,27 +2037,80 @@ async function fbSave(k){
       const _hoje=new Date();
       if(k==='pontos'){
         const _cutoff=new Date(_hoje.getFullYear(),_hoje.getMonth()-14,1);
+        // ARQUIVA DE VERDADE antes de remover do documento principal.
+        // ANTES: os meses antigos eram simplesmente deletados e o localStorage
+        // sobrescrito — a mensagem dizia "arquivados", mas os dados sumiam para
+        // sempre. Registro de ponto precisa ser guardado por 5 anos (prescrição
+        // trabalhista), então perder isso é problema legal, não só incômodo.
+        const _antigos={};
         Object.keys(APP.pontos).forEach(pk=>{
           const pts=pk.split('_');
           if(pts.length>=3){
             const pAno=parseInt(pts[pts.length-2]),pMes=parseInt(pts[pts.length-1]);
-            if(!isNaN(pAno)&&!isNaN(pMes)&&new Date(pAno,pMes,1)<_cutoff) delete APP.pontos[pk];
+            if(!isNaN(pAno)&&!isNaN(pMes)&&new Date(pAno,pMes,1)<_cutoff) _antigos[pk]=APP.pontos[pk];
           }
         });
-        lsSave('pontos');
-        toast('Cartao Ponto: meses > 14 meses arquivados localmente para liberar espaco na nuvem.','warn',8000);
-        console.warn('[fbSave] Pontos podados. Novo: '+Math.round(new Blob([JSON.stringify(APP.pontos)]).size/1024)+'KB');
+        const _chaves=Object.keys(_antigos);
+        if(_chaves.length){
+          // Agrupa por ano para não estourar 1MB em um único documento de arquivo
+          const _porAno={};
+          _chaves.forEach(pk=>{
+            const pts=pk.split('_');
+            const ano=pts[pts.length-2];
+            (_porAno[ano]=_porAno[ano]||{})[pk]=_antigos[pk];
+          });
+          let _arquivouTudo=true;
+          for(const ano of Object.keys(_porAno)){
+            try{
+              await FBASE.collection('hr_arquivo').doc('pontos_'+ano)
+                .set({d:JSON.stringify(_porAno[ano]),ts:Date.now(),ano,tipo:'pontos'},{merge:true});
+              console.log('[fbSave] Arquivado pontos_'+ano+' ('+Object.keys(_porAno[ano]).length+' registros)');
+            }catch(err){
+              _arquivouTudo=false;
+              console.error('[fbSave] FALHA ao arquivar pontos_'+ano+':',err&&err.message);
+            }
+          }
+          if(_arquivouTudo){
+            _chaves.forEach(pk=>{ delete APP.pontos[pk]; });
+            lsSave('pontos');
+            toast('Cartão Ponto: '+_chaves.length+' registro(s) com mais de 14 meses foram movidos para o arquivo na nuvem (hr_arquivo). Nada foi perdido.','ok',9000);
+          }else{
+            // Não conseguiu arquivar: NÃO remove nada. Melhor falhar o save do
+            // que apagar registro de ponto sem cópia.
+            toast('⚠ Cartão Ponto muito grande, mas não foi possível arquivar os meses antigos. Nada foi apagado. Faça um backup e verifique a conexão.','err',10000);
+            throw new Error('Falha ao arquivar pontos antigos — save cancelado para não perder dados');
+          }
+        }
       }
       if(k==='bancohoras'){
         const _cutoffBH=new Date(_hoje.getFullYear(),_hoje.getMonth()-13,1).toISOString().slice(0,10);
+        // Mesmo tratamento: arquiva antes de remover.
+        const _bhAntigos={};
         Object.keys(APP.bancohoras).forEach(empId=>{
           if(Array.isArray(APP.bancohoras[empId])){
-            APP.bancohoras[empId]=APP.bancohoras[empId].filter(l=>!l._syncAuto||(l.data||'')>=_cutoffBH);
+            const velhos=APP.bancohoras[empId].filter(l=>l._syncAuto&&(l.data||'')<_cutoffBH);
+            if(velhos.length) _bhAntigos[empId]=velhos;
           }
         });
-        lsSave('bancohoras');
-        toast('Banco de Horas: lancamentos automaticos antigos arquivados para liberar espaco na nuvem.','warn',8000);
-        console.warn('[fbSave] BancoHoras podado. Novo: '+Math.round(new Blob([JSON.stringify(APP.bancohoras)]).size/1024)+'KB');
+        if(Object.keys(_bhAntigos).length){
+          let _ok=true;
+          try{
+            await FBASE.collection('hr_arquivo').doc('bancohoras_'+_cutoffBH.slice(0,4))
+              .set({d:JSON.stringify(_bhAntigos),ts:Date.now(),tipo:'bancohoras'},{merge:true});
+          }catch(err){ _ok=false; console.error('[fbSave] FALHA ao arquivar banco de horas:',err&&err.message); }
+          if(_ok){
+            Object.keys(APP.bancohoras).forEach(empId=>{
+              if(Array.isArray(APP.bancohoras[empId])){
+                APP.bancohoras[empId]=APP.bancohoras[empId].filter(l=>!l._syncAuto||(l.data||'')>=_cutoffBH);
+              }
+            });
+            lsSave('bancohoras');
+            toast('Banco de Horas: lançamentos automáticos antigos movidos para o arquivo na nuvem. Nada foi perdido.','ok',9000);
+          }else{
+            toast('⚠ Banco de Horas muito grande, mas não foi possível arquivar. Nada foi apagado.','err',9000);
+            throw new Error('Falha ao arquivar banco de horas — save cancelado');
+          }
+        }
       }
       payload={d:JSON.stringify(APP[k]),ts:Date.now(),k};
     } else {
@@ -2196,7 +2252,9 @@ const _saveDebounceTimers = {};
 // para cada batida individual; sem debounce, cada sync de 7 funcionários gera
 // 14+ writes simultâneos no Firestore. 8s agrupa todos em 1 único write.
 const _SAVE_DEBOUNCE_KEYS = new Set(['pontos','bancohoras','employees','financeiro','salarios','holRascunho','contratos','advertencias','admissoes','demissoes','ferias','atestados']);
-const _SAVE_DEBOUNCE_MS       = 8000; // 8 segundos — agrupa saves em rajada do listener bio
+const _SAVE_DEBOUNCE_MS       = 2500; // 2,5s — agrupa saves em rajada do listener bio.
+                                      // Era 8s: janela grande demais, em que fechar a
+                                      // aba descartava a edição do cartão-ponto.
 const _SAVE_DEBOUNCE_MS_FAST  = 1200; // 1.2s — chaves de edição manual (employees, ferias etc.)
 const _SAVE_DEBOUNCE_FAST_KEYS = new Set(['employees','financeiro','salarios','holRascunho','contratos','advertencias','admissoes','demissoes','ferias','atestados']);
 
@@ -2227,7 +2285,11 @@ function save(k){
     if(_SAVE_DEBOUNCE_KEYS.has(k)){
       clearTimeout(_saveDebounceTimers[k]);
       const _ms = _SAVE_DEBOUNCE_FAST_KEYS.has(k) ? _SAVE_DEBOUNCE_MS_FAST : _SAVE_DEBOUNCE_MS;
-      _saveDebounceTimers[k] = setTimeout(()=>{ fbSave(k); }, _ms);
+      // Marca como pendente ENQUANTO o debounce não dispara. Sem isso, fechar a
+      // aba dentro da janela do debounce fazia o dado ficar só no localStorage:
+      // o timer morria com a página e o aviso de saída não via nada na fila.
+      FB_SAVE_QUEUE[k]=true;
+      _saveDebounceTimers[k] = setTimeout(()=>{ delete FB_SAVE_QUEUE[k]; fbSave(k); }, _ms);
     } else {
       fbSave(k);
     }
@@ -2566,8 +2628,8 @@ async function showFbStatus(){
       <div style="display:flex;align-items:center;gap:12px;padding:14px;background:${g.bg};border:1.5px solid ${g.borda};border-radius:12px">
         <span style="font-size:32px;flex-shrink:0">${g.icon}</span>
         <div>
-          <div style="font-size:15px;font-weight:800;color:${g.cor};margin-bottom:3px">${g.titulo}</div>
-          <div style="font-size:12px;color:#374151;line-height:1.5">${g.descricao}</div>
+          <div style="font-size:15px;font-weight:800;color:${g.cor};margin-bottom:3px">${esc(g.titulo)}</div>
+          <div style="font-size:12px;color:#374151;line-height:1.5">${esc(g.descricao)}</div>
         </div>
       </div>
       ${passosHtml ? '<div style="background:#F8FAFC;border-radius:10px;padding:12px 14px"><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#64748B;margin-bottom:6px">O que fazer</div>'+passosHtml+'</div>' : ''}
@@ -3448,7 +3510,11 @@ async function abrirModalTokenPortal(empId){
 // ── Chave da API Anthropic (salva no navegador, não vai para o servidor) ──
 // ── Chave da API Anthropic — salva na nuvem (Firebase) e localmente ──────
 // Ordem de prioridade: Firebase (nuvem) > localStorage > chave padrão embutida
-const ANTHROPIC_KEY_HARD = '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';
+// A chave Anthropic NAO fica escrita aqui: e uma chave PAGA e este arquivo e
+// publico em atlasrh.com.br — qualquer pessoa poderia copiar e gastar os
+// creditos da conta. Configure em Configurar IA; fica salva em
+// config/ia_keys no Firestore e vale para todos os dispositivos.
+const ANTHROPIC_KEY_HARD = '';
 const ANTHROPIC_KEY_DEFAULT = localStorage.getItem('fcrh_anthropic_key') || ANTHROPIC_KEY_HARD;
 let ANTHROPIC_KEY = ANTHROPIC_KEY_DEFAULT;
 
@@ -5532,7 +5598,7 @@ function imprimirCartaoPontoMensal(empId, mes, ano){
 
   const _pontoPrintHtml=`<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8">
-<title>Cartão Ponto — ${emp.nome} — ${mesNome} ${ano}</title>
+<title>Cartão Ponto — ${esc(emp.nome)} — ${mesNome} ${ano}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Roboto',sans-serif;font-size:11px;color:#222;padding:18px}
@@ -5564,7 +5630,7 @@ td,th{font-size:15px!important;}
 <div class="header">
   <div class="header-left">
     <h1>📋 CARTÃO PONTO — ${mesNome.toUpperCase()} ${ano}</h1>
-    <p><strong>Empresa:</strong> ${empresa} &nbsp;|&nbsp; <strong>Colaborador:</strong> ${emp.nome} &nbsp;|&nbsp; <strong>Cargo:</strong> ${emp.cargo||'—'} &nbsp;|&nbsp; <strong>Setor:</strong> ${emp.departamento||'—'}</p>
+    <p><strong>Empresa:</strong> ${empresa} &nbsp;|&nbsp; <strong>Colaborador:</strong> ${esc(emp.nome)} &nbsp;|&nbsp; <strong>Cargo:</strong> ${emp.cargo||'—'} &nbsp;|&nbsp; <strong>Setor:</strong> ${emp.departamento||'—'}</p>
     <p><strong>Horário:</strong> ${emp.horarioEntrada||'09:00'} – ${emp.horarioSaida||'17:50'} (tolerância entrada: 10 min) &nbsp;|&nbsp; <strong>Salário:</strong> R$ ${Number(emp.salario||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</p>
   </div>
   <div class="header-right">
@@ -5591,7 +5657,7 @@ td,th{font-size:15px!important;}
   <div>Saldo banco de horas: <strong style="color:${totalExtra-totalNeg>=0?'#059669':'#DC2626'}">${totalExtra-totalNeg>=0?'+':''}${fmtMin(totalExtra-totalNeg)}</strong></div>
 </div>
 <div class="assinatura">
-  <div class="ass-line">Assinatura do Colaborador<br><small>${emp.nome}</small></div>
+  <div class="ass-line">Assinatura do Colaborador<br><small>${esc(emp.nome)}</small></div>
   <div class="ass-line">Responsável RH / Aprovação<br><small>Atlas RH</small></div>
   <div class="ass-line">Data de Fechamento<br><small>____/____/________</small></div>
 </div>
@@ -9053,6 +9119,317 @@ window.publicarEspelho=publicarEspelho;
 window.publicarTodosEspelhos=publicarTodosEspelhos;
 window._montarEspelho=_montarEspelho;
 window._carregarEspelhos=_carregarEspelhos;
+
+
+// ── ARQUIVO HISTORICO ──────────────────────────────────────────────────────
+// Consulta e traz de volta os registros movidos para hr_arquivo quando o
+// documento principal se aproximou do limite de 1MB do Firestore.
+async function listarArquivoHistorico(){
+  if(!FBASE){ toast('Firebase nao conectado.','err'); return; }
+  try{
+    const snap=await FBASE.collection('hr_arquivo').get();
+    if(snap.empty){
+      openModal('Arquivo Historico','<div style="text-align:center;padding:32px;color:#64748B"><div style="font-size:30px;margin-bottom:8px">\u{1F5C4}</div><div style="font-weight:600">Nenhum dado arquivado</div><div style="font-size:12.5px;margin-top:6px;line-height:1.5">Tudo esta no sistema principal. O arquivo so e usado quando os dados passam de 950KB.</div></div><div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>',520);
+      return;
+    }
+    const docs=snap.docs.map(d=>({id:d.id,...d.data()}));
+    const linhas=docs.map(d=>{
+      let n=0; try{ n=Object.keys(JSON.parse(d.d||'{}')).length; }catch(_){}
+      const kb=Math.round((d.d||'').length/1024);
+      return `<tr style="border-top:1px solid #F1F5F9">
+        <td style="padding:8px 10px;font-weight:600">${esc(d.id)}</td>
+        <td style="text-align:center;padding:8px 6px;color:#64748B">${n} registro(s)</td>
+        <td style="text-align:center;padding:8px 6px;color:#64748B">${kb} KB</td>
+        <td style="text-align:right;padding:8px 10px"><button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8;font-size:11px" onclick="restaurarArquivoHistorico('${esc(d.id)}')">Trazer de volta</button></td>
+      </tr>`;
+    }).join('');
+    openModal('\u{1F5C4} Arquivo Historico',`
+      <div style="font-size:12.5px;color:#64748B;margin-bottom:12px;line-height:1.55">Registros movidos para o arquivo quando o documento principal se aproximou do limite do Firestore. <strong>Nada foi apagado</strong> — estao guardados aqui e podem voltar a qualquer momento.</div>
+      <div style="border:1px solid #E2E8F0;border-radius:10px;overflow:hidden">
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+          <thead><tr style="background:#F8FAFC"><th style="text-align:left;padding:8px 10px">Arquivo</th><th style="padding:8px 6px">Conteudo</th><th style="padding:8px 6px">Tamanho</th><th></th></tr></thead>
+          <tbody>${linhas}</tbody></table>
+      </div>
+      <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>`,620);
+  }catch(e){ toast('Erro ao listar arquivo: '+e.message,'err'); }
+}
+
+async function restaurarArquivoHistorico(docId){
+  if(!FBASE) return;
+  if(!confirm('Trazer os registros de "'+docId+'" de volta para o sistema?\n\nEles voltam a aparecer nas telas normais. Se o documento passar do limite novamente, serao arquivados outra vez.')) return;
+  try{
+    const d=await FBASE.collection('hr_arquivo').doc(docId).get();
+    if(!d.exists){ toast('Arquivo nao encontrado.','err'); return; }
+    const dados=JSON.parse(d.data().d||'{}');
+    const tipo=d.data().tipo||(docId.startsWith('pontos')?'pontos':'bancohoras');
+    let n=0;
+    if(tipo==='pontos'){
+      Object.keys(dados).forEach(k=>{ if(!APP.pontos[k]){ APP.pontos[k]=dados[k]; n++; } });
+      lsSave('pontos');
+    }else if(tipo==='bancohoras'){
+      Object.keys(dados).forEach(empId=>{
+        if(!Array.isArray(APP.bancohoras[empId])) APP.bancohoras[empId]=[];
+        const ids=new Set(APP.bancohoras[empId].map(l=>l&&l.id));
+        (dados[empId]||[]).forEach(l=>{ if(!l||!ids.has(l.id)){ APP.bancohoras[empId].push(l); n++; } });
+      });
+      lsSave('bancohoras');
+    }
+    toast('\u2705 '+n+' registro(s) restaurado(s) do arquivo.','ok',5000);
+    try{ if(typeof auditLog==='function') auditLog('Restaurou arquivo historico: '+docId+' (+'+n+')','','backup'); }catch(_){}
+    closeModal();
+    if(typeof navigate==='function'&&typeof MOD!=='undefined') navigate(MOD);
+  }catch(e){ toast('Erro ao restaurar: '+e.message,'err'); }
+}
+window.listarArquivoHistorico=listarArquivoHistorico;
+window.restaurarArquivoHistorico=restaurarArquivoHistorico;
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// LOG DE ERROS PERSISTENTE + PAINEL DE DIAGNÓSTICO
+//
+// Problema que resolve: erros iam para o console e sumiam ao fechar a aba.
+// Falhas de gravação, chave de IA inválida e sincronização travada só eram
+// descobertas quando alguém reclamava. Aqui os erros ficam guardados e há um
+// autoteste que verifica o sistema inteiro em poucos segundos.
+// ══════════════════════════════════════════════════════════════════════════
+
+const ERRLOG_MAX = 60;              // quantos erros manter
+const ERRLOG_KEY = 'fcrh_errlog';
+
+function _errlogLer(){
+  try{ return JSON.parse(localStorage.getItem(ERRLOG_KEY)||'[]'); }catch(_){ return []; }
+}
+function _errlogGravar(lista){
+  try{ localStorage.setItem(ERRLOG_KEY, JSON.stringify(lista.slice(-ERRLOG_MAX))); }catch(_){}
+}
+function registrarErro(origem, mensagem, detalhe){
+  try{
+    const lista=_errlogLer();
+    const msg=String(mensagem||'').slice(0,400);
+    const ultimo=lista[lista.length-1];
+    // Agrupa repetição em sequência em vez de encher o log com a mesma linha
+    if(ultimo && ultimo.msg===msg && ultimo.origem===origem){
+      ultimo.n=(ultimo.n||1)+1;
+      ultimo.ts=new Date().toISOString();
+    }else{
+      lista.push({ts:new Date().toISOString(), origem:origem||'geral', msg, det:String(detalhe||'').slice(0,300), n:1});
+    }
+    _errlogGravar(lista);
+  }catch(_){}
+}
+window.registrarErro=registrarErro;
+
+// Captura erros que ninguém tratou
+window.addEventListener('error', function(e){
+  registrarErro('js', (e.message||'Erro'), (e.filename||'')+':'+(e.lineno||''));
+});
+window.addEventListener('unhandledrejection', function(e){
+  const r=e&&e.reason;
+  registrarErro('promise', (r&&r.message)||String(r||'Promise rejeitada'), (r&&r.stack||'').split('\n')[1]||'');
+});
+// Espelha console.error sem perder o comportamento original
+(function(){
+  const _orig=console.error;
+  console.error=function(){
+    try{
+      const partes=[...arguments].map(a=>{
+        if(a instanceof Error) return a.message;
+        if(typeof a==='object'){ try{ return JSON.stringify(a).slice(0,180); }catch(_){ return '[objeto]'; } }
+        return String(a);
+      });
+      registrarErro('console', partes.join(' '), '');
+    }catch(_){}
+    return _orig.apply(console, arguments);
+  };
+})();
+
+function abrirLogErros(){
+  const lista=_errlogLer().slice().reverse();
+  const cor={js:'#DC2626',promise:'#D97706',console:'#2563EB',firebase:'#7C3AED',geral:'#64748B'};
+  const linhas=lista.map(e=>{
+    const d=new Date(e.ts);
+    return `<div style="border-left:3px solid ${cor[e.origem]||'#94A3B8'};background:#F8FAFC;border-radius:8px;padding:9px 11px;margin-bottom:7px">
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:3px">
+        <span style="font-size:10.5px;font-weight:800;color:${cor[e.origem]||'#64748B'};text-transform:uppercase">${esc(e.origem)}${e.n>1?' ×'+e.n:''}</span>
+        <span style="font-size:10.5px;color:#94A3B8">${isNaN(d)?'':d.toLocaleString('pt-BR')}</span>
+      </div>
+      <div style="font-size:12px;color:#1E293B;word-break:break-word;line-height:1.45">${esc(e.msg)}</div>
+      ${e.det?`<div style="font-size:10.5px;color:#94A3B8;margin-top:3px;word-break:break-all">${esc(e.det)}</div>`:''}
+    </div>`;
+  }).join('');
+
+  openModal('📋 Registro de Erros',`
+    <div style="font-size:12.5px;color:#64748B;margin-bottom:12px;line-height:1.55">
+      Últimos ${ERRLOG_MAX} erros guardados neste navegador. Serve para descobrir falhas que aconteceram sem ninguém ver — gravação que não subiu, chave de IA recusada, tela que quebrou.
+    </div>
+    ${lista.length===0
+      ? '<div style="text-align:center;padding:32px;color:#94A3B8"><div style="font-size:30px;margin-bottom:8px">✓</div><div style="font-weight:600">Nenhum erro registrado</div></div>'
+      : `<div style="max-height:380px;overflow:auto">${linhas}</div>`}
+    <div class="mft">
+      <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+      ${lista.length?'<button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8" onclick="copiarLogErros()">📋 Copiar</button><button class="btn btn-sm" style="background:#FEF2F2;color:#DC2626" onclick="limparLogErros()">Limpar</button>':''}
+    </div>`,620);
+}
+
+function copiarLogErros(){
+  const txt=_errlogLer().map(e=>`[${e.ts}] ${e.origem}${e.n>1?' x'+e.n:''}: ${e.msg}${e.det?' | '+e.det:''}`).join('\n');
+  try{ navigator.clipboard.writeText(txt); toast('📋 Log copiado','ok'); }
+  catch(_){ toast('Não foi possível copiar','err'); }
+}
+function limparLogErros(){
+  if(!confirm('Limpar o registro de erros deste navegador?')) return;
+  try{ localStorage.removeItem(ERRLOG_KEY); }catch(_){}
+  toast('Registro limpo','ok'); abrirLogErros();
+}
+window.abrirLogErros=abrirLogErros;
+window.copiarLogErros=copiarLogErros;
+window.limparLogErros=limparLogErros;
+
+// ── PAINEL DE DIAGNÓSTICO ─────────────────────────────────────────────────
+// Verifica o sistema de ponta a ponta. Cada teste devolve
+// {nome, estado: 'ok'|'alerta'|'falha', detalhe, acao?}
+async function rodarDiagnostico(){
+  const testes=[];
+  const add=(nome,estado,detalhe,acao)=>testes.push({nome,estado,detalhe,acao});
+
+  // 1. Conexão com o Firebase
+  if(!FBASE){
+    add('Conexão com a nuvem','falha','Firebase não conectado. Os dados estão apenas neste computador e não sincronizam.');
+  }else{
+    try{
+      const t0=Date.now();
+      await FBASE.collection('hr').doc('_ping').set({ping:Date.now()});
+      const ms=Date.now()-t0;
+      add('Conexão com a nuvem', ms>3000?'alerta':'ok', `Gravação respondeu em ${ms}ms${ms>3000?' — conexão lenta, saves podem falhar':''}`);
+    }catch(e){
+      add('Conexão com a nuvem','falha','Não foi possível gravar: '+(e.message||''));
+    }
+  }
+
+  // 2. Chave da IA (teste real na API)
+  if(!GROQ_KEY){
+    add('Chave da IA (Groq)','alerta','Nenhuma chave configurada. Recursos de IA ficam indisponíveis.','Configurar IA');
+  }else{
+    try{
+      const r=await fetch('https://api.groq.com/openai/v1/models',{headers:{'Authorization':'Bearer '+GROQ_KEY}});
+      if(r.ok) add('Chave da IA (Groq)','ok','Chave válida e respondendo');
+      else if(r.status===401) add('Chave da IA (Groq)','falha','Chave inválida ou revogada (401). Gere outra em console.groq.com/keys','Configurar IA');
+      else add('Chave da IA (Groq)','alerta','API respondeu HTTP '+r.status);
+    }catch(e){ add('Chave da IA (Groq)','alerta','Não foi possível testar: '+(e.message||'sem rede')); }
+  }
+
+  // 3. Backup
+  const diasBk=(typeof _backupDiasSem==='function')?_backupDiasSem():null;
+  if(diasBk===null) add('Backup dos dados','falha','Nenhum backup registrado neste dispositivo.','Fazer backup');
+  else if(diasBk>=30) add('Backup dos dados','falha',`Último backup há ${diasBk} dias.`,'Fazer backup');
+  else if(diasBk>=7) add('Backup dos dados','alerta',`Último backup há ${diasBk} dias. O recomendado é a cada 7.`,'Fazer backup');
+  else add('Backup dos dados','ok',`Último backup há ${diasBk} dia(s)`);
+
+  // 4. Tamanho dos documentos (limite de 1MB do Firestore)
+  const grandes=[];
+  ['pontos','bancohoras','employees','contratos','atestados'].forEach(k=>{
+    try{
+      const kb=Math.round(new Blob([JSON.stringify(APP[k]||{})]).size/1024);
+      if(kb>700) grandes.push(k+': '+kb+'KB');
+    }catch(_){}
+  });
+  if(grandes.length) add('Tamanho dos dados','alerta','Perto do limite de 1MB: '+grandes.join(', ')+'. Os mais antigos serão movidos para o arquivo automaticamente.');
+  else add('Tamanho dos dados','ok','Todos os documentos com folga em relação ao limite');
+
+  // 5. Batidas de hoje
+  try{
+    const hojeISO=new Date().toISOString().slice(0,10);
+    const ativos=(APP.employees||[]).filter(e=>e&&e.status==='ativo').length;
+    const punches=(typeof BIO_DATA!=='undefined'&&BIO_DATA&&Array.isArray(BIO_DATA.punches))?BIO_DATA.punches:[];
+    const hoje=punches.filter(p=>p&&p.date===hojeISO);
+    const quemBateu=new Set(hoje.map(p=>p.empId||p.hrEmpId)).size;
+    const hora=new Date().getHours();
+    if(ativos===0) add('Registro de ponto','alerta','Nenhum colaborador ativo cadastrado');
+    else if(quemBateu===0 && hora>=10) add('Registro de ponto','falha',`Nenhuma batida hoje até agora, com ${ativos} colaborador(es) ativo(s). Pode haver problema no portal.`,'Abrir biométrico');
+    else add('Registro de ponto', quemBateu<ativos&&hora>=10?'alerta':'ok', `${quemBateu} de ${ativos} colaborador(es) bateram hoje · ${hoje.length} batida(s)`);
+  }catch(e){ add('Registro de ponto','alerta','Não foi possível verificar: '+(e.message||'')); }
+
+  // 6. Gravações pendentes
+  try{
+    const pend=Object.keys(FB_SAVE_QUEUE||{});
+    if(pend.length) add('Sincronização','alerta','Aguardando envio: '+pend.join(', ')+'. Não feche o sistema agora.');
+    else add('Sincronização','ok','Nenhuma gravação pendente');
+  }catch(_){}
+
+  // 7. Espaço no navegador
+  try{
+    let usado=0;
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      usado+=((localStorage.getItem(k)||'').length+k.length);
+    }
+    const mb=(usado/1048576).toFixed(1);
+    add('Espaço no navegador', usado>4194304?'alerta':'ok', `${mb} MB usados${usado>4194304?' — perto do limite de 5MB':''}`);
+  }catch(_){}
+
+  // 8. Erros recentes
+  try{
+    const log=_errlogLer();
+    const ontem=Date.now()-86400000;
+    const recentes=log.filter(e=>new Date(e.ts).getTime()>ontem);
+    if(recentes.length>10) add('Erros nas últimas 24h','falha',`${recentes.length} erro(s) registrado(s)`,'Ver erros');
+    else if(recentes.length) add('Erros nas últimas 24h','alerta',`${recentes.length} erro(s) registrado(s)`,'Ver erros');
+    else add('Erros nas últimas 24h','ok','Nenhum erro registrado');
+  }catch(_){}
+
+  // 9. Consistência: colaborador ativo sem dados essenciais
+  try{
+    const semDados=(APP.employees||[]).filter(e=>e&&e.status==='ativo'&&(!e.cpf||!e.dataAdmissao||!e.salario));
+    if(semDados.length) add('Cadastro dos colaboradores','alerta',`${semDados.length} ativo(s) sem CPF, data de admissão ou salário: ${semDados.slice(0,3).map(e=>(e.nome||'').split(' ')[0]).join(', ')}${semDados.length>3?'…':''}`,'Ver colaboradores');
+    else add('Cadastro dos colaboradores','ok','Todos os ativos com dados essenciais preenchidos');
+  }catch(_){}
+
+  return testes;
+}
+
+async function abrirDiagnostico(){
+  openModal('🩺 Diagnóstico do Sistema',
+    '<div style="text-align:center;padding:40px;color:#64748B"><div style="font-size:30px;margin-bottom:10px">⏳</div><div style="font-weight:600">Verificando…</div><div style="font-size:12px;margin-top:5px">Testando nuvem, IA, backup e dados</div></div>',620);
+  let testes=[];
+  try{ testes=await rodarDiagnostico(); }
+  catch(e){ testes=[{nome:'Diagnóstico',estado:'falha',detalhe:'Erro ao executar: '+(e.message||'')}]; }
+
+  const ico={ok:'✅',alerta:'⚠️',falha:'❌'};
+  const cor={ok:'#059669',alerta:'#D97706',falha:'#DC2626'};
+  const bg ={ok:'#ECFDF5',alerta:'#FFFBEB',falha:'#FEF2F2'};
+  const acoes={'Configurar IA':'closeModal();openAnthropicKeyModal()','Fazer backup':'closeModal();openBackup()','Ver erros':'closeModal();abrirLogErros()','Abrir biométrico':'closeModal();navigate(\'biometrico\')','Ver colaboradores':'closeModal();navigate(\'funcionarios\')'};
+
+  const falhas=testes.filter(t=>t.estado==='falha').length;
+  const alertas=testes.filter(t=>t.estado==='alerta').length;
+  const resumo = falhas>0
+    ? {txt:`${falhas} problema(s) precisam de atenção`, c:'#DC2626', b:'#FEF2F2'}
+    : alertas>0
+      ? {txt:`${alertas} ponto(s) de atenção`, c:'#D97706', b:'#FFFBEB'}
+      : {txt:'Tudo funcionando normalmente', c:'#059669', b:'#ECFDF5'};
+
+  const linhas=testes.map(t=>`
+    <div style="display:flex;gap:11px;align-items:flex-start;background:${bg[t.estado]};border-radius:9px;padding:10px 12px;margin-bottom:7px">
+      <div style="font-size:16px;line-height:1.3">${ico[t.estado]}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:#1E293B">${esc(t.nome)}</div>
+        <div style="font-size:12px;color:${cor[t.estado]};line-height:1.45;margin-top:1px">${esc(t.detalhe)}</div>
+      </div>
+      ${t.acao&&acoes[t.acao]?`<button class="btn btn-sm" style="background:#fff;color:${cor[t.estado]};border:1px solid ${cor[t.estado]}33;font-size:11px;white-space:nowrap" onclick="${acoes[t.acao]}">${esc(t.acao)}</button>`:''}
+    </div>`).join('');
+
+  openModal('🩺 Diagnóstico do Sistema',`
+    <div style="background:${resumo.b};border-radius:10px;padding:12px 14px;margin-bottom:13px;text-align:center">
+      <div style="font-size:14px;font-weight:800;color:${resumo.c}">${resumo.txt}</div>
+      <div style="font-size:11.5px;color:#64748B;margin-top:2px">Verificado em ${new Date().toLocaleString('pt-BR')}</div>
+    </div>
+    ${linhas}
+    <div class="mft">
+      <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+      <button class="btn btn-blue" onclick="abrirDiagnostico()">🔄 Verificar de novo</button>
+    </div>`,620);
+}
+window.rodarDiagnostico=rodarDiagnostico;
+window.abrirDiagnostico=abrirDiagnostico;
 
 function rDemissao(){
   const demitidos=APP.employees.filter(e=>e.status==='demitido');
@@ -13109,10 +13486,18 @@ async function bioAdicionarHoje(){
     // Reatribui os tipos de TODAS as batidas do dia pela ordem cronológica e
     // persiste no Firebase as que mudaram — mantém a alternância entrada/saída.
     const corrigidos=_bioReatribuirTipos(empName, ds);
+    // Falha aqui deixa a batida com tipo errado (entrada/saída trocados) no
+    // servidor enquanto a tela mostra o certo. Antes o erro era silenciado.
+    let _falhas=0;
     for(const pc of corrigidos){
-      try{ await FBASE.collection('bio_punches').doc(pc.id).update({type:pc.type}); }catch(_){}
+      try{ await FBASE.collection('bio_punches').doc(pc.id).update({type:pc.type}); }
+      catch(err){ _falhas++; console.error('[Ponto] Falha ao corrigir tipo de',pc.id,err&&err.message); }
     }
-    toast('✅ Registro adicionado!');
+    if(_falhas>0){
+      toast('⚠ Registro salvo, mas '+_falhas+' batida(s) do dia não tiveram entrada/saída corrigida na nuvem. Confira o cartão-ponto.','err',6000);
+    } else {
+      toast('✅ Registro adicionado!');
+    }
     bioRenderEdicaoHoje(); // re-renderiza modal com novo registro
   }catch(e){toast('Erro: '+e.message,'err');}
 }
@@ -16910,7 +17295,35 @@ async function initApp(){
 }
 
 // Salva dados pendentes antes de fechar a aba/navegador
+// Dispara imediatamente qualquer gravação que estava esperando o debounce.
+// Chamado ao sair da página e ao mandar a aba para segundo plano — nesses
+// momentos o timer de 8s do cartão-ponto seria descartado, deixando a edição
+// apenas no localStorage daquele computador (a causa de "não sincronizou").
+function flushSavesPendentes(){
+  try{
+    const pend=Object.keys(_saveDebounceTimers||{});
+    pend.forEach(k=>{
+      if(_saveDebounceTimers[k]){
+        clearTimeout(_saveDebounceTimers[k]);
+        delete _saveDebounceTimers[k];
+        delete FB_SAVE_QUEUE[k];
+        try{ fbSave(k); }catch(_){}
+      }
+    });
+    if(pend.length) console.log('[Sync] Enviando agora (não esperou debounce):', pend.join(', '));
+  }catch(e){ console.warn('[Sync] flush falhou:', e && e.message); }
+}
+window.flushSavesPendentes=flushSavesPendentes;
+
+// Aba foi para segundo plano (trocar de janela, minimizar, bloquear tela):
+// é o último momento confiável para concluir uma escrita.
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState==='hidden') flushSavesPendentes();
+});
+
 window.addEventListener('beforeunload', function(e){
+  // Envia o que estava no debounce antes de qualquer outra coisa
+  flushSavesPendentes();
   // Força salvamento de tudo no localStorage como backup de emergência
   const keys=['employees','candidates','pontos','financeiro','atestados','admissoes','demissoes','salarios','holRascunho','metaDiaria','faltaPagar','advertencias','ferias','avaliacoes','comunicados','bancohoras','contratos'];
   keys.forEach(k=>{ try{localStorage.setItem('fcrh_'+k,JSON.stringify(APP[k]));}catch(err){} });
@@ -19481,7 +19894,7 @@ function exportarEspelhoIndividualPDF(empId, mesKey) {
   const empresa = APP.empresaCfg || {};
 
   const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-  <title>Espelho de Ponto — ${emp.nome} — ${nomesMes[mes]}/${anoS}</title>
+  <title>Espelho de Ponto — ${esc(emp.nome)} — ${nomesMes[mes]}/${anoS}</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:'Segoe UI',Arial,sans-serif;color:#1E293B;font-size:12px;padding:20px}
@@ -19537,7 +19950,7 @@ function exportarEspelhoIndividualPDF(empId, mesKey) {
   <script>window.onload=()=>window.print();<\/script>
   </body></html>`;
 
-  printHtml(html, `Espelho — ${emp.nome} — ${nomesMes[mes]}/${anoS}`);
+  printHtml(html, `Espelho — ${esc(emp.nome)} — ${nomesMes[mes]}/${anoS}`);
 }
 
 // ── Espelho Individual XLSX ───────────────────────────────────────────────────
@@ -19636,7 +20049,7 @@ function exportarCSVFolhaDominio() {
 
     linhas.push([
       mat,
-      `"${emp.nome}"`,
+      `"${esc(emp.nome)}"`,
       cpfNum,
       `"${emp.cargo||''}"`,
       periodo,
@@ -20163,9 +20576,9 @@ async function notifyRecruiter(cand){
   if(_notifiedSet.has(notifKey)) return;
   _notifiedSet.add(notifKey);
   const dt=cand.data?fmtDate(cand.data):'A confirmar com o RH';
-  const subject=`🔔 ${cand.nome} confirmou presença — Atlas RH`;
+  const subject=`🔔 ${esc(cand.nome)} confirmou presença — Atlas RH`;
   // BUG FIX: e-mail ao recrutador agora em HTML formatado
-  const message=`<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;background:#f8f9fa;font-family:'Roboto',sans-serif"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9fa;padding:24px 0"><tr><td align="center"><table width="540" cellpadding="0" cellspacing="0" style="max-width:540px;width:100%;border-radius:14px;overflow:hidden;border:1px solid #ffe0cc;box-shadow:0 4px 20px rgba(230,81,0,0.1)"><tr><td style="background:linear-gradient(135deg,#e65100,#ff6d00);padding:24px 28px"><h1 style="color:#fff;font-size:18px;font-weight:700;margin:0 0 4px">🔔 Candidato Confirmou Presença!</h1><p style="color:rgba(255,255,255,0.85);font-size:13px;margin:0">Atlas RH — Sistema de Recrutamento</p></td></tr><tr><td style="background:#fff;padding:24px 28px"><p style="margin:0 0 20px;font-size:14px;color:#1a1a2e">Um candidato confirmou presença e está aguardando entrevista:</p><table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #ffe0cc;border-radius:10px;overflow:hidden"><tr style="background:#fff8f2"><td style="padding:10px 14px;font-size:11px;font-weight:700;color:#8899aa;text-transform:uppercase;width:120px">Nome</td><td style="padding:10px 14px;font-size:14px;font-weight:700;color:#1a1a2e">${cand.nome}</td></tr><tr><td style="padding:10px 14px;font-size:11px;font-weight:700;color:#8899aa;text-transform:uppercase;border-top:1px solid #fff0e6">WhatsApp</td><td style="padding:10px 14px;font-size:14px;color:#1a1a2e;border-top:1px solid #fff0e6">${cand.phone}</td></tr><tr style="background:#fff8f2"><td style="padding:10px 14px;font-size:11px;font-weight:700;color:#8899aa;text-transform:uppercase;border-top:1px solid #fff0e6">E-mail</td><td style="padding:10px 14px;font-size:14px;color:#1a1a2e;border-top:1px solid #fff0e6">${cand.email||'—'}</td></tr><tr><td style="padding:10px 14px;font-size:11px;font-weight:700;color:#8899aa;text-transform:uppercase;border-top:1px solid #fff0e6">CPF</td><td style="padding:10px 14px;font-size:14px;color:#1a1a2e;border-top:1px solid #fff0e6">${cand.cpf||'—'}</td></tr><tr style="background:#fff8f2"><td style="padding:10px 14px;font-size:11px;font-weight:700;color:#8899aa;text-transform:uppercase;border-top:1px solid #fff0e6">Entrevista</td><td style="padding:10px 14px;font-size:14px;font-weight:600;color:#e65100;border-top:1px solid #fff0e6">${dt}</td></tr><tr><td style="padding:10px 14px;font-size:11px;font-weight:700;color:#8899aa;text-transform:uppercase;border-top:1px solid #fff0e6">Currículo</td><td style="padding:10px 14px;font-size:14px;color:#1a1a2e;border-top:1px solid #fff0e6">${cand.cvNome?'✅ '+cand.cvNome:'Não enviado'}</td></tr><tr style="background:#fff8f2"><td style="padding:10px 14px;font-size:11px;font-weight:700;color:#8899aa;text-transform:uppercase;border-top:1px solid #fff0e6">Confirmado em</td><td style="padding:10px 14px;font-size:13px;color:#5a6a7e;border-top:1px solid #fff0e6">${cand.confirmadoEm||nowStr()}</td></tr></table><div style="background:#fff3e0;border-left:4px solid #e65100;border-radius:0 8px 8px 0;padding:12px 16px;margin-top:20px"><p style="margin:0;font-size:13px;color:#bf360c">📋 Acesse o painel ADM para registrar o resultado da entrevista.</p></div></td></tr><tr><td style="background:#fff3e0;padding:16px 28px;text-align:center;border-top:1px solid #ffe0cc"><p style="margin:0;font-size:11px;color:#bf360c;font-weight:600">Sistema de Recrutamento — Atlas RH</p></td></tr></table></td></tr></table>`;
+  const message=`<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;background:#f8f9fa;font-family:'Roboto',sans-serif"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9fa;padding:24px 0"><tr><td align="center"><table width="540" cellpadding="0" cellspacing="0" style="max-width:540px;width:100%;border-radius:14px;overflow:hidden;border:1px solid #ffe0cc;box-shadow:0 4px 20px rgba(230,81,0,0.1)"><tr><td style="background:linear-gradient(135deg,#e65100,#ff6d00);padding:24px 28px"><h1 style="color:#fff;font-size:18px;font-weight:700;margin:0 0 4px">🔔 Candidato Confirmou Presença!</h1><p style="color:rgba(255,255,255,0.85);font-size:13px;margin:0">Atlas RH — Sistema de Recrutamento</p></td></tr><tr><td style="background:#fff;padding:24px 28px"><p style="margin:0 0 20px;font-size:14px;color:#1a1a2e">Um candidato confirmou presença e está aguardando entrevista:</p><table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #ffe0cc;border-radius:10px;overflow:hidden"><tr style="background:#fff8f2"><td style="padding:10px 14px;font-size:11px;font-weight:700;color:#8899aa;text-transform:uppercase;width:120px">Nome</td><td style="padding:10px 14px;font-size:14px;font-weight:700;color:#1a1a2e">${esc(cand.nome)}</td></tr><tr><td style="padding:10px 14px;font-size:11px;font-weight:700;color:#8899aa;text-transform:uppercase;border-top:1px solid #fff0e6">WhatsApp</td><td style="padding:10px 14px;font-size:14px;color:#1a1a2e;border-top:1px solid #fff0e6">${cand.phone}</td></tr><tr style="background:#fff8f2"><td style="padding:10px 14px;font-size:11px;font-weight:700;color:#8899aa;text-transform:uppercase;border-top:1px solid #fff0e6">E-mail</td><td style="padding:10px 14px;font-size:14px;color:#1a1a2e;border-top:1px solid #fff0e6">${cand.email||'—'}</td></tr><tr><td style="padding:10px 14px;font-size:11px;font-weight:700;color:#8899aa;text-transform:uppercase;border-top:1px solid #fff0e6">CPF</td><td style="padding:10px 14px;font-size:14px;color:#1a1a2e;border-top:1px solid #fff0e6">${cand.cpf||'—'}</td></tr><tr style="background:#fff8f2"><td style="padding:10px 14px;font-size:11px;font-weight:700;color:#8899aa;text-transform:uppercase;border-top:1px solid #fff0e6">Entrevista</td><td style="padding:10px 14px;font-size:14px;font-weight:600;color:#e65100;border-top:1px solid #fff0e6">${dt}</td></tr><tr><td style="padding:10px 14px;font-size:11px;font-weight:700;color:#8899aa;text-transform:uppercase;border-top:1px solid #fff0e6">Currículo</td><td style="padding:10px 14px;font-size:14px;color:#1a1a2e;border-top:1px solid #fff0e6">${cand.cvNome?'✅ '+cand.cvNome:'Não enviado'}</td></tr><tr style="background:#fff8f2"><td style="padding:10px 14px;font-size:11px;font-weight:700;color:#8899aa;text-transform:uppercase;border-top:1px solid #fff0e6">Confirmado em</td><td style="padding:10px 14px;font-size:13px;color:#5a6a7e;border-top:1px solid #fff0e6">${cand.confirmadoEm||nowStr()}</td></tr></table><div style="background:#fff3e0;border-left:4px solid #e65100;border-radius:0 8px 8px 0;padding:12px 16px;margin-top:20px"><p style="margin:0;font-size:13px;color:#bf360c">📋 Acesse o painel ADM para registrar o resultado da entrevista.</p></div></td></tr><tr><td style="background:#fff3e0;padding:16px 28px;text-align:center;border-top:1px solid #ffe0cc"><p style="margin:0;font-size:11px;color:#bf360c;font-weight:600">Sistema de Recrutamento — Atlas RH</p></td></tr></table></td></tr></table>`;
   const ok = await ejsSend(RECRUITER_EMAIL,'Recrutador Atlas RH',subject,message,{interview_date:dt,meeting_link:TEAMS});
   if(ok) console.log('[Atlas RH] E-mail enviado ao recrutador.');
   else console.warn('[Atlas RH] Falha ao notificar recrutador.');
@@ -20458,7 +20871,7 @@ async function addCandidateSilent(){
 }
 
 // -------- DELETE --------
-function confirmDeleteOne(id){const c=candidates.find(x=>x.id===id);if(!c)return;deleteId=id;document.getElementById('mDeleteDesc').textContent=`Excluir o candidato "${c.nome}"?`;closeM('mDetalhes');openM('mDeleteOne');}
+function confirmDeleteOne(id){const c=candidates.find(x=>x.id===id);if(!c)return;deleteId=id;document.getElementById('mDeleteDesc').textContent=`Excluir o candidato "${esc(c.nome)}"?`;closeM('mDetalhes');openM('mDeleteOne');}
 async function deleteOne(){candidates=candidates.filter(c=>c.id!==deleteId);try{localStorage.removeItem('fc_cv_'+deleteId);}catch(e){}await jbSave();renderAll();closeM('mDeleteOne');showAdmNotif('🗑️ Candidato excluído.','warn');}
 async function forceRefresh(){
   showAdmNotif('🔄 Atualizando...','info');
@@ -20478,7 +20891,7 @@ async function openEnvioModal(cand,resend){
   isResend=!!resend;pendingId=cand.id;
   const wm=wppMsg(cand);
   document.getElementById('mEnvioTitle').textContent=resend?'🔄 Reenviar Convite':'📨 Enviar Convite';
-  document.getElementById('mEnvioDesc').textContent=`${resend?'Reenviar para':'Enviar para'} ${cand.nome}`;
+  document.getElementById('mEnvioDesc').textContent=`${resend?'Reenviar para':'Enviar para'} ${esc(cand.nome)}`;
   document.getElementById('resendBadge').style.display=resend?'inline-flex':'none';
   document.getElementById('wppInfo').textContent=`Para: ${cand.phone}`;
   document.getElementById('mWppText').textContent=wm;
@@ -20505,7 +20918,7 @@ async function openEnvioModal(cand,resend){
     emailLinkEl.textContent='📧 Enviando e-mail...';
     emailLinkEl.style.pointerEvents='none';
     emailLinkEl.removeAttribute('href');
-    const htmlConvite=`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#fff8f2;font-family:'Roboto',sans-serif"><table width="100%" cellpadding="0" cellspacing="0" style="background:#fff8f2;padding:30px 0"><tr><td align="center"><table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(230,81,0,0.12);border:1px solid #ffe0cc"><tr><td style="background:linear-gradient(135deg,#e65100,#ff6d00);padding:36px 32px;text-align:center"><div style="font-size:52px;margin-bottom:12px">🎉</div><h1 style="color:#ffffff;font-size:24px;font-weight:700;margin:0 0 8px">Parabéns! Você Avançou!</h1><p style="color:rgba(255,255,255,0.9);font-size:15px;margin:0;font-weight:500">Atlas RH — 2ª Fase do Processo Seletivo</p></td></tr><tr><td style="background:#ffffff;padding:32px 32px 24px"><p style="font-size:16px;color:#1a1a2e;margin:0 0 10px">Olá, <strong>${cand.nome}</strong>! 👋</p><p style="font-size:14px;color:#5a6a7e;line-height:1.8;margin:0 0 28px">Parabéns pela sua performance! Você foi selecionado(a) para a <strong style="color:#e65100">2ª Fase</strong> do processo seletivo da Atlas RH. Estamos ansiosos para conhecer você melhor!</p><table width="100%" cellpadding="0" cellspacing="0" style="background:#fff8f2;border:1.5px solid #ffe0cc;border-radius:12px;margin-bottom:16px"><tr><td style="padding:20px 22px"><p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#8899aa;text-transform:uppercase;letter-spacing:1px">📅 Data e Hora da Entrevista</p><p style="margin:0;font-size:18px;font-weight:700;color:#e65100">${dt}</p></td></tr></table><table width="100%" cellpadding="0" cellspacing="0" style="background:#fff8f2;border:1.5px solid #ffe0cc;border-radius:12px;margin-bottom:16px"><tr><td style="padding:20px 22px"><p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#8899aa;text-transform:uppercase;letter-spacing:1px">💻 Plataforma</p><p style="margin:0;font-size:15px;font-weight:600;color:#1a1a2e">Microsoft Teams (online)</p></td></tr></table><table width="100%" cellpadding="0" cellspacing="0" style="background:#fff8f2;border:1.5px solid #ffe0cc;border-radius:12px;margin-bottom:16px"><tr><td style="padding:20px 22px"><p style="margin:0 0 12px;font-size:11px;font-weight:700;color:#8899aa;text-transform:uppercase;letter-spacing:1px">🔗 Link de Acesso à Entrevista</p><a href="${TEAMS}" style="display:inline-block;background:#e65100;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 24px;border-radius:9px;margin-bottom:10px">▶ Entrar na Sala Teams</a><p style="margin:8px 0 0;font-size:11px;color:#8899aa;word-break:break-all;line-height:1.5">${TEAMS}</p></td></tr></table><table width="100%" cellpadding="0" cellspacing="0" style="background:#fff8f2;border:1.5px solid #ffe0cc;border-radius:12px;margin-bottom:24px"><tr><td style="padding:20px 22px"><p style="margin:0 0 12px;font-size:11px;font-weight:700;color:#8899aa;text-transform:uppercase;letter-spacing:1px">📋 Confirme sua Presença e Envie o Currículo</p><a href="${SITE}" style="display:inline-block;background:#ff6d00;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 24px;border-radius:9px;margin-bottom:10px">✅ Confirmar Presença</a><p style="margin:8px 0 0;font-size:11px;color:#8899aa;word-break:break-all;line-height:1.5">${SITE}</p></td></tr></table><table width="100%" cellpadding="0" cellspacing="0" style="background:#fff3e0;border-left:4px solid #e65100;border-radius:0 8px 8px 0;margin-bottom:24px"><tr><td style="padding:14px 18px"><p style="margin:0;font-size:13px;color:#bf360c;line-height:1.7">⏰ <strong>Dica:</strong> Acesse a sala alguns minutos antes do horário marcado para verificar áudio, câmera e conexão.</p></td></tr></table><p style="font-size:16px;color:#1a1a2e;margin:0"><strong>Boa sorte! Estamos te esperando! 🧡</strong></p></td></tr><tr><td style="background:#fff3e0;padding:22px 32px;text-align:center;border-top:1px solid #ffe0cc"><p style="margin:0 0 4px;font-size:13px;color:#bf360c;font-weight:700">Equipe de RH — Atlas RH</p><p style="margin:0;font-size:11px;color:#aab">Este é um e-mail automático. Não responda a esta mensagem.</p></td></tr></table></td></tr></table>`;
+    const htmlConvite=`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#fff8f2;font-family:'Roboto',sans-serif"><table width="100%" cellpadding="0" cellspacing="0" style="background:#fff8f2;padding:30px 0"><tr><td align="center"><table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(230,81,0,0.12);border:1px solid #ffe0cc"><tr><td style="background:linear-gradient(135deg,#e65100,#ff6d00);padding:36px 32px;text-align:center"><div style="font-size:52px;margin-bottom:12px">🎉</div><h1 style="color:#ffffff;font-size:24px;font-weight:700;margin:0 0 8px">Parabéns! Você Avançou!</h1><p style="color:rgba(255,255,255,0.9);font-size:15px;margin:0;font-weight:500">Atlas RH — 2ª Fase do Processo Seletivo</p></td></tr><tr><td style="background:#ffffff;padding:32px 32px 24px"><p style="font-size:16px;color:#1a1a2e;margin:0 0 10px">Olá, <strong>${esc(cand.nome)}</strong>! 👋</p><p style="font-size:14px;color:#5a6a7e;line-height:1.8;margin:0 0 28px">Parabéns pela sua performance! Você foi selecionado(a) para a <strong style="color:#e65100">2ª Fase</strong> do processo seletivo da Atlas RH. Estamos ansiosos para conhecer você melhor!</p><table width="100%" cellpadding="0" cellspacing="0" style="background:#fff8f2;border:1.5px solid #ffe0cc;border-radius:12px;margin-bottom:16px"><tr><td style="padding:20px 22px"><p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#8899aa;text-transform:uppercase;letter-spacing:1px">📅 Data e Hora da Entrevista</p><p style="margin:0;font-size:18px;font-weight:700;color:#e65100">${dt}</p></td></tr></table><table width="100%" cellpadding="0" cellspacing="0" style="background:#fff8f2;border:1.5px solid #ffe0cc;border-radius:12px;margin-bottom:16px"><tr><td style="padding:20px 22px"><p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#8899aa;text-transform:uppercase;letter-spacing:1px">💻 Plataforma</p><p style="margin:0;font-size:15px;font-weight:600;color:#1a1a2e">Microsoft Teams (online)</p></td></tr></table><table width="100%" cellpadding="0" cellspacing="0" style="background:#fff8f2;border:1.5px solid #ffe0cc;border-radius:12px;margin-bottom:16px"><tr><td style="padding:20px 22px"><p style="margin:0 0 12px;font-size:11px;font-weight:700;color:#8899aa;text-transform:uppercase;letter-spacing:1px">🔗 Link de Acesso à Entrevista</p><a href="${TEAMS}" style="display:inline-block;background:#e65100;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 24px;border-radius:9px;margin-bottom:10px">▶ Entrar na Sala Teams</a><p style="margin:8px 0 0;font-size:11px;color:#8899aa;word-break:break-all;line-height:1.5">${TEAMS}</p></td></tr></table><table width="100%" cellpadding="0" cellspacing="0" style="background:#fff8f2;border:1.5px solid #ffe0cc;border-radius:12px;margin-bottom:24px"><tr><td style="padding:20px 22px"><p style="margin:0 0 12px;font-size:11px;font-weight:700;color:#8899aa;text-transform:uppercase;letter-spacing:1px">📋 Confirme sua Presença e Envie o Currículo</p><a href="${SITE}" style="display:inline-block;background:#ff6d00;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 24px;border-radius:9px;margin-bottom:10px">✅ Confirmar Presença</a><p style="margin:8px 0 0;font-size:11px;color:#8899aa;word-break:break-all;line-height:1.5">${SITE}</p></td></tr></table><table width="100%" cellpadding="0" cellspacing="0" style="background:#fff3e0;border-left:4px solid #e65100;border-radius:0 8px 8px 0;margin-bottom:24px"><tr><td style="padding:14px 18px"><p style="margin:0;font-size:13px;color:#bf360c;line-height:1.7">⏰ <strong>Dica:</strong> Acesse a sala alguns minutos antes do horário marcado para verificar áudio, câmera e conexão.</p></td></tr></table><p style="font-size:16px;color:#1a1a2e;margin:0"><strong>Boa sorte! Estamos te esperando! 🧡</strong></p></td></tr><tr><td style="background:#fff3e0;padding:22px 32px;text-align:center;border-top:1px solid #ffe0cc"><p style="margin:0 0 4px;font-size:13px;color:#bf360c;font-weight:700">Equipe de RH — Atlas RH</p><p style="margin:0;font-size:11px;color:#aab">Este é um e-mail automático. Não responda a esta mensagem.</p></td></tr></table></td></tr></table>`;
     const ok=await sendBrevoEmail(cand.email,cand.nome,null,htmlConvite,'🎉 Atlas RH — Convite para 2ª Fase do Processo Seletivo');
     if(ok){
       emailLinkEl.textContent='✅ E-mail enviado com sucesso!';
@@ -20532,7 +20945,7 @@ async function markSent(){
 }
 
 // -------- RESULTADO --------
-function openResultado(id){const c=candidates.find(x=>x.id===id);if(!c)return;resultId=id;document.getElementById('mResDesc').textContent=`Resultado da entrevista de ${c.nome}:`;openM('mResultado');}
+function openResultado(id){const c=candidates.find(x=>x.id===id);if(!c)return;resultId=id;document.getElementById('mResDesc').textContent=`Resultado da entrevista de ${esc(c.nome)}:`;openM('mResultado');}
 async function setResult(tipo){const c=candidates.find(x=>x.id===resultId);if(!c)return;c.resultado=tipo;c.status=tipo==='aprovado'?'aprovado':'reprovado';await jbSave();renderAll();closeM('mResultado');tipo==='aprovado'?openAprovado(c):openReprovado(c);}
 
 async function openAprovado(cand){
@@ -20548,7 +20961,7 @@ async function openAprovado(cand){
     }catch(e){}
   },1400);
   const w=`Olá, *${cand.nome}*! 🎉\n\nParabéns! Você foi *APROVADO(A)* no processo seletivo da *Atlas RH*! 🏆\n\nCompareça à nossa loja para o início do seu *treinamento*. Em breve enviaremos data e horário.\n\nSeja bem-vindo(a) à família Atlas RH! 🧡\n\nEquipe de RH`;
-  document.getElementById('mAprovDesc').textContent=`${cand.nome} aprovado(a)! Enviando notificações...`;
+  document.getElementById('mAprovDesc').textContent=`${esc(cand.nome)} aprovado(a)! Enviando notificações...`;
   document.getElementById('mAprovWpp').textContent=w;
   document.getElementById('aprovWppLink').href=`https://wa.me/${pw(cand.phone)}?text=${encodeURIComponent(w)}`;
   setTimeout(()=>{ window.open(`https://wa.me/${pw(cand.phone)}?text=${encodeURIComponent(w)}`, '_blank'); }, 800);
@@ -20558,7 +20971,7 @@ async function openAprovado(cand){
     aprovEmailBlock.style.display='block';
     aprovEmailLink.textContent='📧 Enviando e-mail de aprovação...';
     aprovEmailLink.style.pointerEvents='none';
-    const htmlAprov=`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f0fff4;font-family:'Roboto',sans-serif"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fff4;padding:30px 0"><tr><td align="center"><table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(26,138,74,0.15);border:1px solid #c8e6c9"><tr><td style="background:linear-gradient(135deg,#1a8a4a,#4caf50);padding:36px 32px;text-align:center"><div style="font-size:56px;margin-bottom:12px">🏆</div><h1 style="color:#ffffff;font-size:24px;font-weight:700;margin:0 0 8px">Você foi Aprovado(a)!</h1><p style="color:rgba(255,255,255,0.9);font-size:15px;margin:0">Atlas RH — Processo Seletivo</p></td></tr><tr><td style="background:#ffffff;padding:32px 32px 24px"><p style="font-size:16px;color:#1a1a2e;margin:0 0 10px">Olá, <strong>${cand.nome}</strong>! 🎉</p><p style="font-size:14px;color:#5a6a7e;line-height:1.8;margin:0 0 24px">É com muita satisfação que informamos: você foi <strong style="color:#1a8a4a">APROVADO(A)</strong> no processo seletivo da Atlas RH! Seu esforço e dedicação fizeram toda a diferença.</p><table width="100%" cellpadding="0" cellspacing="0" style="background:#e8f5e9;border:1.5px solid #4caf50;border-radius:12px;margin-bottom:24px"><tr><td style="padding:22px"><p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#388e3c;text-transform:uppercase;letter-spacing:1px">📍 Próximos Passos</p><p style="margin:0;font-size:14px;color:#1b5e20;line-height:1.8">Compareça à nossa loja para o início do seu <strong>treinamento</strong>.<br>Em breve entraremos em contato com a data e horário confirmados.</p></td></tr></table><p style="font-size:16px;color:#1a1a2e;margin:0 0 6px"><strong>Seja muito bem-vindo(a) à família Atlas RH! 🧡</strong></p><p style="font-size:14px;color:#5a6a7e;margin:0">Estamos animados para ter você no time!</p></td></tr><tr><td style="background:#e8f5e9;padding:22px 32px;text-align:center;border-top:1px solid #c8e6c9"><p style="margin:0 0 4px;font-size:13px;color:#1a8a4a;font-weight:700">Equipe de RH — Atlas RH</p><p style="margin:0;font-size:11px;color:#888">Este é um e-mail automático. Não responda a esta mensagem.</p></td></tr></table></td></tr></table>`;
+    const htmlAprov=`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f0fff4;font-family:'Roboto',sans-serif"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fff4;padding:30px 0"><tr><td align="center"><table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(26,138,74,0.15);border:1px solid #c8e6c9"><tr><td style="background:linear-gradient(135deg,#1a8a4a,#4caf50);padding:36px 32px;text-align:center"><div style="font-size:56px;margin-bottom:12px">🏆</div><h1 style="color:#ffffff;font-size:24px;font-weight:700;margin:0 0 8px">Você foi Aprovado(a)!</h1><p style="color:rgba(255,255,255,0.9);font-size:15px;margin:0">Atlas RH — Processo Seletivo</p></td></tr><tr><td style="background:#ffffff;padding:32px 32px 24px"><p style="font-size:16px;color:#1a1a2e;margin:0 0 10px">Olá, <strong>${esc(cand.nome)}</strong>! 🎉</p><p style="font-size:14px;color:#5a6a7e;line-height:1.8;margin:0 0 24px">É com muita satisfação que informamos: você foi <strong style="color:#1a8a4a">APROVADO(A)</strong> no processo seletivo da Atlas RH! Seu esforço e dedicação fizeram toda a diferença.</p><table width="100%" cellpadding="0" cellspacing="0" style="background:#e8f5e9;border:1.5px solid #4caf50;border-radius:12px;margin-bottom:24px"><tr><td style="padding:22px"><p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#388e3c;text-transform:uppercase;letter-spacing:1px">📍 Próximos Passos</p><p style="margin:0;font-size:14px;color:#1b5e20;line-height:1.8">Compareça à nossa loja para o início do seu <strong>treinamento</strong>.<br>Em breve entraremos em contato com a data e horário confirmados.</p></td></tr></table><p style="font-size:16px;color:#1a1a2e;margin:0 0 6px"><strong>Seja muito bem-vindo(a) à família Atlas RH! 🧡</strong></p><p style="font-size:14px;color:#5a6a7e;margin:0">Estamos animados para ter você no time!</p></td></tr><tr><td style="background:#e8f5e9;padding:22px 32px;text-align:center;border-top:1px solid #c8e6c9"><p style="margin:0 0 4px;font-size:13px;color:#1a8a4a;font-weight:700">Equipe de RH — Atlas RH</p><p style="margin:0;font-size:11px;color:#888">Este é um e-mail automático. Não responda a esta mensagem.</p></td></tr></table></td></tr></table>`;
     const ok=await sendBrevoEmail(cand.email,cand.nome,null,htmlAprov,'Atlas RH — Você foi Aprovado(a)! 🏆');
     if(ok){
       aprovEmailLink.textContent='✅ E-mail de aprovação enviado!';
@@ -20570,17 +20983,17 @@ async function openAprovado(cand){
       aprovEmailLink.textContent='📧 Enviar e-mail manualmente';
       aprovEmailLink.style.pointerEvents='auto';
     }
-    document.getElementById('mAprovDesc').textContent=`${cand.nome} aprovado(a)! Notificações enviadas.`;
+    document.getElementById('mAprovDesc').textContent=`${esc(cand.nome)} aprovado(a)! Notificações enviadas.`;
   }else{
     aprovEmailBlock.style.display='none';
-    document.getElementById('mAprovDesc').textContent=`${cand.nome} aprovado(a)! WhatsApp aberto.`;
+    document.getElementById('mAprovDesc').textContent=`${esc(cand.nome)} aprovado(a)! WhatsApp aberto.`;
   }
   openM('mAprovado');
 }
 
 async function openReprovado(cand){
   const msg=`Olá, *${cand.nome}*.\n\nAgradecemos sua participação no processo seletivo da *Atlas RH*.\n\nApós avaliação, não seguiremos com sua candidatura neste momento.\n\nDesejamos muito sucesso! 🧡\n\nEquipe Atlas RH`;
-  document.getElementById('mRepDesc').textContent=`${cand.nome} não aprovado(a). Enviando notificações...`;
+  document.getElementById('mRepDesc').textContent=`${esc(cand.nome)} não aprovado(a). Enviando notificações...`;
   document.getElementById('mRepMsg').textContent=msg;
   document.getElementById('repWppLink').href=`https://wa.me/${pw(cand.phone)}?text=${encodeURIComponent(msg)}`;
   const _msgCompleto = WPP_TEMPLATES.reprovadoCompleto(cand);
@@ -20593,7 +21006,7 @@ async function openReprovado(cand){
     const repEmailLink=document.getElementById('repEmailLink');
     repEmailLink.textContent='📧 Enviando e-mail...';
     repEmailLink.style.pointerEvents='none';
-    const htmlRep=`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f8f9fa;font-family:'Roboto',sans-serif"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9fa;padding:30px 0"><tr><td align="center"><table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);border:1px solid #e0e0e0"><tr><td style="background:linear-gradient(135deg,#5a6a7e,#8899aa);padding:36px 32px;text-align:center"><div style="font-size:52px;margin-bottom:12px">🤝</div><h1 style="color:#ffffff;font-size:22px;font-weight:700;margin:0 0 8px">Resultado do Processo Seletivo</h1><p style="color:rgba(255,255,255,0.9);font-size:15px;margin:0">Atlas RH</p></td></tr><tr><td style="background:#ffffff;padding:32px 32px 24px"><p style="font-size:16px;color:#1a1a2e;margin:0 0 10px">Olá, <strong>${cand.nome}</strong>,</p><p style="font-size:14px;color:#5a6a7e;line-height:1.8;margin:0 0 20px">Agradecemos muito sua participação e o interesse em fazer parte da equipe Atlas RH. Foi um prazer conhecer você durante o processo seletivo.</p><table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9fa;border:1.5px solid #e0e0e0;border-radius:12px;margin-bottom:24px"><tr><td style="padding:20px 22px"><p style="margin:0;font-size:14px;color:#5a6a7e;line-height:1.8">Após cuidadosa avaliação, informamos que <strong>não seguiremos com sua candidatura</strong> neste momento. Esta decisão não reflete seu valor como profissional — o mercado de trabalho tem muitas oportunidades esperando por você!</p></td></tr></table><p style="font-size:15px;color:#1a1a2e;margin:0"><strong>Desejamos muito sucesso na sua jornada profissional! 🧡</strong></p></td></tr><tr><td style="background:#f8f9fa;padding:22px 32px;text-align:center;border-top:1px solid #e0e0e0"><p style="margin:0 0 4px;font-size:13px;color:#5a6a7e;font-weight:700">Equipe de RH — Atlas RH</p><p style="margin:0;font-size:11px;color:#aab">Este é um e-mail automático. Não responda a esta mensagem.</p></td></tr></table></td></tr></table>`;
+    const htmlRep=`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f8f9fa;font-family:'Roboto',sans-serif"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9fa;padding:30px 0"><tr><td align="center"><table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);border:1px solid #e0e0e0"><tr><td style="background:linear-gradient(135deg,#5a6a7e,#8899aa);padding:36px 32px;text-align:center"><div style="font-size:52px;margin-bottom:12px">🤝</div><h1 style="color:#ffffff;font-size:22px;font-weight:700;margin:0 0 8px">Resultado do Processo Seletivo</h1><p style="color:rgba(255,255,255,0.9);font-size:15px;margin:0">Atlas RH</p></td></tr><tr><td style="background:#ffffff;padding:32px 32px 24px"><p style="font-size:16px;color:#1a1a2e;margin:0 0 10px">Olá, <strong>${esc(cand.nome)}</strong>,</p><p style="font-size:14px;color:#5a6a7e;line-height:1.8;margin:0 0 20px">Agradecemos muito sua participação e o interesse em fazer parte da equipe Atlas RH. Foi um prazer conhecer você durante o processo seletivo.</p><table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9fa;border:1.5px solid #e0e0e0;border-radius:12px;margin-bottom:24px"><tr><td style="padding:20px 22px"><p style="margin:0;font-size:14px;color:#5a6a7e;line-height:1.8">Após cuidadosa avaliação, informamos que <strong>não seguiremos com sua candidatura</strong> neste momento. Esta decisão não reflete seu valor como profissional — o mercado de trabalho tem muitas oportunidades esperando por você!</p></td></tr></table><p style="font-size:15px;color:#1a1a2e;margin:0"><strong>Desejamos muito sucesso na sua jornada profissional! 🧡</strong></p></td></tr><tr><td style="background:#f8f9fa;padding:22px 32px;text-align:center;border-top:1px solid #e0e0e0"><p style="margin:0 0 4px;font-size:13px;color:#5a6a7e;font-weight:700">Equipe de RH — Atlas RH</p><p style="margin:0;font-size:11px;color:#aab">Este é um e-mail automático. Não responda a esta mensagem.</p></td></tr></table></td></tr></table>`;
     const ok=await sendBrevoEmail(cand.email,cand.nome,null,htmlRep,'Atlas RH — Resultado do Processo Seletivo');
     if(ok){
       repEmailLink.textContent='✅ E-mail enviado ao candidato!';
@@ -20605,9 +21018,9 @@ async function openReprovado(cand){
       const b=`Olá, ${cand.nome},\n\nAgradecemos sua participação.\n\nApós avaliação, não seguiremos com sua candidatura neste momento.\n\nMuito sucesso!\n\nEquipe Atlas RH`;
       repEmailLink.href=`mailto:${cand.email}?subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(b)}`;
     }
-    document.getElementById('mRepDesc').textContent=`${cand.nome} não aprovado(a). Notificações enviadas.`;
+    document.getElementById('mRepDesc').textContent=`${esc(cand.nome)} não aprovado(a). Notificações enviadas.`;
   } else {
-    document.getElementById('mRepDesc').textContent=`${cand.nome} não aprovado(a). WhatsApp aberto.`;
+    document.getElementById('mRepDesc').textContent=`${esc(cand.nome)} não aprovado(a). WhatsApp aberto.`;
   }
   openM('mReprovado');
 }
@@ -20659,7 +21072,7 @@ function triggerConfirmNotif(cand){
   notifCount++;
   const bb=document.getElementById('bellBadge');bb.textContent=notifCount;bb.classList.add('show');
   const bell=document.getElementById('bellIcon');bell.classList.add('bsh');setTimeout(()=>bell.classList.remove('bsh'),600);
-  showGlobalNotif(`🔔 <strong>${cand.nome}</strong> confirmou presença e enviou o currículo!`);
+  showGlobalNotif(`🔔 <strong>${esc(cand.nome)}</strong> confirmou presença e enviou o currículo!`);
   // Abre modal de alerta
   openConfirmAlertModal(cand);
 }
@@ -20681,7 +21094,7 @@ function openConfirmAlertModal(cand){
     <div style="background:#fff;border-radius:20px;padding:28px 24px;max-width:440px;width:100%;text-align:center;box-shadow:0 12px 50px rgba(0,0,0,.3);border-top:6px solid #e65100">
       <div style="font-size:52px;margin-bottom:10px">🎉</div>
       <h2 style="font-size:20px;font-weight:800;color:#1a1a2e;margin-bottom:4px">Candidato Confirmado!</h2>
-      <p style="font-size:16px;color:#e65100;font-weight:700;margin-bottom:2px">${cand.nome}</p>
+      <p style="font-size:16px;color:#e65100;font-weight:700;margin-bottom:2px">${esc(cand.nome)}</p>
       <p style="font-size:13px;color:#5a6a7e;margin-bottom:18px">📱 ${cand.phone} | 📄 ${cand.cvNome||'Currículo enviado'}</p>
       <p style="font-size:12px;color:#1a8a4a;background:#e8f5e9;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-weight:600">✅ Status atualizado para CONFIRMADO no painel</p>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
@@ -20694,7 +21107,7 @@ function openConfirmAlertModal(cand){
   document.body.appendChild(overlay);
   overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});
   // Abre modal antigo do ADM com links de confirmação também
-  document.getElementById('mAutoConfirmDesc').textContent=`${cand.nome} confirmou presença. Envie a confirmação:`;
+  document.getElementById('mAutoConfirmDesc').textContent=`${esc(cand.nome)} confirmou presença. Envie a confirmação:`;
   const wppLinkEl=document.getElementById('autoConfirmWppLink');
   const emailLinkEl=document.getElementById('autoConfirmEmailLink');
   wppLinkEl.href=`https://wa.me/${pw(cand.phone)}?text=${encodeURIComponent(wppTxt)}`;
@@ -20738,7 +21151,7 @@ function openDetalhes(id){
     </div>`;
   }
   // Anotações
-  const obsInfo=cand.obs?`<div class="notes-badge" title="${cand.obs}" style="max-width:none;white-space:normal;margin-top:6px">📝 ${cand.obs}</div>`:'';
+  const obsInfo=cand.obs?`<div class="notes-badge" title="${esc(cand.obs)}" style="max-width:none;white-space:normal;margin-top:6px">📝 ${esc(cand.obs)}</div>`:'';
   const steps=[
     {l:'Cadastrado',done:true,s:cand.createdAt},
     {l:'Convite enviado',done:cand.wppSent||cand.emailSent,s:cand.wppSent||cand.emailSent?'Enviado':''},
@@ -20775,7 +21188,7 @@ function openDetalhes(id){
       <div class="dr"><span class="dl">Pretensão</span><span class="dv">${cand.salario||'—'}</span></div>
       <div class="dr"><span class="dl">Origem</span><span class="dv">${cand.fromForm?'📋 Formulário candidato':'🖥️ Cadastro ADM'}</span></div>
       ${cand.ultimoReenvioPresenca?`<div class="dr"><span class="dl">Último reenvio presença</span><span class="dv" style="color:#0288d1">📲 ${cand.ultimoReenvioPresenca}</span></div>`:''}
-      ${cand.obs?`<div class="dr"><span class="dl">Observação</span><span class="dv">📝 ${cand.obs}</span></div>`:''}
+      ${cand.obs?`<div class="dr"><span class="dl">Observação</span><span class="dv">📝 ${esc(cand.obs)}</span></div>`:''}
       ${(()=>{
         if(!cand.avaliacao)return'';
         const keys={postura:'Postura',comunicacao:'Comunicação',experiencia:'Experiência',motivacao:'Motivação',tecnologia:'Tecnologia'};
@@ -20875,7 +21288,7 @@ async function saveEdit(){
   renderAll();
   btn.disabled=false;btn.innerHTML='💾 Salvar Alterações';
   okEl.textContent='✅ Dados salvos com sucesso!';okEl.style.display='block';
-  showAdmNotif(`✅ ${cand.nome} atualizado.`,'success');
+  showAdmNotif(`✅ ${esc(cand.nome)} atualizado.`,'success');
 
   // Se mudou para aprovado E tem data de treinamento E checkbox marcado → abre modal de treinamento
   if(status==='aprovado'&&trainData&&(sendWpp||sendEmail)){
@@ -21146,7 +21559,7 @@ async function salvarFicha() {
   const okEl = document.getElementById('fichaOkMsg');
   okEl.textContent = '✅ Ficha de ' + cand.nome + ' salva na nuvem!';
   okEl.style.display = 'block';
-  showAdmNotif(`📋 Ficha de ${cand.nome} salva com sucesso.`, 'success');
+  showAdmNotif(`📋 Ficha de ${esc(cand.nome)} salva com sucesso.`, 'success');
   setTimeout(() => okEl.style.display = 'none', 4000);
 }
 
@@ -21167,7 +21580,7 @@ async function salvarFichaEResultado(tipo) {
   closeM('mFicha');
   if (tipo === 'aprovado') openAprovado(cand);
   else if (tipo === 'reprovado') openReprovado(cand);
-  else showAdmNotif(`📋 Ficha de ${cand.nome} salva — status: ${tipo}.`, 'success');
+  else showAdmNotif(`📋 Ficha de ${esc(cand.nome)} salva — status: ${tipo}.`, 'success');
 }
 
 function imprimirFicha() {
@@ -21180,7 +21593,7 @@ function imprimirFicha() {
   const scoreMaxC = COMPORT_ITEMS.length * 5;
   const scoreMaxT = TECN_ITEMS.length * 5;
   const ratingRow = (item) => `<tr><td style="padding:5px 10px;font-size:12px;border-bottom:1px solid #fff0e6">${item.label}</td><td style="text-align:center;font-weight:700;font-size:13px;color:#e65100;border-bottom:1px solid #fff0e6">${fd.scores[item.key]||'—'}/5</td></tr>`;
-  const _fichaHtml2=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Ficha — ${cand.nome}</title>
+  const _fichaHtml2=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Ficha — ${esc(cand.nome)}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Roboto',sans-serif;background:#fff;color:#1a1a2e;font-size:13px}
@@ -21206,7 +21619,7 @@ td,th{font-size:15px!important;}
 </style></head><body>
   <div class="ph">
     <div class="av">${cand.nome.split(' ').slice(0,2).map(n=>n[0]).join('').toUpperCase()}</div>
-    <div><div class="pn">${cand.nome}</div>
+    <div><div class="pn">${esc(cand.nome)}</div>
     <div class="ps">${cand.phone||''} ${cand.email?' · '+cand.email:''}</div>
     <div class="ps">📅 ${cand.data ? new Date(cand.data).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : 'Horario nao definido'}</div>
     <span class="badge">Ficha de Entrevista — Atlas RH</span></div>
@@ -21270,7 +21683,7 @@ function openTreinamentoModal(id){
   const dt=fmtDate(cand.treinamentoData);
   const local=cand.treinamentoLocal||'Atlas RH — confirme o endereço com o RH';
   const wppMsg=trainWppMsg(cand,dt,local);
-  document.getElementById('mTrainDesc').textContent=`Notificar ${cand.nome} sobre o treinamento em ${dt}`;
+  document.getElementById('mTrainDesc').textContent=`Notificar ${esc(cand.nome)} sobre o treinamento em ${dt}`;
   document.getElementById('trainWppInfo').textContent=`Para: ${cand.phone}`;
   document.getElementById('mTrainWppText').textContent=wppMsg;
   document.getElementById('trainWppLink').href=`https://wa.me/${pw(cand.phone)}?text=${encodeURIComponent(wppMsg)}`;
@@ -21314,7 +21727,7 @@ function trainEmailTxt(cand,dt,local){
 
 async function sendTrainEmail(cand,dt,local){
   const subject='🎓 Atlas RH — Confirmação de Início de Treinamento';
-  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;background:#f0fff4;font-family:'Roboto',sans-serif"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fff4;padding:30px 0"><tr><td align="center"><table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;border-radius:16px;overflow:hidden;border:1px solid #c8e6c9;box-shadow:0 4px 24px rgba(26,138,74,.12)"><tr><td style="background:linear-gradient(135deg,#1a8a4a,#4caf50);padding:36px 32px;text-align:center"><div style="font-size:52px;margin-bottom:10px">🎓</div><h1 style="color:#fff;font-size:22px;font-weight:700;margin:0 0 6px">Início do Treinamento!</h1><p style="color:rgba(255,255,255,.85);font-size:14px;margin:0">Atlas RH — Bem-vindo(a) à equipe!</p></td></tr><tr><td style="background:#fff;padding:32px"><p style="font-size:16px;color:#1a1a2e;margin:0 0 8px">Olá, <strong>${cand.nome}</strong>! 🎉</p><p style="font-size:14px;color:#5a6a7e;line-height:1.7;margin:0 0 24px">Parabéns pela aprovação! Estamos muito felizes em ter você na equipe <strong>Atlas RH</strong>. Confira abaixo os detalhes do seu treinamento:</p><table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f8e9;border:1.5px solid #a5d6a7;border-radius:12px;margin-bottom:16px"><tr><td style="padding:18px 20px"><p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#388e3c;text-transform:uppercase;letter-spacing:1px">📅 Data e Hora do Treinamento</p><p style="margin:0;font-size:17px;font-weight:700;color:#1a8a4a">${dt}</p></td></tr></table><table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f8e9;border:1.5px solid #a5d6a7;border-radius:12px;margin-bottom:24px"><tr><td style="padding:18px 20px"><p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#388e3c;text-transform:uppercase;letter-spacing:1px">📍 Local</p><p style="margin:0;font-size:15px;font-weight:600;color:#1a1a2e">${local}</p></td></tr></table><table width="100%" cellpadding="0" cellspacing="0" style="background:#fff8e1;border-left:4px solid #e65100;border-radius:0 8px 8px 0;margin-bottom:24px"><tr><td style="padding:14px 18px"><p style="margin:0;font-size:13px;color:#bf360c;line-height:1.6">⚠️ <strong>Importante:</strong> Compareça com documento de identidade no horário marcado.</p></td></tr></table><p style="font-size:16px;color:#1a1a2e;margin:0"><strong>Seja muito bem-vindo(a) à família Atlas RH! 🧡</strong></p></td></tr><tr><td style="background:#e8f5e9;padding:20px 32px;text-align:center;border-top:1px solid #c8e6c9"><p style="margin:0;font-size:12px;color:#1a8a4a;font-weight:600">Equipe de RH — Atlas RH</p><p style="margin:4px 0 0;font-size:11px;color:#aab">Este é um e-mail automático. Não responda a esta mensagem.</p></td></tr></table></td></tr></table>`;
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;background:#f0fff4;font-family:'Roboto',sans-serif"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fff4;padding:30px 0"><tr><td align="center"><table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;border-radius:16px;overflow:hidden;border:1px solid #c8e6c9;box-shadow:0 4px 24px rgba(26,138,74,.12)"><tr><td style="background:linear-gradient(135deg,#1a8a4a,#4caf50);padding:36px 32px;text-align:center"><div style="font-size:52px;margin-bottom:10px">🎓</div><h1 style="color:#fff;font-size:22px;font-weight:700;margin:0 0 6px">Início do Treinamento!</h1><p style="color:rgba(255,255,255,.85);font-size:14px;margin:0">Atlas RH — Bem-vindo(a) à equipe!</p></td></tr><tr><td style="background:#fff;padding:32px"><p style="font-size:16px;color:#1a1a2e;margin:0 0 8px">Olá, <strong>${esc(cand.nome)}</strong>! 🎉</p><p style="font-size:14px;color:#5a6a7e;line-height:1.7;margin:0 0 24px">Parabéns pela aprovação! Estamos muito felizes em ter você na equipe <strong>Atlas RH</strong>. Confira abaixo os detalhes do seu treinamento:</p><table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f8e9;border:1.5px solid #a5d6a7;border-radius:12px;margin-bottom:16px"><tr><td style="padding:18px 20px"><p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#388e3c;text-transform:uppercase;letter-spacing:1px">📅 Data e Hora do Treinamento</p><p style="margin:0;font-size:17px;font-weight:700;color:#1a8a4a">${dt}</p></td></tr></table><table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f8e9;border:1.5px solid #a5d6a7;border-radius:12px;margin-bottom:24px"><tr><td style="padding:18px 20px"><p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#388e3c;text-transform:uppercase;letter-spacing:1px">📍 Local</p><p style="margin:0;font-size:15px;font-weight:600;color:#1a1a2e">${local}</p></td></tr></table><table width="100%" cellpadding="0" cellspacing="0" style="background:#fff8e1;border-left:4px solid #e65100;border-radius:0 8px 8px 0;margin-bottom:24px"><tr><td style="padding:14px 18px"><p style="margin:0;font-size:13px;color:#bf360c;line-height:1.6">⚠️ <strong>Importante:</strong> Compareça com documento de identidade no horário marcado.</p></td></tr></table><p style="font-size:16px;color:#1a1a2e;margin:0"><strong>Seja muito bem-vindo(a) à família Atlas RH! 🧡</strong></p></td></tr><tr><td style="background:#e8f5e9;padding:20px 32px;text-align:center;border-top:1px solid #c8e6c9"><p style="margin:0;font-size:12px;color:#1a8a4a;font-weight:600">Equipe de RH — Atlas RH</p><p style="margin:4px 0 0;font-size:11px;color:#aab">Este é um e-mail automático. Não responda a esta mensagem.</p></td></tr></table></td></tr></table>`;
   return await ejsSend(cand.email,cand.nome,subject,html,{interview_date:dt,meeting_link:local});
 }
 
@@ -21365,9 +21778,9 @@ function renderAgenda(){
       htmlSemData+=`<div class="agenda-item" onclick="openDetalhes('${c.id}')" style="cursor:pointer;border-radius:10px;padding:12px;margin-bottom:6px;background:#fff;border:1px solid #ffe0cc;display:flex;align-items:center;gap:12px" onmouseover="this.style.background='#fff8f2'" onmouseout="this.style.background='#fff'">
         <div style="width:44px;height:44px;border-radius:50%;background:#fff3e0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#e65100;flex-shrink:0">${ini}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:700;color:#1a1a2e">📋 ${c.nome}</div>
+          <div style="font-size:14px;font-weight:700;color:#1a1a2e">📋 ${esc(c.nome)}</div>
           <div style="font-size:12px;color:#8899aa;margin-top:2px">📱 ${c.phone}${c.email?' · '+c.email:''}</div>
-          ${c.obs?`<div style="font-size:11px;color:#bf360c;margin-top:2px">📝 ${c.obs}</div>`:''}
+          ${c.obs?`<div style="font-size:11px;color:#bf360c;margin-top:2px">📝 ${esc(c.obs)}</div>`:''}
         </div>
         <div style="display:flex;flex-direction:column;gap:4px">
           <button class="btn btn-edit" style="font-size:11px;padding:5px 10px" onclick="event.stopPropagation();openEditar('${c.id}')">✏️ Definir Data</button>
@@ -21412,13 +21825,13 @@ function renderAgenda(){
         </div>
         <div class="agenda-info">
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            <span style="font-size:13px;font-weight:700;color:#1a1a2e">${ico} ${c.nome}</span>
+            <span style="font-size:13px;font-weight:700;color:#1a1a2e">${ico} ${esc(c.nome)}</span>
             <span style="font-size:10px;font-weight:700;background:${bgCor};color:${cor};padding:2px 7px;border-radius:10px;border:1px solid ${bdCor}">${tipoLabel}</span>
             ${statusPill}
           </div>
           <div class="ai-sub">📱 ${c.phone}${c.email?' · '+c.email:''}</div>
           ${notifIcon?`<div style="margin-top:3px">${notifIcon}</div>`:''}
-          ${c.obs?`<div class="notes-badge" style="margin-top:4px">📝 ${c.obs}</div>`:''}
+          ${c.obs?`<div class="notes-badge" style="margin-top:4px">📝 ${esc(c.obs)}</div>`:''}
         </div>
         <div style="display:flex;flex-direction:column;gap:5px;align-self:center">
           <button class="btn btn-edit" style="font-size:11px;padding:5px 10px" onclick="event.stopPropagation();openEditar('${c.id}')">✏️ Editar</button>
@@ -21459,7 +21872,7 @@ function renderRow(cand){
   else if(!['aprovado','reprovado'].includes(cand.status)){const first=cand.status==='aguardando';btns+=`<button class="btn btn-resend" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation();openEnvioModal(candidates.find(c=>c.id==='${cand.id}'),${!first})">${first?'📨':'🔄'}</button>`;}
   btns+='</div>';
   const trainBadge=hasTrain?`<span style="font-size:10px;color:#1a8a4a">🎓 ${fmtDate(cand.treinamentoData).split(' ')[0]}</span>`:'';
-  const obsBadge=cand.obs?`<span style="font-size:10px;color:#bf360c" title="${cand.obs}">📝</span>`:'';
+  const obsBadge=cand.obs?`<span style="font-size:10px;color:#bf360c" title="${esc(cand.obs)}">📝</span>`:'';
   // Mini nota da ficha
   let miniNota='';
   if(cand.avaliacao){
@@ -21473,7 +21886,7 @@ function renderRow(cand){
   return `<tr onclick="openDetalhes('${cand.id}')" style="cursor:pointer">
     <td><div style="display:flex;align-items:center;gap:9px">
       <div style="width:34px;height:34px;border-radius:50%;background:${bgs[ci]};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:${tcs[ci]};flex-shrink:0">${ini}</div>
-      <div><div class="cn">${cand.nome} ${obsBadge} ${miniNota}</div><div class="cs">${cand.phone}</div><div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:2px">${trainBadge}${dispBadge}</div></div>
+      <div><div class="cn">${esc(cand.nome)} ${obsBadge} ${miniNota}</div><div class="cs">${cand.phone}</div><div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:2px">${trainBadge}${dispBadge}</div></div>
     </div></td>
     <td><div class="cs">${cand.email||'—'}</div></td>
     <td><div class="cs">${cand.data?fmtDate(cand.data):'—'}</div></td>
@@ -21540,7 +21953,7 @@ function openReenviarPresenca(id){
   const wppTxt = `${urgencia}Olá, *${cand.nome}*! 👋\n\nPassando para confirmar sua presença na entrevista da *Atlas RH*! 🎉\n\n📅 *Data e Hora:* ${dt}\n📹 *Sala Microsoft Teams:*\n${TEAMS}\n\nPor favor, *confirme sua presença* respondendo esta mensagem ou acesse o link abaixo para confirmar:\n${SITE}\n\nQualquer dúvida estamos à disposição! 🧡\n\n— Equipe Atlas RH`;
 
   // Preenche o modal
-  document.getElementById('mRPDesc').textContent = `Reenviar confirmação de presença para ${cand.nome}${isAmanha ? ' — entrevista é AMANHÃ!' : ''}`;
+  document.getElementById('mRPDesc').textContent = `Reenviar confirmação de presença para ${esc(cand.nome)}${isAmanha ? ' — entrevista é AMANHÃ!' : ''}`;
   document.getElementById('mRPWppInfo').textContent = `Para: ${cand.phone}`;
   document.getElementById('mRPWppText').textContent = wppTxt;
   document.getElementById('mRPWppLink').href = `https://wa.me/${pw(cand.phone)}?text=${encodeURIComponent(wppTxt)}`;
@@ -21785,7 +22198,7 @@ function _renderAlertCard(cand, btnLabel, btnClass, onclickFn, subText){
   return `<div class="wpp-alert-card">
     <div class="wa-avatar">${ini}</div>
     <div class="wa-info">
-      <div class="wa-name">${cand.nome}</div>
+      <div class="wa-name">${esc(cand.nome)}</div>
       <div class="wa-sub">${subText}</div>
     </div>
     <button class="wa-btn" onclick="${onclickFn}">${btnLabel}</button>
@@ -21935,7 +22348,7 @@ function renderWppTab(){
     return `<div class="wpp-cand-card" onclick="openWppChat('${cand.id}')">
       <div class="wpp-cand-avatar" style="background:${bgs[ci]};color:${tcs[ci]}">${ini}</div>
       <div class="wpp-cand-info">
-        <div class="wpp-cand-name">${cand.nome}</div>
+        <div class="wpp-cand-name">${esc(cand.nome)}</div>
         <div class="wpp-cand-phone">📱 ${phone}</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:3px">${status}${dt}</div>
       </div>
@@ -22167,7 +22580,7 @@ function _msgLembrete(cand){
   const dt = fmtDate(cand.data);
   const horas = _horasAteEntrevista(cand.data);
   const urgencia = horas <= 24 ? '⚡ *ATENÇÃO — sua entrevista é AMANHÃ!*\n\n' : '';
-  return `${urgencia}Olá, *${cand.nome}*! 👋
+  return `${urgencia}Olá, *${esc(cand.nome)}*! 👋
 
 Passando para lembrar da sua entrevista na *Atlas RH*! 🧡
 
@@ -22250,7 +22663,7 @@ function checkLembretes(){
     const jaEnviou = c.lembreteEnviado;
     return `<div class="lembrete-item">
       <div class="lembrete-item-info">
-        ${c.nome}
+        ${esc(c.nome)}
         <span>📅 ${fmtDate(c.data)} — 📱 ${c.phone}</span>
       </div>
       <div style="display:flex;align-items:center;gap:6px">
@@ -22392,7 +22805,7 @@ function _populateCandDropdown() {
     opt.value = c.id;
     const dt = c.data ? new Date(c.data).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
     const statusMap = {confirmado:'✅', aguardando:'⏳', enviado:'📨', aprovado:'🏆', reprovado:'❌'};
-    opt.textContent = `${statusMap[c.status]||''} ${c.nome}${dt?' — '+dt:''}`;
+    opt.textContent = `${statusMap[c.status]||''} ${esc(c.nome)}${dt?' — '+dt:''}`;
     sel.appendChild(opt);
   });
   if (currentVal) sel.value = currentVal;
@@ -22520,7 +22933,7 @@ async function salvarFichaInline(resultado) {
   if(typeof renderAll==='function') renderAll();
   if(btn){btn.disabled=false;btn.innerHTML='&#128190; Salvar ficha no Firebase';}
   const okEl=document.getElementById('fi_okMsg');
-  okEl.textContent=`✅ Ficha de ${cand.nome} salva com sucesso no Firebase! ${resultado?'Status: '+resultado:''}`;
+  okEl.textContent=`✅ Ficha de ${esc(cand.nome)} salva com sucesso no Firebase! ${resultado?'Status: '+resultado:''}`;
   okEl.style.display='block';
   const _newStatus = resultado
     ? ({aprovado:'Aprovado ✅',reprovado:'Reprovado ❌',treinamento:'Treinamento 🏪',espera:'Em espera 🔁'}[resultado]||'Salvo ✓')
@@ -22556,7 +22969,7 @@ async function imprimirFichaInline() {
   const cMax=FI_COMPORT.length*5, tMax=FI_TECN.length*5;
   const ratingRow=item=>`<tr><td style="padding:5px 10px;font-size:12px;border-bottom:1px solid #f3e5f5">${item.label}</td><td style="text-align:center;font-weight:700;font-size:13px;color:#6a1b9a;border-bottom:1px solid #f3e5f5">${fd.scores[item.key]||'—'}/5</td></tr>`;
   const dt=cand.data?new Date(cand.data).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
-  _openPrintBlob(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Ficha — ${cand.nome}</title>
+  _openPrintBlob(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Ficha — ${esc(cand.nome)}</title>
   <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Roboto',sans-serif;background:#fff;color:#1a1a2e;font-size:13px}
   .ph{background:linear-gradient(135deg,#6a1b9a,#9c27b0);padding:20px 28px;color:#fff;display:flex;align-items:center;gap:16px}
   .av{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;flex-shrink:0}
@@ -22579,7 +22992,7 @@ td,th{font-size:15px!important;}
 </style></head><body>
   <div class="ph">
     <div class="av">${cand.nome.split(' ').slice(0,2).map(n=>n[0]).join('').toUpperCase()}</div>
-    <div><div class="pn">${cand.nome}</div>
+    <div><div class="pn">${esc(cand.nome)}</div>
     <div class="ps">${cand.phone||''} ${cand.email?' · '+cand.email:''}</div>
     <div class="ps">📅 ${dt}</div>
     <span class="badge">Ficha de Entrevista — Atlas RH</span></div>
@@ -28380,7 +28793,7 @@ async function aiChatEnviar(textoFixo){
     const dias  = APP.pontos?.[key]||{};
     const faltas = Object.values(dias).filter(d=>d.status==='falta').length;
     const horasExtras = (BIO_DATA.punches||[]).filter(p=>p.empId===emp.id&&p.horasExtra>0).reduce((a,p)=>a+(p.horasExtra||0),0);
-    return `${emp.nome} (${emp.cargo||'—'}): score=${score?.score||'sem dados'} ${score?.label||''}, faltas_mes=${faltas}, alertas_preditivos=${pred.length}, suspeitos=${susp.length}, HE_acum=${Math.round(horasExtra/60)||0}min`;
+    return `${esc(emp.nome)} (${emp.cargo||'—'}): score=${score?.score||'sem dados'} ${score?.label||''}, faltas_mes=${faltas}, alertas_preditivos=${pred.length}, suspeitos=${susp.length}, HE_acum=${Math.round(horasExtra/60)||0}min`;
   }).join('\n');
   const alertasHoje = (window.ALERTAS_CACHE||[]).filter(a=>a.tipo!=='OK').map(a=>`${a.empNome}: ${ALERTA_TIPOS[a.tipo]?.label}`).join(', ')||'Nenhum';
 
@@ -28510,7 +28923,7 @@ async function gerarRelatorioAI(){
     const faltas=Object.values(dias).filter(d=>d.status==='falta').length;
     const atestados=Object.values(dias).filter(d=>d.status==='atestado').length;
     const presen=Object.values(dias).filter(d=>d.status==='normal'&&d.entrada).length;
-    return `${emp.nome} (${emp.cargo}): ${presen} presenças, ${faltas} faltas, ${atestados} atestados`;
+    return `${esc(emp.nome)} (${emp.cargo}): ${presen} presenças, ${faltas} faltas, ${atestados} atestados`;
   }).join('\n');
 
   const prompt = `Gere um relatório executivo de ponto do mês ${MONTHS[mes]}/${ano} da Atlas RH:
@@ -31028,10 +31441,10 @@ function _downloadTemplatePontoCSV(){
   const linhas=['funcionario,data,status,entrada,saida_almoco,volta_almoco,saida'];
   if(ativos.length>0){
     const emp=ativos[0];
-    linhas.push(`${emp.nome},${ano}-${mes}-01,normal,${emp.horarioEntrada||'09:00'},${emp.horarioAlmoco||'12:00'},${emp.horarioVoltaAlmoco||'13:00'},${emp.horarioSaida||'17:50'}`);
-    linhas.push(`${emp.nome},${ano}-${mes}-02,normal,${emp.horarioEntrada||'09:00'},${emp.horarioAlmoco||'12:00'},${emp.horarioVoltaAlmoco||'13:00'},${emp.horarioSaida||'17:50'}`);
-    linhas.push(`${emp.nome},${ano}-${mes}-03,falta,,,,`);
-    linhas.push(`${emp.nome},${ano}-${mes}-04,atestado,,,,`);
+    linhas.push(`${esc(emp.nome)},${ano}-${mes}-01,normal,${emp.horarioEntrada||'09:00'},${emp.horarioAlmoco||'12:00'},${emp.horarioVoltaAlmoco||'13:00'},${emp.horarioSaida||'17:50'}`);
+    linhas.push(`${esc(emp.nome)},${ano}-${mes}-02,normal,${emp.horarioEntrada||'09:00'},${emp.horarioAlmoco||'12:00'},${emp.horarioVoltaAlmoco||'13:00'},${emp.horarioSaida||'17:50'}`);
+    linhas.push(`${esc(emp.nome)},${ano}-${mes}-03,falta,,,,`);
+    linhas.push(`${esc(emp.nome)},${ano}-${mes}-04,atestado,,,,`);
   } else {
     linhas.push(`Nome Funcionario,${ano}-${mes}-01,normal,09:00,12:00,13:00,17:50`);
   }
@@ -33150,7 +33563,7 @@ function _calcAlertasMes() {
         tipo: 'alta',
         icon: '❌',
         label: 'Excesso de Faltas',
-        msg: `${emp.nome} — ${faltasMes} falta(s) em ${anoMes.replace('-','/')}`,
+        msg: `${esc(emp.nome)} — ${faltasMes} falta(s) em ${anoMes.replace('-','/')}`,
         sub: `Limite: ${MAX_FALTAS} faltas/mês · Cargo: ${emp.cargo}`,
         acao: () => navigate('ponto')
       });
@@ -33174,7 +33587,7 @@ function _calcAlertasMes() {
         tipo: 'media',
         icon: '⏰',
         label: 'Banco de Horas Negativo',
-        msg: `${emp.nome} — saldo −${negH}h${negM > 0 ? negM + 'm' : ''}`,
+        msg: `${esc(emp.nome)} — saldo −${negH}h${negM > 0 ? negM + 'm' : ''}`,
         sub: `Limite configurado: −${cfg.maxBHNeg || 5}h`,
         acao: () => navigate('bancohoras')
       });
@@ -33195,7 +33608,7 @@ function _calcAlertasMes() {
         tipo: 'info',
         icon: '🏖️',
         label: 'Férias Vencendo',
-        msg: `${emp.nome} — início em ${f.dataInicio}`,
+        msg: `${esc(emp.nome)} — início em ${f.dataInicio}`,
         sub: `${diffDias} dia(s) para o início do período · ${DIAS_FERIAS}d de aviso`,
         acao: () => navigate('ferias')
       });
@@ -33856,7 +34269,7 @@ function abrirExportacaoFolha() {
                 <div class="fl-radio" id="fl-radio-${l.id}"></div>
                 <span style="font-size:18px">${l.icon}</span>
                 <div>
-                  <div style="font-weight:700;font-size:13px">${l.nome}</div>
+                  <div style="font-weight:700;font-size:13px">${esc(l.nome)}</div>
                   <div style="font-size:11px;color:var(--mt)">${l.desc}</div>
                 </div>
               </div>
@@ -37481,7 +37894,7 @@ console.log('[v18] ✅ Módulo Assinatura Digital carregado — canvas + SHA-256
           style="padding:6px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;color:var(--tx)">
           <option value="">— selecionar —</option>
           ${contratados.map(e =>
-            `<option value="${e.id}"${empId===e.id?' selected':''}>${e.nome}${e.cargo?' · '+e.cargo:''}</option>`
+            `<option value="${e.id}"${empId===e.id?' selected':''}>${esc(e.nome)}${e.cargo?' · '+e.cargo:''}</option>`
           ).join('')}
         </select>
         ${emp ? `<div style="background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;border-radius:8px;padding:4px 12px;font-size:12px;font-weight:700">
@@ -37793,7 +38206,7 @@ console.log('[v18] ✅ Módulo Assinatura Digital carregado — canvas + SHA-256
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Espelho de Ponto — ${emp.nome} — ${mesNome}/${ano}</title>
+<title>Espelho de Ponto — ${esc(emp.nome)} — ${mesNome}/${ano}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#1a1a1a;background:#fff;padding:18px 22px;max-width:1100px;margin:0 auto}
@@ -37994,11 +38407,11 @@ tfoot td{background:#F1F5F9;font-weight:700;font-size:10px;padding:6px 4px}
     </div>
     ${sigData ? `
     <div class="sig-info">
-      <strong>${emp.nome}</strong> &nbsp;·&nbsp; CPF: ${empCpfFmt}<br>
+      <strong>${esc(emp.nome)}</strong> &nbsp;·&nbsp; CPF: ${empCpfFmt}<br>
       <span class="sig-ok">✅ Assinado digitalmente (Lei 14.063/2020)</span><br>
       Data/Hora da assinatura: <strong>${sigTs||'—'}</strong>
     </div>` : `
-    <div class="sig-line">${emp.nome}<br>CPF: ${empCpfFmt}<br><small>Data: ____/____/________</small></div>`}
+    <div class="sig-line">${esc(emp.nome)}<br>CPF: ${empCpfFmt}<br><small>Data: ____/____/________</small></div>`}
   </div>
 
   <div class="ass-box">
@@ -39071,7 +39484,7 @@ async function gerarResumoIAMes() {
     // Banco de horas do mês
     let bancoMin = 0;
     try { const c = bioCalc(emp.nome); bancoMin = c?.bancoMin || 0; } catch {}
-    return `${emp.nome} (${emp.departamento||'Sem Dept'}): ${faltas} falta(s), ${atestados} atestado(s), banco: ${bancoMin >= 0 ? '+' : ''}${Math.floor(bancoMin/60)}h${Math.abs(bancoMin%60)}m`;
+    return `${esc(emp.nome)} (${emp.departamento||'Sem Dept'}): ${faltas} falta(s), ${atestados} atestado(s), banco: ${bancoMin >= 0 ? '+' : ''}${Math.floor(bancoMin/60)}h${Math.abs(bancoMin%60)}m`;
   }).join('\n');
 
   const prompt = `Você é um analista de RH. Analise os dados de absenteísmo de ${new Date(ano,mes,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})} e gere um briefing executivo em português com:
@@ -39879,7 +40292,7 @@ function exportarESocial(mes, ano) {
       }
       if (ultimaBatida === null || ultimaBatida >= diasSemPonto) {
         alertas.push({ tipo: 'ponto', nivel: 'alto', emp: emp.nome,
-          msg: `${emp.nome} está há ${ultimaBatida||diasSemPonto}+ dias úteis sem registrar ponto.`,
+          msg: `${esc(emp.nome)} está há ${ultimaBatida||diasSemPonto}+ dias úteis sem registrar ponto.`,
           acao: `navigate('ponto')` });
       }
     });
@@ -39908,7 +40321,7 @@ function exportarESocial(mes, ano) {
           const jaAgendado = (APP.ferias || []).some(f => f.empId === emp.id && f.ano === venc.getFullYear());
           if (!jaAgendado) {
             alertas.push({ tipo: 'ferias', nivel: diff <= 7 ? 'alto' : 'medio', emp: emp.nome,
-              msg: `Férias de ${emp.nome}: período aquisitivo vence em ${diff} dias (${venc.toLocaleDateString('pt-BR')}).`,
+              msg: `Férias de ${esc(emp.nome)}: período aquisitivo vence em ${diff} dias (${venc.toLocaleDateString('pt-BR')}).`,
               acao: `navigate('ferias')` });
           }
           break;
@@ -44762,13 +45175,13 @@ function _abrirDocPrint(titulo, corpoHtml){
   <div class="sheet">
     <div class="doc-head">
       ${emp.logo?`<img src="${emp.logo}" alt="logo">`:''}
-      <div><div class="co">${emp.nome}</div><div class="meta">${emp.razao?emp.razao+' · ':''}${emp.cnpj?'CNPJ '+emp.cnpj:''}</div></div>
+      <div><div class="co">${esc(emp.nome)}</div><div class="meta">${emp.razao?emp.razao+' · ':''}${emp.cnpj?'CNPJ '+emp.cnpj:''}</div></div>
     </div>
     <h1 class="doc-title">${titulo}</h1>
     <div class="doc-body">${corpoHtml}</div>
     <div class="doc-data">${cidadeData}.</div>
     <div class="doc-sign">
-      <div class="line">${emp.nome}<br><span style="font-size:11px;color:#555">Departamento de Recursos Humanos</span></div>
+      <div class="line">${esc(emp.nome)}<br><span style="font-size:11px;color:#555">Departamento de Recursos Humanos</span></div>
       <div class="line">Colaborador(a)<br><span style="font-size:11px;color:#555">Ciente e de acordo</span></div>
     </div>
   </div></body></html>`);
@@ -44801,7 +45214,7 @@ function _acharColaborador(txt){
 async function aiaGerarDocumento(pedido, contexto){
   const emp=_acharColaborador(pedido);
   const empresa=_docEmpresa();
-  const dadosColab = emp ? `Colaborador: ${emp.nome}; CPF: ${emp.cpf||'não informado'}; Cargo: ${emp.cargo||'não informado'}; Setor: ${emp.departamento||'não informado'}; Admissão: ${emp.admissao||'não informada'}.` : 'Nenhum colaborador específico identificado — use lacunas como ____ para preencher depois.';
+  const dadosColab = emp ? `Colaborador: ${esc(emp.nome)}; CPF: ${emp.cpf||'não informado'}; Cargo: ${emp.cargo||'não informado'}; Setor: ${emp.departamento||'não informado'}; Admissão: ${emp.admissao||'não informada'}.` : 'Nenhum colaborador específico identificado — use lacunas como ____ para preencher depois.';
 
   const sys=[
     'Você é o departamento de RH do sistema Atlas RH e redige documentos trabalhistas formais em português do Brasil.',
