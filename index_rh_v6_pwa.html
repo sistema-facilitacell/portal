@@ -9890,6 +9890,527 @@ window.abrirRelatorioCorrecao=abrirRelatorioCorrecao;
 window.previewRelatorioCorrecao=previewRelatorioCorrecao;
 window.executarRelatorioCorrecao=executarRelatorioCorrecao;
 
+
+// ══════════════════════════════════════════════════════════════════════════
+// IMPORTAR FOLHA DA CONTABILIDADE
+// Lê o recibo de pagamento enviado pelo escritório contábil (texto colado,
+// PDF ou print) e preenche o holerite do sistema, evitando redigitação e o
+// erro de transcrição que ela traz. O resultado sempre passa por uma prévia
+// conferível antes de gravar — nada entra na folha sem o RH validar.
+// ══════════════════════════════════════════════════════════════════════════
+
+// Converte "1.209,68" (padrão brasileiro) em número.
+function _folhaNum(txt){
+  if(txt===undefined||txt===null) return null;
+  let t=String(txt).trim().replace(/\s/g,'');
+  if(!t) return null;
+  // remove separador de milhar e troca vírgula decimal por ponto
+  t=t.replace(/\./g,'').replace(',','.');
+  const n=parseFloat(t);
+  return isNaN(n)?null:n;
+}
+function _folhaFmt(n){ return (n===null||n===undefined||isNaN(n))?'—':'R$ '+Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+const FOLHA_MESES={janeiro:1,fevereiro:2,marco:3,'março':3,abril:4,maio:5,junho:6,julho:7,agosto:8,setembro:9,outubro:10,novembro:11,dezembro:12};
+
+// Parser do texto do recibo. Funciona com o layout dos principais sistemas de
+// folha (Domínio, Questor, Alterdata e similares), que seguem o mesmo padrão:
+// uma linha por verba com código, descrição, referência e valor em vencimento
+// OU desconto, e um bloco de totais no rodapé.
+function parseFolhaTexto(texto){
+  if(!texto||!texto.trim()) return null;
+  const linhas=texto.split(/\r?\n/).map(l=>l.replace(/\u00a0/g,' ').trimEnd());
+  const r={empresa:'',cnpj:'',nome:'',cpf:'',cargo:'',admissao:'',competencia:'',
+    ano:null,mes:null,verbas:[],totProv:null,totDesc:null,liquido:null,
+    remBase:null,baseINSS:null,baseFGTS:null,fgtsMes:null,baseIRRF:null,avisos:[]};
+
+  const todo=linhas.join('\n');
+
+  // ── Cabeçalho ──
+  const mCnpj=todo.match(/CNPJ[:\s]*([\d.\/-]{14,20})/i);
+  if(mCnpj) r.cnpj=mCnpj[1].trim();
+  const mEmp=todo.match(/^(.+?LTDA|.+?S\/A|.+?ME|.+?EIRELI)[^\n]*/im);
+  if(mEmp) r.empresa=mEmp[1].trim();
+  const mCpf=todo.match(/(\d{3}\.\d{3}\.\d{3}-\d{2})/);
+  if(mCpf) r.cpf=mCpf[1];
+  const mAdm=todo.match(/Admiss[ãa]o[:\s]*(\d{2}\/\d{2}\/\d{4})/i);
+  if(mAdm) r.admissao=mAdm[1];
+
+  // Competência: "JULHO/2026" ou "07/2026"
+  const mComp=todo.match(/(JANEIRO|FEVEREIRO|MAR[ÇC]O|ABRIL|MAIO|JUNHO|JULHO|AGOSTO|SETEMBRO|OUTUBRO|NOVEMBRO|DEZEMBRO)\s*\/\s*(\d{4})/i);
+  if(mComp){
+    r.competencia=mComp[0].toUpperCase();
+    r.mes=FOLHA_MESES[mComp[1].toLowerCase()]||null;
+    r.ano=parseInt(mComp[2]);
+  }else{
+    const mC2=todo.match(/\b(0[1-9]|1[0-2])\/(20\d{2})\b/);
+    if(mC2){ r.mes=parseInt(mC2[1]); r.ano=parseInt(mC2[2]); r.competencia=mC2[0]; }
+  }
+
+  // Nome do trabalhador: linha com nome em CAIXA ALTA, geralmente com matrícula
+  // entre parênteses. Evita confundir com a razão social da empresa.
+  for(const l of linhas){
+    // Layout: "NOME DO TRABALHADOR (matrícula) CARGO" — nome e cargo saem da
+    // mesma linha, o que é bem mais confiável do que procurá-los separados.
+    const m=l.match(/^([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-ZÁÉÍÓÚÂÊÔÃÕÇ\s.']{6,60})\s*\(\s*[\w-]+\s*\)\s*(.*)$/);
+    if(m && !/LTDA|S\/A|EIRELI|\bME\b|CNPJ/i.test(m[1])){
+      r.nome=m[1].trim();
+      const resto=(m[2]||'').trim();
+      if(resto && !/^\d/.test(resto) && resto.length<=40) r.cargo=resto.replace(/\s+/g,' ');
+      break;
+    }
+  }
+  if(!r.nome){
+    const mN=todo.match(/Trabalhador[:\s]*([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-ZÁÉÍÓÚÂÊÔÃÕÇ\s.']{6,60})/);
+    if(mN) r.nome=mN[1].trim();
+  }
+  // O cargo costuma vir na mesma linha do nome (ex.: "... (13E001) VENDEDOR (A)")
+  // ou logo após "CBO: 521110". Evita capturar o rótulo "Categoria".
+  // Reforço: se o cargo não veio na linha do nome, tenta após o código CBO.
+  if(!r.cargo){
+    const mC=todo.match(/CBO[:\s]*\d+[^\S\n]+([A-Za-zÁ-Úá-ú][^\n]{2,38}?)[^\S\n]*$/im);
+    if(mC){
+      const c=mC[1].replace(/\s+/g,' ').trim();
+      if(!/^(Categoria|Cargo|Lota[çc][ãa]o|CPF|CNPJ|Recibo)/i.test(c)) r.cargo=c;
+    }
+  }
+
+  // ── Verbas ──
+  // Padrão: código (1-4 dígitos), descrição, e 1 a 3 números no fim da linha.
+  // Números monetários. O (?!\s*%) evita que alíquotas como "INSS 7,50%"
+  // sejam lidas como valor — elas fazem parte da descrição da verba.
+  const numRx=/-?\d{1,3}(?:\.\d{3})*,\d{2}(?!\s*%)/g;
+  linhas.forEach(l=>{
+    const t=l.trim();
+    if(!t) return;
+    if(/Total de Vencimentos|Total de Descontos|Valor L[íi]quido|Remunera[çc][ãa]o Base|C[óo]d\.|Descri[çc][ãa]o/i.test(t)) return;
+    const mCod=t.match(/^(\d{1,4})\s+(.+)$/);
+    if(!mCod) return;
+    const resto=mCod[2];
+    const nums=resto.match(numRx);
+    if(!nums||!nums.length) return;
+    // descrição = tudo antes do primeiro número
+    const idx=resto.indexOf(nums[0]);
+    const desc=resto.slice(0,idx).trim().replace(/\s{2,}/g,' ');
+    if(!desc||/^%$/.test(desc)) return;
+    if(!desc) return;
+
+    // Convenção do layout: quando há 2 números, o primeiro é a referência e o
+    // segundo é o valor. Se houver 3, é referência + vencimento + desconto.
+    let ref='', venc=null, descVal=null;
+    if(nums.length===1){
+      venc=_folhaNum(nums[0]);
+    }else if(nums.length===2){
+      ref=nums[0]; 
+      const v=_folhaNum(nums[1]);
+      // Descontos são identificados pela descrição (INSS, IRRF, FALTAS, etc.)
+      if(/INSS|IRRF|I\.R\.R\.F|FALTA|DESC|VALE|ADIANT|PENS[ÃA]O|SINDIC|EMPR[ÉE]STIMO|R\.S\.R|RSR|CONTRIB|PLANO|FARM[ÁA]CIA|MULTA|ARREDOND/i.test(desc)) descVal=v;
+      else venc=v;
+    }else{
+      ref=nums[0]; venc=_folhaNum(nums[1]); descVal=_folhaNum(nums[2]);
+    }
+    r.verbas.push({cod:mCod[1], desc, ref, venc, descVal});
+  });
+
+  // ── Totais ──
+  const pick=(rx)=>{ const m=todo.match(rx); return m?_folhaNum(m[1]):null; };
+
+  // Layout comum: "Total de Vencimentos   Total de Descontos" numa linha e
+  // "1.209,68   239,91" na linha seguinte. Sem isto, a busca por "Total de
+  // Descontos" seguido de número capturaria o valor dos VENCIMENTOS.
+  for(let i=0;i<linhas.length-1;i++){
+    if(/Total de Vencimentos/i.test(linhas[i]) && /Total de Descontos/i.test(linhas[i])){
+      const vals=(linhas[i+1].match(numRx)||[]);
+      if(vals.length>=2){ r.totProv=_folhaNum(vals[0]); r.totDesc=_folhaNum(vals[1]); }
+      break;
+    }
+  }
+  // Mesma ideia para a faixa de bases no rodapé.
+  for(let i=0;i<linhas.length-1;i++){
+    if(/Remunera[çc][ãa]o Base/i.test(linhas[i]) && /F\.?G\.?T\.?S/i.test(linhas[i])){
+      const vals=(linhas[i+1].match(numRx)||[]);
+      if(vals.length>=4){
+        r.remBase=_folhaNum(vals[0]); r.baseINSS=_folhaNum(vals[1]);
+        r.baseFGTS=_folhaNum(vals[2]); r.fgtsMes=_folhaNum(vals[3]);
+        if(vals[4]) r.baseIRRF=_folhaNum(vals[4]);
+      }
+      break;
+    }
+  }
+  if(r.totProv===null) r.totProv = pick(/Total de Vencimentos[^\d-]{0,40}(-?\d{1,3}(?:\.\d{3})*,\d{2})/i);
+  if(r.totDesc===null) r.totDesc = pick(/Total de Descontos[^\d-]{0,40}(-?\d{1,3}(?:\.\d{3})*,\d{2})/i);
+  r.liquido = pick(/Valor L[íi]quido[^\d-]{0,40}(-?\d{1,3}(?:\.\d{3})*,\d{2})/i);
+  if(r.remBase===null) r.remBase = pick(/Remunera[çc][ãa]o Base[^\d-]{0,60}(-?\d{1,3}(?:\.\d{3})*,\d{2})/i);
+
+  // Quando os totais não vêm no texto, soma as verbas.
+  if(r.totProv===null && r.verbas.length) r.totProv=+r.verbas.reduce((s,v)=>s+(v.venc||0),0).toFixed(2);
+  if(r.totDesc===null && r.verbas.length) r.totDesc=+r.verbas.reduce((s,v)=>s+(v.descVal||0),0).toFixed(2);
+  if(r.liquido===null && r.totProv!==null && r.totDesc!==null) r.liquido=+(r.totProv-r.totDesc).toFixed(2);
+
+  // ── Conferência: o líquido informado bate com provento − desconto? ──
+  if(r.totProv!==null && r.totDesc!==null && r.liquido!==null){
+    const calc=+(r.totProv-r.totDesc).toFixed(2);
+    if(Math.abs(calc-r.liquido)>0.02){
+      r.avisos.push(`O líquido informado (${_folhaFmt(r.liquido)}) não bate com vencimentos menos descontos (${_folhaFmt(calc)}). Confira se alguma verba deixou de ser lida.`);
+    }
+  }
+  const somaV=+r.verbas.reduce((s,v)=>s+(v.venc||0),0).toFixed(2);
+  const somaD=+r.verbas.reduce((s,v)=>s+(v.descVal||0),0).toFixed(2);
+  if(r.totProv!==null && Math.abs(somaV-r.totProv)>0.02)
+    r.avisos.push(`A soma das verbas de vencimento (${_folhaFmt(somaV)}) difere do total informado (${_folhaFmt(r.totProv)}).`);
+  if(r.totDesc!==null && Math.abs(somaD-r.totDesc)>0.02)
+    r.avisos.push(`A soma dos descontos (${_folhaFmt(somaD)}) difere do total informado (${_folhaFmt(r.totDesc)}).`);
+  if(!r.verbas.length) r.avisos.push('Nenhuma verba foi identificada no texto. Confira se o conteúdo foi copiado por completo.');
+
+  return r;
+}
+
+// Casa o nome/CPF lido com um colaborador cadastrado.
+function _folhaAcharEmp(parsed){
+  const emps=(APP.employees||[]);
+  const soDig=s=>String(s||'').replace(/\D/g,'');
+  if(parsed.cpf){
+    const porCpf=emps.find(e=>soDig(e.cpf)===soDig(parsed.cpf));
+    if(porCpf) return porCpf;
+  }
+  if(parsed.nome){
+    const norm=s=>String(s||'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+    const alvo=norm(parsed.nome);
+    const exato=emps.find(e=>norm(e.nome)===alvo);
+    if(exato) return exato;
+    // tenta pelo primeiro e último nome
+    const p=alvo.split(' ');
+    if(p.length>=2){
+      const parcial=emps.find(e=>{ const n=norm(e.nome); return n.startsWith(p[0]) && n.endsWith(p[p.length-1]); });
+      if(parcial) return parcial;
+    }
+  }
+  return null;
+}
+
+
+// Um arquivo da contabilidade quase sempre traz VÁRIOS recibos e, para cada
+// um, duas vias idênticas (empresa e trabalhador). Aqui separamos os blocos e
+// descartamos as vias repetidas, para não importar o mesmo holerite duas vezes.
+function parseFolhaMultipla(texto){
+  if(!texto||!texto.trim()) return [];
+  const linhas=texto.split(/\r?\n/);
+
+  // Cada recibo começa numa linha com "Recibo de Pagamento".
+  const inicios=[];
+  linhas.forEach((l,i)=>{ if(/Recibo de Pagamento/i.test(l)) inicios.push(i); });
+
+  let blocos=[];
+  if(inicios.length<=1){
+    blocos=[texto];
+  }else{
+    for(let k=0;k<inicios.length;k++){
+      const ini=inicios[k];
+      const fim=(k+1<inicios.length)?inicios[k+1]:linhas.length;
+      blocos.push(linhas.slice(ini,fim).join('\n'));
+    }
+  }
+
+  const resultados=[], vistos=new Set();
+  blocos.forEach(b=>{
+    const r=parseFolhaTexto(b);
+    if(!r||!r.verbas.length) return;
+    // Identidade do recibo: CPF (ou nome) + competência + líquido. Duas vias do
+    // mesmo pagamento geram a mesma chave e a segunda é descartada.
+    const chave=[(r.cpf||r.nome||'?'),r.ano,r.mes,r.liquido].join('|');
+    if(vistos.has(chave)) return;
+    vistos.add(chave);
+    resultados.push(r);
+  });
+  return resultados;
+}
+window.parseFolhaMultipla=parseFolhaMultipla;
+
+// ── Interface ─────────────────────────────────────────────────────────────
+
+function abrirImportarFolha(){
+  openModal('📥 Importar Folha da Contabilidade',`
+    <div style="font-size:12.5px;color:#475569;margin-bottom:13px;line-height:1.55">
+      Cole o texto do recibo, envie o PDF ou um print. O sistema lê as verbas e preenche o holerite — você confere antes de salvar.
+    </div>
+
+    <div style="display:flex;gap:7px;margin-bottom:11px;flex-wrap:wrap">
+      <label class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8;cursor:pointer;font-weight:700">
+        <input type="file" accept="application/pdf" style="display:none" onchange="folhaLerPDF(this)"> 📄 Enviar PDF
+      </label>
+      <label class="btn btn-sm" style="background:#F5F3FF;color:#7C3AED;cursor:pointer;font-weight:700">
+        <input type="file" accept="image/*" style="display:none" onchange="folhaLerImagem(this)"> 🖼️ Enviar print
+      </label>
+      <button class="btn btn-sm" style="background:#F8FAFC;color:#475569" onclick="document.getElementById('folha-txt').focus()">✍️ Colar texto</button>
+    </div>
+
+    <textarea id="folha-txt" rows="7" placeholder="Cole aqui o conteúdo do recibo de pagamento…"
+      style="width:100%;font-family:monospace;font-size:11.5px;padding:9px;border:1px solid #CBD5E1;border-radius:8px;resize:vertical"></textarea>
+
+    <div id="folha-status" style="display:none;margin-top:9px;font-size:12.5px"></div>
+    <div id="folha-preview" style="margin-top:12px"></div>
+
+    <div class="mft">
+      <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+      <button class="btn btn-blue" onclick="folhaAnalisar()">🔍 Ler folha</button>
+    </div>`,660);
+}
+
+function _folhaStatus(html,cor){
+  const el=document.getElementById('folha-status');
+  if(!el) return;
+  el.style.display='block';
+  el.style.color=cor||'#475569';
+  el.innerHTML=html;
+}
+
+// PDF: extrai o texto com pdf.js (carregado sob demanda).
+async function folhaLerPDF(input){
+  const f=input&&input.files&&input.files[0];
+  if(!f) return;
+  _folhaStatus('⏳ Lendo o PDF…');
+  try{
+    if(!window.pdfjsLib){
+      await new Promise((ok,err)=>{
+        const s=document.createElement('script');
+        s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        s.onload=ok; s.onerror=()=>err(new Error('Falha ao carregar o leitor de PDF'));
+        document.head.appendChild(s);
+      });
+      if(window.pdfjsLib) window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+    const buf=await f.arrayBuffer();
+    const pdf=await window.pdfjsLib.getDocument({data:buf}).promise;
+    let txt='';
+    for(let i=1;i<=pdf.numPages;i++){
+      const pg=await pdf.getPage(i);
+      const c=await pg.getTextContent();
+      // Reagrupa por linha usando a coordenada Y — sem isso o texto sai
+      // embaralhado e o parser não reconhece as verbas.
+      const porLinha={};
+      c.items.forEach(it=>{
+        const y=Math.round(it.transform[5]);
+        (porLinha[y]=porLinha[y]||[]).push({x:it.transform[4],s:it.str});
+      });
+      Object.keys(porLinha).sort((a,b)=>b-a).forEach(y=>{
+        txt+=porLinha[y].sort((a,b)=>a.x-b.x).map(o=>o.s).join(' ').replace(/\s{2,}/g,' ')+'\n';
+      });
+      txt+='\n';
+    }
+    const ta=document.getElementById('folha-txt');
+    if(ta) ta.value=txt.trim();
+    _folhaStatus('✅ PDF lido ('+pdf.numPages+' página(s)). Clique em "Ler folha".','#047857');
+    folhaAnalisar();
+  }catch(e){
+    _folhaStatus('❌ Não consegui ler o PDF: '+(e.message||'')+'. Tente copiar o texto e colar no campo acima.','#DC2626');
+  }
+  input.value='';
+}
+
+// Print: usa a IA com visão para transcrever a imagem.
+async function folhaLerImagem(input){
+  const f=input&&input.files&&input.files[0];
+  if(!f) return;
+  if(!GROQ_KEY){ _folhaStatus('❌ Configure a chave da IA para ler prints (⚙ Configurar IA).','#DC2626'); input.value=''; return; }
+  _folhaStatus('⏳ Lendo o print com IA… pode levar alguns segundos.');
+  try{
+    const b64=await new Promise((ok,err)=>{
+      const r=new FileReader();
+      r.onload=()=>ok(String(r.result).split(',')[1]);
+      r.onerror=()=>err(new Error('Falha ao ler a imagem'));
+      r.readAsDataURL(f);
+    });
+    // O modelo de visão do Groq muda de nome com alguma frequência. Em vez de
+    // fixar um, tentamos a lista em ordem e usamos o primeiro que responder —
+    // assim a função não quebra quando um modelo é descontinuado.
+    const MODELOS_VISAO=[
+      'meta-llama/llama-4-scout-17b-16e-instruct',
+      'meta-llama/llama-4-maverick-17b-128e-instruct',
+      'llama-3.2-90b-vision-preview',
+      'llama-3.2-11b-vision-preview'
+    ];
+    const prompt='Transcreva EXATAMENTE o texto deste recibo de pagamento (holerite), mantendo uma verba por linha no formato: codigo descricao referencia vencimento desconto. Preserve os valores em formato brasileiro (1.234,56). Inclua o cabecalho (empresa, CNPJ, trabalhador, CPF, admissao, cargo, competencia) e o rodape com Total de Vencimentos, Total de Descontos e Valor Liquido. Responda SOMENTE com a transcricao, sem comentarios.';
+    let txt='', ultimoErro='';
+    for(const modelo of MODELOS_VISAO){
+      try{
+        const resp=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':'Bearer '+GROQ_KEY},
+          body:JSON.stringify({model:modelo,max_tokens:1600,messages:[{role:'user',content:[
+            {type:'text',text:prompt},
+            {type:'image_url',image_url:{url:'data:'+(f.type||'image/png')+';base64,'+b64}}
+          ]}]})
+        });
+        if(resp.status===401){ throw new Error('__AUTH__'); }
+        if(!resp.ok){ ultimoErro='HTTP '+resp.status+' em '+modelo; continue; }
+        const data=await resp.json();
+        const c=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
+        if(c.trim()){ txt=c; console.log('[Folha] Transcrito com',modelo); break; }
+        ultimoErro='resposta vazia de '+modelo;
+      }catch(err){
+        if(err&&err.message==='__AUTH__') throw new Error('chave da IA inválida (401). Configure em ⚙ Configurar IA.');
+        ultimoErro=(err&&err.message)||'falha em '+modelo;
+      }
+    }
+    if(!txt.trim()) throw new Error('nenhum modelo de visão respondeu ('+ultimoErro+')');
+    const ta=document.getElementById('folha-txt');
+    if(ta) ta.value=txt.trim();
+    _folhaStatus('✅ Print transcrito pela IA. <strong>Confira os valores</strong> — leitura de imagem pode errar dígitos.','#B45309');
+    folhaAnalisar();
+  }catch(e){
+    _folhaStatus('❌ Não consegui ler o print: '+(e.message||'')+'. Tente enviar o PDF ou colar o texto.','#DC2626');
+  }
+  input.value='';
+}
+
+let FOLHA_LISTA=[];
+
+function folhaAnalisar(){
+  const txt=(document.getElementById('folha-txt')||{}).value||'';
+  const box=document.getElementById('folha-preview');
+  if(!box) return;
+  if(!txt.trim()){ box.innerHTML='<div style="font-size:12.5px;color:#DC2626">Cole o texto ou envie o arquivo primeiro.</div>'; return; }
+
+  FOLHA_LISTA=parseFolhaMultipla(txt);
+  if(!FOLHA_LISTA.length){
+    box.innerHTML='<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:9px;padding:11px 13px;font-size:12.5px;color:#991B1B">Não identifiquei nenhum recibo no conteúdo. Confira se o texto foi copiado por inteiro, ou tente enviar o PDF.</div>';
+    return;
+  }
+
+  const ativos=(APP.employees||[]).filter(e=>e&&e.status==='ativo');
+  const meses=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const hoje=new Date();
+
+  const cards=FOLHA_LISTA.map((r,i)=>{
+    const emp=_folhaAcharEmp(r);
+    const mesSel=r.mes||hoje.getMonth()+1, anoSel=r.ano||hoje.getFullYear();
+    return `
+    <div style="border:1px solid ${emp?'#BBF7D0':'#FDE68A'};border-radius:11px;padding:12px 14px;margin-bottom:10px;background:#fff">
+      <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:9px">
+        <input type="checkbox" id="folha-ok-${i}" checked style="width:auto;margin:0">
+        <div style="flex:1;min-width:160px">
+          <div style="font-size:13.5px;font-weight:700;color:#0F172A">${esc(r.nome||'(sem nome)')}</div>
+          <div style="font-size:11px;color:#64748B">${esc(r.empresa||'')}${r.cpf?' · '+esc(r.cpf):''}${r.cargo?' · '+esc(r.cargo):''}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:15px;font-weight:800;color:#047857">${_folhaFmt(r.liquido)}</div>
+          <div style="font-size:10.5px;color:#64748B">${r.verbas.length} verba(s)</div>
+        </div>
+      </div>
+
+      ${r.avisos.length?`<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:7px;padding:7px 9px;margin-bottom:8px;font-size:11px;color:#92400E;line-height:1.45">${r.avisos.map(a=>'⚠ '+esc(a)).join('<br>')}</div>`:''}
+
+      <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px">
+        <div class="fld" style="flex:1;min-width:150px;margin:0"><label style="font-size:10.5px">Colaborador</label>
+          <select id="folha-emp-${i}" style="font-size:12px;padding:5px 7px">
+            ${ativos.map(e=>`<option value="${e.id}" ${emp&&emp.id===e.id?'selected':''}>${esc(e.nome)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="fld" style="width:104px;margin:0"><label style="font-size:10.5px">Mês</label>
+          <select id="folha-mes-${i}" style="font-size:12px;padding:5px 7px">${meses.map((m,k)=>`<option value="${k+1}" ${k+1===mesSel?'selected':''}>${m}</option>`).join('')}</select>
+        </div>
+        <div class="fld" style="width:76px;margin:0"><label style="font-size:10.5px">Ano</label>
+          <input type="number" id="folha-ano-${i}" value="${anoSel}" style="font-size:12px;padding:5px 7px">
+        </div>
+      </div>
+
+      ${emp?'':`<div style="font-size:11px;color:#B45309;margin-bottom:7px">⚠ Não reconheci este nome entre os colaboradores. Selecione o correto acima.</div>`}
+
+      <details>
+        <summary style="font-size:11.5px;color:#1D4ED8;cursor:pointer;font-weight:600">Ver as ${r.verbas.length} verba(s)</summary>
+        <table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:7px">
+          <thead><tr style="background:#F1F5F9">
+            <th style="text-align:left;padding:4px 6px">Cód</th>
+            <th style="text-align:left;padding:4px 6px">Descrição</th>
+            <th style="text-align:right;padding:4px 6px">Ref.</th>
+            <th style="text-align:right;padding:4px 6px">Vencim.</th>
+            <th style="text-align:right;padding:4px 6px">Desconto</th>
+          </tr></thead>
+          <tbody>${r.verbas.map(v=>`<tr style="border-bottom:1px solid #F1F5F9">
+            <td style="padding:4px 6px;color:#64748B">${esc(v.cod)}</td>
+            <td style="padding:4px 6px">${esc(v.desc)}</td>
+            <td style="padding:4px 6px;text-align:right;color:#64748B">${esc(v.ref||'')}</td>
+            <td style="padding:4px 6px;text-align:right;color:#047857">${v.venc!==null?_folhaFmt(v.venc):''}</td>
+            <td style="padding:4px 6px;text-align:right;color:#b91c1c">${v.descVal!==null?_folhaFmt(v.descVal):''}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+        <div style="text-align:right;font-size:11px;margin-top:5px;color:#475569">
+          Vencimentos <strong style="color:#047857">${_folhaFmt(r.totProv)}</strong> ·
+          Descontos <strong style="color:#b91c1c">${_folhaFmt(r.totDesc)}</strong>
+        </div>
+      </details>
+    </div>`;
+  }).join('');
+
+  const naoCasados=FOLHA_LISTA.filter(r=>!_folhaAcharEmp(r)).length;
+  box.innerHTML=`
+    <div style="background:#F0F9FF;border:1px solid #BAE6FD;border-radius:9px;padding:9px 12px;margin-bottom:11px;font-size:12.5px;color:#075985">
+      <strong>${FOLHA_LISTA.length} recibo(s)</strong> identificado(s)${naoCasados?` · <span style="color:#B45309">${naoCasados} sem colaborador reconhecido</span>`:' · todos reconhecidos'}.
+      Desmarque os que não quiser importar.
+    </div>
+    ${cards}
+    <div style="text-align:right;margin-top:4px">
+      <button class="btn" style="background:#047857;color:#fff;font-weight:700" onclick="folhaSalvar()">💾 Preencher holerites marcados</button>
+    </div>`;
+}
+
+function folhaSalvar(){
+  if(!FOLHA_LISTA.length){ toast('Nada para salvar.','err'); return; }
+  const val=id=>{ const el=document.getElementById(id); return el?el.value:null; };
+  const marcados=[];
+  FOLHA_LISTA.forEach((r,i)=>{
+    const chk=document.getElementById('folha-ok-'+i);
+    if(chk&&!chk.checked) return;
+    const eid=val('folha-emp-'+i);
+    const mes=parseInt(val('folha-mes-'+i));
+    const ano=parseInt(val('folha-ano-'+i));
+    const emp=(APP.employees||[]).find(e=>e.id===eid);
+    if(emp&&mes&&ano) marcados.push({r,emp,mes,ano});
+  });
+  if(!marcados.length){ toast('Nenhum recibo marcado.','err'); return; }
+
+  // Avisa antes de sobrescrever holerites já lançados
+  const existentes=marcados.filter(m=>getHolRec(m.emp.id+'_'+m.ano+'_'+m.mes)['_hol_linhas_'+m.ano+'_'+m.mes]);
+  if(existentes.length && !confirm(
+      `${existentes.length} colaborador(es) já têm holerite lançado nesta competência:\n\n`+
+      existentes.map(m=>'• '+m.emp.nome+' ('+m.mes+'/'+m.ano+')').join('\n')+
+      `\n\nSubstituir pelos dados importados?`)) return;
+
+  let ok=0, erros=0;
+  marcados.forEach(({r,emp,mes,ano})=>{
+    try{
+      const salKey=emp.id+'_'+ano+'_'+mes;
+      const linhas=r.verbas.map(v=>({
+        cod:String(v.cod||''), desc:String(v.desc||''), ref:String(v.ref||''),
+        venc:v.venc!==null?String(v.venc.toFixed(2)):'',
+        desc_val:v.descVal!==null?String(v.descVal.toFixed(2)):''
+      }));
+      setHolField(salKey,'_hol_linhas_'+ano+'_'+mes,JSON.stringify(linhas));
+      if(r.totProv!==null) setHolField(salKey,'_hol_totProv_'+ano+'_'+mes,String(r.totProv.toFixed(2)));
+      if(r.totDesc!==null) setHolField(salKey,'_hol_totDesc_'+ano+'_'+mes,String(r.totDesc.toFixed(2)));
+      if(r.liquido!==null) setHolField(salKey,'_hol_liq_'+ano+'_'+mes,String(r.liquido.toFixed(2)));
+      ok++;
+    }catch(e){ erros++; console.error('[Folha] Falha em',emp.nome,e&&e.message); }
+  });
+
+  if(ok){
+    save('holRascunho');
+    toast('✅ '+ok+' holerite(s) preenchido(s)'+(erros?' · '+erros+' com erro':''),'ok',5000);
+    try{ if(typeof auditLog==='function') auditLog('Importou folha da contabilidade: '+ok+' holerite(s)','','holerite'); }catch(_){}
+    closeModal();
+    if(typeof navigate==='function') navigate('holerite');
+  }else{
+    toast('Não foi possível salvar nenhum holerite.','err');
+  }
+}
+
+window.parseFolhaTexto=parseFolhaTexto;
+window.abrirImportarFolha=abrirImportarFolha;
+window.folhaLerPDF=folhaLerPDF;
+window.folhaLerImagem=folhaLerImagem;
+window.folhaAnalisar=folhaAnalisar;
+window.folhaSalvar=folhaSalvar;
+
 function rDemissao(){
   const demitidos=APP.employees.filter(e=>e.status==='demitido');
   return `
@@ -10514,6 +11035,7 @@ function rSalarios(){
     </select>
     <div style="margin-left:auto;display:flex;gap:10px">
       <button class="btn btn-blue" onclick="salvarTodosSalarios()">💾 Salvar Tudo</button>
+      <button class="btn" style="background:#EFF6FF;color:#1D4ED8;font-weight:700" onclick="abrirImportarFolha()" title="Importar o recibo enviado pela contabilidade (texto, PDF ou print)">📥 Importar Folha</button>
       <button class="btn btn-navy" onclick="imprimirTodosHolerites()">🖨️ Emitir Todos os Holerites</button>
       <button class="btn btn-green" onclick="REL_STATE.mes=SAL_STATE.mes;REL_STATE.ano=SAL_STATE.ano;navigate('relatorio')">📊 Relatório Financeiro</button>
     </div>
