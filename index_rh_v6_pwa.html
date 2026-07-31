@@ -9463,7 +9463,7 @@ function analisarCorrecoesPonto(empId, mes, ano){
   const pausas=Math.max(0,almV-almS)+Math.max(0,cafV-cafS);
   const jornadaEsperada=Math.max(0,(saiH-entH)-pausas);
 
-  const dias=[], vazios=[], alertas=[];
+  const dias=[], vazios=[], incompletos=[], alertas=[];
   let saldoMesPonto=0, diasComSaldo=0;   // saldo apurado somando TODOS os dias lançados
 
   for(let d=1;d<=nDias;d++){
@@ -9520,9 +9520,19 @@ function analisarCorrecoesPonto(empId, mes, ano){
       problemas.push({tipo:'saida_cedo', txt:`Saída às ${r.saida}, ${_rcpFmt(saiH-sai)} antes das ${emp.horarioSaida||'17:50'} previstas. Não bateu a saída ou saiu mais cedo?`});
     }
 
-    // 4) Registro incompleto
-    if(st==='normal' && ent!==null && sai===null) problemas.push({tipo:'incompleto', txt:'Entrada registrada sem saída correspondente.'});
-    if(st==='normal' && ent===null && sai!==null) problemas.push({tipo:'incompleto', txt:'Saída registrada sem entrada correspondente.'});
+    // 4) Registro incompleto — vai para seção própria no fim do documento,
+    // porque a pergunta ao RH é diferente: não é "confira o horário", é
+    // "esqueceu de bater ou faltou o resto do dia?".
+    if(st!=='falta' && st!=='atestado' && st!=='folga'){
+      if(ent!==null && sai===null){
+        incompletos.push({dia:d, dataFmt, diaSemana:RCP_DIASEM[dsem], entrada:r.entrada||'', falta:'saida'});
+        continue;
+      }
+      if(ent===null && sai!==null){
+        incompletos.push({dia:d, dataFmt, diaSemana:RCP_DIASEM[dsem], saida:r.saida||'', falta:'entrada'});
+        continue;
+      }
+    }
 
     // 5) Intervalo intrajornada abaixo de 1h (CLT art. 71, jornada > 6h)
     if(trabalhado!==null && trabalhado>360 && sa!==null && va!==null && (va-sa)<60){
@@ -9531,7 +9541,7 @@ function analisarCorrecoesPonto(empId, mes, ano){
 
     const editado = !!(r.editadoRH || r.editadoPor || r._editado);
     if(editado || problemas.length){
-      dias.push({dia:d, dataFmt, diaSemana:RCP_DIASEM[dsem], status:st,
+      dias.push({dia:d, dataFmt, diaSemana:RCP_DIASEM[dsem], status:st, editadoEm:r.editadoEm||r._editadoEm||'',
         entrada:r.entrada||'', saida:r.saida||'',
         saida_almoco:r.saida_almoco||'', volta_almoco:r.volta_almoco||'',
         saida_cafe:r.saida_cafe||'', volta_cafe:r.volta_cafe||'',
@@ -9562,101 +9572,187 @@ function analisarCorrecoesPonto(empId, mes, ano){
 
   return {emp, mes, ano, mesNome:RCP_MESES[mes-1], jornadaEsperada,
     horarioContratado:`${emp.horarioEntrada||'09:00'} às ${emp.horarioSaida||'17:50'}`,
-    dias, vazios: mesNaoLancado?[]:vazios, alertas, mesNaoLancado, diasComAlgo, bh,
+    dias, vazios: mesNaoLancado?[]:vazios, incompletos, alertas, mesNaoLancado, diasComAlgo, bh,
     totalCorrigidos:dias.filter(d=>d.editado).length};
 }
 
+
+
+// Estilo compartilhado pelos dois modos de geração. O cabeçalho e o rodapé
+// usam position:fixed para repetir em todas as páginas impressas, como nos
+// relatórios modelo.
+const RCP_CSS = `
+    *{box-sizing:border-box}
+    body{font-family:Arial,Helvetica,sans-serif;color:#111;max-width:760px;margin:0 auto;padding:14px 20px 30px;line-height:1.5;font-size:13px}
+    .cabecalho{background:#1e293b;color:#fff;padding:11px 16px;display:flex;justify-content:space-between;align-items:center;font-size:12px;border-radius:5px;margin-bottom:18px}
+    .cabecalho strong{letter-spacing:.3px}
+    h1{font-size:19px;margin:0 0 4px;color:#0f172a}
+    .sub{font-size:12.5px;color:#334155;margin:0 0 12px;line-height:1.6}
+    h2{font-size:14.5px;margin:24px 0 7px;padding-bottom:5px;border-bottom:1.5px solid #cbd5e1;color:#0f172a}
+    h3{font-size:13px;margin:18px 0 7px;color:#1e3a8a;font-style:italic}
+    .intro{font-size:12px;color:#334155;margin:6px 0 11px;line-height:1.55}
+    table{width:100%;border-collapse:collapse;font-size:11.5px;margin-bottom:9px}
+    .tbl th{background:#1e293b;color:#fff;text-align:left;padding:7px 9px;font-size:11px}
+    .tbl td{padding:6px 9px;border-bottom:1px solid #e2e8f0}
+    .tbl tbody tr:nth-child(even){background:#f8fafc}
+    .grade{margin:0 auto 8px;width:88%}
+    .grade th{background:#f1f5f9;text-align:left;padding:7px 10px;width:17%;border:1px solid #cbd5e1;font-size:11.5px;font-weight:bold}
+    .grade td{padding:7px 10px;border:1px solid #cbd5e1;width:33%}
+    .dia{page-break-inside:avoid;margin-bottom:15px}
+    .obs{font-size:11.5px;color:#b45309;background:#fffbeb;border-left:3px solid #d97706;padding:8px 11px;margin:7px 0;line-height:1.5}
+    .pontoatencao{font-size:11.5px;color:#7c2d12;background:#fef3c7;border:1px solid #fcd34d;border-radius:5px;padding:9px 12px;margin:9px 0;line-height:1.5}
+    .ciencia{margin-top:30px;border:1.5px solid #cbd5e1;border-radius:7px;padding:14px 16px;page-break-inside:avoid}
+    .assin{margin-top:36px;display:flex;gap:26px;flex-wrap:wrap}
+    .assin div{flex:1;min-width:200px;border-top:1px solid #333;padding-top:5px;font-size:11.5px;text-align:center}
+    .rodape{margin-top:20px;padding-top:8px;border-top:1.5px solid #c9a84c;display:flex;justify-content:space-between;font-size:10px;color:#666}
+    @media print{
+      body{margin:0;max-width:none;padding:10px 14px}
+      .noprint{display:none}
+      .cabecalho{position:running(topo)}
+      h2{page-break-after:avoid}
+    }
+`;
+
+// Texto da linha "Observação:" — mesma linguagem dos relatórios modelo,
+// montada a partir do que de fato aconteceu no dia.
+function _rcpObservacao(d, a){
+  const partes=[];
+  if(d.editado){
+    const q=d.editadoEm?(' em '+new Date(d.editadoEm).toLocaleString('pt-BR')):'';
+    partes.push('Editado por '+(d.editadoPor||'RH')+q+'.');
+  }
+  const contradiz=d.problemas.find(p=>p.tipo==='contradicao');
+  if(contradiz){
+    partes.push('Status ajustado para '+d.status.charAt(0).toUpperCase()+d.status.slice(1)+', mas horários preenchidos como jornada completa (inconsistência a revisar).');
+  }else if(d.saldo!==null){
+    const h=Math.abs(d.saldo)/60;
+    if(d.trabalhado!==null && d.trabalhado<60) partes.push('Registro incompleto no dia — saldo fortemente negativo.');
+    else if(d.saldo<-180) partes.push('Jornada encerrada bem antes do horário previsto.');
+    else if(d.saldo<-60) partes.push('Saída antecipada — jornada não cumprida integralmente.');
+    else if(d.saldo<0) partes.push('Jornada quase completa, pequeno saldo negativo.');
+    else if(d.saldo>30) partes.push('Jornada acima do previsto no dia.');
+  }
+  d.problemas.filter(p=>p.tipo!=='contradicao').forEach(p=>partes.push('■ Atenção: '+p.txt));
+  return partes.join(' ');
+}
 
 // Corpo do documento de um colaborador — reutilizado pelo relatório individual
 // e pela geração em lote (um colaborador por página).
 function _rcpCorpoHTML(a){
   const empresa=(typeof EMPRESA_CFG!=='undefined')?(EMPRESA_CFG.nomeFantasia||EMPRESA_CFG.nomeRazao||'Atlas RH'):'Atlas RH';
-  const badge=(t)=>({contradicao:'#DC2626',saida_dup:'#D97706',saida_cedo:'#D97706',incompleto:'#DC2626',intervalo:'#7C3AED'}[t]||'#64748B');
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  const stLabel=(st)=>st==='normal'?'Normal (trabalhou)':st.charAt(0).toUpperCase()+st.slice(1);
+  const saldoTxt=(v)=>v===null?'—':(v===0?'Exato ✓':(v<0?_rcpFmt(v)+' (negativo)':'+'+_rcpFmt(v)));
+  const saldoCor=(v)=>v===null?'#111':(v===0?'#047857':(v<0?'#b91c1c':'#047857'));
+
   const linhasResumo=a.dias.map(d=>`
     <tr>
       <td>${d.dataFmt}</td>
-      <td>${d.status==='normal'?'Normal (trabalhou)':d.status.charAt(0).toUpperCase()+d.status.slice(1)}</td>
-      <td style="text-align:center">${d.entrada||'—'}</td>
-      <td style="text-align:center">${d.saida||'—'}</td>
-      <td style="text-align:center">${d.trabalhado!==null?_rcpFmt(d.trabalhado):'—'}</td>
-      <td style="text-align:center;color:${d.saldo!==null&&d.saldo<0?'#b91c1c':'#111'}">${d.saldo!==null?_rcpFmt(d.saldo):'—'}</td>
-      <td style="text-align:center">${d.problemas.length?'<strong style="color:#b91c1c">Verificar</strong>':'—'}</td>
+      <td>${stLabel(d.status)}</td>
+      <td>${d.entrada||'—'}</td>
+      <td>${d.saida||'—'}</td>
+      <td>${d.trabalhado!==null?_rcpFmt(d.trabalhado):'—'}</td>
+      <td style="color:${saldoCor(d.saldo)}">${saldoTxt(d.saldo)}</td>
+      <td style="text-align:center">${d.problemas.some(p=>p.tipo==='saida_cedo'||p.tipo==='saida_dup')?'<strong style="color:#b91c1c">■ Verificar</strong>':'—'}</td>
     </tr>`).join('');
-  const detalhes=a.dias.map((d,i)=>`
+
+  const contradicoes=a.dias.filter(d=>d.problemas.some(p=>p.tipo==='contradicao'));
+  const avisoContradicao=contradicoes.length?`
+    <p class="pontoatencao"><strong>Ponto de atenção:</strong> nos dias ${contradicoes.map(d=>d.dataFmt.slice(0,5)).join(', ')} o status foi definido como ${stLabel(contradicoes[0].status)}, porém os campos de horário permaneceram preenchidos com jornada completa, o que resultou em saldo "Exato". Recomenda-se validar se esses dias devem de fato constar como ausência (com horários zerados) ou como dia normal trabalhado.</p>`:'';
+
+  const detalhes=a.dias.map((d,i)=>{
+    const obs=_rcpObservacao(d,a);
+    return `
     <div class="dia">
-      <h3>${i+1}. ${d.dataFmt} (${d.diaSemana}) — ${d.status==='normal'?'Normal (trabalhou)':d.status}</h3>
+      <h3>${i+1}. ${d.dataFmt} — ${stLabel(d.status)}</h3>
       <table class="grade">
         <tr><th>Entrada</th><td>${d.entrada||'—'}</td><th>Saída</th><td>${d.saida||'—'}</td></tr>
         <tr><th>Saída almoço</th><td>${d.saida_almoco||'—'}</td><th>Volta almoço</th><td>${d.volta_almoco||'—'}</td></tr>
         <tr><th>Saída café</th><td>${d.saida_cafe||'—'}</td><th>Volta café</th><td>${d.volta_cafe||'—'}</td></tr>
-        <tr><th>Trabalhado</th><td>${d.trabalhado!==null?_rcpFmt(d.trabalhado):'—'}</td><th>Saldo</th><td style="color:${d.saldo!==null&&d.saldo<0?'#b91c1c':'#111'}">${d.saldo!==null?_rcpFmt(d.saldo):'—'}</td></tr>
+        <tr><th>Trabalhado</th><td>${d.trabalhado!==null?_rcpFmt(d.trabalhado):'—'}</td><th>Saldo</th><td style="color:${saldoCor(d.saldo)}">${saldoTxt(d.saldo)}</td></tr>
       </table>
-      ${d.editado?`<p class="nota">Registro ajustado manualmente pelo RH${d.editadoPor?' por '+esc(d.editadoPor):''}.</p>`:''}
-      ${d.problemas.map(pp=>`<p class="alerta" style="border-color:${badge(pp.tipo)}"><strong>Atenção:</strong> ${esc(pp.txt)}</p>`).join('')}
-    </div>`).join('');
-  const secVazios=a.vazios.length?`
-    <div class="secao">
-      <h2>Dias úteis sem registro</h2>
-      <p class="intro">Os dias abaixo não têm nenhum horário lançado no cartão-ponto. É necessário confirmar se houve falta ou se o ponto simplesmente não foi batido.</p>
-      <table class="tbl">
-        <thead><tr><th>Data</th><th>Dia</th><th>Situação</th><th>Confirmar</th></tr></thead>
-        <tbody>${a.vazios.map(v=>`<tr><td>${v.dataFmt}</td><td>${v.diaSemana}</td><td>Nenhum horário registrado</td><td><strong style="color:#b91c1c">Foi falta?</strong></td></tr>`).join('')}</tbody>
-      </table>
-    </div>`:'';
+      ${obs?`<p class="obs"><strong>Observação:</strong> ${esc(obs)}</p>`:''}
+    </div>`;
+  }).join('');
 
-  // ── Seção Banco de Horas ──
+  // Seção própria: dias com apenas uma das pontas batida.
+  const secIncompletos=(a.incompletos&&a.incompletos.length)?`
+    <h2>Dias com registro incompleto</h2>
+    <p class="intro">Os dias abaixo constam com apenas uma marcação no Cartão Ponto. É necessário confirmar se houve esquecimento de bater o ponto, falta no restante do dia, ou se o horário precisa ser corrigido manualmente.</p>
+    <table class="tbl">
+      <thead><tr><th>Data</th><th>Situação encontrada</th><th>Pergunta ao RH</th></tr></thead>
+      <tbody>${a.incompletos.map(v=>`<tr>
+        <td>${v.dataFmt} (${v.diaSemana})</td>
+        <td>${v.falta==='saida'?('Apenas entrada registrada às '+esc(v.entrada)+' — sem horário de saída.'):('Apenas saída registrada às '+esc(v.saida)+' — sem horário de entrada.')}</td>
+        <td><strong style="color:#b91c1c">Esqueceu de bater ou foi falta?</strong></td>
+      </tr>`).join('')}</tbody>
+    </table>`:'';
+
+  const secVazios=a.vazios.length?`
+    <h2>Dias sem nenhum registro de ponto no mês</h2>
+    <p class="intro">Os dias abaixo aparecem completamente em branco no Cartão Ponto — sem entrada e sem saída lançadas. É necessário confirmar se devem ser marcados como falta, se são dias em que não havia escala, ou se houve falha no registro biométrico.</p>
+    <table class="tbl">
+      <thead><tr><th>Data</th><th>Situação encontrada</th><th>Pergunta ao RH</th></tr></thead>
+      <tbody>${a.vazios.map(v=>`<tr>
+        <td>${v.dataFmt} (${v.diaSemana})</td>
+        <td>Nenhum horário registrado no Cartão Ponto.</td>
+        <td><strong style="color:#b91c1c">Confirma que foi falta?</strong></td>
+      </tr>`).join('')}</tbody>
+    </table>`:'';
+
+  // Banco de horas
   const bh=a.bh||{saldoTotal:0,movimentoMes:0,lancsMes:[],saldoMesPonto:0,diasComSaldo:0,divergencia:0};
-  const corSaldo=v=>v<0?'#b91c1c':(v>0?'#047857':'#111');
   const divAbs=Math.abs(bh.divergencia);
   const temDiv=divAbs>10 && (bh.diasComSaldo>0 || bh.lancsMes.length>0);
   const secBH=`
     <h2>Banco de Horas</h2>
-    <table class="grade" style="margin-bottom:8px">
+    <table class="grade">
       <tr>
-        <th>Saldo acumulado atual</th><td style="color:${corSaldo(bh.saldoTotal)};font-weight:bold">${_rcpFmt(bh.saldoTotal)}</td>
-        <th>Apurado no cartão (mês)</th><td style="color:${corSaldo(bh.saldoMesPonto)}">${bh.diasComSaldo?_rcpFmt(bh.saldoMesPonto):'—'}</td>
+        <th>Saldo acumulado</th><td style="color:${saldoCor(bh.saldoTotal)};font-weight:bold">${_rcpFmt(bh.saldoTotal)}</td>
+        <th>Apurado no cartão (mês)</th><td style="color:${saldoCor(bh.saldoMesPonto)}">${bh.diasComSaldo?_rcpFmt(bh.saldoMesPonto):'—'}</td>
       </tr>
       <tr>
-        <th>Lançado no BH (mês)</th><td style="color:${corSaldo(bh.movimentoMes)}">${bh.lancsMes.length?_rcpFmt(bh.movimentoMes):'—'}</td>
+        <th>Lançado no BH (mês)</th><td style="color:${saldoCor(bh.movimentoMes)}">${bh.lancsMes.length?_rcpFmt(bh.movimentoMes):'—'}</td>
         <th>Diferença</th><td style="color:${temDiv?'#b91c1c':'#111'};font-weight:${temDiv?'bold':'normal'}">${(bh.diasComSaldo||bh.lancsMes.length)?_rcpFmt(bh.divergencia):'—'}</td>
       </tr>
     </table>
-    ${temDiv?`<p class="alerta"><strong>Atenção:</strong> o saldo apurado no cartão-ponto do mês (${_rcpFmt(bh.saldoMesPonto)}) difere do que foi lançado no banco de horas (${_rcpFmt(bh.movimentoMes)}) em ${_rcpFmt(divAbs)}. Isso costuma acontecer quando o mês ainda não foi sincronizado com o BH ou quando houve correção manual depois do fechamento. Conferir antes de fechar a folha.</p>`:''}
+    ${temDiv?`<p class="obs"><strong>Observação:</strong> o saldo apurado no cartão-ponto do mês (${_rcpFmt(bh.saldoMesPonto)}) difere do lançado no banco de horas (${_rcpFmt(bh.movimentoMes)}) em ${_rcpFmt(divAbs)}. Ocorre quando o mês ainda não foi sincronizado com o BH ou houve correção manual após o fechamento. Conferir antes de fechar a folha.</p>`:''}
     ${bh.lancsMes.length?`
     <table class="tbl">
-      <thead><tr><th>Data</th><th>Tipo</th><th style="text-align:right">Horas</th><th>Motivo</th></tr></thead>
+      <thead><tr><th>Data</th><th>Tipo</th><th>Horas</th><th>Motivo</th></tr></thead>
       <tbody>${bh.lancsMes.map(l=>`<tr>
         <td>${(l.data||'').split('-').reverse().join('/')}</td>
         <td style="color:${l.tipo==='credito'?'#047857':'#b91c1c'}">${l.tipo==='credito'?'Crédito':'Débito'}${l.auto?' (auto)':''}</td>
-        <td style="text-align:right;color:${l.tipo==='credito'?'#047857':'#b91c1c'}">${l.tipo==='credito'?'+':'-'}${_rcpFmt(l.minutos)}</td>
-        <td style="font-size:11px">${esc(l.motivo)}</td>
+        <td style="color:${l.tipo==='credito'?'#047857':'#b91c1c'}">${l.tipo==='credito'?'+':'-'}${_rcpFmt(l.minutos)}</td>
+        <td style="font-size:10.5px">${esc(l.motivo)}</td>
       </tr>`).join('')}</tbody>
     </table>`:'<p class="intro">Nenhum lançamento de banco de horas neste mês.</p>'}`;
 
-  const hoje=new Date().toLocaleDateString('pt-BR');
   return `
-    <div class="topo">
-      <div><h1>Relatório de Correção de Ponto</h1><span>${esc(empresa)}</span></div>
+    <div class="cabecalho">
+      <span><strong>ATLAS RH</strong> — Relatório de Correção de Ponto</span>
       <span>${a.mesNome}/${a.ano}</span>
     </div>
-    <p class="intro" style="margin-top:14px">
-      <strong>Colaborador(a):</strong> ${esc(a.emp.nome)}${a.emp.cargo?' — '+esc(a.emp.cargo):''}<br>
-      <strong>Competência:</strong> ${a.mesNome}/${a.ano} &nbsp;·&nbsp; <strong>Jornada contratada:</strong> ${esc(a.horarioContratado)} (${_rcpFmt(a.jornadaEsperada)}/dia)
-    </p>
-    <p class="intro">
-      Este documento apresenta os registros do seu cartão-ponto que foram ajustados manualmente pelo RH, os pontos que precisam da sua confirmação e a situação do seu banco de horas no mês de referência.
-      <strong>Confira os horários e, havendo divergência, procure o RH antes do fechamento da folha.</strong>
-    </p>
-    <h2>Resumo</h2>
+
+    <h1>Relatório de Correção de Ponto</h1>
+    <p class="sub"><strong>Colaborador(a):</strong> ${esc(a.emp.nome)}${a.emp.cargo?' — '+esc(a.emp.cargo):''}<br>
+    <strong>Competência:</strong> ${a.mesNome}/${a.ano} · ${esc(empresa)} · Sistema Atlas RH<br>
+    <strong>Jornada contratada:</strong> ${esc(a.horarioContratado)} (${_rcpFmt(a.jornadaEsperada)}/dia)</p>
+
+    <p class="intro">Este relatório documenta as correções realizadas manualmente no cartão de ponto de ${esc(a.emp.nome)} durante o mês de ${a.mesNome}/${a.ano}, registrando os horários ajustados, o status de cada dia e o saldo resultante após a edição pelo RH. <strong>Confira os horários e, havendo divergência, procure o RH antes do fechamento da folha.</strong></p>
+
+    <h2>Resumo das correções</h2>
     <table class="tbl">
-      <thead><tr><th>Data</th><th>Status</th><th style="text-align:center">Entrada</th><th style="text-align:center">Saída</th><th style="text-align:center">Trabalhado</th><th style="text-align:center">Saldo</th><th style="text-align:center">Alerta</th></tr></thead>
+      <thead><tr><th>Data</th><th>Status</th><th>Entrada</th><th>Saída</th><th>Trabalhado</th><th>Saldo</th><th style="text-align:center">Alerta saída</th></tr></thead>
       <tbody>${linhasResumo||'<tr><td colspan="7">Nenhum dia com ajuste ou inconsistência.</td></tr>'}</tbody>
     </table>
-    ${a.totalCorrigidos?`<p class="nota">${a.totalCorrigidos} dia(s) com ajuste manual registrado pelo RH.</p>`:''}
-    ${a.alertas.length?`<p class="alerta"><strong>${a.alertas.length} ponto(s) de atenção</strong> identificados neste mês — detalhados a seguir.</p>`:''}
-    ${a.dias.length?'<h2>Detalhamento por dia</h2>'+detalhes:''}
+    ${avisoContradicao}
+
+    ${a.dias.length?detalhes:''}
+    ${secIncompletos}
     ${secVazios}
     ${secBH}
+
     <div class="ciencia">
       <strong style="font-size:13px">Ciência do colaborador</strong>
       <p style="font-size:12px;margin:7px 0 0">
@@ -9669,7 +9765,8 @@ function _rcpCorpoHTML(a){
       </div>
       <p style="font-size:11px;color:#666;margin-top:14px">Data: ____/____/________</p>
     </div>
-    <div class="rodape">Documento gerado pelo sistema Atlas RH em ${hoje}. Os cálculos consideram a jornada contratada, os intervalos previstos e a tolerância de entrada.</div>`;
+
+    <div class="rodape"><span>Gerado em ${hoje}</span><span>${esc(empresa)} · Atlas RH</span></div>`;
 }
 
 // Gera o documento imprimível (o navegador salva como PDF).
@@ -9683,29 +9780,7 @@ function gerarRelatorioCorrecaoPonto(empId, mes, ano){
   const w=window.open('','_blank');
   if(!w){ toast('Permita pop-ups para gerar o relatório.','err'); return; }
   w.document.write(`<html><head><meta charset="utf-8"><title>Correção de Ponto — ${esc(a.emp.nome)} — ${a.mesNome}/${a.ano}</title>
-  <style>
-    *{box-sizing:border-box}
-    body{font-family:Arial,Helvetica,sans-serif;color:#111;max-width:780px;margin:24px auto;padding:0 18px;line-height:1.5}
-    .topo{background:#1e293b;color:#fff;padding:14px 18px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
-    .topo h1{margin:0;font-size:16px}
-    .topo span{font-size:12px;opacity:.85}
-    h2{font-size:15px;margin:26px 0 6px;padding-bottom:5px;border-bottom:2px solid #e2e8f0}
-    h3{font-size:13.5px;margin:18px 0 7px;color:#1e293b}
-    .intro{font-size:12.5px;color:#444;margin:6px 0 12px}
-    table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px}
-    .tbl th{background:#f1f5f9;text-align:left;padding:7px 9px;border-bottom:2px solid #cbd5e1}
-    .tbl td{padding:6px 9px;border-bottom:1px solid #eef2f7}
-    .grade th{background:#f8fafc;text-align:left;padding:6px 9px;width:16%;border:1px solid #e2e8f0;font-size:11.5px}
-    .grade td{padding:6px 9px;border:1px solid #e2e8f0;width:34%}
-    .dia{page-break-inside:avoid;margin-bottom:16px}
-    .nota{font-size:11.5px;color:#475569;background:#f8fafc;border-left:3px solid #94a3b8;padding:7px 10px;margin:6px 0}
-    .alerta{font-size:11.5px;color:#7c2d12;background:#fffbeb;border-left:3px solid #d97706;padding:7px 10px;margin:6px 0}
-    .ciencia{margin-top:34px;border:1.5px solid #cbd5e1;border-radius:8px;padding:14px 16px;page-break-inside:avoid}
-    .assin{margin-top:38px;display:flex;gap:26px;flex-wrap:wrap}
-    .assin div{flex:1;min-width:210px;border-top:1px solid #333;padding-top:5px;font-size:11.5px;text-align:center}
-    .rodape{margin-top:22px;font-size:10.5px;color:#666;border-top:1px solid #e2e8f0;padding-top:9px}
-    @media print{ body{margin:0;max-width:none} .noprint{display:none} }
-  </style></head><body>
+  <style>${RCP_CSS}</style></head><body>
     ${corpo}
     <div class="noprint" style="text-align:center;margin-top:20px">
       <button onclick="window.print()" style="background:#1d4ed8;color:#fff;border:none;border-radius:8px;padding:11px 22px;font-size:14px;font-weight:700;cursor:pointer">🖨 Imprimir / Salvar em PDF</button>
@@ -9731,29 +9806,7 @@ function gerarRelatorioCorrecaoTodos(mes, ano){
   if(!w){ toast('Permita pop-ups para gerar o relatório.','err'); return; }
   const corpos=analises.map((a,i)=>(i>0?'<div style="page-break-before:always"></div>':'')+_rcpCorpoHTML(a)).join('\n');
   w.document.write(`<html><head><meta charset="utf-8"><title>Correções de Ponto — ${RCP_MESES[mes-1]}/${ano} (${analises.length} colaboradores)</title>
-  <style>
-    *{box-sizing:border-box}
-    body{font-family:Arial,Helvetica,sans-serif;color:#111;max-width:780px;margin:24px auto;padding:0 18px;line-height:1.5}
-    .topo{background:#1e293b;color:#fff;padding:14px 18px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
-    .topo h1{margin:0;font-size:16px}
-    .topo span{font-size:12px;opacity:.85}
-    h2{font-size:15px;margin:26px 0 6px;padding-bottom:5px;border-bottom:2px solid #e2e8f0}
-    h3{font-size:13.5px;margin:18px 0 7px;color:#1e293b}
-    .intro{font-size:12.5px;color:#444;margin:6px 0 12px}
-    table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px}
-    .tbl th{background:#f1f5f9;text-align:left;padding:7px 9px;border-bottom:2px solid #cbd5e1}
-    .tbl td{padding:6px 9px;border-bottom:1px solid #eef2f7}
-    .grade th{background:#f8fafc;text-align:left;padding:6px 9px;width:16%;border:1px solid #e2e8f0;font-size:11.5px}
-    .grade td{padding:6px 9px;border:1px solid #e2e8f0;width:34%}
-    .dia{page-break-inside:avoid;margin-bottom:16px}
-    .nota{font-size:11.5px;color:#475569;background:#f8fafc;border-left:3px solid #94a3b8;padding:7px 10px;margin:6px 0}
-    .alerta{font-size:11.5px;color:#7c2d12;background:#fffbeb;border-left:3px solid #d97706;padding:7px 10px;margin:6px 0}
-    .ciencia{margin-top:34px;border:1.5px solid #cbd5e1;border-radius:8px;padding:14px 16px;page-break-inside:avoid}
-    .assin{margin-top:38px;display:flex;gap:26px;flex-wrap:wrap}
-    .assin div{flex:1;min-width:210px;border-top:1px solid #333;padding-top:5px;font-size:11.5px;text-align:center}
-    .rodape{margin-top:22px;font-size:10.5px;color:#666;border-top:1px solid #e2e8f0;padding-top:9px}
-    @media print{ body{margin:0;max-width:none} .noprint{display:none} }
-  </style></head><body>
+  <style>${RCP_CSS}</style></head><body>
     ${corpos}
     <div class="noprint" style="text-align:center;margin:22px 0">
       <button onclick="window.print()" style="background:#1d4ed8;color:#fff;border:none;border-radius:8px;padding:11px 22px;font-size:14px;font-weight:700;cursor:pointer">🖨 Imprimir / Salvar em PDF (${analises.length} colaboradores)</button>
