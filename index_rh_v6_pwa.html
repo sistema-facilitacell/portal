@@ -1950,27 +1950,65 @@ const svgI=(p,sz=15)=>`<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" fil
 const empSC=s=>s==='ativo'?'#059669':s==='ferias'?'#2563EB':s==='afastado'?'#D97706':'#DC2626';
 
 // Tabela INSS 2025 (progressiva)
+// INSS 2026 — Portaria Interministerial MPS/MF nº 13/2026.
+// Conferido contra os recibos da contabilidade (Keila, Nathan, Sabrina,
+// Guilherme): reproduz os cinco valores exatamente. A tabela anterior, de
+// 2025, errava por cerca de R$ 1,55 em salários acima do mínimo.
+const INSS_FAIXAS_2026=[[1621.00,.075],[2902.84,.09],[4354.27,.12],[8475.55,.14]];
+const INSS_TETO_2026=8475.55;
 function calcINSS(s){
-  const v=parseFloat(s)||0;
+  let v=parseFloat(s)||0;
   if(v<=0)return 0;
-  let inss=0;
-  const faixas=[[1518.00,.075],[2793.88,.09],[4190.83,.12],[8157.41,.14]];
-  let prev=0;
-  for(const[teto,aliq] of faixas){
+  // Acima do teto previdenciário a contribuição para de crescer.
+  if(v>INSS_TETO_2026) v=INSS_TETO_2026;
+  let inss=0, prev=0;
+  for(const[teto,aliq] of INSS_FAIXAS_2026){
     if(v>teto){inss+=(teto-prev)*aliq;prev=teto;}
     else{inss+=(v-prev)*aliq;return+inss.toFixed(2);}
   }
-  // Teto máximo INSS 2025
   return+inss.toFixed(2);
 }
-// Tabela IRRF 2025
-function calcIRRF(b){
-  const v=parseFloat(b)||0;
+// IRRF 2026 — Lei 15.191/2025 (faixas) e Lei 15.270/2025 (redução mensal).
+//
+// A mudança mais relevante de 2026: quem recebe até R$ 5.000 tributáveis por
+// mês tem o imposto ZERADO por uma redução de até R$ 312,89. Entre R$ 5.000,01
+// e R$ 7.350 a redução decresce; acima disso não há redução. Como quase toda a
+// equipe está abaixo de R$ 5.000, a tabela antiga vinha descontando IRRF que
+// hoje não é mais devido.
+const IRRF_DEDUCAO_DEPENDENTE_2026=189.59;
+const IRRF_DESCONTO_SIMPLIFICADO_2026=607.20;
+
+// Imposto pela tabela progressiva, antes da redução da Lei 15.270/2025.
+function _irrfTabela2026(base){
+  const v=parseFloat(base)||0;
   if(v<=2428.80)return 0;
-  if(v<=3270.48)return Math.max(0,+(v*.075-182.16).toFixed(2));
-  if(v<=4340.41)return Math.max(0,+(v*.15-409.68).toFixed(2));
-  if(v<=5402.67)return Math.max(0,+(v*.225-711.78).toFixed(2));
-  return Math.max(0,+(v*.275-1023.96).toFixed(2));
+  if(v<=2826.65)return Math.max(0,+(v*.075-182.16).toFixed(2));
+  if(v<=3751.05)return Math.max(0,+(v*.15 -394.16).toFixed(2));
+  if(v<=4664.68)return Math.max(0,+(v*.225-675.49).toFixed(2));
+  return Math.max(0,+(v*.275-908.73).toFixed(2));
+}
+
+// Redução mensal da Lei 15.270/2025, calculada sobre os rendimentos brutos
+// tributáveis (não sobre a base de cálculo).
+function _irrfReducao2026(rendimentoBruto){
+  const r=parseFloat(rendimentoBruto)||0;
+  if(r<=5000) return Infinity;      // zera o imposto
+  if(r<=7350) return Math.max(0,+(978.62-(0.133145*r)).toFixed(2));
+  return 0;
+}
+
+// b = base de cálculo (já deduzidos INSS, dependentes etc.)
+// rendimentoBruto = remuneração tributável do mês. Quando não informado usa a
+// própria base, o que é seguro: a base é sempre menor que o bruto, então nunca
+// deixamos de aplicar uma redução a que a pessoa tem direito.
+function calcIRRF(b, rendimentoBruto){
+  const base=parseFloat(b)||0;
+  if(base<=0) return 0;
+  const bruto=(rendimentoBruto===undefined||rendimentoBruto===null)?base:(parseFloat(rendimentoBruto)||0);
+  const imposto=_irrfTabela2026(base);
+  const reducao=_irrfReducao2026(bruto);
+  if(reducao===Infinity) return 0;
+  return Math.max(0,+(imposto-reducao).toFixed(2));
 }
 
 // ════════════════════════════════════════════════════
@@ -4416,10 +4454,77 @@ function _cardBackup(){
 }
 
 // Bloco completo para o topo do dashboard.
+
+// ── ALERTA DE FÉRIAS A VENCER ──────────────────────────────────────────────
+// Avisa antes de o período concessivo estourar. Depois que estoura, a empresa
+// é obrigada a pagar as férias em dobro (CLT art. 137) — é uma despesa que se
+// evita apenas concedendo as férias no prazo.
+const FERIAS_AVISO_DIAS = 90;   // começa a avisar 3 meses antes
+
+function _feriasEmRisco(){
+  const ativos=(APP.employees||[]).filter(e=>e&&e.status==='ativo'&&e.dataAdmissao);
+  const itens=[];
+  ativos.forEach(e=>{
+    let periodos=[];
+    try{ periodos=(typeof _feriasPeriodos==='function')?_feriasPeriodos(e):[]; }catch(_){ return; }
+    periodos.forEach(pr=>{
+      if(pr.emDobra) itens.push({emp:e, per:pr, estado:'dobra'});
+      else if(pr.diasParaVencer<=FERIAS_AVISO_DIAS) itens.push({emp:e, per:pr, estado:'vencendo'});
+    });
+  });
+  // Mais urgente primeiro: já em dobra, depois os de prazo mais curto.
+  return itens.sort((a,b)=>{
+    if(a.estado!==b.estado) return a.estado==='dobra'?-1:1;
+    return a.per.diasParaVencer-b.per.diasParaVencer;
+  });
+}
+
+function _cardFerias(){
+  let lista=[];
+  try{ lista=_feriasEmRisco(); }catch(e){ console.warn('[Férias]',e&&e.message); return ''; }
+  if(!lista.length) return '';
+  const dobra=lista.filter(x=>x.estado==='dobra');
+  const urgente=dobra.length>0;
+  const br=(iso)=>(iso||'').split('-').reverse().join('/');
+
+  // Custo extra já incorrido, para dimensionar o problema em dinheiro.
+  let custoDobra=0;
+  dobra.forEach(x=>{ const sal=parseFloat(x.emp.salario)||0; custoDobra+=sal+sal/3; });
+
+  return `
+  <div style="background:${urgente?'linear-gradient(135deg,#FEF2F2,#FFF5F5)':'linear-gradient(135deg,#FFFBEB,#FFFDF5)'};border:2px solid ${urgente?'#DC2626':'#F59E0B'};border-radius:14px;padding:18px 22px;margin-bottom:20px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div style="font-size:30px;line-height:1">${urgente?'🚨':'🏖️'}</div>
+      <div>
+        <div style="font-size:13px;font-weight:800;color:${urgente?'#991B1B':'#92400E'};text-transform:uppercase;letter-spacing:.06em">Férias — prazo de concessão</div>
+        <div style="font-size:12px;color:${urgente?'#B91C1C':'#B45309'}">${urgente?`${dobra.length} período(s) já em dobra — custo extra de aproximadamente ${fBRL(custoDobra)}`:'Conceda antes do prazo para não pagar em dobro'}</div>
+      </div>
+    </div>
+    ${lista.slice(0,8).map(x=>{
+      const d=x.estado==='dobra';
+      return `<div style="background:#fff;border:1px solid ${d?'#FECACA':'#FDE68A'};border-radius:10px;padding:11px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:180px">
+          <div style="font-size:14px;font-weight:700;color:#1E293B">${esc(x.emp.nome||'—')}</div>
+          <div style="font-size:11px;color:#64748B">Período aquisitivo encerrado em ${br(x.per.aquisitivoFim)} · conceder até ${br(x.per.limiteConcessivo)}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:${d?'12':'17'}px;font-weight:800;color:${d?'#DC2626':'#D97706'}">${d?'EM DOBRA há '+Math.abs(x.per.diasParaVencer)+'d':x.per.diasParaVencer+' dias'}</div>
+          <button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8;margin-top:5px;font-size:11px" onclick="navigate('ferias')">Programar férias</button>
+        </div>
+      </div>`;
+    }).join('')}
+    ${lista.length>8?`<div style="font-size:11.5px;color:#64748B;margin-bottom:6px">e mais ${lista.length-8} período(s)…</div>`:''}
+    <div style="font-size:11px;color:#78716C;margin-top:6px;line-height:1.5">A CLT dá 12 meses após o período aquisitivo para conceder as férias (art. 134). Esgotado esse prazo, o pagamento passa a ser <strong>em dobro</strong> (art. 137).</div>
+  </div>`;
+}
+window._feriasEmRisco=_feriasEmRisco;
+window._cardFerias=_cardFerias;
+
 function rPainelGestao(){
   let html='';
   try{ html+=_cardBackup(); }catch(e){ console.warn('[Painel] backup',e&&e.message); }
   try{ html+=_cardExperiencia(); }catch(e){ console.warn('[Painel] exp',e&&e.message); }
+  try{ html+=_cardFerias(); }catch(e){ console.warn('[Painel] ferias',e&&e.message); }
   try{ html+=_cardSaudePonto(); }catch(e){ console.warn('[Painel] ponto',e&&e.message); }
   try{ html+=_cardIndicadores(); }catch(e){ console.warn('[Painel] indic',e&&e.message); }
   return html;
@@ -8832,17 +8937,49 @@ function _avosDecimo(dataAdmissao, dataRescisao){
 }
 
 // Períodos aquisitivos de férias completos e ainda não gozados.
-function _feriasVencidasQtd(emp){
-  if(!emp||!emp.dataAdmissao) return 0;
+// Lista os períodos aquisitivos de férias já completos e ainda não gozados,
+// separando os que caíram em DOBRA. A CLT (art. 134) dá 12 meses após o
+// período aquisitivo para conceder as férias — é o período concessivo. Passado
+// esse prazo sem concessão, o pagamento é EM DOBRO (art. 137). Sem essa
+// distinção a rescisão sai pela metade do devido, e a diferença pode ser
+// cobrada depois com juros.
+function _feriasPeriodos(emp, dataRef){
+  if(!emp||!emp.dataAdmissao) return [];
   const adm=new Date(emp.dataAdmissao+'T00:00:00');
-  const hoje=new Date();
-  if(isNaN(adm)) return 0;
-  // quantos períodos de 12 meses se completaram
-  let periodos=Math.floor((hoje-adm)/(365.25*86400000));
-  if(periodos<=0) return 0;
-  // desconta os períodos já gozados
-  const gozadas=(APP.ferias||[]).filter(f=>f&&f.empId===emp.id&&f.status==='gozado').length;
-  return Math.max(0,periodos-gozadas);
+  if(isNaN(adm)) return [];
+  const ref=dataRef?new Date(dataRef+'T00:00:00'):new Date();
+  if(isNaN(ref)) return [];
+
+  // Quantos aniversários de admissão já ocorreram até a data de referência.
+  const addAnos=(d,n)=>{ const x=new Date(d); x.setFullYear(x.getFullYear()+n); return x; };
+  let completos=0;
+  while(addAnos(adm,completos+1)<=ref && completos<50) completos++;
+  if(completos<=0) return [];
+
+  // Períodos já gozados são abatidos do mais antigo para o mais novo.
+  let gozadas=(APP.ferias||[]).filter(f=>f&&f.empId===emp.id&&f.status==='gozado').length;
+
+  const lista=[];
+  for(let i=0;i<completos;i++){
+    if(gozadas>0){ gozadas--; continue; }          // este período já foi gozado
+    const inicio=addAnos(adm,i);                   // início do período aquisitivo
+    const fim=addAnos(adm,i+1);                    // fim do aquisitivo
+    const limiteConcessivo=addAnos(fim,1);         // 12 meses para conceder
+    lista.push({
+      indice:i+1,
+      aquisitivoInicio:inicio.toISOString().slice(0,10),
+      aquisitivoFim:fim.toISOString().slice(0,10),
+      limiteConcessivo:limiteConcessivo.toISOString().slice(0,10),
+      emDobra: ref > limiteConcessivo,
+      diasParaVencer: Math.round((limiteConcessivo-ref)/86400000)
+    });
+  }
+  return lista;
+}
+
+// Mantida para compatibilidade com quem já chamava esta função.
+function _feriasVencidasQtd(emp){
+  return _feriasPeriodos(emp).length;
 }
 
 // ── Cálculo principal ─────────────────────────────────────────────────────
@@ -8865,8 +9002,12 @@ function calcularRescisao(opts){
   // Usa-se o mês comercial de 30 dias; quem trabalha o mês inteiro recebe o
   // salário integral. Sem o teto, um desligamento em dia 31 pagaria 31/30 do
   // salário, o que estaria errado.
-  const diasSaldo=Math.min(resc.getDate(),30);
-  const vSaldo=+(diario*diasSaldo).toFixed(2);
+  // O saldo usa os DIAS REAIS do mês do desligamento, não o mês comercial de 30.
+  // Conferido contra TRCT emitido pela contabilidade: saída em 02/07 gerou
+  // 2.500 ÷ 31 × 2 = 161,29 — e não ÷30, que daria 166,67.
+  const diasDoMes=new Date(resc.getFullYear(), resc.getMonth()+1, 0).getDate();
+  const diasSaldo=resc.getDate();
+  const vSaldo=+((salario/diasDoMes)*diasSaldo).toFixed(2);
   verbas.push({desc:`Saldo de salário (${resc.getDate()} dia${resc.getDate()>1?'s':''})`, valor:vSaldo, tributavel:true});
 
   // 2) Aviso prévio — 30 dias + 3 por ano de casa, limitado a 90 (Lei 12.506/11)
@@ -8891,21 +9032,42 @@ function calcularRescisao(opts){
     const proj=new Date(resc); proj.setDate(proj.getDate()+diasAviso);
     dataBase13=proj.toISOString().slice(0,10);
   }
-  let vDecimo=0, avos13=0;
+  let vDecimo=0, avos13=0, avos13Aviso=0, vDecimo13Aviso=0;
   if(tipo.decimo){
     avos13=_avosDecimo(emp.dataAdmissao, dataBase13);
-    vDecimo=+((salario/12)*avos13).toFixed(2);
-    if(vDecimo>0) verbas.push({desc:`13º salário proporcional (${avos13}/12)`, valor:vDecimo, tributavel:true, decimo:true});
+    // O TRCT separa o 13º do contrato (rubrica 63) do 13º gerado pela projeção
+    // do aviso indenizado (rubrica 70). Mantemos a mesma separação para o
+    // documento sair conferente com o da contabilidade.
+    const avos13SemAviso=_avosDecimo(emp.dataAdmissao, dataResc);
+    avos13Aviso=Math.max(0, avos13-avos13SemAviso);
+    const vDecimoContrato=+((salario/12)*avos13SemAviso).toFixed(2);
+    vDecimo13Aviso=+((salario/12)*avos13Aviso).toFixed(2);
+    vDecimo=+(vDecimoContrato+vDecimo13Aviso).toFixed(2);
+    if(vDecimoContrato>0) verbas.push({desc:`13º salário proporcional (${avos13SemAviso}/12)`, valor:vDecimoContrato, tributavel:true, decimo:true, rubrica:'63'});
+    if(vDecimo13Aviso>0) verbas.push({desc:`13º sobre aviso prévio (${avos13Aviso}/12)`, valor:vDecimo13Aviso, tributavel:true, decimo:true, rubrica:'70'});
   }
 
   // 4) Férias vencidas + 1/3 (períodos completos não gozados)
   let vFeriasVenc=0;
-  const qtdVenc=tipo.feriasVenc?_feriasVencidasQtd(emp):0;
-  if(qtdVenc>0){
-    const base=salario*qtdVenc;
-    vFeriasVenc=+(base+base/3).toFixed(2);
-    verbas.push({desc:`Férias vencidas + 1/3 (${qtdVenc} período${qtdVenc>1?'s':''})`, valor:vFeriasVenc, tributavel:false});
+  const periodosVenc=tipo.feriasVenc?_feriasPeriodos(emp,dataResc):[];
+  const qtdVenc=periodosVenc.length;
+  const emDobra=periodosVenc.filter(x=>x.emDobra);
+  const simples=periodosVenc.filter(x=>!x.emDobra);
+  if(simples.length){
+    const base=salario*simples.length;
+    const v=+(base+base/3).toFixed(2);
+    vFeriasVenc+=v;
+    verbas.push({desc:`Férias vencidas + 1/3 (${simples.length} período${simples.length>1?'s':''})`, valor:v, tributavel:false});
   }
+  if(emDobra.length){
+    // Período concessivo esgotado: paga-se em dobro (CLT art. 137).
+    const base=salario*emDobra.length*2;
+    const v=+(base+base/3).toFixed(2);
+    vFeriasVenc+=v;
+    verbas.push({desc:`Férias vencidas EM DOBRO + 1/3 (${emDobra.length} período${emDobra.length>1?'s':''} — CLT art. 137)`, valor:v, tributavel:false, dobra:true});
+  }
+  vFeriasVenc=+vFeriasVenc.toFixed(2);
+
 
   // 5) Férias proporcionais + 1/3
   let vFeriasProp=0, avosFerias=0;
@@ -8932,7 +9094,10 @@ function calcularRescisao(opts){
       fgtsEstimado=true;
     }
     vMulta=+(saldoFgtsUsado*tipo.multaFgts).toFixed(2);
-    verbas.push({desc:`Multa de ${(tipo.multaFgts*100).toFixed(0)}% sobre FGTS${fgtsEstimado?' (saldo estimado)':''}`, valor:vMulta, tributavel:false});
+    // A multa do FGTS NÃO entra no TRCT: é recolhida à parte, em guia própria
+    // da Caixa. Marcamos com foraTRCT para que o termo saia conferente com o
+    // emitido pela contabilidade, mas o valor continua no total a desembolsar.
+    verbas.push({desc:`Multa de ${(tipo.multaFgts*100).toFixed(0)}% sobre FGTS${fgtsEstimado?' (saldo estimado)':''}`, valor:vMulta, tributavel:false, foraTRCT:true, rubrica:'FGTS'});
   }
 
   // ── Descontos legais ────────────────────────────────────────────────────
@@ -8963,7 +9128,7 @@ function calcularRescisao(opts){
     verbas, descontos, totalVerbas, totalDescontos, liquido,
     saldoFgts:saldoFgtsUsado, fgtsEstimado,
     saqueFgts:tipo.saqueFgts, seguroDesemprego:tipo.seguroDesemprego,
-    avos13, avosFerias, feriasVencidas:qtdVenc
+    avos13, avosFerias, feriasVencidas:qtdVenc, feriasPeriodos:periodosVenc, feriasEmDobra:emDobra.length
   };
 }
 
@@ -9056,7 +9221,8 @@ function executarCalcRescisao(){
       </div>
       ${r.fgtsEstimado&&r.saldoFgts?'<div style="font-size:11px;color:#92400E;margin-top:8px;line-height:1.5">O saldo do FGTS foi estimado em 8% do salário por mês trabalhado. Informe o saldo real do extrato para que a multa saia correta.</div>':''}
       <div style="text-align:right;margin-top:12px">
-        <button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8" onclick="imprimirRescisao()">🖨 Imprimir demonstrativo</button>
+        <button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8" onclick="imprimirRescisao()">🖨 Demonstrativo</button>
+        <button class="btn btn-sm" style="background:#1E293B;color:#C9A84C;font-weight:700" onclick="gerarTRCT()">📄 Gerar TRCT</button>
       </div>
     </div>`;
 }
@@ -10425,6 +10591,9 @@ function abrirImportarFolha(){
       </label>
       <button class="btn btn-sm" style="background:#F8FAFC;color:#475569" onclick="document.getElementById('folha-txt').focus()">✍️ Colar texto</button>
     </div>
+    <div style="background:#F5F3FF;border:1px dashed #C4B5FD;border-radius:9px;padding:9px 12px;margin-bottom:11px;font-size:12px;color:#6D28D9;line-height:1.5">
+      📋 <strong>Dica:</strong> dá para colar o print direto com <kbd style="background:#fff;border:1px solid #DDD6FE;border-radius:4px;padding:1px 5px;font-size:11px">Ctrl</kbd>+<kbd style="background:#fff;border:1px solid #DDD6FE;border-radius:4px;padding:1px 5px;font-size:11px">V</kbd> — recorte a tela e cole aqui, sem precisar salvar o arquivo.
+    </div>
 
     <textarea id="folha-txt" rows="7" placeholder="Cole aqui o conteúdo do recibo de pagamento…"
       style="width:100%;font-family:monospace;font-size:11.5px;padding:9px;border:1px solid #CBD5E1;border-radius:8px;resize:vertical"></textarea>
@@ -10436,6 +10605,31 @@ function abrirImportarFolha(){
       <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
       <button class="btn btn-blue" onclick="folhaAnalisar()">🔍 Ler folha</button>
     </div>`,660);
+  _folhaLigarColagem();
+}
+
+// Captura Ctrl+V dentro do modal. Se o que veio da área de transferência for
+// uma imagem (print recortado), manda para a leitura por IA; se for texto,
+// deixa o navegador colar normalmente no campo.
+function _folhaLigarColagem(){
+  const handler = async function(ev){
+    // Só age enquanto o modal de importação estiver na tela
+    if(!document.getElementById('folha-txt')){
+      document.removeEventListener('paste', handler, true);
+      return;
+    }
+    const itens = (ev.clipboardData && ev.clipboardData.items) || [];
+    let imagem = null;
+    for(let i=0;i<itens.length;i++){
+      if(itens[i].type && itens[i].type.indexOf('image/')===0){ imagem = itens[i].getAsFile(); break; }
+    }
+    if(!imagem) return;         // texto: comportamento padrão do navegador
+    ev.preventDefault();
+    _folhaStatus('📋 Print colado — lendo com IA…');
+    try{ await folhaLerImagem(imagem); }
+    catch(e){ _folhaStatus('❌ Falha ao ler o print colado: '+((e&&e.message)||''),'#DC2626'); }
+  };
+  document.addEventListener('paste', handler, true);
 }
 
 function _folhaStatus(html,cor){
@@ -10490,10 +10684,13 @@ async function folhaLerPDF(input){
 }
 
 // Print: usa a IA com visão para transcrever a imagem.
-async function folhaLerImagem(input){
-  const f=input&&input.files&&input.files[0];
+// Aceita tanto um <input type=file> quanto um arquivo/blob direto — este
+// segundo caso é o de colar com Ctrl+V, em que não existe input envolvido.
+async function folhaLerImagem(origem){
+  const ehInput = origem && origem.files;
+  const f = ehInput ? origem.files[0] : origem;
   if(!f) return;
-  if(!GROQ_KEY){ _folhaStatus('❌ Configure a chave da IA para ler prints (⚙ Configurar IA).','#DC2626'); input.value=''; return; }
+  if(!GROQ_KEY){ _folhaStatus('❌ Configure a chave da IA para ler prints (⚙ Configurar IA).','#DC2626'); if(ehInput) origem.value=''; return; }
   _folhaStatus('⏳ Lendo o print com IA… pode levar alguns segundos.');
   try{
     const b64=await new Promise((ok,err)=>{
@@ -10542,7 +10739,8 @@ async function folhaLerImagem(input){
   }catch(e){
     _folhaStatus('❌ Não consegui ler o print: '+(e.message||'')+'. Tente enviar o PDF ou colar o texto.','#DC2626');
   }
-  input.value='';
+  // Só limpa o campo quando veio de um <input>; ao colar não existe input.
+  if(ehInput) origem.value='';
 }
 
 let FOLHA_LISTA=[];
@@ -10997,6 +11195,447 @@ async function repararDadosCifrados(){
 }
 window.repararDadosCifrados=repararDadosCifrados;
 
+
+// ══════════════════════════════════════════════════════════════════════════
+// TERMO DE RESCISÃO (TRCT) — layout oficial
+// Reproduz o formato do termo emitido pela contabilidade, com os códigos de
+// rubrica usados no TRCT. Serve para entregar ao colaborador com o cálculo
+// discriminado e recolher a assinatura.
+//
+// A multa do FGTS não aparece nas verbas do termo: ela é recolhida em guia
+// própria da Caixa, fora do TRCT. Ela é mostrada em quadro separado para você
+// não esquecer do desembolso.
+// ══════════════════════════════════════════════════════════════════════════
+
+// Códigos oficiais de rubrica do TRCT, associados às verbas que calculamos.
+function _trctRubrica(desc){
+  const d=String(desc||'').toLowerCase();
+  if(d.indexOf('saldo de sal')>=0)        return {cod:'50',  nome:'Saldo de Salário'};
+  if(d.indexOf('13º sobre aviso')>=0)     return {cod:'70',  nome:'13º s/ Aviso Prévio'};
+  if(d.indexOf('13º')>=0)                 return {cod:'63',  nome:'13º Salário s/ Rescisão'};
+  if(d.indexOf('dobro')>=0)               return {cod:'64',  nome:'Férias Vencidas em Dobro'};
+  if(d.indexOf('férias vencidas')>=0)     return {cod:'62',  nome:'Férias Vencidas'};
+  if(d.indexOf('férias proporcionais')>=0)return {cod:'65',  nome:'Férias Indenizadas'};
+  if(d.indexOf('aviso prévio')>=0)        return {cod:'69',  nome:'Aviso Prévio Indenizado'};
+  return {cod:'', nome:desc};
+}
+function _trctRubricaDesc(desc){
+  const d=String(desc||'').toLowerCase();
+  if(d.indexOf('inss sobre 13')>=0)  return {cod:'112.2', nome:'INSS 13º Salário'};
+  if(d.indexOf('inss')>=0)           return {cod:'112.1', nome:'INSS'};
+  if(d.indexOf('irrf sobre 13')>=0)  return {cod:'114.2', nome:'IRRF s/ 13º Salário'};
+  if(d.indexOf('irrf')>=0)           return {cod:'114.1', nome:'IRRF'};
+  if(d.indexOf('aviso')>=0)          return {cod:'', nome:'Aviso Prévio não cumprido'};
+  return {cod:'', nome:desc};
+}
+
+function _trctData(iso){ return (iso||'').split('-').reverse().join('/'); }
+function _trctVal(v){ return Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+function gerarTRCT(){
+  const r=window._ultimaRescisao;
+  if(!r){ toast('Calcule a rescisão primeiro.','err'); return; }
+  const emp=r.emp||{};
+  const cfg=(typeof EMPRESA_CFG!=='undefined')?EMPRESA_CFG:{};
+
+  // Separa o que entra no termo do que é recolhido à parte
+  const verbasTRCT=r.verbas.filter(v=>!v.foraTRCT);
+  const foraTRCT=r.verbas.filter(v=>v.foraTRCT);
+  const brutoTRCT=+verbasTRCT.reduce((s,v)=>s+v.valor,0).toFixed(2);
+  const liquidoTRCT=+(brutoTRCT-r.totalDescontos).toFixed(2);
+
+  const campo=(n,rot,val)=>`<td style="border:1px solid #000;padding:2px 4px;vertical-align:top">
+      <div style="font-size:7px;color:#333">${n?n+' ':''}${rot}</div>
+      <div style="font-size:10px;font-weight:600;min-height:12px">${esc(val||'')}</div></td>`;
+
+  // Verbas em 3 colunas, como no termo oficial
+  const celulasVerba=verbasTRCT.map(v=>{
+    const rb=_trctRubrica(v.desc);
+    return `<td style="border:1px solid #000;padding:2px 4px">
+      <div style="font-size:7.5px">${rb.cod?'<strong>'+rb.cod+'</strong> ':''}${esc(rb.nome)}</div>
+      <div style="font-size:10px;text-align:right;font-weight:600">${_trctVal(v.valor)}</div></td>`;
+  });
+  while(celulasVerba.length%3!==0) celulasVerba.push('<td style="border:1px solid #000"></td>');
+  let linhasVerba='';
+  for(let i=0;i<celulasVerba.length;i+=3) linhasVerba+='<tr>'+celulasVerba.slice(i,i+3).join('')+'</tr>';
+
+  const celulasDesc=r.descontos.map(d=>{
+    const rb=_trctRubricaDesc(d.desc);
+    return `<td style="border:1px solid #000;padding:2px 4px">
+      <div style="font-size:7.5px">${rb.cod?'<strong>'+rb.cod+'</strong> ':''}${esc(rb.nome)}</div>
+      <div style="font-size:10px;text-align:right;font-weight:600">${_trctVal(d.valor)}</div></td>`;
+  });
+  while(celulasDesc.length%3!==0) celulasDesc.push('<td style="border:1px solid #000"></td>');
+  let linhasDesc='';
+  for(let i=0;i<celulasDesc.length;i+=3) linhasDesc+='<tr>'+celulasDesc.slice(i,i+3).join('')+'</tr>';
+
+  const w=window.open('','_blank');
+  if(!w){ toast('Permita pop-ups para gerar o termo.','err'); return; }
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  const razao=cfg.nomeRazao||cfg.nomeFantasia||'';
+
+  w.document.write(`<html><head><meta charset="utf-8"><title>TRCT — ${esc(emp.nome||'')}</title>
+  <style>
+    *{box-sizing:border-box}
+    body{font-family:Arial,Helvetica,sans-serif;color:#000;max-width:800px;margin:0 auto;padding:14px 18px;font-size:11px}
+    h1{font-size:13px;text-align:center;margin:0 0 10px;font-weight:bold}
+    .secao{background:#d9d9d9;border:1px solid #000;padding:3px 6px;font-size:9.5px;font-weight:bold;margin-top:8px}
+    table{width:100%;border-collapse:collapse}
+    .tot{background:#f0f0f0}
+    .assin{margin-top:26px;display:flex;gap:22px;flex-wrap:wrap}
+    .assin div{flex:1;min-width:210px;border-top:1px solid #000;padding-top:4px;font-size:9.5px;text-align:center}
+    .aviso{border:1px solid #000;padding:7px 9px;margin-top:9px;font-size:9px;line-height:1.5}
+    .quebra{page-break-before:always}
+    @media print{ body{padding:0} .noprint{display:none} }
+  </style></head><body>
+
+    <h1>TERMO DE RESCISÃO DO CONTRATO DE TRABALHO</h1>
+
+    <div class="secao">IDENTIFICAÇÃO DO EMPREGADOR</div>
+    <table>
+      <tr>${campo('01','CNPJ/CEI',cfg.cnpj)}${campo('02','Razão Social / Nome',razao)}</tr>
+      <tr>${campo('03','Endereço',cfg.endereco)}${campo('05','Município / UF',(cfg.cidade||'')+(cfg.uf?' / '+cfg.uf:''))}</tr>
+    </table>
+
+    <div class="secao">IDENTIFICAÇÃO DO TRABALHADOR</div>
+    <table>
+      <tr>${campo('11','Nome',emp.nome)}${campo('18','CPF',emp.cpf)}</tr>
+      <tr>${campo('12','Endereço',emp.endereco)}${campo('19','Data de nascimento',_trctData(emp.dataNasc))}</tr>
+      <tr>${campo('17','Carteira de Trabalho',emp.ctps)}${campo('10','PIS-PASEP',emp.pis)}</tr>
+    </table>
+
+    <div class="secao">DADOS DO CONTRATO</div>
+    <table>
+      <tr>${campo('21','Tipo de Contrato','1 - Prazo Indeterminado')}${campo('22','Causa do Afastamento',r.tipo.label)}</tr>
+      <tr>${campo('23','Remuneração mês anterior','R$ '+_trctVal(r.salario))}${campo('24','Data admissão',_trctData(emp.dataAdmissao))}</tr>
+      <tr>${campo('25','Data aviso prévio',_trctData(r.dataRescisao))}${campo('26','Data afastamento',_trctData(r.dataRescisao))}</tr>
+      <tr>${campo('30','Categoria do trabalhador','101 - Empregado - Geral')}${campo('','Cargo',emp.cargo)}</tr>
+    </table>
+
+    <div class="secao">DISCRIMINAÇÃO DAS VERBAS RESCISÓRIAS</div>
+    <table>${linhasVerba}
+      <tr class="tot"><td colspan="2" style="border:1px solid #000;padding:4px 6px;font-weight:bold;font-size:10px">TOTAL BRUTO</td>
+        <td style="border:1px solid #000;padding:4px 6px;text-align:right;font-weight:bold;font-size:11px">${_trctVal(brutoTRCT)}</td></tr>
+    </table>
+
+    <div class="secao">DEDUÇÕES</div>
+    <table>${linhasDesc}
+      <tr class="tot"><td colspan="2" style="border:1px solid #000;padding:4px 6px;font-weight:bold;font-size:10px">TOTAL DEDUÇÕES</td>
+        <td style="border:1px solid #000;padding:4px 6px;text-align:right;font-weight:bold;font-size:11px">${_trctVal(r.totalDescontos)}</td></tr>
+      <tr class="tot"><td colspan="2" style="border:1px solid #000;padding:5px 6px;font-weight:bold;font-size:11px">VALOR LÍQUIDO</td>
+        <td style="border:1px solid #000;padding:5px 6px;text-align:right;font-weight:bold;font-size:13px">${_trctVal(liquidoTRCT)}</td></tr>
+    </table>
+
+    ${foraTRCT.length?`
+    <div class="secao">RECOLHIMENTOS À PARTE (não integram o TRCT)</div>
+    <table>
+      ${foraTRCT.map(v=>`<tr>
+        <td style="border:1px solid #000;padding:4px 6px;font-size:9.5px" colspan="2">${esc(v.desc)}</td>
+        <td style="border:1px solid #000;padding:4px 6px;text-align:right;font-weight:600">${_trctVal(v.valor)}</td></tr>`).join('')}
+    </table>
+    <div style="font-size:8.5px;color:#333;margin-top:3px">Recolhida em guia própria da Caixa Econômica Federal, junto com o depósito rescisório do FGTS.</div>`:''}
+
+    <div class="aviso">
+      ${r.saqueFgts?'O trabalhador <strong>tem direito</strong> ao saque do FGTS.':'O trabalhador <strong>não tem direito</strong> ao saque do FGTS.'}
+      ${r.seguroDesemprego?'Tem direito ao <strong>seguro-desemprego</strong>, observadas as demais condições legais.':'<strong>Não</strong> tem direito ao seguro-desemprego.'}
+    </div>
+
+    <div class="assin">
+      <div>${esc(razao)}<br><span style="font-size:8.5px">Assinatura do Empregador ou Preposto</span></div>
+      <div>${esc(emp.nome||'')}<br><span style="font-size:8.5px">Assinatura do Trabalhador</span></div>
+    </div>
+    <div style="text-align:center;margin-top:14px;font-size:9.5px">
+      ${esc(cfg.cidade||'')}, _____ de ______________________ de _________.
+    </div>
+
+    <!-- ─────────────── TERMO DE QUITAÇÃO ─────────────── -->
+    <div class="quebra"></div>
+    <h1>TERMO DE QUITAÇÃO DE RESCISÃO DO CONTRATO DE TRABALHO</h1>
+
+    <div class="secao">IDENTIFICAÇÃO DO EMPREGADOR</div>
+    <table><tr>${campo('01','CNPJ/CEI',cfg.cnpj)}${campo('02','Razão Social / Nome',razao)}</tr></table>
+
+    <div class="secao">IDENTIFICAÇÃO DO TRABALHADOR</div>
+    <table>
+      <tr>${campo('11','Nome',emp.nome)}${campo('18','CPF',emp.cpf)}</tr>
+      <tr>${campo('17','Carteira de Trabalho',emp.ctps)}${campo('24','Data admissão',_trctData(emp.dataAdmissao))}</tr>
+    </table>
+
+    <div class="secao">DADOS DO CONTRATO</div>
+    <table>
+      <tr>${campo('22','Causa do Afastamento',r.tipo.label)}${campo('26','Data afastamento',_trctData(r.dataRescisao))}</tr>
+    </table>
+
+    <p style="font-size:10px;line-height:1.6;margin-top:10px">
+      Foi realizada a rescisão do contrato de trabalho do trabalhador acima qualificado, nos termos do artigo nº 477 da
+      Consolidação das Leis do Trabalho (CLT).
+    </p>
+    <p style="font-size:10px;line-height:1.6">
+      No dia ____/____/________ foi realizado o efetivo pagamento das verbas rescisórias especificadas no corpo do TRCT,
+      no valor líquido de <strong>R$ ${_trctVal(liquidoTRCT)}</strong>, o qual, devidamente rubricado pelas partes,
+      é parte integrante do presente Termo de Quitação.
+    </p>
+
+    <div class="assin">
+      <div>${esc(razao)}<br><span style="font-size:8.5px">Assinatura do Empregador ou Preposto</span></div>
+      <div>${esc(emp.nome||'')}<br><span style="font-size:8.5px">Assinatura do Trabalhador</span></div>
+    </div>
+
+    <div class="aviso" style="margin-top:24px">
+      A ASSISTÊNCIA NO ATO DE RESCISÃO CONTRATUAL É GRATUITA.<br>
+      Pode o trabalhador iniciar ação judicial quanto aos créditos resultantes das relações de trabalho até o limite de
+      dois anos após a extinção do contrato de trabalho (Inc. XXIX, Art. 7º da Constituição Federal / 1988).
+    </div>
+
+    <div style="font-size:8px;color:#555;margin-top:12px;line-height:1.5">
+      Documento gerado pelo sistema Atlas RH em ${hoje}. Os valores são apurados a partir da remuneração cadastrada e das
+      regras da CLT. <strong>Confira com a contabilidade antes do pagamento e da homologação</strong> — o termo oficial
+      depende ainda do saldo real de FGTS, da convenção coletiva da categoria e das médias de verbas variáveis.
+    </div>
+
+    <div class="noprint" style="text-align:center;margin:20px 0">
+      <button onclick="window.print()" style="background:#1d4ed8;color:#fff;border:none;border-radius:8px;padding:11px 22px;font-size:14px;font-weight:700;cursor:pointer">🖨 Imprimir / Salvar em PDF</button>
+    </div>
+  </body></html>`);
+  w.document.close();
+  try{ if(typeof auditLog==='function') auditLog('Gerou TRCT de '+(emp.nome||''),'','demissao'); }catch(_){}
+}
+window.gerarTRCT=gerarTRCT;
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// AVISO PRÉVIO — documento para entregar ao colaborador
+//
+// Duas modalidades, com textos e efeitos distintos:
+//  • TRABALHADO: o colaborador cumpre o aviso. A CLT (art. 488) obriga a
+//    reduzir a jornada em 2 horas por dia, ou, por opção dele, faltar 7 dias
+//    corridos ao final. A falta dessa redução torna o aviso inválido e obriga
+//    a pagá-lo de novo, indenizado.
+//  • INDENIZADO: o contrato se encerra na hora e o período é pago sem trabalho.
+//
+// Prazo: 30 dias + 3 por ano completo de casa, limitado a 90 (Lei 12.506/2011).
+// ══════════════════════════════════════════════════════════════════════════
+
+const AP_MESES=['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
+
+function _apExtenso(d){
+  if(!d||isNaN(d)) return '';
+  return d.getDate()+' de '+AP_MESES[d.getMonth()]+' de '+d.getFullYear();
+}
+function _apBR(d){
+  if(!d||isNaN(d)) return '';
+  return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+}
+function _apDiasAviso(emp, dataAviso){
+  const adm=emp&&emp.dataAdmissao?new Date(emp.dataAdmissao+'T00:00:00'):null;
+  if(!adm||isNaN(adm)) return 30;
+  const anos=Math.floor((dataAviso-adm)/(365.25*86400000));
+  return Math.min(90, 30 + Math.max(0,anos)*3);
+}
+
+function abrirAvisoPrevio(empIdPre){
+  const emps=(APP.employees||[]).filter(e=>e&&(e.status==='ativo'||e.id===empIdPre));
+  if(!emps.length){ toast('Nenhum colaborador disponível.','err'); return; }
+  const hoje=new Date().toISOString().slice(0,10);
+  openModal('📋 Aviso Prévio',`
+    <div style="font-size:12.5px;color:#475569;margin-bottom:13px;line-height:1.55">
+      Gera o aviso para entregar ao colaborador, com o anexo de opção pelos 7 dias quando for aviso trabalhado.
+    </div>
+    <div class="fld"><label>Colaborador</label>
+      <select id="ap-emp">${emps.map(e=>`<option value="${e.id}" ${e.id===empIdPre?'selected':''}>${esc(e.nome)}</option>`).join('')}</select>
+    </div>
+    <div class="fld"><label>Modalidade</label>
+      <select id="ap-tipo">
+        <option value="trabalhado">Trabalhado — cumpre o aviso, com redução de 2h/dia</option>
+        <option value="indenizado">Indenizado — contrato encerra hoje, aviso é pago</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="fld" style="flex:1;min-width:150px"><label>Data do aviso</label><input type="date" id="ap-data" value="${hoje}"></div>
+      <div class="fld" style="flex:1;min-width:150px"><label>Motivo</label>
+        <select id="ap-motivo">
+          <option value="sem_justa_causa">Dispensa sem justa causa</option>
+          <option value="pedido">Pedido de demissão do colaborador</option>
+        </select>
+      </div>
+    </div>
+    <div id="ap-preview" style="margin-top:10px"></div>
+    <div class="mft">
+      <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+      <button class="btn btn-blue" onclick="gerarAvisoPrevio()">📄 Gerar aviso</button>
+    </div>`,600);
+  setTimeout(previewAvisoPrevio,60);
+  ['ap-emp','ap-tipo','ap-data','ap-motivo'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.addEventListener('change', previewAvisoPrevio);
+  });
+}
+
+function _apCalcular(){
+  const eid=(document.getElementById('ap-emp')||{}).value;
+  const emp=(APP.employees||[]).find(e=>e.id===eid);
+  const tipo=(document.getElementById('ap-tipo')||{}).value||'trabalhado';
+  const dataStr=(document.getElementById('ap-data')||{}).value;
+  const motivo=(document.getElementById('ap-motivo')||{}).value||'sem_justa_causa';
+  if(!emp||!dataStr) return null;
+  const dAviso=new Date(dataStr+'T00:00:00');
+  if(isNaN(dAviso)) return null;
+
+  const dias=_apDiasAviso(emp,dAviso);
+  const dFim=new Date(dAviso); dFim.setDate(dFim.getDate()+dias);
+  const dOpcao=new Date(dFim);  dOpcao.setDate(dOpcao.getDate()-7);
+  // Prazo do art. 477, § 6º: pagamento em até 10 dias do fim do contrato.
+  const dPagto=new Date(tipo==='indenizado'?dAviso:dFim);
+  dPagto.setDate(dPagto.getDate()+(tipo==='indenizado'?10:9));
+
+  return {emp, tipo, motivo, dias, dAviso, dFim, dOpcao, dPagto,
+          diasRestantes: dias-7};
+}
+
+function previewAvisoPrevio(){
+  const c=_apCalcular();
+  const box=document.getElementById('ap-preview');
+  if(!box) return;
+  if(!c){ box.innerHTML=''; return; }
+  box.innerHTML=`
+    <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:11px 13px;font-size:12.5px;color:#334155;line-height:1.6">
+      <strong>${c.dias} dias</strong> de aviso (30 + 3 por ano de casa, teto de 90).<br>
+      ${c.tipo==='trabalhado'
+        ? `Trabalha até <strong>${_apBR(c.dFim)}</strong> · com opção de 7 dias, até <strong>${_apBR(c.dOpcao)}</strong>.`
+        : `Contrato encerra em <strong>${_apBR(c.dAviso)}</strong>; o período é indenizado.`}<br>
+      Acerto rescisório até <strong>${_apBR(c.dPagto)}</strong> (art. 477, § 6º da CLT).
+    </div>`;
+}
+
+function gerarAvisoPrevio(){
+  const c=_apCalcular();
+  if(!c){ toast('Selecione colaborador e data.','err'); return; }
+  const cfg=(typeof EMPRESA_CFG!=='undefined')?EMPRESA_CFG:{};
+  const razao=cfg.nomeRazao||cfg.nomeFantasia||'';
+  const cidade=cfg.cidade||'';
+  const emp=c.emp;
+  const trabalhado=(c.tipo==='trabalhado');
+  const pedido=(c.motivo==='pedido');
+
+  const w=window.open('','_blank');
+  if(!w){ toast('Permita pop-ups para gerar o aviso.','err'); return; }
+
+  const linha=(rot,val)=>`<tr><td style="padding:1px 0;width:105px;font-size:10px">${rot}</td>
+      <td style="padding:1px 0;font-size:10.5px;font-weight:600">${esc(val||'')}</td></tr>`;
+
+  const cabecalho=`
+    <table style="width:100%;margin-bottom:10px">
+      ${linha('Empregador.:',razao)}
+      ${linha('CNPJ.......:',cfg.cnpj)}
+      ${linha('Endereço...:',cfg.endereco)}
+      ${linha('Cidade.....:',(cidade?cidade.toUpperCase():'')+(cfg.uf?' - '+cfg.uf:''))}
+      ${linha('Trabalhador:',(emp.nome||'').toUpperCase())}
+      ${linha('C.P.F......:',emp.cpf)}
+      ${linha('CTPS/Série.:',emp.ctps)}
+      ${linha('Função.....:',(emp.cargo||'').toUpperCase())}
+      ${linha('PIS........:',emp.pis)}
+    </table>`;
+
+  const assinaturas=`
+    <div style="margin-top:34px">
+      <div style="font-size:10.5px;margin-bottom:26px">Declaro estar ciente do exposto acima.</div>
+      <div style="font-size:10.5px;margin-bottom:30px">Ciente ____/____/________</div>
+      <div style="display:flex;gap:26px;flex-wrap:wrap">
+        <div style="flex:1;min-width:210px;border-top:1px solid #000;padding-top:4px;text-align:center;font-size:10px">
+          ${esc((emp.nome||'').toUpperCase())}<br><span style="font-size:9px">Trabalhador</span></div>
+        <div style="flex:1;min-width:210px;border-top:1px solid #000;padding-top:4px;text-align:center;font-size:10px">
+          ${esc(razao)}<br><span style="font-size:9px">Empregador</span></div>
+      </div>
+      <div style="margin-top:22px;border-top:1px solid #000;width:250px;padding-top:4px;font-size:9px">Responsável quando menor</div>
+    </div>`;
+
+  // Corpo do aviso — muda conforme trabalhado/indenizado e quem deu o aviso
+  let corpo;
+  if(pedido){
+    corpo=`
+      <p>Pelo presente, comunico a V. Sa. minha decisão de <strong>rescindir o contrato de trabalho</strong>
+      que mantenho com essa empresa, na forma da legislação pertinente.</p>
+      <p>${trabalhado
+        ? `Cumprirei o aviso prévio de <strong>${c.dias} dias</strong>, trabalhando até <strong>${_apExtenso(c.dFim)}</strong>.`
+        : `Solicito a dispensa do cumprimento do aviso prévio, ciente de que o valor correspondente poderá ser
+           descontado das verbas rescisórias, nos termos do art. 487, § 2º, da CLT.`}</p>`;
+  }else if(trabalhado){
+    corpo=`
+      <p>Pelo presente, levamos ao conhecimento de V. Sa. que o empregador não manterá mais seu contrato de trabalho.
+      Vimos por meio deste rescindi-lo na forma da legislação pertinente, devendo V. Sa. trabalhar até
+      <strong>${_apExtenso(c.dFim)}</strong>.</p>
+      <p>Até o término do aviso prévio, conforme determina o art. 488 da Consolidação das Leis do Trabalho,
+      sua jornada de trabalho diária terá a <strong>redução de duas horas</strong>.</p>
+      <p>Salientamos que poderá V. Sa. optar por <strong>faltar ao serviço por 7 dias corridos</strong>, sem prejuízo do
+      salário, caso em que sua jornada diária de trabalho nos restantes ${c.diasRestantes} dias não será reduzida.
+      No caso de optar por faltar 7 dias corridos, solicitamos assinar documento próprio anexo e trabalhar até o dia
+      <strong>${_apExtenso(c.dOpcao)}</strong>.</p>
+      <p>Solicitamos seu comparecimento em nossa empresa em <strong>${_apBR(c.dPagto)}</strong>, acompanhado de sua
+      Carteira de Trabalho e Previdência Social (CTPS) e do exame de saúde médico demissional (ASO), bem como para
+      receber e dar quitação de todas as suas verbas rescisórias.</p>`;
+  }else{
+    corpo=`
+      <p>Pelo presente, levamos ao conhecimento de V. Sa. que o empregador não manterá mais seu contrato de trabalho.
+      Vimos por meio deste rescindi-lo na forma da legislação pertinente, ficando V. Sa.
+      <strong>dispensado do cumprimento do aviso prévio</strong>, que será <strong>indenizado</strong> pelo período de
+      <strong>${c.dias} dias</strong>, na forma do art. 487, § 1º, da CLT.</p>
+      <p>O contrato de trabalho encerra-se nesta data, projetando-se o período do aviso indenizado para efeito de
+      anotação na CTPS, férias e 13º salário.</p>
+      <p>Solicitamos seu comparecimento em nossa empresa em <strong>${_apBR(c.dPagto)}</strong>, acompanhado de sua
+      Carteira de Trabalho e Previdência Social (CTPS) e do exame de saúde médico demissional (ASO), bem como para
+      receber e dar quitação de todas as suas verbas rescisórias.</p>`;
+  }
+
+  const titulo = pedido
+    ? 'AVISO PRÉVIO DO TRABALHADOR — PEDIDO DE DEMISSÃO'
+    : (trabalhado
+        ? 'AVISO PRÉVIO DO EMPREGADOR PARA DISPENSA DO TRABALHADOR C/ REDUÇÃO DE DUAS HORAS DIÁRIAS'
+        : 'AVISO PRÉVIO INDENIZADO DO EMPREGADOR PARA DISPENSA DO TRABALHADOR');
+
+  // Anexo da opção pelos 7 dias — só faz sentido no aviso trabalhado do empregador
+  const anexo = (trabalhado && !pedido) ? `
+    <div style="page-break-before:always"></div>
+    <div style="text-align:center;font-weight:bold;font-size:11.5px;margin-bottom:14px">
+      OPÇÃO POR REDUÇÃO DO AVISO PRÉVIO EM SETE DIAS</div>
+    ${cabecalho}
+    <p style="font-size:11px;line-height:1.75">Conforme legislação em vigor (CLT, art. 488, parágrafo único), formalizo
+    minha opção por <strong>faltar ao serviço durante 7 dias corridos</strong> no decorrer do período de aviso prévio
+    que me foi concedido em <strong>${_apBR(c.dAviso)}</strong>, trabalhando, portanto, até
+    <strong>${_apExtenso(c.dOpcao)}</strong>.</p>
+    <div style="text-align:right;font-size:10.5px;margin-top:26px">${esc(cidade)}, ${_apExtenso(c.dAviso)}</div>
+    <div style="margin-top:36px;display:flex;gap:26px;flex-wrap:wrap">
+      <div style="flex:1;min-width:210px;border-top:1px solid #000;padding-top:4px;text-align:center;font-size:10px">
+        ${esc((emp.nome||'').toUpperCase())}<br><span style="font-size:9px">Trabalhador</span></div>
+      <div style="flex:1;min-width:210px;border-top:1px solid #000;padding-top:4px;text-align:center;font-size:10px">
+        ${esc(razao)}<br><span style="font-size:9px">Empregador</span></div>
+    </div>` : '';
+
+  w.document.write(`<html><head><meta charset="utf-8"><title>Aviso Prévio — ${esc(emp.nome||'')}</title>
+  <style>
+    *{box-sizing:border-box}
+    body{font-family:Arial,Helvetica,sans-serif;color:#000;max-width:780px;margin:0 auto;padding:20px 24px;font-size:11px;line-height:1.7}
+    p{margin:0 0 11px;text-align:justify}
+    .titulo{text-align:center;font-weight:bold;font-size:11.5px;margin-bottom:14px;line-height:1.4}
+    @media print{ body{padding:8px 12px} .noprint{display:none} }
+  </style></head><body>
+    <div class="titulo">${titulo}</div>
+    ${cabecalho}
+    ${corpo}
+    <div style="text-align:right;font-size:10.5px;margin-top:20px">${esc(cidade)}, ${_apExtenso(c.dAviso)}</div>
+    ${assinaturas}
+    ${anexo}
+    <div class="noprint" style="text-align:center;margin:22px 0">
+      <button onclick="window.print()" style="background:#1d4ed8;color:#fff;border:none;border-radius:8px;padding:11px 22px;font-size:14px;font-weight:700;cursor:pointer">🖨 Imprimir / Salvar em PDF</button>
+    </div>
+  </body></html>`);
+  w.document.close();
+  try{ if(typeof auditLog==='function') auditLog('Gerou aviso prévio de '+(emp.nome||'')+' ('+c.tipo+', '+c.dias+' dias)','','demissao'); }catch(_){}
+}
+
+window.abrirAvisoPrevio=abrirAvisoPrevio;
+window.gerarAvisoPrevio=gerarAvisoPrevio;
+window.previewAvisoPrevio=previewAvisoPrevio;
+
 function rDemissao(){
   const demitidos=APP.employees.filter(e=>e.status==='demitido');
   return `
@@ -11004,6 +11643,7 @@ function rDemissao(){
     <div style="font-size:16px;font-weight:700">Processos de Demissão</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn" style="background:#EFF6FF;color:#1D4ED8;font-weight:700" onclick="abrirDecimoTerceiro()">🎁 13º Salário</button>
+      <button class="btn" style="background:#FFF7ED;color:#C2410C;font-weight:700" onclick="abrirAvisoPrevio()">📋 Aviso Prévio</button>
       <button class="btn" style="background:#F0FDF4;color:#047857;font-weight:700" onclick="abrirCalcRescisao()">🧮 Calcular Rescisão</button>
       <button class="btn btn-red" onclick="openDemForm()">+ Novo Processo</button>
     </div>
@@ -11016,6 +11656,7 @@ function rDemissao(){
       <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
         ${bdg('Desligado','#DC2626')}
         <button class="btn btn-sm" style="background:#1E293B;color:#C9A84C;font-size:11px;padding:4px 10px;gap:4px" onclick="abrirCartaDesligamento('${e.id}')">📄 Carta</button>
+        <button class="btn btn-sm" style="background:#FFF7ED;color:#C2410C;font-size:11px;padding:4px 10px" onclick="abrirAvisoPrevio('${e.id}')">📋 Aviso</button>
         <button class="btn btn-sm" style="background:#F0FDF4;color:#047857;font-size:11px;padding:4px 10px" onclick="abrirCalcRescisao('${e.id}')">🧮 Rescisão</button>
         <button class="btn btn-sm" style="background:#059669;color:#fff;font-size:11px;padding:4px 10px;gap:4px" onclick="confirmarReativarColaborador('${e.id}')">↩️ Reativar</button>
       </div>
