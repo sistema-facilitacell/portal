@@ -39,9 +39,24 @@ window.FIREBASE_LOAD_ERROR = null;
 //   • Logs de auditoria completos
 // ════════════════════════════════════════════════════
 const SB_URL  = 'https://dkyiasskchahvucxwccd.supabase.co';
-// Chave anon do Supabase — deve ser um JWT (começa com eyJ).
-// Configurável via painel: botão "🔒 Supabase" na sidebar → salva no localStorage.
-const SB_KEY_DEFAULT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRreWlhc3NrY2hhaHZ1Y3h3Y2NkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxNDY0NzYsImV4cCI6MjA5NTcyMjQ3Nn0.0QhP3xL8G2eiBjSfDB1rYFt0XntxWete2zD9D4SRyt0'; // chave anon real
+// Chave PUBLISHABLE do Supabase. Diferente da 'secret key', esta é feita para
+// ficar no cliente — assim como a config do Firebase. A proteção real vem das
+// políticas de acesso (RLS) definidas no próprio banco.
+const SB_KEY_DEFAULT = 'sb_publishable_f9waxmsl7ze20hcl0G8dzQ_YhHoBIOK';
+// Limpa chaves antigas guardadas no navegador (formato legado ou revogadas),
+// senão o localStorage continuaria sobrepondo a chave correta acima.
+(function(){
+  try{
+    const _k = localStorage.getItem('fcrh_sb_key');
+    // Descarta o que estiver guardado se não for uma publishable key: tanto os
+    // JWTs legados quanto textos inválidos ficavam à frente da chave correta
+    // definida acima, e o Supabase seguia recusando a conexão.
+    if(_k && !_k.startsWith('sb_publishable_')){
+      localStorage.removeItem('fcrh_sb_key');
+      console.log('[Supabase] Chave antiga removida do navegador — usando a chave atual do sistema');
+    }
+  }catch(_){}
+})();
 let SB_KEY = localStorage.getItem('fcrh_sb_key') || SB_KEY_DEFAULT;
 
 // Chaves sensíveis que vão para o Supabase (além do Firebase)
@@ -75,17 +90,43 @@ const _SB_CRYPTO = {
   _SALT: new Uint8Array([0xFA,0x3C,0xB1,0x7E,0x29,0xA4,0x58,0xD0,0x11,0x6F,0x82,0x44,0xCC,0x9B,0x03,0xE7]),
   async _getKey(){
     if(this._key) return this._key;
-    // Usa senha da sessão ou gera uma por dispositivo (salva em localStorage como fallback)
-    let pwd = sessionStorage.getItem('fcrh_enc_pwd');
+    // A senha PRECISA ser a mesma em todos os dispositivos: o que um computador
+    // cifra, outro tem de conseguir ler. Antes ela era sorteada por máquina e
+    // guardada só no localStorage — cada aparelho gravava com uma senha própria
+    // e nenhum conseguia abrir os dados do outro, o que tornava a cópia do
+    // Supabase inútil justamente numa recuperação. Agora a senha é criada uma
+    // única vez e guardada em config/enc no Firestore, de onde todos a leem.
+    let pwd = localStorage.getItem('fcrh_enc_pwd_shared');
+    if(!pwd && typeof FBASE!=='undefined' && FBASE){
+      try{
+        const snap = await FBASE.collection('config').doc('enc').get();
+        if(snap.exists && snap.data() && snap.data().pwd){
+          pwd = snap.data().pwd;
+          localStorage.setItem('fcrh_enc_pwd_shared', pwd);
+          console.log('[Crypto] Senha compartilhada carregada do Firebase');
+        }
+      }catch(e){ console.warn('[Crypto] Não foi possível ler a senha compartilhada:', e && e.message); }
+    }
     if(!pwd){
-      pwd = localStorage.getItem('fcrh_enc_pwd_dev');
-      if(!pwd){
-        const arr = new Uint8Array(24);
-        crypto.getRandomValues(arr);
-        pwd = btoa(String.fromCharCode(...arr));
-        localStorage.setItem('fcrh_enc_pwd_dev', pwd);
+      // Primeira vez: cria a senha e publica para os demais dispositivos.
+      const arr = new Uint8Array(24);
+      crypto.getRandomValues(arr);
+      pwd = btoa(String.fromCharCode(...arr));
+      localStorage.setItem('fcrh_enc_pwd_shared', pwd);
+      if(typeof FBASE!=='undefined' && FBASE){
+        try{
+          // merge:false com verificação evita que dois dispositivos criem senhas
+          // diferentes ao mesmo tempo e um sobrescreva o outro.
+          const snap = await FBASE.collection('config').doc('enc').get();
+          if(snap.exists && snap.data() && snap.data().pwd){
+            pwd = snap.data().pwd;   // outro dispositivo chegou primeiro: usa a dele
+            localStorage.setItem('fcrh_enc_pwd_shared', pwd);
+          }else{
+            await FBASE.collection('config').doc('enc').set({pwd, criadoEm:new Date().toISOString()});
+            console.log('[Crypto] Senha compartilhada criada e publicada');
+          }
+        }catch(e){ console.warn('[Crypto] Senha ficou só neste dispositivo:', e && e.message); }
       }
-      sessionStorage.setItem('fcrh_enc_pwd', pwd);
     }
     const raw = new TextEncoder().encode(pwd);
     const base = await crypto.subtle.importKey('raw', raw, {name:'PBKDF2'}, false, ['deriveKey']);
@@ -131,13 +172,17 @@ const _SB_CRYPTO = {
 // ── Inicializa Supabase ──────────────────────────────
 async function connectSupabase(){
   // SEC-04 FIX: valida formato da chave antes de tentar conectar.
-  // Chaves válidas do Supabase são JWTs e começam com "eyJ".
-  // A chave placeholder "sb_publishable_..." é inválida e causará falha silenciosa.
-  if(!SB_KEY || !SB_KEY.startsWith('eyJ')){
-    SB_ERROR = 'Chave Supabase inválida ou não configurada. Acesse seu projeto em supabase.com → Settings → API → anon public key (começa com eyJ...)';
+  // O Supabase aceita DOIS formatos de chave pública:
+  //   • JWT legado, começando com "eyJ" (projetos mais antigos)
+  //   • Publishable key, começando com "sb_publishable_" (formato atual)
+  // O código antigo tratava a segunda como placeholder inválido e desligava o
+  // Supabase — era por isso que aparecia "chave inválida" com uma chave certa.
+  const _chaveOk = SB_KEY && (SB_KEY.startsWith('eyJ') || SB_KEY.startsWith('sb_publishable_'));
+  if(!_chaveOk){
+    SB_ERROR = 'Chave Supabase ausente ou inválida. Pegue em supabase.com → seu projeto → Settings → API Keys (a chave publishable, que começa com sb_publishable_, ou a anon public legada, que começa com eyJ).';
     SB_READY = false;
     _sbUpdateUI('error');
-    console.warn('[Supabase] ⚠ Chave inválida — Supabase desabilitado. Configure SB_KEY com a chave anon real do seu projeto (começa com eyJ...).');
+    console.warn('[Supabase] Chave ausente ou em formato desconhecido — Supabase desabilitado (o Firebase segue normal).');
     return false;
   }
   try{
@@ -350,17 +395,18 @@ function saveSupabaseKey(url, key){
 // ── Modal de configuração do Supabase ───────────────────────
 async function openSupabaseConfigModal(){
   const chaveAtual = localStorage.getItem('fcrh_sb_key') || '';
-  const chaveValida = chaveAtual.startsWith('eyJ');
+  const chaveValida = chaveAtual.startsWith('eyJ') || chaveAtual.startsWith('sb_publishable_');
   openModal('🔒 Configurar Supabase',`
-    <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:9px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:#DC2626">
-      <strong>⚠️ Chave inválida:</strong> A chave atual (<code>sb_publishable_...</code>) não é um JWT válido.<br>
-      O Supabase exige a chave <strong>anon/public</strong> do seu projeto — ela <strong>sempre começa com <code>eyJ</code></strong>.
-    </div>
-    <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:9px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#1D4ED8">
-      <strong>Como obter:</strong><br>
-      1. Acesse <a href="https://supabase.com/dashboard" target="_blank">supabase.com/dashboard</a><br>
-      2. Selecione seu projeto → <strong>Settings → API</strong><br>
-      3. Copie a <strong>anon public key</strong> (começa com <code>eyJ...</code>)
+    ${chaveValida?'':`<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:9px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:#DC2626">
+      <strong>⚠️ Chave ausente ou em formato desconhecido.</strong> Cole abaixo a chave pública do seu projeto.
+    </div>`}
+    <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:9px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#1D4ED8;line-height:1.6">
+      <strong>Onde pegar a chave:</strong><br>
+      1. Abra <a href="https://supabase.com/dashboard" target="_blank">supabase.com/dashboard</a> e escolha o projeto<br>
+      2. Clique na <strong>engrenagem ⚙ (Settings)</strong>, no rodapé da barra da esquerda<br>
+      3. Vá em <strong>API Keys</strong><br>
+      4. Copie a <strong>Publishable key</strong> (<code>sb_publishable_…</code>)<br>
+      <span style="font-size:12px;opacity:.85">Projetos antigos mostram <strong>anon public</strong> (<code>eyJ…</code>) — as duas funcionam.</span>
     </div>
     <div class="fld">
       <label>Project URL</label>
@@ -368,8 +414,8 @@ async function openSupabaseConfigModal(){
         style="font-family:monospace;font-size:12px" autocomplete="off">
     </div>
     <div class="fld" style="margin-top:10px">
-      <label>Anon Key (eyJ...)</label>
-      <input type="password" id="sb-cfg-key" value="${chaveAtual}" placeholder="eyJhbGciOiJIUzI1NiIsInR5..."
+      <label>Chave pública (sb_publishable_… ou eyJ…)</label>
+      <input type="password" id="sb-cfg-key" value="${chaveAtual}" placeholder="sb_publishable_… ou eyJhbGciOiJIUzI1NiIsInR5…"
         style="font-family:monospace;font-size:12px" autocomplete="off">
     </div>
     <div id="sb-cfg-status" style="font-size:12px;margin-top:6px;color:${chaveValida?'#059669':'#DC2626'}">
@@ -380,8 +426,8 @@ async function openSupabaseConfigModal(){
       <button class="btn btn-blue" onclick="
         const k=document.getElementById('sb-cfg-key').value.trim();
         const u=document.getElementById('sb-cfg-url').value.trim();
-        if(!k.startsWith('eyJ')){
-          document.getElementById('sb-cfg-status').textContent='❌ Chave inválida — deve começar com eyJ';
+        if(!(k.startsWith('eyJ')||k.startsWith('sb_publishable_'))){
+          document.getElementById('sb-cfg-status').textContent='❌ Formato não reconhecido — a chave começa com sb_publishable_ ou eyJ';
           document.getElementById('sb-cfg-status').style.color='#DC2626';
           return;
         }
@@ -1686,6 +1732,7 @@ td,th{font-size:15px!important;}
           </div>
           <button class="fb-btn" style="color:var(--blue);font-size:10px;margin-top:2px" onclick="showFbStatus()">🔍 Diagnóstico Firebase</button>
           <button class="fb-btn" id="ai-key-btn" style="color:#7C3AED;margin-top:4px" onclick="openAnthropicKeyModal()" title="Configurar chave da API Anthropic para IA">🤖 Configurar IA</button>
+          <button class="fb-btn" style="color:#0369A1;margin-top:4px" onclick="inspecionarNuvem()" title="Compara o que está na nuvem com o que está neste computador">☁️ O que está na nuvem</button>
           <button class="fb-btn" style="color:#DC2626;margin-top:4px;font-weight:700" onclick="enviarTudoParaNuvem()" title="Envia todos os dados deste computador para a nuvem agora">☁️ Enviar Tudo p/ Nuvem</button>
           <button class="fb-btn" style="color:#0891B2;margin-top:4px" onclick="abrirDiagnostico()" title="Verifica nuvem, IA, backup, ponto e dados — descobre problemas antes de virarem crise">🩺 Diagnóstico</button>
           <button class="fb-btn" style="color:#64748B;margin-top:4px" onclick="abrirLogErros()" title="Erros registrados neste navegador">📋 Registro de Erros</button>
@@ -10565,6 +10612,68 @@ async function enviarTudoParaNuvem(){
   try{ if(typeof auditLog==='function') auditLog('Enviou todos os dados para a nuvem ('+ok+' conjuntos)','','backup'); }catch(_){}
 }
 window.enviarTudoParaNuvem=enviarTudoParaNuvem;
+
+
+// ── O QUE ESTÁ NA NUVEM ────────────────────────────────────────────────────
+// Mostra, chave por chave, o que existe HOJE no Firebase: quando foi gravado,
+// por qual dispositivo e quantos registros tem — comparado com o que existe
+// neste computador. É a forma direta de saber se algo subiu ou não.
+async function inspecionarNuvem(){
+  if(!FBASE){ toast('Firebase não conectado.','err'); return; }
+  openModal('☁️ O que está na nuvem','<div style="text-align:center;padding:40px;color:#64748B">⏳ Consultando…</div>',700);
+  const chaves=['holRascunho','salarios','employees','pontos','ferias','contratos','bancohoras','advertencias','atestados','financeiro'];
+  const nomes={holRascunho:'Holerite',salarios:'Salários',employees:'Colaboradores',pontos:'Cartão Ponto',
+    ferias:'Férias',contratos:'Contratos',bancohoras:'Banco de Horas',advertencias:'Advertências',
+    atestados:'Atestados',financeiro:'Financeiro'};
+  const linhas=[];
+  for(const k of chaves){
+    let nuvemQtd='—', quando='—', dev='—', estado='vazio';
+    try{
+      const doc=await FBASE.collection('hr').doc(k).get();
+      if(doc.exists && doc.data()){
+        const d=doc.data();
+        try{
+          const obj=d.d?JSON.parse(d.d):null;
+          nuvemQtd=Array.isArray(obj)?obj.length:(obj&&typeof obj==='object'?Object.keys(obj).length:0);
+        }catch(_){ nuvemQtd='?'; }
+        quando=d.ts?new Date(d.ts).toLocaleString('pt-BR'):'—';
+        dev=(d.dev===_FB_DEVICE_ID)?'este computador':(d.dev?'outro computador':'—');
+        estado='ok';
+      }
+    }catch(e){ estado='erro'; quando=(e&&e.message)||'falha'; }
+    const local=APP[k];
+    const localQtd=Array.isArray(local)?local.length:(local&&typeof local==='object'?Object.keys(local).length:0);
+    const alerta=(estado==='vazio'&&localQtd>0)||(typeof nuvemQtd==='number'&&localQtd>nuvemQtd);
+    linhas.push({k,nome:nomes[k]||k,nuvemQtd,localQtd,quando,dev,estado,alerta});
+  }
+  const html=`
+    <div style="font-size:12.5px;color:#64748B;margin-bottom:12px;line-height:1.55">
+      Comparação entre o que está na nuvem e o que está neste computador. Linhas em amarelo têm mais registros aqui do que na nuvem — ou seja, algo ainda não subiu.
+    </div>
+    <div style="border:1px solid #E2E8F0;border-radius:10px;overflow:auto;max-height:380px">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:#1e293b;color:#fff;position:sticky;top:0">
+          <th style="text-align:left;padding:7px 9px">Dados</th>
+          <th style="padding:7px 6px">Na nuvem</th>
+          <th style="padding:7px 6px">Aqui</th>
+          <th style="text-align:left;padding:7px 9px">Última gravação</th>
+        </tr></thead>
+        <tbody>${linhas.map(l=>`<tr style="border-top:1px solid #F1F5F9;background:${l.alerta?'#FFFBEB':'#fff'}">
+          <td style="padding:7px 9px;font-weight:600">${esc(l.nome)}${l.alerta?' <span style="color:#B45309">⚠</span>':''}</td>
+          <td style="text-align:center;padding:7px 6px;color:${l.estado==='vazio'?'#DC2626':'#047857'}">${l.estado==='vazio'?'vazio':l.nuvemQtd}</td>
+          <td style="text-align:center;padding:7px 6px">${l.localQtd}</td>
+          <td style="padding:7px 9px;font-size:11px;color:#64748B">${esc(l.quando)}${l.dev!=='—'?'<br><span style="font-size:10px">por '+esc(l.dev)+'</span>':''}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+    ${linhas.some(l=>l.alerta)?'<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:9px;padding:10px 12px;margin-top:11px;font-size:12px;color:#92400E;line-height:1.5">Há dados neste computador que ainda não estão na nuvem. Use <strong>☁️ Enviar Tudo p/ Nuvem</strong> para subir agora.</div>':'<div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:9px;padding:10px 12px;margin-top:11px;font-size:12px;color:#047857">Tudo que está aqui também está na nuvem.</div>'}
+    <div class="mft">
+      <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+      <button class="btn" style="background:#DC2626;color:#fff;font-weight:700" onclick="closeModal();enviarTudoParaNuvem()">☁️ Enviar Tudo</button>
+    </div>`;
+  openModal('☁️ O que está na nuvem',html,700);
+}
+window.inspecionarNuvem=inspecionarNuvem;
 
 function rDemissao(){
   const demitidos=APP.employees.filter(e=>e.status==='demitido');
