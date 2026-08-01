@@ -394,7 +394,11 @@ function saveSupabaseKey(url, key){
 
 // ── Modal de configuração do Supabase ───────────────────────
 async function openSupabaseConfigModal(){
-  const chaveAtual = localStorage.getItem('fcrh_sb_key') || '';
+  // Considera também a chave embutida no sistema. Antes só lia o localStorage:
+  // como a chave padrão do arquivo não fica guardada lá, o modal mostrava
+  // "chave inválida" mesmo com o Supabase conectado — e levava a pessoa a
+  // recolar a chave à toa em cada computador.
+  const chaveAtual = localStorage.getItem('fcrh_sb_key') || (typeof SB_KEY!=='undefined' ? SB_KEY : '') || '';
   const chaveValida = chaveAtual.startsWith('eyJ') || chaveAtual.startsWith('sb_publishable_');
   openModal('🔒 Configurar Supabase',`
     ${chaveValida?'':`<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:9px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:#DC2626">
@@ -419,7 +423,11 @@ async function openSupabaseConfigModal(){
         style="font-family:monospace;font-size:12px" autocomplete="off">
     </div>
     <div id="sb-cfg-status" style="font-size:12px;margin-top:6px;color:${chaveValida?'#059669':'#DC2626'}">
-      ${chaveValida ? '✅ Chave válida configurada' : '⚠️ Chave ausente ou inválida — Supabase desativado'}
+      ${(typeof SB_READY!=='undefined' && SB_READY)
+        ? '✅ Conectado ao Supabase — a cópia extra está funcionando'
+        : (chaveValida
+            ? '⚠️ Chave no formato correto, mas sem conexão. Verifique se as tabelas existem no projeto (SQL Editor) e se o projeto está ativo.'
+            : '⚠️ Chave ausente ou inválida — Supabase desativado')}
     </div>
     <div class="mft">
       <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
@@ -1730,17 +1738,10 @@ td,th{font-size:15px!important;}
             <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#CBD5E1;flex-shrink:0"></span>
             <span style="font-size:11px;font-weight:600;color:var(--mt)">🔒 Supabase • iniciando</span>
           </div>
-          <button class="fb-btn" style="color:var(--blue);font-size:10px;margin-top:2px" onclick="showFbStatus()">🔍 Diagnóstico Firebase</button>
-          <button class="fb-btn" id="ai-key-btn" style="color:#7C3AED;margin-top:4px" onclick="openAnthropicKeyModal()" title="Configurar chave da API Anthropic para IA">🤖 Configurar IA</button>
-          <button class="fb-btn" style="color:#0369A1;margin-top:4px" onclick="inspecionarNuvem()" title="Compara o que está na nuvem com o que está neste computador">☁️ O que está na nuvem</button>
-          <button class="fb-btn" style="color:#DC2626;margin-top:4px;font-weight:700" onclick="enviarTudoParaNuvem()" title="Envia todos os dados deste computador para a nuvem agora">☁️ Enviar Tudo p/ Nuvem</button>
-          <button class="fb-btn" style="color:#0891B2;margin-top:4px" onclick="abrirDiagnostico()" title="Verifica nuvem, IA, backup, ponto e dados — descobre problemas antes de virarem crise">🩺 Diagnóstico</button>
-          <button class="fb-btn" style="color:#64748B;margin-top:4px" onclick="abrirLogErros()" title="Erros registrados neste navegador">📋 Registro de Erros</button>
-          <button class="fb-btn" style="color:#059669;margin-top:4px" onclick="openBackup()" title="Backup e restauração de todos os dados do sistema">💾 Backup & Restaurar</button>
-          <button class="fb-btn" style="color:#7C3AED;margin-top:4px" onclick="listarArquivoHistorico()" title="Registros antigos movidos para o arquivo quando o documento ficou grande">🗄️ Arquivo Histórico</button>
-          <button class="fb-btn" style="color:#25D366;margin-top:4px" onclick="abrirCentralAvisos()" title="Tudo que precisa de comunicação hoje, com envio por WhatsApp">🔔 Central de Avisos</button>
-          <button class="fb-btn" style="color:#2563EB;margin-top:4px" onclick="abrirEspelhoPonto()" title="Enviar espelho de ponto mensal para conferência e assinatura">🕐 Espelho de Ponto</button>
-          <button class="fb-btn" style="color:#0891B2;margin-top:4px" onclick="openEmpresaCfgModal()" title="Configurar dados da empresa e modelo de IA">⚙ Empresa & IA</button>
+          <!-- Os itens de configuração ficam agora num modal próprio: a lista aqui
+               crescia a cada recurso e empurrava o menu principal para fora da tela. -->
+          <button class="fb-btn" style="color:#334155;margin-top:6px;font-weight:700" onclick="abrirConfiguracoes()" title="Backup, diagnóstico, avisos, chaves e ajustes do sistema">⚙️ Abrir Configurações</button>
+
           <!-- Liberação portal -->
           <div id="sb-portal-acesso-wrap" style="margin-top:10px;padding:10px;background:#F8FAFC;border-radius:10px;border:1.5px solid #E2E8F0">
             <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#64748B;margin-bottom:6px">Portal do Colaborador</div>
@@ -10674,6 +10675,74 @@ async function inspecionarNuvem(){
   openModal('☁️ O que está na nuvem',html,700);
 }
 window.inspecionarNuvem=inspecionarNuvem;
+
+
+// ── CENTRAL DE CONFIGURAÇÕES ───────────────────────────────────────────────
+// Reúne num só lugar o que antes era uma lista longa na barra lateral, que
+// crescia a cada recurso novo e empurrava o resto do menu para baixo.
+function abrirConfiguracoes(){
+  const item=(icone,titulo,desc,acao,cor)=>`
+    <button onclick="closeModal();setTimeout(()=>{${acao}},120)"
+      style="display:flex;align-items:flex-start;gap:11px;width:100%;text-align:left;background:#fff;border:1px solid #E2E8F0;border-radius:11px;padding:12px 13px;cursor:pointer;font-family:inherit;transition:border-color .15s,box-shadow .15s"
+      onmouseover="this.style.borderColor='${cor}';this.style.boxShadow='0 1px 6px rgba(0,0,0,.06)'"
+      onmouseout="this.style.borderColor='#E2E8F0';this.style.boxShadow='none'">
+      <span style="font-size:19px;line-height:1.25;flex-shrink:0">${icone}</span>
+      <span style="flex:1;min-width:0">
+        <span style="display:block;font-size:13.5px;font-weight:700;color:#0F172A">${titulo}</span>
+        <span style="display:block;font-size:11.5px;color:#64748B;line-height:1.45;margin-top:1px">${desc}</span>
+      </span>
+    </button>`;
+
+  const grupo=(titulo,itens)=>`
+    <div style="margin-bottom:16px">
+      <div style="font-size:10.5px;font-weight:800;color:#94A3B8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px">${titulo}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px">${itens.join('')}</div>
+    </div>`;
+
+  // Estado da nuvem, mostrado no topo para dar contexto imediato
+  const fbOk = (typeof FBASE!=='undefined' && FBASE);
+  const sbOk = (typeof SB_READY!=='undefined' && SB_READY);
+  const pend = (typeof FB_SAVE_QUEUE!=='undefined') ? Object.keys(FB_SAVE_QUEUE||{}).length : 0;
+
+  openModal('⚙️ Configurações',`
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px">
+      <div style="flex:1;min-width:150px;background:${fbOk?'#ECFDF5':'#FEF2F2'};border-radius:9px;padding:9px 11px">
+        <div style="font-size:12px;font-weight:700;color:${fbOk?'#047857':'#B91C1C'}">${fbOk?'☁️ Nuvem ativa':'⚠️ Nuvem desconectada'}</div>
+        <div style="font-size:11px;color:#64748B;margin-top:1px">${pend?pend+' gravação(ões) pendente(s)':'Tudo sincronizado'}</div>
+      </div>
+      <div style="flex:1;min-width:150px;background:${sbOk?'#ECFDF5':'#F8FAFC'};border-radius:9px;padding:9px 11px;cursor:pointer" onclick="closeModal();setTimeout(()=>openSupabaseConfigModal(),120)">
+        <div style="font-size:12px;font-weight:700;color:${sbOk?'#047857':'#64748B'}">🔒 Cópia extra ${sbOk?'ativa':'inativa'}</div>
+        <div style="font-size:11px;color:#64748B;margin-top:1px">${sbOk?'Supabase gravando':'Toque para configurar'}</div>
+      </div>
+    </div>
+
+    ${grupo('Dados e segurança',[
+      item('💾','Backup &amp; Restaurar','Baixar cópia de tudo ou restaurar um backup','openBackup()','#059669'),
+      item('☁️','O que está na nuvem','Compara a nuvem com este computador','inspecionarNuvem()','#0369A1'),
+      item('⬆️','Enviar tudo para a nuvem','Força o envio dos dados desta máquina','enviarTudoParaNuvem()','#DC2626'),
+      item('🗄️','Arquivo histórico','Registros antigos guardados na nuvem','listarArquivoHistorico()','#7C3AED')
+    ])}
+
+    ${grupo('Diagnóstico',[
+      item('🩺','Diagnóstico do sistema','Testa nuvem, IA, backup, ponto e dados','abrirDiagnostico()','#0891B2'),
+      item('📋','Registro de erros','Falhas guardadas neste navegador','abrirLogErros()','#64748B'),
+      item('🔍','Diagnóstico do Firebase','Detalhes da conexão com a nuvem','showFbStatus()','#2563EB')
+    ])}
+
+    ${grupo('Rotinas de RH',[
+      item('🔔','Central de avisos','Aniversários, férias, documentos — com WhatsApp','abrirCentralAvisos()','#25D366'),
+      item('🕐','Espelho de ponto','Enviar para conferência e assinatura','abrirEspelhoPonto()','#2563EB')
+    ])}
+
+    ${grupo('Sistema',[
+      item('🏢','Empresa &amp; IA','Dados da empresa e modelo de IA','openEmpresaCfgModal()','#0891B2'),
+      item('🤖','Chaves de IA','Groq e Anthropic','openAnthropicKeyModal()','#7C3AED'),
+      item('🔒','Supabase','Cópia extra dos dados sensíveis','openSupabaseConfigModal()','#334155')
+    ])}
+
+    <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>`,720);
+}
+window.abrirConfiguracoes=abrirConfiguracoes;
 
 function rDemissao(){
   const demitidos=APP.employees.filter(e=>e.status==='demitido');
