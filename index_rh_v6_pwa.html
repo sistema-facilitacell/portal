@@ -2040,8 +2040,12 @@ async function fbSave(k){
     if(_FB_TS_CARGA[k]){
       try{
         const _atual=await FBASE.collection('hr').doc(k).get();
-        const _tsNuvem=(_atual.exists && _atual.data() && _atual.data().ts) || 0;
-        if(_tsNuvem > (_FB_TS_CARGA[k]+1000)){
+        const _dadosNuvem=(_atual.exists && _atual.data()) || null;
+        const _tsNuvem=(_dadosNuvem && _dadosNuvem.ts) || 0;
+        const _devNuvem=(_dadosNuvem && _dadosNuvem.dev) || '';
+        // Só é conflito de verdade se quem gravou foi OUTRO dispositivo.
+        const _outroDispositivo = _devNuvem && _devNuvem!==_FB_DEVICE_ID;
+        if(_outroDispositivo && _tsNuvem > (_FB_TS_CARGA[k]+1000)){
           const _quando=new Date(_tsNuvem).toLocaleString('pt-BR');
           const _nomes={holRascunho:'Holerite',pontos:'Cartão Ponto',employees:'Colaboradores',
             salarios:'Salários',ferias:'Férias',contratos:'Contratos',bancohoras:'Banco de Horas',
@@ -2067,7 +2071,7 @@ async function fbSave(k){
       }catch(_e){ /* falha na checagem não deve impedir a gravação */ }
     }
 
-    let payload={d:JSON.stringify(APP[k]),ts:Date.now(),k};
+    let payload={d:JSON.stringify(APP[k]),ts:Date.now(),k,dev:_FB_DEVICE_ID};
 
     // FIX-SIZE: verifica tamanho antes de salvar (limite Firestore = 1MB por documento)
     // APP.pontos e APP.bancohoras crescem indefinidamente com meses/funcionarios
@@ -2183,6 +2187,11 @@ async function fbSave(k){
     FB_ERROR=null;
     delete FB_SAVE_QUEUE[k];
     FB_RETRY_COUNT[k]=0;
+    // Atualiza a marca da versão conhecida com o que ACABAMOS de gravar.
+    // Sem isto, a própria gravação deixava o carimbo da nuvem à frente da
+    // marca local e o salvamento seguinte acusava "alterado em outro
+    // dispositivo" — um alerta falso, disparado pelo próprio computador.
+    try{ _FB_TS_CARGA[k]=payload.ts; }catch(_){}
     console.log('[Firebase] ✅ Salvo na nuvem:',k);
   }catch(e){
     // fb-set-timeout: Firebase trava sem resposta (file://, offline, rede instável)
@@ -2242,6 +2251,16 @@ async function fbFlushQueue(){
 // Serve para detectar edição concorrente: cada gravação envia o objeto inteiro
 // (APP[k]), então dois computadores com versões diferentes se sobrescrevem.
 const _FB_TS_CARGA = {};
+// Identifica ESTE navegador. Serve para não acusar conflito quando a gravação
+// anterior veio da própria máquina — inclusive de outra aba do mesmo sistema,
+// que é uma situação comum e não representa risco de perder o trabalho alheio.
+const _FB_DEVICE_ID = (function(){
+  try{
+    let id=localStorage.getItem('atlas_device_id');
+    if(!id){ id=Math.random().toString(36).slice(2)+Date.now().toString(36); localStorage.setItem('atlas_device_id',id); }
+    return id;
+  }catch(_){ return 'anon'; }
+})();
 
 async function fbLoad(k){
   if(!FBASE)return {ok:false, data:null};
