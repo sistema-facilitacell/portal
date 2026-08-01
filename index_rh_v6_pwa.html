@@ -6648,6 +6648,100 @@ function holCarregarDados(){
   if(el)el.innerHTML=rHolerite();
 }
 
+
+// ── STATUS DE ASSINATURA DOS HOLERITES ─────────────────────────────────────
+// Mostra, na competência exibida, quem já assinou e quem ainda não. O recibo
+// assinado é a prova de que o pagamento foi entregue — sem ele, em discussão
+// trabalhista prevalece a alegação do empregado de que não recebeu.
+function _statusAssinaturas(ano, mes){
+  const ativos=(APP.employees||[]).filter(e=>e&&e.status==='ativo');
+  const assinados=[], pendentes=[], naoPublicados=[];
+  ativos.forEach(e=>{
+    const salKey=`${e.id}_${ano}_${mes}`;
+    const salRec=(APP.salarios||{})[salKey]||{};
+    const holRec=(typeof getHolRec==='function')?getHolRec(salKey):((APP.holRascunho||{})[salKey]||{});
+    const sig=salRec['_sig_'+ano+'_'+mes];
+    const sigTs=salRec['_sig_ts_'+ano+'_'+mes];
+    const publicado=holRec['_hol_publicado_'+ano+'_'+mes]||salRec['_hol_publicado_'+ano+'_'+mes];
+    if(sig) assinados.push({emp:e, quando:sigTs});
+    else if(publicado) pendentes.push({emp:e, desde:publicado});
+    else naoPublicados.push({emp:e});
+  });
+  return {assinados, pendentes, naoPublicados, total:ativos.length};
+}
+
+function _cardAssinaturas(ano, mes){
+  let st;
+  try{ st=_statusAssinaturas(ano,mes); }catch(e){ console.warn('[Assinaturas]',e&&e.message); return ''; }
+  if(!st.total) return '';
+  const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const dt=(iso)=>{ if(!iso) return ''; const d=new Date(iso); return isNaN(d)?'':d.toLocaleDateString('pt-BR'); };
+  const dias=(iso)=>{ if(!iso) return null; const d=new Date(iso); return isNaN(d)?null:Math.floor((Date.now()-d.getTime())/86400000); };
+
+  const chip=(cor,bg,lbl,val)=>`<div style="background:${bg};border-radius:9px;padding:8px 11px;flex:1;min-width:96px">
+      <div style="font-size:19px;font-weight:800;color:${cor};line-height:1.1">${val}</div>
+      <div style="font-size:11px;color:${cor};opacity:.85;margin-top:1px">${lbl}</div></div>`;
+
+  const pessoa=(nome,extra,cor)=>`<span style="display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid ${cor}33;color:${cor};border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:600;margin:0 5px 5px 0">${esc(nome)}${extra?`<span style="opacity:.7;font-weight:400">${esc(extra)}</span>`:''}</span>`;
+
+  const alerta=st.pendentes.length>0||st.naoPublicados.length>0;
+  return `
+  <div class="card" style="border-left:4px solid ${alerta?'#D97706':'#059669'};margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:11px">
+      <div>
+        <div style="font-size:14px;font-weight:800;color:#0F172A">✍️ Assinatura dos holerites — ${MESES[mes]}/${ano}</div>
+        <div style="font-size:12px;color:#64748B">${st.assinados.length} de ${st.total} colaborador(es) já assinaram</div>
+      </div>
+      ${st.pendentes.length?`<button class="btn btn-sm" style="background:#25D366;color:#fff;font-weight:700" onclick="cobrarAssinaturasHolerite(${ano},${mes})">📱 Cobrar pendentes</button>`:''}
+    </div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:${(st.pendentes.length||st.naoPublicados.length||st.assinados.length)?'11px':'0'}">
+      ${chip('#047857','#ECFDF5','Assinados',st.assinados.length)}
+      ${chip(st.pendentes.length?'#B45309':'#64748B', st.pendentes.length?'#FFFBEB':'#F8FAFC','Aguardando',st.pendentes.length)}
+      ${chip(st.naoPublicados.length?'#DC2626':'#64748B', st.naoPublicados.length?'#FEF2F2':'#F8FAFC','Não enviados',st.naoPublicados.length)}
+    </div>
+
+    ${st.pendentes.length?`<div style="margin-bottom:8px">
+      <div style="font-size:11px;font-weight:800;color:#B45309;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Aguardando assinatura</div>
+      ${st.pendentes.map(p=>{const d=dias(p.desde); return pessoa((p.emp.nome||'').split(' ').slice(0,2).join(' '), d!==null?`· ${d}d`:'', '#B45309');}).join('')}
+    </div>`:''}
+
+    ${st.naoPublicados.length?`<div style="margin-bottom:8px">
+      <div style="font-size:11px;font-weight:800;color:#DC2626;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Ainda não enviados ao portal</div>
+      ${st.naoPublicados.map(p=>pessoa((p.emp.nome||'').split(' ').slice(0,2).join(' '),'','#DC2626')).join('')}
+    </div>`:''}
+
+    ${st.assinados.length?`<div>
+      <div style="font-size:11px;font-weight:800;color:#047857;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Assinados</div>
+      ${st.assinados.map(a=>pessoa((a.emp.nome||'').split(' ').slice(0,2).join(' '), a.quando?`· ${dt(a.quando)}`:'', '#047857')).join('')}
+    </div>`:''}
+  </div>`;
+}
+
+// Abre o WhatsApp de cada pendente com a mensagem pronta (um toque por pessoa).
+function cobrarAssinaturasHolerite(ano, mes){
+  const st=_statusAssinaturas(ano,mes);
+  if(!st.pendentes.length){ toast('Ninguém pendente nesta competência.','ok'); return; }
+  const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const cards=st.pendentes.map(p=>{
+    const tel=(p.emp.telefone||'').replace(/\D/g,'');
+    const msg=`Olá, ${(p.emp.nome||'').split(' ')[0]}! Seu holerite de ${MESES[mes]}/${ano} está disponível no Portal do Colaborador e aguarda sua assinatura. Quando puder, acesse e confirme o recebimento.`;
+    const link=tel?`https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`:`https://web.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid #E2E8F0;border-radius:9px;padding:9px 12px;margin-bottom:7px;flex-wrap:wrap">
+      <span style="font-size:13px;font-weight:600;color:#1E293B">${esc(p.emp.nome)}</span>
+      ${tel?`<a href="${link}" target="_blank" class="btn btn-sm" style="background:#25D366;color:#fff;font-weight:700;text-decoration:none">📱 WhatsApp</a>`
+           :'<span style="font-size:11px;color:#B45309">sem telefone cadastrado</span>'}
+    </div>`;
+  }).join('');
+  openModal('📱 Cobrar assinatura — '+MESES[mes]+'/'+ano,
+    `<div style="font-size:12.5px;color:#64748B;margin-bottom:12px;line-height:1.55">O botão abre o WhatsApp com a mensagem já escrita. Revise antes de enviar.</div>
+     ${cards}
+     <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>`,560);
+}
+window._statusAssinaturas=_statusAssinaturas;
+window._cardAssinaturas=_cardAssinaturas;
+window.cobrarAssinaturasHolerite=cobrarAssinaturasHolerite;
+
 function rHolerite(){
   // FIX-BUG20: garante HOL.mes é sempre 0-indexed (0=Jan...11=Dez)
   // HOL.mes pode chegar como string vinda do <select> onchange antes do +this.value converter
@@ -6694,6 +6788,7 @@ function rHolerite(){
   const f2n=v=>v===''||v==null?'':Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 
   return `
+  ${(typeof _cardAssinaturas==='function'?_cardAssinaturas(ano,mes):'')}
   <!-- PAINEL DE EDIÇÃO -->
   <div class="card hol-ctrl print-hide" style="margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
@@ -10734,7 +10829,8 @@ function abrirConfiguracoes(){
       item('💾','Backup &amp; Restaurar','Baixar cópia de tudo ou restaurar um backup','openBackup()','#059669'),
       item('☁️','O que está na nuvem','Compara a nuvem com este computador','inspecionarNuvem()','#0369A1'),
       item('⬆️','Enviar tudo para a nuvem','Força o envio dos dados desta máquina','enviarTudoParaNuvem()','#DC2626'),
-      item('🗄️','Arquivo histórico','Registros antigos guardados na nuvem','listarArquivoHistorico()','#7C3AED')
+      item('🗄️','Arquivo histórico','Registros antigos guardados na nuvem','listarArquivoHistorico()','#7C3AED'),
+      item('🔑','Reparar dados cifrados','Reabre dados que ficaram ilegíveis','repararDadosCifrados()','#DC2626')
     ])}
 
     ${grupo('Diagnóstico',[
@@ -10823,6 +10919,82 @@ window._firebaseReadyCallbacks.push(function(){
     }catch(_){}
   }, 4000);
 });
+
+
+// ── DECIFRAR COM SENHA ANTIGA ──────────────────────────────────────────────
+// Os dados corrompidos foram cifrados com a senha que ESTE navegador sorteou
+// antes de existir a senha compartilhada. Ela pode continuar guardada aqui em
+// 'fcrh_enc_pwd_dev' — se estiver, dá para reabrir e devolver os dados.
+async function _decifrarComSenha(payload, senha){
+  try{
+    const raw=new TextEncoder().encode(senha);
+    const base=await crypto.subtle.importKey('raw',raw,{name:'PBKDF2'},false,['deriveKey']);
+    // Mesmo salt usado na cifragem — precisa bater byte a byte, senão a chave
+    // derivada é outra e a decifragem falha mesmo com a senha correta.
+    const SALT=new Uint8Array([0xFA,0x3C,0xB1,0x7E,0x29,0xA4,0x58,0xD0,0x11,0x6F,0x82,0x44,0xCC,0x9B,0x03,0xE7]);
+    const key=await crypto.subtle.deriveKey(
+      {name:'PBKDF2',salt:SALT,iterations:100000,hash:'SHA-256'},
+      base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+    const b64d=x=>Uint8Array.from(atob(x),c=>c.charCodeAt(0));
+    const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64d(payload.iv)},key,b64d(payload.ct));
+    return JSON.parse(new TextDecoder().decode(pt));
+  }catch(e){ return null; }
+}
+
+async function repararDadosCifrados(){
+  // Candidatas a senha: as que já passaram por este navegador.
+  const senhas=[];
+  try{
+    ['fcrh_enc_pwd_dev','fcrh_enc_pwd_shared'].forEach(k=>{ const v=localStorage.getItem(k); if(v) senhas.push({k,v}); });
+    const ss=sessionStorage.getItem('fcrh_enc_pwd'); if(ss) senhas.push({k:'sessão',v:ss});
+  }catch(_){}
+
+  const alvos=[];
+  [...(typeof SB_SENSITIVE_KEYS!=='undefined'?SB_SENSITIVE_KEYS:[])].forEach(k=>{
+    if(APP[k] && APP[k].__enc===true) alvos.push({k, fonte:'memória', payload:APP[k]});
+  });
+  // Também tenta o que está guardado no navegador
+  [...(typeof SB_SENSITIVE_KEYS!=='undefined'?SB_SENSITIVE_KEYS:[])].forEach(k=>{
+    if(alvos.some(a=>a.k===k)) return;
+    try{ const v=lsLoad(k); if(v && v.__enc===true) alvos.push({k, fonte:'navegador', payload:v}); }catch(_){}
+  });
+
+  if(!alvos.length){ toast('Nenhum dado cifrado encontrado neste computador.','ok',5000); return; }
+  if(!senhas.length){
+    openModal('🔑 Reparar dados cifrados',
+      '<div style="font-size:13px;line-height:1.6;color:#334155">Encontrei dados ilegíveis em: <strong>'+alvos.map(a=>esc(a.k)).join(', ')+'</strong>.<br><br>'+
+      'Mas este navegador não tem mais nenhuma das senhas antigas guardadas, então não é possível reabrir por aqui.<br><br>'+
+      '<strong>O que fazer:</strong> tente em outro computador que já usou o sistema — a senha pode estar lá. '+
+      'Se não houver, os holerites precisarão ser lançados de novo (os demais dados estão íntegros).</div>'+
+      '<div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>',560);
+    return;
+  }
+
+  let recuperados=0; const detalhes=[];
+  for(const alvo of alvos){
+    let ok=false;
+    for(const s of senhas){
+      const dados=await _decifrarComSenha(alvo.payload, s.v);
+      if(dados && typeof dados==='object'){
+        APP[alvo.k]=dados;
+        lsSave(alvo.k);
+        try{ await fbSave(alvo.k); }catch(_){}
+        recuperados++;
+        detalhes.push('✅ '+alvo.k+': '+(Array.isArray(dados)?dados.length:Object.keys(dados).length)+' registro(s), com a senha de '+s.k);
+        ok=true; break;
+      }
+    }
+    if(!ok) detalhes.push('❌ '+alvo.k+': nenhuma senha deste navegador conseguiu abrir');
+  }
+
+  openModal('🔑 Reparar dados cifrados',
+    '<div style="font-size:13px;line-height:1.7;color:#334155">'+detalhes.map(d=>esc(d)).join('<br>')+'</div>'+
+    (recuperados?'<div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:9px;padding:10px 12px;margin-top:12px;font-size:12.5px;color:#047857">Os dados recuperados já foram enviados para a nuvem e aparecem nas telas.</div>':'')+
+    '<div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button>'+
+    (recuperados?'<button class="btn btn-blue" onclick="closeModal();navigate(\'holerite\')">Ver holerites</button>':'')+'</div>',600);
+  try{ if(typeof auditLog==='function') auditLog('Reparou dados cifrados ('+recuperados+' conjuntos)','','backup'); }catch(_){}
+}
+window.repararDadosCifrados=repararDadosCifrados;
 
 function rDemissao(){
   const demitidos=APP.employees.filter(e=>e.status==='demitido');
