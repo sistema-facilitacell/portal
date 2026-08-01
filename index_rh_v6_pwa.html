@@ -163,7 +163,12 @@ const _SB_CRYPTO = {
       const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv}, key, ct);
       return JSON.parse(new TextDecoder().decode(pt));
     }catch(e){
-      console.warn('[Crypto] Falha ao decriptografar — retornando payload bruto:', e.message);
+      // Devolver o pacote cifrado aqui era desastroso: quem chamou tratava
+      // {ct,iv,__enc} como se fossem os dados e gravava isso por cima dos
+      // holerites. Agora devolvemos null e quem chamou preserva o que já tem.
+      console.error('[Crypto] Não foi possível decriptografar — dados ignorados (senha diferente da que cifrou):', e.message);
+      return null;
+      // eslint-disable-next-line no-unreachable
       return payload;
     }
   }
@@ -346,8 +351,13 @@ async function sbLoadAll(){
   let loaded = 0;
   results.forEach((d, i) => {
     const k = keys[i];
-    if(d !== null){
-      // Supabase tem dado — verifica se é mais recente que Firebase
+    // Só aceita o dado do Supabase se ele for melhor do que o que já existe.
+    // O Supabase é a CÓPIA EXTRA — nunca deve destruir o que veio do Firebase.
+    const _cifrado = d && typeof d==='object' && d.__enc === true;
+    const _qtd = (x)=> Array.isArray(x) ? x.length : (x && typeof x==='object' ? Object.keys(x).length : 0);
+    if(_cifrado){
+      console.error('[Supabase] "'+k+'" veio cifrado e não pôde ser lido — mantendo os dados atuais.');
+    } else if(d !== null && _qtd(d) > 0 && _qtd(d) >= _qtd(APP[k])){
       if(Array.isArray(APP[k])){
         APP[k] = Array.isArray(d) ? d : APP[k];
       } else {
@@ -355,7 +365,11 @@ async function sbLoadAll(){
       }
       lsSave(k);
       loaded++;
-    } else {
+    } else if(d !== null && _qtd(d) < _qtd(APP[k])){
+      // Cópia do Supabase está atrás do principal: reenvia em vez de aceitar.
+      console.warn('[Supabase] "'+k+'" tem menos registros que o atual ('+_qtd(d)+' vs '+_qtd(APP[k])+') — mantendo o atual e reenviando.');
+      sbSave(k);
+    } else if(d === null){
       // Supabase vazio → sobe dado atual para o Supabase
       const hasData = Array.isArray(APP[k]) ? APP[k].length > 0 : Object.keys(APP[k]||{}).length > 0;
       if(hasData) sbSave(k);
@@ -10744,6 +10758,72 @@ function abrirConfiguracoes(){
 }
 window.abrirConfiguracoes=abrirConfiguracoes;
 
+
+// ── RECUPERAR DADOS CIFRADOS ───────────────────────────────────────────────
+// Se uma leitura do Supabase gravou um pacote cifrado por cima dos dados,
+// APP[k] fica com {ct, iv, __enc} e a tela aparece vazia. Aqui detectamos
+// isso e restauramos a partir do Firebase, que guarda os dados em claro.
+function _dadoCifrado(v){ return !!(v && typeof v==='object' && v.__enc===true); }
+
+async function recuperarDadosCifrados(silencioso){
+  const afetadas=[];
+  [...(typeof SB_SENSITIVE_KEYS!=='undefined'?SB_SENSITIVE_KEYS:[])].forEach(k=>{
+    if(_dadoCifrado(APP[k])) afetadas.push(k);
+  });
+  // Também checa o que está guardado no navegador
+  const doLocal=[];
+  [...(typeof SB_SENSITIVE_KEYS!=='undefined'?SB_SENSITIVE_KEYS:[])].forEach(k=>{
+    try{ if(_dadoCifrado(lsLoad(k))) doLocal.push(k); }catch(_){}
+  });
+
+  if(!afetadas.length && !doLocal.length){
+    if(!silencioso) toast('✅ Nenhum dado cifrado encontrado — está tudo legível.','ok',4000);
+    return {ok:0, falhas:[]};
+  }
+
+  const todas=[...new Set([...afetadas,...doLocal])];
+  if(!silencioso && !confirm('Foram encontrados dados ilegíveis (cifrados) em: '+todas.join(', ')+
+     '.\n\nRecuperar a versão do Firebase?\n\nNada é apagado — apenas repomos a versão legível.')) return {ok:0,falhas:[]};
+
+  let ok=0; const falhas=[];
+  for(const k of todas){
+    try{
+      const res=await fbLoad(k);
+      if(res && res.ok && res.data!==null && !_dadoCifrado(res.data)){
+        APP[k]=res.data;
+        lsSave(k);
+        ok++;
+        console.log('[Recuperar] "'+k+'" restaurado do Firebase');
+      }else{
+        falhas.push(k);
+      }
+    }catch(e){ falhas.push(k); console.error('[Recuperar] Falha em',k,e&&e.message); }
+  }
+  if(!silencioso){
+    if(ok) toast('✅ '+ok+' conjunto(s) recuperado(s) do Firebase.'+(falhas.length?' Falhou: '+falhas.join(', '):''),'ok',7000);
+    else toast('⚠ Não foi possível recuperar do Firebase: '+falhas.join(', ')+'. Use um backup.','err',9000);
+    if(typeof navigate==='function'&&typeof MOD!=='undefined') navigate(MOD);
+  }
+  return {ok, falhas};
+}
+window.recuperarDadosCifrados=recuperarDadosCifrados;
+
+// Verificação automática no boot: se algo estiver cifrado, repõe sem incomodar.
+if(!Array.isArray(window._firebaseReadyCallbacks)) window._firebaseReadyCallbacks = [];
+window._firebaseReadyCallbacks.push(function(){
+  setTimeout(()=>{
+    try{
+      const tem=[...(typeof SB_SENSITIVE_KEYS!=='undefined'?SB_SENSITIVE_KEYS:[])].some(k=>_dadoCifrado(APP[k]));
+      if(tem){
+        console.warn('[Recuperar] Dados cifrados detectados no boot — restaurando do Firebase');
+        recuperarDadosCifrados(true).then(r=>{
+          if(r.ok && typeof toast==='function') toast('Dados ilegíveis foram restaurados da nuvem.','ok',5000);
+        });
+      }
+    }catch(_){}
+  }, 4000);
+});
+
 function rDemissao(){
   const demitidos=APP.employees.filter(e=>e.status==='demitido');
   return `
@@ -18547,7 +18627,16 @@ async function initApp(){
       // sem precisar de intervenção manual do RH
       try{ _autoSyncBHSilencioso(); }catch(e){ console.warn('[AutoSyncBH] erro:',e); }
       // ── Supabase: carrega dados sensíveis (após Firebase, sobrescreve se mais recente) ──
-      try{ if(SB_READY) await sbLoadAll(); }catch(e){ console.warn('[sbLoadAll] erro:',e); }
+      // LEITURA DO SUPABASE DESLIGADA POR PADRÃO.
+      // O Firebase é a fonte da verdade; o Supabase é só a cópia extra. Deixar
+      // o Supabase escrever por cima de APP[] já causou perda de holerites
+      // (dado cifrado com senha antiga sobrescrevendo o que estava correto).
+      // A gravação continua ativa, então a cópia segue sendo alimentada.
+      // Para religar a leitura: localStorage.setItem('fcrh_sb_read','1')
+      const _sbLerAtivo = (function(){ try{ return localStorage.getItem('fcrh_sb_read')==='1'; }catch(_){ return false; } })();
+      if(_sbLerAtivo){
+        try{ if(SB_READY) await sbLoadAll(); }catch(e){ console.warn('[sbLoadAll] erro:',e); }
+      }
       // Carrega chave da IA da nuvem após conectar ao Firebase
       try{ await loadAnthropicKeyFromCloud(); }catch(e){ console.warn('[IA key]',e); }
       // MEL-11/12: carrega modelo de IA e dados da empresa da nuvem
