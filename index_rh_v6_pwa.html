@@ -245,7 +245,13 @@ async function sbSave(k){
   }catch(e){
     SB_ERROR = e.message;
     SB_SAVE_QUEUE[k] = true;
-    console.error('[Supabase] ❌ Erro ao salvar '+k+':', e.message);
+    // "Failed to fetch" = a requisição nem chegou ao servidor (projeto pausado,
+    // fora do ar ou sem rede). Deixa claro que é a CÓPIA EXTRA que falhou —
+    // o dado principal já foi para o Firebase e não se perdeu.
+    const _rede = /failed to fetch|networkerror|load failed/i.test(String(e.message||''));
+    console.error('[Supabase] Cópia extra de "'+k+'" não foi salva'+
+      (_rede ? ' — servidor não respondeu (projeto pausado ou sem rede). O dado está salvo no Firebase.'
+             : ': '+e.message));
   }
 }
 
@@ -1680,6 +1686,7 @@ td,th{font-size:15px!important;}
           </div>
           <button class="fb-btn" style="color:var(--blue);font-size:10px;margin-top:2px" onclick="showFbStatus()">🔍 Diagnóstico Firebase</button>
           <button class="fb-btn" id="ai-key-btn" style="color:#7C3AED;margin-top:4px" onclick="openAnthropicKeyModal()" title="Configurar chave da API Anthropic para IA">🤖 Configurar IA</button>
+          <button class="fb-btn" style="color:#DC2626;margin-top:4px;font-weight:700" onclick="enviarTudoParaNuvem()" title="Envia todos os dados deste computador para a nuvem agora">☁️ Enviar Tudo p/ Nuvem</button>
           <button class="fb-btn" style="color:#0891B2;margin-top:4px" onclick="abrirDiagnostico()" title="Verifica nuvem, IA, backup, ponto e dados — descobre problemas antes de virarem crise">🩺 Diagnóstico</button>
           <button class="fb-btn" style="color:#64748B;margin-top:4px" onclick="abrirLogErros()" title="Erros registrados neste navegador">📋 Registro de Erros</button>
           <button class="fb-btn" style="color:#059669;margin-top:4px" onclick="openBackup()" title="Backup e restauração de todos os dados do sistema">💾 Backup & Restaurar</button>
@@ -2026,6 +2033,40 @@ async function fbSave(k){
   FB_SAVE_RUNNING[k]=true;
   FB_SAVING=true; _fbSavingSet(true); updateFbUI('saving');
   try{
+    // ── Proteção contra sobrescrita entre computadores ──────────────────
+    // Cada gravação envia APP[k] INTEIRO. Se outro computador editou a mesma
+    // chave depois que esta máquina carregou, gravar aqui apagaria o trabalho
+    // dele. Antes de escrever, conferimos o carimbo de tempo da nuvem.
+    if(_FB_TS_CARGA[k]){
+      try{
+        const _atual=await FBASE.collection('hr').doc(k).get();
+        const _tsNuvem=(_atual.exists && _atual.data() && _atual.data().ts) || 0;
+        if(_tsNuvem > (_FB_TS_CARGA[k]+1000)){
+          const _quando=new Date(_tsNuvem).toLocaleString('pt-BR');
+          const _nomes={holRascunho:'Holerite',pontos:'Cartão Ponto',employees:'Colaboradores',
+            salarios:'Salários',ferias:'Férias',contratos:'Contratos',bancohoras:'Banco de Horas',
+            advertencias:'Advertências',atestados:'Atestados',financeiro:'Financeiro'};
+          const _lbl=_nomes[k]||k;
+          const _ok=confirm(
+            'ATENÇÃO — '+_lbl+' foi alterado em outro dispositivo\n\n'+
+            'Alguém (ou você, em outro computador) salvou '+_lbl+' em '+_quando+', '+
+            'depois que esta tela carregou os dados.\n\n'+
+            'Se continuar, a versão DESTE computador substitui a outra e as alterações de lá se perdem.\n\n'+
+            'OK = manter o que está nesta tela\n'+
+            'Cancelar = descartar o que fiz aqui e recarregar a versão mais nova (recomendado)'
+          );
+          if(!_ok){
+            FB_SAVE_RUNNING[k]=false;
+            FB_SAVING=false; _fbSavingSet(false); updateFbUI();
+            toast('Recarregando a versão mais recente…','ok',2500);
+            setTimeout(()=>location.reload(),700);
+            return;
+          }
+          console.warn('[fbSave] Conflito em "'+k+'" — usuário optou por manter esta versão');
+        }
+      }catch(_e){ /* falha na checagem não deve impedir a gravação */ }
+    }
+
     let payload={d:JSON.stringify(APP[k]),ts:Date.now(),k};
 
     // FIX-SIZE: verifica tamanho antes de salvar (limite Firestore = 1MB por documento)
@@ -2197,6 +2238,11 @@ async function fbFlushQueue(){
   for(const k of pending) await fbSave(k);
 }
 
+// Carimbo de tempo da versão que ESTA máquina carregou, por chave.
+// Serve para detectar edição concorrente: cada gravação envia o objeto inteiro
+// (APP[k]), então dois computadores com versões diferentes se sobrescrevem.
+const _FB_TS_CARGA = {};
+
 async function fbLoad(k){
   if(!FBASE)return {ok:false, data:null};
   // Retorna { ok, data }:
@@ -2216,6 +2262,10 @@ async function fbLoad(k){
       clearTimeout(_timer);
       if(!s.exists){resolve({ok:true, data:null});return;} // sucesso: doc não existe = vazio real
       const data=s.data();
+      // Guarda o carimbo de tempo desta versão. É com ele que detectamos, na
+      // hora de gravar, se OUTRO computador alterou a mesma chave depois que
+      // esta máquina carregou os dados.
+      try{ if(typeof _FB_TS_CARGA==='object') _FB_TS_CARGA[k]=data.ts||0; }catch(_){}
       try{resolve({ok:true, data:data.d?JSON.parse(data.d):null});}
       catch(_e){console.error('[fbLoad] JSON inválido:',_e);resolve({ok:false, data:null});}
     }).catch(function(e){
@@ -2474,6 +2524,37 @@ async function loadCloud(){
         loaded++;
         return;
       }
+      // holRascunho e salarios: UNIÃO em vez de sobrescrita. São objetos com uma
+      // entrada por colaborador/competência; computadores diferentes costumam ter
+      // entradas diferentes. Sobrescrever fazia o holerite digitado num micro sumir
+      // quando outro micro abria o sistema. No conflito (mesma chave nos dois), o
+      // registro mais recente vence — por isso gravamos _ts a cada alteração.
+      if(k==='holRascunho'||k==='salarios'){
+        const nuvem=(typeof d==='object'&&d!==null)?d:{};
+        const local=lsLoad(k)||{};
+        const merged={...nuvem};
+        let vindosDoLocal=0;
+        Object.keys(local).forEach(chave=>{
+          const lRec=local[chave], nRec=merged[chave];
+          if(!nRec){ merged[chave]=lRec; vindosDoLocal++; return; }
+          if(typeof lRec!=='object'||typeof nRec!=='object') return;
+          // Mesma chave nos dois lados: une campo a campo; o lado mais recente
+          // decide quando os dois têm o mesmo campo com valores diferentes.
+          const localMaisNovo=String(lRec._ts||'')>String(nRec._ts||'');
+          Object.keys(lRec).forEach(campo=>{
+            if(!(campo in nRec)){ merged[chave][campo]=lRec[campo]; vindosDoLocal++; }
+            else if(localMaisNovo && nRec[campo]!==lRec[campo]){ merged[chave][campo]=lRec[campo]; vindosDoLocal++; }
+          });
+        });
+        APP[k]=merged;
+        lsSave(k);
+        if(vindosDoLocal>0){
+          console.log('[loadCloud/'+k+'] '+vindosDoLocal+' registro(s) local(is) preservado(s) e enviado(s) à nuvem');
+          fbSave(k);   // devolve para a nuvem o que só existia aqui
+        }
+        loaded++;
+        return;
+      }
       // Demais chaves: nuvem sobrescreve local
       if(Array.isArray(APP[k])){APP[k]=Array.isArray(d)?d:[];}
       else{APP[k]=(typeof d==='object'&&d!==null)?d:APP[k];}
@@ -2484,8 +2565,11 @@ async function loadCloud(){
       // Só na 1ª carga da sessão. EXCEÇÃO: chaves críticas (salarios, holRascunho)
       // nunca sobem automaticamente — só via ação explícita do RH (botão Salvar Tudo),
       // para eliminar qualquer risco de um dispositivo sobrescrever dados de outro.
-      const _criticas=['salarios','holRascunho'];
-      if(isFirstLoad && !_criticas.includes(k)){
+      // Antes 'salarios' e 'holRascunho' eram bloqueados aqui e ficavam só no
+      // computador onde foram digitados. Agora TODA chave sobe quando a nuvem
+      // está vazia — o risco de sobrescrita que motivava o bloqueio deixou de
+      // existir porque essas duas passaram a ser mescladas (união), acima.
+      if(isFirstLoad){
         const local=lsLoad(k);
         if(local!==null&&(Array.isArray(local)?local.length>0:Object.keys(local||{}).length>0)){
           console.log('[loadCloud] Subindo local→nuvem:',k);
@@ -5949,6 +6033,9 @@ function getHolRec(salKey){
 function setHolField(salKey,field,val){
   if(!APP.holRascunho[salKey])APP.holRascunho[salKey]={};
   APP.holRascunho[salKey][field]=val;
+  // Marca do horário da alteração. É o que permite ao merge decidir qual versão
+  // vale quando o mesmo holerite foi mexido em dois computadores.
+  APP.holRascunho[salKey]._ts=new Date().toISOString();
 }
 function delHolField(salKey,field){
   if(APP.holRascunho[salKey])delete APP.holRascunho[salKey][field];
@@ -9307,6 +9394,24 @@ async function rodarDiagnostico(){
     }
   }
 
+  // 1b. Espelho no Supabase (cópia extra dos dados sensíveis)
+  if(typeof SBASE==='undefined' || !SBASE){
+    add('Cópia extra (Supabase)','alerta','Não conectado. Os dados continuam salvos no Firebase — esta é apenas uma segunda cópia.');
+  }else{
+    try{
+      const { error } = await SBASE.from('hr_data').select('id').limit(1);
+      if(error) throw new Error(error.message||'erro');
+      add('Cópia extra (Supabase)','ok','Conectado e gravando a segunda cópia');
+    }catch(e){
+      const msg=String((e&&e.message)||'');
+      const falhaRede=/failed to fetch|networkerror|load failed/i.test(msg);
+      add('Cópia extra (Supabase)','alerta',
+        falhaRede
+          ? 'Não está respondendo (projeto pausado ou fora do ar). Seus dados seguem salvos no Firebase — só a segunda cópia está parada.'
+          : 'Falhou: '+msg.slice(0,90)+'. Os dados continuam no Firebase.');
+    }
+  }
+
   // 2. Chave da IA (teste real na API)
   if(!GROQ_KEY){
     add('Chave da IA (Groq)','alerta','Nenhuma chave configurada. Recursos de IA ficam indisponíveis.','Configurar IA');
@@ -10410,6 +10515,37 @@ window.folhaLerPDF=folhaLerPDF;
 window.folhaLerImagem=folhaLerImagem;
 window.folhaAnalisar=folhaAnalisar;
 window.folhaSalvar=folhaSalvar;
+
+
+// ── ENVIAR TUDO PARA A NUVEM ───────────────────────────────────────────────
+// Força o envio de todas as chaves deste dispositivo para o Firebase, sem
+// esperar debounce. Serve para consolidar um computador que ficou com dados
+// só locais (por exemplo, depois de um período offline).
+async function enviarTudoParaNuvem(){
+  if(!FBASE){ toast('Firebase não conectado — não é possível enviar agora.','err',5000); return; }
+  const chaves=[..._VALID_KEYS];
+  if(!confirm('Enviar TODOS os dados deste computador para a nuvem?\n\n'+
+              'Os registros daqui serão unidos aos que já estão na nuvem. '+
+              'Em caso de conflito no mesmo registro, vale a versão mais recente.\n\n'+
+              'Continuar?')) return;
+  try{ if(typeof flushSavesPendentes==='function') flushSavesPendentes(); }catch(_){}
+  toast('⏳ Enviando dados para a nuvem…','ok',3000);
+  let ok=0, falhas=[];
+  for(const k of chaves){
+    const v=APP[k];
+    const temDados = Array.isArray(v) ? v.length>0 : (v && typeof v==='object' && Object.keys(v).length>0);
+    if(!temDados) continue;
+    try{ await fbSave(k); ok++; }
+    catch(e){ falhas.push(k); console.error('[EnviarTudo] Falha em',k,e&&e.message); }
+  }
+  if(falhas.length){
+    toast('⚠ '+ok+' conjunto(s) enviado(s), '+falhas.length+' falharam: '+falhas.join(', ')+'. Tente de novo.','err',8000);
+  }else{
+    toast('✅ '+ok+' conjunto(s) de dados enviados para a nuvem. Abra o outro computador e recarregue.','ok',7000);
+  }
+  try{ if(typeof auditLog==='function') auditLog('Enviou todos os dados para a nuvem ('+ok+' conjuntos)','','backup'); }catch(_){}
+}
+window.enviarTudoParaNuvem=enviarTudoParaNuvem;
 
 function rDemissao(){
   const demitidos=APP.employees.filter(e=>e.status==='demitido');
