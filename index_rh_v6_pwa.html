@@ -6189,6 +6189,8 @@ function rFin(){
     <select onchange="FIN_STATE.ano=+this.value;navigate('financeiro')">
       ${anosDisponiveis().map(y=>`<option${ano===y?' selected':''}>${y}</option>`).join('')}
     </select>
+    <button class="btn btn-sm" style="background:#FEF2F2;color:#B91C1C;font-weight:700" onclick="abrirAdiantamentos()" title="Adiantamentos, vales e empréstimos a descontar">💵 Adiantamentos &amp; Vales</button>
+    <button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8;font-weight:700" onclick="abrirExtratoAdiantamentos()" title="Extrato mensal em PDF para o colaborador conferir">📄 Extrato do mês</button>
     <div style="margin-left:auto;padding:8px 14px;background:#F0FDF4;border-radius:8px;border:1px solid #BBF7D0;font-size:13px;color:#166534;font-weight:700">Total pago este mês: ${fBRL(totPago)}</div>
   </div>
   ${ativos.map(e=>{
@@ -7335,6 +7337,165 @@ function holAplicarOcorrencias(){
   setTimeout(()=>toast('⏰ '+add+' ocorrência(s) lançada(s) — '+fBRL(total)+' em descontos.','ok',5500),150);
 }
 window.holAplicarOcorrencias=holAplicarOcorrencias;
+
+
+// ── EXTRATO MENSAL DE ADIANTAMENTOS ───────────────────────────────────────
+// Documento para o colaborador conferir o que foi retirado no mês e o que
+// será descontado. Reduz a discussão no dia do pagamento: ele assina o
+// extrato reconhecendo os valores antes de a folha fechar.
+
+function abrirExtratoAdiantamentos(){
+  const hoje=new Date();
+  const mes=(typeof FIN_STATE!=='undefined'&&FIN_STATE.mes!=null)?FIN_STATE.mes+1:(hoje.getMonth()+1);
+  const ano=(typeof FIN_STATE!=='undefined'&&FIN_STATE.ano)?FIN_STATE.ano:hoje.getFullYear();
+  const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  const ativos=(APP.employees||[]).filter(e=>e&&e.status==='ativo');
+  const comLanc=ativos.map(e=>{
+    const itens=(APP.adiantamentos||[]).filter(a=>a&&a.empId===e.id&&Number(a.ano)===ano&&Number(a.mes)===mes);
+    const total=+itens.reduce((s,a)=>s+(parseFloat(a.valor)||0),0).toFixed(2);
+    return {emp:e, itens, total};
+  }).filter(x=>x.itens.length);
+
+  const totalGeral=+comLanc.reduce((s,x)=>s+x.total,0).toFixed(2);
+
+  openModal('📄 Extrato de Adiantamentos — '+MESES[mes-1]+'/'+ano,`
+    <div style="font-size:12.5px;color:#64748B;margin-bottom:12px;line-height:1.55">
+      Documento para o colaborador conferir e assinar antes do fechamento da folha, com data e valor de cada retirada.
+    </div>
+    ${comLanc.length?`
+    <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:9px;padding:10px 13px;margin-bottom:12px;font-size:12.5px;color:#92400E">
+      <strong>${comLanc.length} colaborador(es)</strong> com lançamentos neste mês · total de <strong>${fBRL(totalGeral)}</strong>
+    </div>
+    <div style="border:1px solid #E2E8F0;border-radius:10px;overflow:auto;max-height:340px">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+        <thead><tr style="background:#1e293b;color:#fff;position:sticky;top:0">
+          <th style="text-align:left;padding:8px 11px">Colaborador</th>
+          <th style="padding:8px 6px">Lançamentos</th>
+          <th style="text-align:right;padding:8px 11px">Total</th>
+          <th style="padding:8px 11px"></th>
+        </tr></thead>
+        <tbody>${comLanc.map(x=>`<tr style="border-top:1px solid #F1F5F9">
+          <td style="padding:8px 11px;font-weight:600">${esc(x.emp.nome)}${x.emp.tipoContrato?`<span style="font-size:11px;color:#64748B"> · ${esc(x.emp.tipoContrato)}</span>`:''}</td>
+          <td style="text-align:center;padding:8px 6px;color:#64748B">${x.itens.length}</td>
+          <td style="text-align:right;padding:8px 11px;font-weight:700;color:#B91C1C">${fBRL(x.total)}</td>
+          <td style="padding:8px 11px;text-align:right">
+            <button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8;font-size:11px" onclick="gerarExtratoAdiantamento('${x.emp.id}',${ano},${mes})">📄 Gerar</button>
+          </td></tr>`).join('')}</tbody>
+      </table>
+    </div>
+    <div style="text-align:right;margin-top:12px">
+      <button class="btn" style="background:#1e293b;color:#C9A84C;font-weight:700" onclick="gerarExtratoAdiantamento(null,${ano},${mes})">📄 Gerar de todos</button>
+    </div>`
+    :'<div style="text-align:center;padding:32px;color:#94A3B8"><div style="font-size:30px;margin-bottom:8px">✓</div><div style="font-weight:600">Nenhum adiantamento neste mês</div></div>'}
+    <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>`,700);
+}
+
+// empId null → gera de todos, um por página
+function gerarExtratoAdiantamento(empId, ano, mes){
+  const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const cfg=(typeof EMPRESA_CFG!=='undefined')?EMPRESA_CFG:{};
+  const razao=cfg.nomeRazao||cfg.nomeFantasia||'';
+  const alvos=(APP.employees||[]).filter(e=>e&&e.status==='ativo'&&(!empId||e.id===empId));
+
+  const paginas=[];
+  alvos.forEach(emp=>{
+    const itens=(APP.adiantamentos||[]).filter(a=>a&&a.empId===emp.id&&Number(a.ano)===ano&&Number(a.mes)===mes)
+      .sort((a,b)=>String(a.data||'').localeCompare(String(b.data||'')));
+    if(!itens.length) return;
+    const total=+itens.reduce((s,a)=>s+(parseFloat(a.valor)||0),0).toFixed(2);
+    const sal=parseFloat(emp.salario)||0;
+
+    const linhas=itens.map(a=>{
+      const t=(typeof ADI_TIPOS!=='undefined'&&ADI_TIPOS[a.tipo])?ADI_TIPOS[a.tipo]:{label:'Adiantamento'};
+      return `<tr>
+        <td style="padding:6px 9px;border-bottom:1px solid #eee">${(a.data||'').split('-').reverse().join('/')}</td>
+        <td style="padding:6px 9px;border-bottom:1px solid #eee">${esc(t.label)}</td>
+        <td style="padding:6px 9px;border-bottom:1px solid #eee;color:#555">${esc(a.obs||'')}</td>
+        <td style="padding:6px 9px;border-bottom:1px solid #eee;text-align:right;font-weight:600">${fBRL(a.valor)}</td>
+      </tr>`;
+    }).join('');
+
+    paginas.push(`
+    ${paginas.length?'<div style="page-break-before:always"></div>':''}
+    <div class="topo">
+      <div><strong style="font-size:14px">EXTRATO DE ADIANTAMENTOS E VALES</strong><br>
+        <span style="font-size:11px;opacity:.85">${esc(razao)}</span></div>
+      <div style="text-align:right;font-size:12px">${MESES[mes-1]}/${ano}</div>
+    </div>
+
+    <table style="margin-bottom:14px;font-size:12px">
+      <tr><td style="padding:3px 0;width:110px;color:#555">Colaborador:</td>
+          <td style="padding:3px 0"><strong>${esc(emp.nome)}</strong></td></tr>
+      <tr><td style="padding:3px 0;color:#555">Vínculo:</td>
+          <td style="padding:3px 0">${esc(emp.tipoContrato||'CLT')}${emp.cargo?' · '+esc(emp.cargo):''}</td></tr>
+      <tr><td style="padding:3px 0;color:#555">${emp.cnpj?'CNPJ:':'CPF:'}</td>
+          <td style="padding:3px 0">${esc(emp.cnpj||emp.cpf||'—')}</td></tr>
+    </table>
+
+    <table>
+      <thead><tr>
+        <th style="text-align:left">Data</th>
+        <th style="text-align:left">Tipo</th>
+        <th style="text-align:left">Observação</th>
+        <th style="text-align:right">Valor</th>
+      </tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>
+
+    <div class="box">
+      <table style="font-size:12px">
+        <tr><td style="padding:3px 0">Total retirado no mês</td>
+            <td style="padding:3px 0;text-align:right;font-weight:bold;font-size:14px;color:#b91c1c">${fBRL(total)}</td></tr>
+        ${sal?`<tr><td style="padding:3px 0;color:#555">Valor contratado</td>
+            <td style="padding:3px 0;text-align:right;color:#555">${fBRL(sal)}</td></tr>
+        <tr><td style="padding:6px 0 0;border-top:1px solid #ccc">Previsão a receber na folha</td>
+            <td style="padding:6px 0 0;text-align:right;font-weight:bold;border-top:1px solid #ccc">${fBRL(sal-total)}</td></tr>`:''}
+      </table>
+      ${sal?'<div style="font-size:10px;color:#666;margin-top:6px">A previsão não considera outros descontos e acréscimos da folha (faltas, horas extras, impostos).</div>':''}
+    </div>
+
+    <p style="margin-top:16px;font-size:11.5px;line-height:1.6">
+      Declaro haver recebido os valores acima discriminados a título de adiantamento, estando ciente de que
+      serão descontados na folha de pagamento da competência ${MESES[mes-1]}/${ano}.
+    </p>
+
+    <div class="assin">
+      <div>${esc(emp.nome)}<br><span style="color:#666">Colaborador</span></div>
+      <div>${esc(razao)}<br><span style="color:#666">Empregador</span></div>
+    </div>
+    <div style="text-align:center;margin-top:14px;font-size:11px">${esc(cfg.cidade||'')}, _____ de ______________________ de _________.</div>
+    `);
+  });
+
+  if(!paginas.length){ toast('Nenhum adiantamento nesta competência.','ok',4000); return; }
+  const w=window.open('','_blank');
+  if(!w){ toast('Permita pop-ups para gerar o extrato.','err'); return; }
+  w.document.write(`<html><head><meta charset="utf-8"><title>Extrato de Adiantamentos — ${MESES[mes-1]}/${ano}</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;color:#111;max-width:760px;margin:0 auto;padding:22px 26px;font-size:12px;line-height:1.6}
+    .topo{background:#1e293b;color:#fff;padding:12px 16px;border-radius:7px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{background:#f1f5f9;padding:6px 9px;font-size:11px}
+    .box{border:1px solid #cbd5e1;border-radius:8px;padding:11px 14px;margin-top:14px}
+    .assin{margin-top:40px;display:flex;gap:26px;flex-wrap:wrap}
+    .assin div{flex:1;min-width:210px;border-top:1px solid #333;padding-top:5px;text-align:center;font-size:11px}
+    @media print{ body{padding:6px} .noprint{display:none} }
+  </style></head><body>
+    ${paginas.join('')}
+    <div style="font-size:9.5px;color:#666;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:8px">
+      Gerado pelo Atlas RH em ${new Date().toLocaleString('pt-BR')}.
+    </div>
+    <div class="noprint" style="text-align:center;margin:20px 0">
+      <button onclick="window.print()" style="background:#1d4ed8;color:#fff;border:none;border-radius:8px;padding:11px 22px;font-size:14px;font-weight:700;cursor:pointer">🖨 Imprimir / Salvar em PDF${paginas.length>1?' ('+paginas.length+')':''}</button>
+    </div>
+  </body></html>`);
+  w.document.close();
+  try{ if(typeof auditLog==='function') auditLog('Gerou extrato de adiantamentos ('+paginas.length+')',MESES[mes-1]+'/'+ano,'financeiro'); }catch(_){}
+}
+
+window.abrirExtratoAdiantamentos=abrirExtratoAdiantamentos;
+window.gerarExtratoAdiantamento=gerarExtratoAdiantamento;
 
 function rHolerite(){
   // FIX-BUG20: garante HOL.mes é sempre 0-indexed (0=Jan...11=Dez)
