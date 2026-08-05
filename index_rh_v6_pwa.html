@@ -3232,6 +3232,7 @@ const NAV_GROUPS = [
   ]},
   { label: 'Financeiro', items: [
     {id:'financeiro',label:'Financeiro',icon:'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'},
+    {id:'adiantamentos',label:'Adiantamentos & Vales',icon:'<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><circle cx="12" cy="15" r="1.5"/>'},
     {id:'holerite',label:'Holerite',icon:'<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>'},
     {id:'salarios',label:'Salários & Metas',icon:'<rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>'},
     {id:'metadiaria',label:'Meta Diária',icon:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="9 16 11 18 15 14"/>'},
@@ -3432,7 +3433,7 @@ function navigate(mod){
     return;
   }
 
-  const renders={dashboard:(typeof window._rDashComAlertas==="function"?window._rDashComAlertas:rDash),funcionarios:rFuncs,ponto:rPonto,financeiro:rFin,holerite:rHolerite,atestados:rAtestados,candidatos:rCand,admissao:rAdmissao,demissao:rDemissao,salarios:rSalarios,metadiaria:rMetaDiaria,biometrico:function(){ return (typeof window.rBiometrico==='function') ? window.rBiometrico() : rBiometrico(); },relatorio:rRelatorio,advertencias:rAdvertencias,ferias:rFerias,desempenho:rDesempenho,comunicados:rComunicados,bancohoras:rBancoHoras,recrutamento:rRecrutamento,contratos:function(){ return (typeof rContratos==='function') ? rContratos() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Contratos carregando...</div>'; },comprovantes:rComprovantes,portaislinks:rPortaisLinks,workflows:rWorkflows,assinatura_digital:function(){ return (typeof window.rAssinaturaDigital==='function') ? window.rAssinaturaDigital() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Assinatura carregando...</div>'; },alarmes_portal:rAlarmesPortal,solicitacoes_portal:rSolicitacoesPortal,absenteismo:rAbsenteismo,suspensao:function(){ const t=document.getElementById('_susp_module_html_'); return t?t.innerHTML:'<div class="card" style="padding:30px;text-align:center">⏳ Módulo Suspensões carregando...</div>'; },agenda_rh:rAgendaRH,doc_templates:rDocTemplates,auditoria:function(){ return (typeof window.rAuditoria==='function') ? window.rAuditoria() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando auditoria...</div>'; },ocorrencias_contratados:function(){ return (typeof window.rOcorrenciasContratados==='function') ? window.rOcorrenciasContratados() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; }};
+  const renders={dashboard:(typeof window._rDashComAlertas==="function"?window._rDashComAlertas:rDash),funcionarios:rFuncs,ponto:rPonto,financeiro:rFin,holerite:rHolerite,atestados:rAtestados,candidatos:rCand,admissao:rAdmissao,demissao:rDemissao,salarios:rSalarios,metadiaria:rMetaDiaria,biometrico:function(){ return (typeof window.rBiometrico==='function') ? window.rBiometrico() : rBiometrico(); },relatorio:rRelatorio,advertencias:rAdvertencias,ferias:rFerias,desempenho:rDesempenho,comunicados:rComunicados,bancohoras:rBancoHoras,recrutamento:rRecrutamento,contratos:function(){ return (typeof rContratos==='function') ? rContratos() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Contratos carregando...</div>'; },comprovantes:rComprovantes,portaislinks:rPortaisLinks,workflows:rWorkflows,assinatura_digital:function(){ return (typeof window.rAssinaturaDigital==='function') ? window.rAssinaturaDigital() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Assinatura carregando...</div>'; },alarmes_portal:rAlarmesPortal,solicitacoes_portal:rSolicitacoesPortal,absenteismo:rAbsenteismo,suspensao:function(){ const t=document.getElementById('_susp_module_html_'); return t?t.innerHTML:'<div class="card" style="padding:30px;text-align:center">⏳ Módulo Suspensões carregando...</div>'; },agenda_rh:rAgendaRH,doc_templates:rDocTemplates,auditoria:function(){ return (typeof window.rAuditoria==='function') ? window.rAuditoria() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando auditoria...</div>'; },ocorrencias_contratados:function(){ return (typeof window.rOcorrenciasContratados==='function') ? window.rOcorrenciasContratados() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },adiantamentos:function(){ return (typeof window.rAdiantamentos==='function') ? window.rAdiantamentos() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; }};
   // FIX-C1: try-catch no dispatcher — evita tela branca se qualquer render lançar erro
   try {
     document.getElementById('content').innerHTML=(renders[mod]||rDash)();
@@ -6189,8 +6190,6 @@ function rFin(){
     <select onchange="FIN_STATE.ano=+this.value;navigate('financeiro')">
       ${anosDisponiveis().map(y=>`<option${ano===y?' selected':''}>${y}</option>`).join('')}
     </select>
-    <button class="btn btn-sm" style="background:#FEF2F2;color:#B91C1C;font-weight:700" onclick="abrirAdiantamentos()" title="Adiantamentos, vales e empréstimos a descontar">💵 Adiantamentos &amp; Vales</button>
-    <button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8;font-weight:700" onclick="abrirExtratoAdiantamentos()" title="Extrato mensal em PDF para o colaborador conferir">📄 Extrato do mês</button>
     <div style="margin-left:auto;padding:8px 14px;background:#F0FDF4;border-radius:8px;border:1px solid #BBF7D0;font-size:13px;color:#166534;font-weight:700">Total pago este mês: ${fBRL(totPago)}</div>
   </div>
   ${ativos.map(e=>{
@@ -7496,6 +7495,120 @@ function gerarExtratoAdiantamento(empId, ano, mes){
 
 window.abrirExtratoAdiantamentos=abrirExtratoAdiantamentos;
 window.gerarExtratoAdiantamento=gerarExtratoAdiantamento;
+
+
+// ── TELA: ADIANTAMENTOS & VALES ───────────────────────────────────────────
+// Módulo próprio no menu Financeiro. Reúne o lançamento, o acompanhamento do
+// que está pendente e a emissão do extrato mensal para o colaborador conferir.
+window._ADI_STATE = window._ADI_STATE || {mes:null, ano:null, filtro:'todos'};
+
+function rAdiantamentos(){
+  const hoje=new Date();
+  const st=window._ADI_STATE;
+  if(st.mes==null) st.mes=hoje.getMonth()+1;
+  if(st.ano==null) st.ano=hoje.getFullYear();
+  const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  const todos=Array.isArray(APP.adiantamentos)?APP.adiantamentos:[];
+  const doMes=todos.filter(a=>a&&Number(a.ano)===Number(st.ano)&&Number(a.mes)===Number(st.mes));
+  const filtrados=doMes.filter(a=>{
+    if(st.filtro==='pendentes') return !a.descontado;
+    if(st.filtro==='descontados') return !!a.descontado;
+    return true;
+  }).sort((a,b)=>String(b.data||'').localeCompare(String(a.data||'')));
+
+  const totalMes=+doMes.reduce((s,a)=>s+(parseFloat(a.valor)||0),0).toFixed(2);
+  const pend=doMes.filter(a=>!a.descontado);
+  const totalPend=+pend.reduce((s,a)=>s+(parseFloat(a.valor)||0),0).toFixed(2);
+  const pessoas=new Set(doMes.map(a=>a.empId)).size;
+
+  const ativos=(APP.employees||[]).filter(e=>e&&e.status==='ativo');
+
+  const card=(cor,bg,valor,rot)=>`
+    <div style="flex:1;min-width:130px;background:${bg};border-radius:11px;padding:12px 15px">
+      <div style="font-size:19px;font-weight:800;color:${cor};line-height:1.15">${valor}</div>
+      <div style="font-size:11.5px;color:${cor};opacity:.85;margin-top:2px">${rot}</div></div>`;
+
+  const linhas=filtrados.map(a=>{
+    const emp=(APP.employees||[]).find(e=>e.id===a.empId);
+    const t=(typeof ADI_TIPOS!=='undefined'&&ADI_TIPOS[a.tipo])?ADI_TIPOS[a.tipo]:{label:'Adiantamento',icon:'💵'};
+    return `<tr style="border-top:1px solid #F1F5F9;background:${a.descontado?'#F8FAFC':'#fff'}">
+      <td style="padding:9px 11px;white-space:nowrap">${(a.data||'').split('-').reverse().join('/')}</td>
+      <td style="padding:9px 11px">
+        <div style="font-weight:600;color:#1E293B">${esc(emp?emp.nome:'—')}</div>
+        ${emp&&emp.tipoContrato?`<div style="font-size:11px;color:#64748B">${esc(emp.tipoContrato)}</div>`:''}
+      </td>
+      <td style="padding:9px 11px">${t.icon} ${esc(t.label)}</td>
+      <td style="padding:9px 11px;font-size:11.5px;color:#64748B">${esc(a.obs||'')}</td>
+      <td style="padding:9px 11px;text-align:right;font-weight:700;color:${a.descontado?'#94A3B8':'#B91C1C'}">${fBRL(a.valor)}</td>
+      <td style="padding:9px 11px;text-align:center">${a.descontado
+        ? '<span style="background:#ECFDF5;color:#047857;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">✓ descontado</span>'
+        : '<span style="background:#FFFBEB;color:#B45309;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">a descontar</span>'}</td>
+      <td style="padding:9px 11px;text-align:right;white-space:nowrap">
+        <button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8;font-size:10.5px" onclick="gerarExtratoAdiantamento('${a.empId}',${st.ano},${st.mes})" title="Extrato deste colaborador">📄</button>
+        <button class="btn btn-sm" style="background:#FEF2F2;color:#DC2626;font-size:10.5px" onclick="adiExcluir('${a.id}')">×</button>
+      </td></tr>`;
+  }).join('');
+
+  const aba=(v,lbl,n)=>`<button onclick="_ADI_STATE.filtro='${v}';navigate('adiantamentos')"
+    style="background:${st.filtro===v?'#1e293b':'#F1F5F9'};color:${st.filtro===v?'#fff':'#475569'};border:none;border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:600;cursor:pointer">${lbl}${n!=null?` (${n})`:''}</button>`;
+
+  return `
+  <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
+    <select onchange="_ADI_STATE.mes=+this.value;navigate('adiantamentos')">
+      ${MESES.map((m,i)=>`<option value="${i+1}"${st.mes===i+1?' selected':''}>${m}</option>`).join('')}
+    </select>
+    <select onchange="_ADI_STATE.ano=+this.value;navigate('adiantamentos')">
+      ${[st.ano-1,st.ano,st.ano+1].map(y=>`<option${st.ano===y?' selected':''}>${y}</option>`).join('')}
+    </select>
+    <button class="btn" style="background:#047857;color:#fff;font-weight:700" onclick="abrirAdiantamentos()">+ Novo lançamento</button>
+    <button class="btn" style="background:#EFF6FF;color:#1D4ED8;font-weight:700;margin-left:auto" onclick="gerarExtratoAdiantamento(null,${st.ano},${st.mes})">📄 Extrato de todos</button>
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+    ${card('#334155','#F8FAFC',fBRL(totalMes),'Total no mês')}
+    ${card(totalPend?'#B91C1C':'#94A3B8', totalPend?'#FEF2F2':'#F8FAFC',fBRL(totalPend),'A descontar')}
+    ${card('#047857','#ECFDF5',String(pessoas),'Colaborador(es)')}
+    ${card('#1D4ED8','#EFF6FF',String(doMes.length),'Lançamentos')}
+  </div>
+
+  <div style="display:flex;gap:7px;margin-bottom:13px;flex-wrap:wrap">
+    ${aba('todos','Todos',doMes.length)}
+    ${aba('pendentes','A descontar',pend.length)}
+    ${aba('descontados','Descontados',doMes.length-pend.length)}
+  </div>
+
+  ${filtrados.length?`
+  <div class="card" style="padding:0;overflow:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+      <thead><tr style="background:#1e293b;color:#fff">
+        <th style="text-align:left;padding:10px 11px">Data</th>
+        <th style="text-align:left;padding:10px 11px">Colaborador</th>
+        <th style="text-align:left;padding:10px 11px">Tipo</th>
+        <th style="text-align:left;padding:10px 11px">Observação</th>
+        <th style="text-align:right;padding:10px 11px">Valor</th>
+        <th style="padding:10px 11px">Situação</th>
+        <th style="padding:10px 11px"></th>
+      </tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>
+  </div>`:`
+  <div class="card" style="text-align:center;padding:44px 20px;color:#94A3B8">
+    <div style="font-size:34px;margin-bottom:10px">💵</div>
+    <div style="font-weight:700;font-size:15px;color:#475569;margin-bottom:5px">Nenhum lançamento em ${MESES[st.mes-1]}/${st.ano}</div>
+    <div style="font-size:13px;line-height:1.55;max-width:420px;margin:0 auto">
+      Registre aqui os adiantamentos, vales e empréstimos pagos fora da folha.
+      Eles entram como desconto no holerite — tanto CLT quanto PJ — na competência que você escolher.
+    </div>
+    <button class="btn" style="background:#047857;color:#fff;font-weight:700;margin-top:16px" onclick="abrirAdiantamentos()">+ Lançar o primeiro</button>
+  </div>`}
+
+  <div style="font-size:11.5px;color:#94A3B8;margin-top:14px;line-height:1.6">
+    Os lançamentos são marcados como <strong>descontados</strong> automaticamente quando o holerite da competência é salvo com eles.
+    O extrato serve para o colaborador conferir e assinar antes do fechamento da folha.
+  </div>`;
+}
+window.rAdiantamentos=rAdiantamentos;
 
 function rHolerite(){
   // FIX-BUG20: garante HOL.mes é sempre 0-indexed (0=Jan...11=Dez)
