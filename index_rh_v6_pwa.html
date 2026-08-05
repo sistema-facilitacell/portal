@@ -2072,7 +2072,7 @@ function calcIRRF(b, rendimentoBruto){
 // O módulo usa caminho próprio de persistência (Firestore collection separada +
 // localStorage 'fcrh_comprovantes') — não entra em _VALID_KEYS/fbLoad para não
 // conflitar com a lógica da collection comprovantes_pagamento.
-let APP={employees:[],candidates:[],pontos:{},financeiro:{},atestados:[],admissoes:{},demissoes:{},salarios:{},holRascunho:{},metaDiaria:{},faltaPagar:[],advertencias:[],ferias:[],avaliacoes:[],comunicados:[],bancohoras:{},contratos:[],comprovantes:[],bhSolicitacoes:[],empresaCfg:{},lancamentos_bh:{},wf_ferias:[],wf_contratos_alertas:[],wf_holerite_auto:[],wf_onboarding:[],portalSolicitacoes:[],ocorrenciasContratados:[],agendaEventos:[]};
+let APP={employees:[],candidates:[],pontos:{},financeiro:{},atestados:[],admissoes:{},demissoes:{},salarios:{},holRascunho:{},metaDiaria:{},faltaPagar:[],advertencias:[],ferias:[],avaliacoes:[],comunicados:[],bancohoras:{},contratos:[],comprovantes:[],bhSolicitacoes:[],empresaCfg:{},lancamentos_bh:{},wf_ferias:[],wf_contratos_alertas:[],wf_holerite_auto:[],wf_onboarding:[],portalSolicitacoes:[],ocorrenciasContratados:[],agendaEventos:[],adiantamentos:[]};
 
 // FIX-BUG2: helper para escapar HTML em mensagens de erro (previne XSS)
 function _escHtml(s){
@@ -2463,6 +2463,7 @@ const _VALID_KEYS=new Set(['employees','candidates','pontos','financeiro','atest
   'portalSolicitacoes',    // solicitações do portal do colaborador
   'ocorrenciasContratados',// faltas/atestados/saídas de contratados sem registro de ponto
   'agendaEventos',         // eventos manuais da Agenda de RH
+  'adiantamentos',         // vales e adiantamentos a descontar no holerite
 ]);
 
 // ── save(k) — salva local + Firebase + Supabase (dados sensíveis) ──
@@ -6514,6 +6515,20 @@ function holSaveLinhas(showToast){
   limparHolAntigos();
   save('salarios');
   save('holRascunho'); // SUGESTÃO 1: persiste rascunho separado
+  // Confirma o desconto dos adiantamentos que entraram neste holerite. Só aqui,
+  // no salvamento — se o RH apenas visualizar e sair, o vale segue pendente.
+  try{
+    if(typeof adiMarcarDescontados==='function' && typeof adiPendentes==='function'){
+      const _eid=HOL.empId||HOL.emp;
+      const _pend=_eid?adiPendentes(_eid,HOL.ano,HOL.mes):[];
+      const _naFolha=_pend.filter(a=>(HOL.linhas||[]).some(l=>l&&String(l.desc_val)===String(Number(a.valor).toFixed(2))));
+      if(_naFolha.length){
+        _naFolha.forEach(a=>{ a.descontado=true; a.descontadoEm=new Date().toISOString(); });
+        save('adiantamentos');
+        console.log('[Adiantamentos] '+_naFolha.length+' marcado(s) como descontado(s)');
+      }
+    }
+  }catch(e){ console.warn('[Adiantamentos]',e&&e.message); }
   // Atualiza totais exibidos na tela imediatamente após salvar
   holUpdateTotals();
   // Feedback visual no botao salvar
@@ -6824,30 +6839,55 @@ async function carregarAssinaturasHolerite(ano, mes, forcar){
   if(!forcar && c && (Date.now()-c.ts)<60000) return c.dados;
   const dados={};
   if(!FBASE){ window._ASSIN_CACHE[chave]={ts:Date.now(),dados}; return dados; }
+  // Busca por empId de cada colaborador e filtra ano/mês no próprio código.
+  // Consultar direto por ano/mês no banco não funciona de forma confiável: em
+  // alguns registros esses campos foram gravados como número e em outros como
+  // texto, e a consulta não encontra os do outro tipo — sem dar erro, apenas
+  // devolvendo vazio. Comparar aqui, convertendo os dois lados, resolve.
+  // Compara numericamente quando ambos os lados são números escritos de
+  // qualquer forma — assim "07", "7" e 7 são tratados como o mesmo mês.
+  const mesmo=(a,b)=>{
+    const na=parseInt(String(a==null?'':a).trim(),10);
+    const nb=parseInt(String(b==null?'':b).trim(),10);
+    if(!isNaN(na)&&!isNaN(nb)) return na===nb;
+    return String(a==null?'':a).trim()===String(b==null?'':b).trim();
+  };
   try{
-    // Consulta por CAMPO, não por ID do documento. O portal localiza os
-    // holerites com where('empId'...), então o ID pode ter sido gerado de outra
-    // forma — buscar por `empId_ano_mes` deixava de fora holerites válidos e
-    // assinaturas apareciam como pendentes.
-    const snap=await FBASE.collection('holerites')
-      .where('ano','==',Number(ano)).where('mes','==',Number(mes)).get();
-    snap.forEach(doc=>{
-      const d=doc.data();
-      if(d && d.empId) dados[d.empId]=d;
+    const ativos=(APP.employees||[]).filter(e=>e&&e.status==='ativo');
+    const buscas=await Promise.all(ativos.map(e=>
+      FBASE.collection('holerites').where('empId','==',e.id).get()
+        .then(snap=>{
+          const achados=[];
+          snap.forEach(doc=>{
+            const d=doc.data()||{};
+            if(mesmo(d.ano,ano) && mesmo(d.mes,mes)) achados.push(d);
+          });
+          return {id:e.id, docs:achados};
+        })
+        .catch(err=>{ console.warn('[Assinaturas]',e.id,err&&err.message); return {id:e.id, docs:[]}; })
+    ));
+    buscas.forEach(b=>{
+      if(!b.docs.length) return;
+      // Havendo mais de um registro para a mesma competência, vale o assinado.
+      const assinado=b.docs.find(d=>d.assinado===true||d.assinaturaData);
+      dados[b.id]=assinado||b.docs[0];
     });
-  }catch(err){
-    console.warn('[Assinaturas] consulta por campo falhou, tentando por id:', err&&err.message);
-    // Reserva: alguns documentos antigos podem não ter ano/mes gravados.
-    try{
-      const ativos=(APP.employees||[]).filter(e=>e&&e.status==='ativo');
-      const docs=await Promise.all(ativos.map(e=>
+  }catch(err){ console.warn('[Assinaturas] falha na consulta:', err&&err.message); }
+
+  // Complemento: registros antigos, sem empId gravado, ainda são achados pelo
+  // identificador no formato antigo.
+  try{
+    const faltantes=(APP.employees||[]).filter(e=>e&&e.status==='ativo'&&!dados[e.id]);
+    if(faltantes.length){
+      const docs=await Promise.all(faltantes.map(e=>
         FBASE.collection('holerites').doc(`${e.id}_${ano}_${mes}`).get()
           .then(d=>({id:e.id, d:d.exists?d.data():null}))
           .catch(()=>({id:e.id, d:null}))
       ));
       docs.forEach(x=>{ if(x.d) dados[x.id]=x.d; });
-    }catch(e2){ console.warn('[Assinaturas] falha ao ler:', e2&&e2.message); }
-  }
+    }
+  }catch(_){}
+
   window._ASSIN_CACHE[chave]={ts:Date.now(),dados};
   return dados;
 }
@@ -7064,6 +7104,238 @@ window._statusAssinaturas=_statusAssinaturas;
 window._cardAssinaturas=_cardAssinaturas;
 window.cobrarAssinaturasHolerite=cobrarAssinaturasHolerite;
 
+
+// ══════════════════════════════════════════════════════════════════════════
+// ADIANTAMENTOS / VALES
+// Registra valores pagos antes da folha para serem descontados no holerite.
+// Vale tanto para CLT quanto para PJ — muda apenas o rótulo da verba.
+//
+// O desconto é lançado no holerite da competência escolhida e some da lista de
+// pendentes quando o holerite é fechado, para não descontar duas vezes.
+// ══════════════════════════════════════════════════════════════════════════
+
+const ADI_TIPOS = {
+  adiantamento: { label:'Adiantamento salarial', icon:'💵', cod:'150' },
+  vale:         { label:'Vale',                  icon:'🎫', cod:'151' },
+  emprestimo:   { label:'Empréstimo',            icon:'🏦', cod:'152' },
+  outro:        { label:'Outro desconto',        icon:'📌', cod:'159' }
+};
+
+function _adiLista(){
+  if(!Array.isArray(APP.adiantamentos)) APP.adiantamentos=[];
+  return APP.adiantamentos;
+}
+
+// Adiantamentos ainda não descontados de um colaborador numa competência.
+function adiPendentes(empId, ano, mes){
+  return _adiLista().filter(a=>
+    a && a.empId===empId && !a.descontado &&
+    Number(a.ano)===Number(ano) && Number(a.mes)===Number(mes)
+  );
+}
+function adiTotalPendente(empId, ano, mes){
+  return +adiPendentes(empId,ano,mes).reduce((s,a)=>s+(parseFloat(a.valor)||0),0).toFixed(2);
+}
+
+function abrirAdiantamentos(empIdPre){
+  const ativos=(APP.employees||[]).filter(e=>e&&e.status==='ativo');
+  if(!ativos.length){ toast('Nenhum colaborador ativo.','err'); return; }
+  const hoje=new Date();
+  const anoAtual=hoje.getFullYear(), mesAtual=hoje.getMonth()+1;
+  const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  const lista=_adiLista().slice().sort((a,b)=>String(b.data||'').localeCompare(String(a.data||'')));
+  const pend=lista.filter(a=>!a.descontado);
+  const totalPend=+pend.reduce((s,a)=>s+(parseFloat(a.valor)||0),0).toFixed(2);
+
+  const linhas=lista.slice(0,40).map(a=>{
+    const emp=(APP.employees||[]).find(e=>e.id===a.empId);
+    const t=ADI_TIPOS[a.tipo]||ADI_TIPOS.outro;
+    return `<tr style="border-top:1px solid #F1F5F9;background:${a.descontado?'#F8FAFC':'#fff'}">
+      <td style="padding:7px 9px">${(a.data||'').split('-').reverse().join('/')}</td>
+      <td style="padding:7px 9px">${esc(emp?emp.nome:'—')}</td>
+      <td style="padding:7px 9px">${t.icon} ${esc(t.label)}</td>
+      <td style="padding:7px 9px;text-align:center;color:#64748B">${MESES[(a.mes||1)-1]}/${a.ano}</td>
+      <td style="padding:7px 9px;text-align:right;font-weight:700;color:${a.descontado?'#94A3B8':'#B91C1C'}">${fBRL(a.valor)}</td>
+      <td style="padding:7px 9px;text-align:center">${a.descontado
+        ? '<span style="font-size:11px;color:#059669;font-weight:700">✓ descontado</span>'
+        : '<span style="font-size:11px;color:#B45309;font-weight:700">a descontar</span>'}</td>
+      <td style="padding:7px 9px;text-align:right">
+        <button class="btn btn-sm" style="background:#FEF2F2;color:#DC2626;font-size:10.5px" onclick="adiExcluir('${a.id}')">Excluir</button>
+      </td></tr>`;
+  }).join('');
+
+  openModal('💵 Adiantamentos e Vales',`
+    <div style="background:${totalPend?'#FFFBEB':'#ECFDF5'};border:1px solid ${totalPend?'#FDE68A':'#A7F3D0'};border-radius:9px;padding:10px 13px;margin-bottom:13px;font-size:12.5px;color:${totalPend?'#92400E':'#047857'};line-height:1.5">
+      ${totalPend
+        ? `<strong>${fBRL(totalPend)}</strong> a descontar em ${pend.length} lançamento(s). O valor entra como desconto no holerite da competência indicada.`
+        : '<strong>Nenhum adiantamento pendente.</strong>'}
+    </div>
+
+    <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:11px;padding:13px 15px;margin-bottom:14px">
+      <div style="font-size:11.5px;font-weight:800;color:#0F172A;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Novo lançamento</div>
+      <div style="display:flex;gap:9px;flex-wrap:wrap">
+        <div class="fld" style="flex:2;min-width:180px;margin:0"><label style="font-size:11px">Colaborador</label>
+          <select id="adi-emp" style="font-size:12.5px">${ativos.map(e=>`<option value="${e.id}" ${e.id===empIdPre?'selected':''}>${esc(e.nome)}${e.tipoContrato?' · '+esc(e.tipoContrato):''}</option>`).join('')}</select>
+        </div>
+        <div class="fld" style="flex:1;min-width:150px;margin:0"><label style="font-size:11px">Tipo</label>
+          <select id="adi-tipo" style="font-size:12.5px">${Object.keys(ADI_TIPOS).map(k=>`<option value="${k}">${ADI_TIPOS[k].icon} ${ADI_TIPOS[k].label}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:9px">
+        <div class="fld" style="flex:1;min-width:110px;margin:0"><label style="font-size:11px">Valor (R$)</label>
+          <input type="number" id="adi-valor" step="0.01" placeholder="0,00" style="font-size:12.5px"></div>
+        <div class="fld" style="flex:1;min-width:130px;margin:0"><label style="font-size:11px">Data do pagamento</label>
+          <input type="date" id="adi-data" value="${hoje.toISOString().slice(0,10)}" style="font-size:12.5px"></div>
+        <div class="fld" style="width:120px;margin:0"><label style="font-size:11px">Descontar em</label>
+          <select id="adi-mes" style="font-size:12.5px">${MESES.map((m,i)=>`<option value="${i+1}" ${i+1===mesAtual?'selected':''}>${m}</option>`).join('')}</select></div>
+        <div class="fld" style="width:88px;margin:0"><label style="font-size:11px">Ano</label>
+          <input type="number" id="adi-ano" value="${anoAtual}" style="font-size:12.5px"></div>
+      </div>
+      <div class="fld" style="margin:9px 0 0"><label style="font-size:11px">Observação (opcional)</label>
+        <input type="text" id="adi-obs" placeholder="ex.: pago em dinheiro no dia 10" style="font-size:12.5px"></div>
+      <div style="text-align:right;margin-top:10px">
+        <button class="btn" style="background:#047857;color:#fff;font-weight:700" onclick="adiSalvar()">+ Lançar</button>
+      </div>
+    </div>
+
+    ${lista.length?`
+    <div style="border:1px solid #E2E8F0;border-radius:10px;overflow:auto;max-height:300px">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:#1e293b;color:#fff;position:sticky;top:0">
+          <th style="text-align:left;padding:8px 9px">Data</th>
+          <th style="text-align:left;padding:8px 9px">Colaborador</th>
+          <th style="text-align:left;padding:8px 9px">Tipo</th>
+          <th style="padding:8px 9px">Competência</th>
+          <th style="text-align:right;padding:8px 9px">Valor</th>
+          <th style="padding:8px 9px">Situação</th>
+          <th style="padding:8px 9px"></th>
+        </tr></thead><tbody>${linhas}</tbody></table>
+    </div>`:''}
+
+    <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>`,780);
+}
+
+function adiSalvar(){
+  const v=id=>{ const el=document.getElementById(id); return el?el.value:''; };
+  const empId=v('adi-emp'), tipo=v('adi-tipo')||'adiantamento';
+  const valor=parseFloat(v('adi-valor'));
+  const data=v('adi-data'), mes=parseInt(v('adi-mes')), ano=parseInt(v('adi-ano'));
+  if(!empId){ toast('Selecione o colaborador.','err'); return; }
+  if(!valor||valor<=0){ toast('Informe um valor maior que zero.','err'); return; }
+  if(!mes||!ano){ toast('Informe a competência do desconto.','err'); return; }
+
+  const emp=(APP.employees||[]).find(e=>e.id===empId);
+  const rec={
+    id:(typeof _id==='function'?_id():String(Date.now())+Math.random().toString(36).slice(2,6)),
+    empId, empNome:emp?emp.nome:'', tipo, valor:+valor.toFixed(2),
+    data:data||new Date().toISOString().slice(0,10),
+    ano, mes, obs:v('adi-obs')||'',
+    descontado:false, criadoEm:new Date().toISOString(),
+    criadoPor:(typeof _getRHUser==='function'?_getRHUser():'RH')
+  };
+  _adiLista().push(rec);
+  save('adiantamentos');
+  try{ if(typeof auditLog==='function') auditLog('Lançou '+(ADI_TIPOS[tipo]||{}).label+' de '+fBRL(valor),(emp?emp.nome:''),'financeiro'); }catch(_){}
+  toast('✅ Lançado. Será descontado no holerite de '+mes+'/'+ano,'ok',4500);
+  abrirAdiantamentos(empId);
+}
+
+function adiExcluir(id){
+  const a=_adiLista().find(x=>x.id===id);
+  if(!a) return;
+  if(a.descontado && !confirm('Este lançamento já foi descontado em holerite.\n\nExcluir mesmo assim? O desconto já aplicado não será desfeito.')) return;
+  if(!a.descontado && !confirm('Excluir este lançamento de '+fBRL(a.valor)+'?')) return;
+  APP.adiantamentos=_adiLista().filter(x=>x.id!==id);
+  save('adiantamentos');
+  toast('Lançamento excluído.','ok');
+  abrirAdiantamentos();
+}
+
+// Marca como descontados os adiantamentos que entraram num holerite fechado.
+function adiMarcarDescontados(empId, ano, mes){
+  let n=0;
+  adiPendentes(empId,ano,mes).forEach(a=>{
+    a.descontado=true;
+    a.descontadoEm=new Date().toISOString();
+    n++;
+  });
+  if(n){ save('adiantamentos'); }
+  return n;
+}
+
+window.ADI_TIPOS=ADI_TIPOS;
+window.abrirAdiantamentos=abrirAdiantamentos;
+window.adiSalvar=adiSalvar;
+window.adiExcluir=adiExcluir;
+window.adiPendentes=adiPendentes;
+window.adiTotalPendente=adiTotalPendente;
+window.adiMarcarDescontados=adiMarcarDescontados;
+
+
+// Traz para o holerite os adiantamentos pendentes da competência aberta.
+// O lançamento só é marcado como descontado ao salvar o holerite — assim,
+// se a pessoa desistir e fechar a tela, o vale continua na lista de pendentes.
+function holAplicarAdiantamentos(){
+  if(typeof adiPendentes!=='function'){ toast('Módulo de adiantamentos indisponível.','err'); return; }
+  const eid=HOL.empId||HOL.emp||(document.getElementById('hol-emp')||{}).value;
+  if(!eid){ toast('Selecione o colaborador primeiro.','err'); return; }
+  const pend=adiPendentes(eid, HOL.ano, HOL.mes);
+  if(!pend.length){ toast('Nenhum adiantamento pendente para esta competência.','ok',4000); return; }
+
+  // Evita lançar duas vezes a mesma linha se o botão for clicado de novo.
+  let add=0;
+  pend.forEach(a=>{
+    const t=(typeof ADI_TIPOS!=='undefined'&&ADI_TIPOS[a.tipo])?ADI_TIPOS[a.tipo]:{label:'Adiantamento',cod:'150'};
+    const descTxt=t.label.toUpperCase()+(a.obs?' — '+a.obs:'');
+    const jaTem=(HOL.linhas||[]).some(l=>l && l.desc===descTxt && String(l.desc_val)===String(a.valor.toFixed(2)));
+    if(jaTem) return;
+    HOL.linhas.push({cod:t.cod, desc:descTxt, ref:(a.data||'').split('-').reverse().join('/'),
+                     venc:'', desc_val:String(a.valor.toFixed(2))});
+    add++;
+  });
+  if(!add){ toast('Os adiantamentos já estão lançados neste holerite.','ok',4000); return; }
+  navigate('holerite');
+  setTimeout(()=>toast('💵 '+add+' adiantamento(s) lançado(s) como desconto. Salve o holerite para confirmar.','ok',5500),150);
+}
+window.holAplicarAdiantamentos=holAplicarAdiantamentos;
+
+
+// Traz para o holerite os descontos das ocorrências do contratado no mês.
+// Quem não bate ponto não tem o desconto apurado pelo cartão — vem daqui.
+function holAplicarOcorrencias(){
+  const eid=HOL.empId||HOL.emp||(document.getElementById('hol-emp')||{}).value;
+  if(!eid){ toast('Selecione o colaborador primeiro.','err'); return; }
+  const occs=(APP.ocorrenciasContratados||[]).filter(o=>{
+    if(!o||o.colabId!==eid||o.descontadoHolerite) return false;
+    const d=new Date((o.data||'')+'T00:00');
+    if(isNaN(d)) return false;
+    return d.getFullYear()===Number(HOL.ano) && (d.getMonth()+1)===Number(HOL.mes);
+  });
+  if(!occs.length){ toast('Nenhuma ocorrência a descontar nesta competência.','ok',4000); return; }
+
+  let add=0, total=0;
+  occs.forEach(o=>{
+    const t=OCC_TIPOS[o.tipo]||{};
+    if(!t.desconta) return;
+    const val = (o.descontoValor!=null) ? o.descontoValor : (occDesconto(o).valor||0);
+    if(!(val>0)) return;
+    const dia=(o.data||'').split('-').reverse().join('/');
+    const descTxt=(t.label||'Ocorrência').toUpperCase()+' — '+dia;
+    const jaTem=(HOL.linhas||[]).some(l=>l && l.desc===descTxt);
+    if(jaTem) return;
+    HOL.linhas.push({cod:'', desc:descTxt,
+      ref:(o.descontoHoras?o.descontoHoras+'h':''), venc:'', desc_val:String(val.toFixed(2))});
+    o.descontadoHolerite=true;
+    add++; total+=val;
+  });
+  if(!add){ toast('As ocorrências já estão lançadas neste holerite.','ok',4000); return; }
+  save('ocorrenciasContratados');
+  navigate('holerite');
+  setTimeout(()=>toast('⏰ '+add+' ocorrência(s) lançada(s) — '+fBRL(total)+' em descontos.','ok',5500),150);
+}
+window.holAplicarOcorrencias=holAplicarOcorrencias;
+
 function rHolerite(){
   // FIX-BUG20: garante HOL.mes é sempre 0-indexed (0=Jan...11=Dez)
   // HOL.mes pode chegar como string vinda do <select> onchange antes do +this.value converter
@@ -7115,6 +7387,7 @@ function rHolerite(){
   <div class="card hol-ctrl print-hide" style="margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
       <div style="font-size:15px;font-weight:700">⚙️ Configurar Holerite</div>
+      <button class="btn btn-sm" style="background:#FEF2F2;color:#B91C1C;font-weight:700" onclick="abrirAdiantamentos()" title="Vales e adiantamentos a descontar no holerite">💵 Adiantamentos</button>
       <button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8;font-weight:700" onclick="abrirImportarFolha()" title="Lê o recibo enviado pela contabilidade (PDF, print ou texto) e preenche os holerites">📥 Importar Folha</button>
       <button class="btn btn-blue btn-sm" onclick="holCarregarDados()" title="Preenche automaticamente com os dados de Salários &amp; Metas">🔄 Carregar de Salários &amp; Metas</button>
     </div>
@@ -7218,6 +7491,8 @@ function rHolerite(){
       <button class="btn btn-sm" style="background:#FEF2F2;color:var(--red)" onclick="HOL.linhas.push({cod:'62',desc:'DESC. DO R.S.R.',ref:'',venc:'',desc_val:''});navigate('holerite')">+ R.S.R.</button>
       <button class="btn btn-sm" style="background:#FEF2F2;color:var(--red)" onclick="holAdicionarINSS()">+ INSS</button>
       <button class="btn btn-sm" style="background:#F5F3FF;color:#7C3AED" onclick="HOL.linhas.push({cod:'',desc:'DESC. SIMPLIFICADO',ref:'',venc:'',desc_val:''});navigate('holerite')">+ Desc. Simplificado</button>
+      <button class="btn btn-sm" style="background:#FEF2F2;color:#B91C1C;font-weight:700" onclick="holAplicarAdiantamentos()" title="Traz os adiantamentos pendentes desta competência como desconto">💵 Adiantamentos</button>
+      <button class="btn btn-sm" style="background:#FFFBEB;color:#B45309;font-weight:700" onclick="holAplicarOcorrencias()" title="Traz faltas, atrasos e saídas antecipadas do contratado como desconto">⏰ Ocorrências</button>
     </div>
     <div style="margin-top:10px;padding:8px 12px;background:#F1F5F9;border-radius:8px;font-size:12px;color:var(--mt);display:flex;gap:16px;flex-wrap:wrap">
       <span>Referência: <strong>${MONTHS[mes]}/${ano}</strong></span>
@@ -40259,6 +40534,443 @@ console.log('[v18] ✅ Módulo Assinatura Digital carregado — canvas + SHA-256
 (function(){
   'use strict';
 
+
+  // ── Descontos do contratado no mês ────────────────────────────────
+  // O holerite de PJ é gerado num sistema externo, então não dá para lançar as
+  // linhas automaticamente lá. Este painel apura os valores aqui e deixa tudo
+  // pronto para copiar — evita conferir ocorrência por ocorrência na mão.
+  window._pjDescontosMes = function(empId, ano, mes){
+    const itens=[];
+    // Ocorrências (falta, atraso, saída antecipada, meio período, suspensão)
+    (APP.ocorrenciasContratados||[]).forEach(o=>{
+      if(!o || o.colabId!==empId) return;
+      const d=new Date((o.data||'')+'T00:00');
+      if(isNaN(d) || d.getFullYear()!==Number(ano) || (d.getMonth()+1)!==Number(mes)) return;
+      const t=(typeof OCC_TIPOS!=='undefined'&&OCC_TIPOS[o.tipo])?OCC_TIPOS[o.tipo]:null;
+      if(!t||!t.desconta) return;
+      const val=(o.descontoValor!=null)?o.descontoValor
+                :(typeof occDesconto==='function'?(occDesconto(o).valor||0):0);
+      if(!(val>0)) return;
+      itens.push({data:o.data, tipo:t.label, icon:t.icon,
+                  detalhe:(o.descontoHoras?o.descontoHoras+'h':'')+(o.motivo?' · '+o.motivo:''),
+                  valor:val});
+    });
+    // Adiantamentos e vales da competência
+    if(typeof adiPendentes==='function'){
+      adiPendentes(empId,ano,mes).forEach(a=>{
+        const t=(typeof ADI_TIPOS!=='undefined'&&ADI_TIPOS[a.tipo])?ADI_TIPOS[a.tipo]:{label:'Adiantamento',icon:'💵'};
+        itens.push({data:a.data, tipo:t.label, icon:t.icon,
+                    detalhe:a.obs||'', valor:parseFloat(a.valor)||0});
+      });
+    }
+    itens.sort((x,y)=>String(x.data||'').localeCompare(String(y.data||'')));
+    const total=+itens.reduce((s,x)=>s+x.valor,0).toFixed(2);
+    return {itens, total};
+  };
+
+  window._pjPainelDescontos = function(emp){
+    if(!emp) return '';
+    const hoje=new Date();
+    const ano=(window._HOL_EXT.ano)||hoje.getFullYear();
+    const mes=(window._HOL_EXT.mes)||(hoje.getMonth()+1);
+    const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    let r;
+    try{ r=window._pjDescontosMes(emp.id,ano,mes); }catch(e){ console.warn('[PJ]',e&&e.message); return ''; }
+
+    const sal=parseFloat(emp.salario)||0;
+    const liquido=+(sal-r.total).toFixed(2);
+
+    const seletor=`
+      <select onchange="window._HOL_EXT.mes=+this.value;navigate('holerite')"
+        style="padding:5px 10px;border:1px solid var(--border);border-radius:7px;font-size:12px;font-weight:600">
+        ${MESES.map((m,i)=>`<option value="${i+1}" ${i+1===mes?'selected':''}>${m}</option>`).join('')}
+      </select>
+      <input type="number" value="${ano}" onchange="window._HOL_EXT.ano=+this.value;navigate('holerite')"
+        style="width:78px;padding:5px 8px;border:1px solid var(--border);border-radius:7px;font-size:12px;font-weight:600">`;
+
+    return `
+    <div style="background:#fff;border:1.5px solid ${r.total?'#FDE68A':'#E2E8F0'};border-radius:12px;padding:15px 18px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+        <div>
+          <div style="font-size:14px;font-weight:800;color:#0F172A">💰 Descontos apurados — ${esc(emp.nome)}</div>
+          <div style="font-size:12px;color:#64748B">Lance estes valores no sistema de holerite ao lado</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">${seletor}</div>
+      </div>
+
+      ${r.itens.length?`
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:11px">
+        <thead><tr style="background:#F8FAFC">
+          <th style="text-align:left;padding:6px 9px">Data</th>
+          <th style="text-align:left;padding:6px 9px">Ocorrência</th>
+          <th style="text-align:left;padding:6px 9px">Detalhe</th>
+          <th style="text-align:right;padding:6px 9px">Valor</th>
+        </tr></thead>
+        <tbody>${r.itens.map(x=>`<tr style="border-top:1px solid #F1F5F9">
+          <td style="padding:6px 9px;white-space:nowrap">${(x.data||'').split('-').reverse().join('/')}</td>
+          <td style="padding:6px 9px">${x.icon} ${esc(x.tipo)}</td>
+          <td style="padding:6px 9px;color:#64748B;font-size:11.5px">${esc(x.detalhe||'')}</td>
+          <td style="padding:6px 9px;text-align:right;font-weight:700;color:#B91C1C">${fBRL(x.valor)}</td>
+        </tr>`).join('')}</tbody>
+      </table>`:'<div style="font-size:12.5px;color:#64748B;padding:8px 0">Nenhum desconto lançado nesta competência.</div>'}
+
+      <div style="display:flex;gap:9px;flex-wrap:wrap;border-top:1.5px solid #E2E8F0;padding-top:11px">
+        <div style="flex:1;min-width:120px;background:#F8FAFC;border-radius:9px;padding:9px 12px">
+          <div style="font-size:16px;font-weight:800;color:#334155">${fBRL(sal)}</div>
+          <div style="font-size:11px;color:#64748B">Valor contratado</div></div>
+        <div style="flex:1;min-width:120px;background:${r.total?'#FEF2F2':'#F8FAFC'};border-radius:9px;padding:9px 12px">
+          <div style="font-size:16px;font-weight:800;color:${r.total?'#B91C1C':'#94A3B8'}">${fBRL(r.total)}</div>
+          <div style="font-size:11px;color:#64748B">Descontos</div></div>
+        <div style="flex:1;min-width:120px;background:#ECFDF5;border-radius:9px;padding:9px 12px">
+          <div style="font-size:16px;font-weight:800;color:#047857">${fBRL(liquido)}</div>
+          <div style="font-size:11px;color:#64748B">A pagar</div></div>
+      </div>
+
+      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:11px">
+        <button class="btn btn-sm" style="background:#FEF2F2;color:#B91C1C;font-weight:700" onclick="abrirAdiantamentos('${emp.id}')">💵 Lançar adiantamento</button>
+        <button class="btn btn-sm" style="background:#FFFBEB;color:#B45309;font-weight:700" onclick="navigate('ocorrencias_contratados')">⏰ Lançar ocorrência</button>
+        ${r.itens.length?`<button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8;font-weight:700" onclick="_pjCopiarDescontos('${emp.id}',${ano},${mes})">📋 Copiar resumo</button>`:''}
+      </div>
+    </div>`;
+  };
+
+  window._pjCopiarDescontos = function(empId, ano, mes){
+    const emp=(APP.employees||[]).find(e=>e.id===empId);
+    const r=window._pjDescontosMes(empId,ano,mes);
+    const linhas=r.itens.map(x=>`${(x.data||'').split('-').reverse().join('/')}  ${x.tipo}${x.detalhe?' ('+x.detalhe+')':''}  -${fBRL(x.valor)}`);
+    const txt=[`Descontos — ${emp?emp.nome:''} — ${mes}/${ano}`,'',...linhas,'',
+               `Total de descontos: ${fBRL(r.total)}`,
+               `Valor contratado: ${fBRL(parseFloat(emp&&emp.salario)||0)}`,
+               `A pagar: ${fBRL((parseFloat(emp&&emp.salario)||0)-r.total)}`].join('\n');
+    try{ navigator.clipboard.writeText(txt); toast('📋 Resumo copiado','ok'); }
+    catch(_){ toast('Não foi possível copiar','err'); }
+  };
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// RECIBO DE PRESTAÇÃO DE SERVIÇOS — contratados / PJ
+//
+// Substitui o sistema externo. A estrutura é diferente do holerite CLT porque
+// a natureza jurídica é outra: não há FGTS, 13º nem férias, e as retenções
+// dependem do enquadramento:
+//   • PJ (empresa)      — sem INSS/IRRF na fonte por padrão; pode ter ISS
+//   • Autônomo / RPA    — INSS 11% e IRRF retidos na fonte pelo tomador
+// Por isso as retenções são opcionais e ficam à vista, para o RH decidir.
+// ══════════════════════════════════════════════════════════════════════════
+
+const PJ_TIPOS_CONTRATO = ['PJ','pj','Autônomo','autonomo','Terceirizado','RPA','Contratado','contratado'];
+
+function _pjEhAutonomo(emp){
+  const t=String((emp&&emp.tipoContrato)||'').toLowerCase();
+  return t==='autônomo'||t==='autonomo'||t==='rpa';
+}
+
+function _pjRecKey(empId, ano, mes){ return `pj_${empId}_${ano}_${mes}`; }
+
+// Carrega o recibo salvo, ou monta um novo a partir do contrato e das ocorrências.
+function pjCarregarRecibo(empId, ano, mes){
+  const emp=(APP.employees||[]).find(e=>e.id===empId);
+  if(!emp) return null;
+  const key=_pjRecKey(empId,ano,mes);
+  const salvo=(APP.holRascunho||{})[key];
+  if(salvo && salvo.linhas){
+    try{ return {...salvo, linhas:JSON.parse(salvo.linhas)}; }catch(_){}
+  }
+  // Monta a partir do contrato: valor + descontos apurados
+  const linhas=[{desc:'PRESTAÇÃO DE SERVIÇOS — '+(emp.cargo||'serviços'), ref:'mensal',
+                 venc:String((parseFloat(emp.salario)||0).toFixed(2)), desc_val:''}];
+  try{
+    const d=(typeof window._pjDescontosMes==='function')?window._pjDescontosMes(empId,ano,mes):{itens:[]};
+    (d.itens||[]).forEach(x=>{
+      linhas.push({desc:String(x.tipo||'Desconto').toUpperCase()+((x.data)?' — '+(x.data.split('-').reverse().join('/')):''),
+                   ref:x.detalhe||'', venc:'', desc_val:String(Number(x.valor).toFixed(2))});
+    });
+  }catch(_){}
+  return {empId, ano, mes, linhas, retInss:false, retIrrf:false, retIss:false, aliqIss:5, obs:'', pago:false};
+}
+
+function pjSalvarRecibo(rec){
+  if(!rec||!rec.empId) return;
+  const key=_pjRecKey(rec.empId,rec.ano,rec.mes);
+  if(!APP.holRascunho) APP.holRascunho={};
+  APP.holRascunho[key]={
+    ...rec,
+    linhas:JSON.stringify(rec.linhas||[]),
+    _ts:new Date().toISOString()
+  };
+  save('holRascunho');
+}
+
+// Totais do recibo, já com as retenções aplicadas.
+function pjTotais(rec, emp){
+  const linhas=rec.linhas||[];
+  const bruto=+linhas.reduce((s,l)=>s+(parseFloat(l.venc)||0),0).toFixed(2);
+  const desc =+linhas.reduce((s,l)=>s+(parseFloat(l.desc_val)||0),0).toFixed(2);
+  const base=+(bruto-desc).toFixed(2);
+
+  const ret=[];
+  // INSS do contribuinte individual: 11% sobre o valor, limitado ao teto.
+  if(rec.retInss){
+    const TETO=(typeof INSS_TETO_2026!=='undefined')?INSS_TETO_2026:8475.55;
+    const b=Math.min(base,TETO);
+    ret.push({desc:'INSS retido (11%)', valor:+(b*0.11).toFixed(2)});
+  }
+  // IRRF pela tabela progressiva, já com a regra de 2026.
+  if(rec.retIrrf && typeof calcIRRF==='function'){
+    const inssRet=ret.reduce((s,r)=>s+(r.desc.indexOf('INSS')>=0?r.valor:0),0);
+    const v=calcIRRF(base-inssRet, base);
+    if(v>0) ret.push({desc:'IRRF retido', valor:v});
+  }
+  // ISS retido pelo tomador, quando o município exige.
+  if(rec.retIss){
+    const aliq=(parseFloat(rec.aliqIss)||0)/100;
+    if(aliq>0) ret.push({desc:'ISS retido ('+(aliq*100).toFixed(2).replace('.',',')+'%)', valor:+(base*aliq).toFixed(2)});
+  }
+  const totalRet=+ret.reduce((s,r)=>s+r.valor,0).toFixed(2);
+  const liquido=+(base-totalRet).toFixed(2);
+  return {bruto, desc, base, ret, totalRet, liquido};
+}
+
+// ── Tela ──────────────────────────────────────────────────────────────────
+window._PJ_REC = window._PJ_REC || null;
+
+function pjAbrirRecibo(empId, ano, mes){
+  const hoje=new Date();
+  ano=ano||(window._HOL_EXT&&window._HOL_EXT.ano)||hoje.getFullYear();
+  mes=mes||(window._HOL_EXT&&window._HOL_EXT.mes)||(hoje.getMonth()+1);
+  window._PJ_REC=pjCarregarRecibo(empId,ano,mes);
+  if(!window._PJ_REC){ toast('Contratado não encontrado.','err'); return; }
+  if(window._HOL_EXT){ window._HOL_EXT.empId=empId; window._HOL_EXT.ano=ano; window._HOL_EXT.mes=mes; }
+  navigate('holerite');
+}
+
+function pjRenderRecibo(emp){
+  const rec=window._PJ_REC;
+  if(!rec||rec.empId!==emp.id) return '';
+  const t=pjTotais(rec,emp);
+  const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const autonomo=_pjEhAutonomo(emp);
+
+  const linhasHtml=(rec.linhas||[]).map((l,i)=>`
+    <tr style="border-top:1px solid #F1F5F9">
+      <td style="padding:4px 6px"><input value="${esc(l.desc||'')}" oninput="_PJ_REC.linhas[${i}].desc=this.value"
+        style="width:100%;border:1px solid #E2E8F0;border-radius:6px;padding:6px 8px;font-size:12.5px"></td>
+      <td style="padding:4px 6px;width:110px"><input value="${esc(l.ref||'')}" oninput="_PJ_REC.linhas[${i}].ref=this.value"
+        style="width:100%;border:1px solid #E2E8F0;border-radius:6px;padding:6px 8px;font-size:12.5px;text-align:center"></td>
+      <td style="padding:4px 6px;width:120px"><input type="number" step="0.01" value="${esc(l.venc||'')}" oninput="_PJ_REC.linhas[${i}].venc=this.value;pjAtualizarTotais()"
+        style="width:100%;border:1px solid #BBF7D0;border-radius:6px;padding:6px 8px;font-size:12.5px;text-align:right;color:#047857;font-weight:600"></td>
+      <td style="padding:4px 6px;width:120px"><input type="number" step="0.01" value="${esc(l.desc_val||'')}" oninput="_PJ_REC.linhas[${i}].desc_val=this.value;pjAtualizarTotais()"
+        style="width:100%;border:1px solid #FECACA;border-radius:6px;padding:6px 8px;font-size:12.5px;text-align:right;color:#B91C1C;font-weight:600"></td>
+      <td style="padding:4px 6px;width:34px"><button onclick="_PJ_REC.linhas.splice(${i},1);navigate('holerite')"
+        style="background:none;border:none;color:#94A3B8;cursor:pointer;font-size:15px">×</button></td>
+    </tr>`).join('');
+
+  return `
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+      <div>
+        <div style="font-size:15px;font-weight:800;color:#0F172A">📄 Recibo de Prestação de Serviços</div>
+        <div style="font-size:12px;color:#64748B">${esc(emp.nome)} · ${esc(emp.tipoContrato||'Contratado')}${emp.cnpj?' · CNPJ '+esc(emp.cnpj):(emp.cpf?' · CPF '+esc(emp.cpf):'')}</div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <select onchange="window._HOL_EXT.mes=+this.value;pjAbrirRecibo('${emp.id}',window._HOL_EXT.ano,+this.value)"
+          style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;font-weight:600">
+          ${MESES.map((m,i)=>`<option value="${i+1}" ${i+1===rec.mes?'selected':''}>${m}</option>`).join('')}
+        </select>
+        <input type="number" value="${rec.ano}" onchange="window._HOL_EXT.ano=+this.value;pjAbrirRecibo('${emp.id}',+this.value,window._HOL_EXT.mes)"
+          style="width:82px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;font-weight:600">
+      </div>
+    </div>
+
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:10px">
+      <thead><tr style="background:#F8FAFC">
+        <th style="text-align:left;padding:7px 9px">Descrição</th>
+        <th style="padding:7px 6px">Referência</th>
+        <th style="padding:7px 6px;color:#047857">Valor</th>
+        <th style="padding:7px 6px;color:#B91C1C">Desconto</th>
+        <th></th>
+      </tr></thead>
+      <tbody id="pj-linhas">${linhasHtml}</tbody>
+    </table>
+
+    <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">
+      <button class="btn btn-sm" style="background:#F0FDF4;color:#047857" onclick="_PJ_REC.linhas.push({desc:'',ref:'',venc:'',desc_val:''});navigate('holerite')">+ Linha</button>
+      <button class="btn btn-sm" style="background:#FEF2F2;color:#B91C1C;font-weight:700" onclick="pjImportarDescontos()">⏰ Trazer descontos do mês</button>
+      <button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8" onclick="abrirAdiantamentos('${emp.id}')">💵 Adiantamentos</button>
+    </div>
+
+    <div style="background:#F8FAFC;border-radius:11px;padding:13px 15px;margin-bottom:13px">
+      <div style="font-size:11.5px;font-weight:800;color:#0F172A;text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px">
+        Retenções na fonte ${autonomo?'<span style="color:#B45309;font-weight:600;text-transform:none;letter-spacing:0">— autônomo/RPA costuma ter INSS e IRRF retidos</span>':'<span style="color:#64748B;font-weight:600;text-transform:none;letter-spacing:0">— PJ normalmente não tem retenção</span>'}
+      </div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer">
+          <input type="checkbox" ${rec.retInss?'checked':''} onchange="_PJ_REC.retInss=this.checked;navigate('holerite')" style="width:auto;margin:0"> INSS 11%</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer">
+          <input type="checkbox" ${rec.retIrrf?'checked':''} onchange="_PJ_REC.retIrrf=this.checked;navigate('holerite')" style="width:auto;margin:0"> IRRF</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer">
+          <input type="checkbox" ${rec.retIss?'checked':''} onchange="_PJ_REC.retIss=this.checked;navigate('holerite')" style="width:auto;margin:0"> ISS</label>
+        ${rec.retIss?`<input type="number" step="0.01" value="${rec.aliqIss||5}" onchange="_PJ_REC.aliqIss=+this.value;navigate('holerite')"
+          style="width:70px;padding:5px 8px;border:1px solid #CBD5E1;border-radius:7px;font-size:12px;text-align:right"> %`:''}
+      </div>
+    </div>
+
+    <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:13px">
+      <div style="flex:1;min-width:110px;background:#ECFDF5;border-radius:9px;padding:9px 12px">
+        <div style="font-size:15px;font-weight:800;color:#047857">${fBRL(t.bruto)}</div>
+        <div style="font-size:11px;color:#64748B">Bruto</div></div>
+      <div style="flex:1;min-width:110px;background:${t.desc?'#FEF2F2':'#F8FAFC'};border-radius:9px;padding:9px 12px">
+        <div style="font-size:15px;font-weight:800;color:${t.desc?'#B91C1C':'#94A3B8'}">${fBRL(t.desc)}</div>
+        <div style="font-size:11px;color:#64748B">Descontos</div></div>
+      <div style="flex:1;min-width:110px;background:${t.totalRet?'#FFFBEB':'#F8FAFC'};border-radius:9px;padding:9px 12px">
+        <div style="font-size:15px;font-weight:800;color:${t.totalRet?'#B45309':'#94A3B8'}">${fBRL(t.totalRet)}</div>
+        <div style="font-size:11px;color:#64748B">Retenções</div></div>
+      <div style="flex:1.3;min-width:130px;background:#1e293b;border-radius:9px;padding:9px 12px">
+        <div style="font-size:18px;font-weight:800;color:#fff">${fBRL(t.liquido)}</div>
+        <div style="font-size:11px;color:#94A3B8">Líquido a pagar</div></div>
+    </div>
+
+    ${t.ret.length?`<div style="font-size:11.5px;color:#B45309;margin-bottom:12px">${t.ret.map(r=>esc(r.desc)+': '+fBRL(r.valor)).join(' · ')}</div>`:''}
+
+    <div class="fld" style="margin-bottom:12px"><label style="font-size:11px">Observação (aparece no recibo)</label>
+      <input value="${esc(rec.obs||'')}" oninput="_PJ_REC.obs=this.value" placeholder="ex.: referente ao contrato nº 12/2026" style="font-size:12.5px"></div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-blue" onclick="pjSalvar()">💾 Salvar recibo</button>
+      <button class="btn" style="background:#1e293b;color:#C9A84C;font-weight:700" onclick="pjImprimirRecibo()">🖨 Imprimir / PDF</button>
+      <button class="btn" style="background:${rec.pago?'#ECFDF5':'#F8FAFC'};color:${rec.pago?'#047857':'#475569'};font-weight:700" onclick="_PJ_REC.pago=!_PJ_REC.pago;pjSalvar()">${rec.pago?'✓ Pago':'Marcar como pago'}</button>
+    </div>
+  </div>`;
+}
+
+function pjAtualizarTotais(){
+  // Recalcula sem redesenhar tudo, para não perder o foco enquanto se digita.
+  clearTimeout(window._pjT);
+  window._pjT=setTimeout(()=>navigate('holerite'), 700);
+}
+
+function pjImportarDescontos(){
+  const rec=window._PJ_REC;
+  if(!rec) return;
+  const d=(typeof window._pjDescontosMes==='function')?window._pjDescontosMes(rec.empId,rec.ano,rec.mes):{itens:[]};
+  let add=0;
+  (d.itens||[]).forEach(x=>{
+    const desc=String(x.tipo||'Desconto').toUpperCase()+((x.data)?' — '+(x.data.split('-').reverse().join('/')):'');
+    if((rec.linhas||[]).some(l=>l.desc===desc)) return;
+    rec.linhas.push({desc, ref:x.detalhe||'', venc:'', desc_val:String(Number(x.valor).toFixed(2))});
+    add++;
+  });
+  if(!add){ toast('Nada novo a trazer — os descontos já estão no recibo.','ok',4000); return; }
+  navigate('holerite');
+  setTimeout(()=>toast('⏰ '+add+' desconto(s) trazido(s).','ok',4000),120);
+}
+
+function pjSalvar(){
+  const rec=window._PJ_REC;
+  if(!rec) return;
+  pjSalvarRecibo(rec);
+  // Confirma os adiantamentos que entraram neste recibo
+  try{
+    if(typeof adiPendentes==='function'){
+      const pend=adiPendentes(rec.empId,rec.ano,rec.mes);
+      const usados=pend.filter(a=>(rec.linhas||[]).some(l=>String(l.desc_val)===String(Number(a.valor).toFixed(2))));
+      if(usados.length){
+        usados.forEach(a=>{ a.descontado=true; a.descontadoEm=new Date().toISOString(); });
+        save('adiantamentos');
+      }
+    }
+  }catch(_){}
+  toast('✅ Recibo salvo.','ok');
+  try{ if(typeof auditLog==='function') auditLog('Salvou recibo de prestação de serviços',(rec.empId||'')+' '+rec.mes+'/'+rec.ano,'holerite'); }catch(_){}
+  navigate('holerite');
+}
+
+function pjImprimirRecibo(){
+  const rec=window._PJ_REC;
+  if(!rec){ toast('Abra um recibo primeiro.','err'); return; }
+  const emp=(APP.employees||[]).find(e=>e.id===rec.empId);
+  if(!emp) return;
+  const cfg=(typeof EMPRESA_CFG!=='undefined')?EMPRESA_CFG:{};
+  const t=pjTotais(rec,emp);
+  const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const w=window.open('','_blank');
+  if(!w){ toast('Permita pop-ups para imprimir.','err'); return; }
+
+  const linhas=(rec.linhas||[]).filter(l=>l&&(l.desc||l.venc||l.desc_val)).map(l=>`
+    <tr>
+      <td style="padding:5px 8px;border-bottom:1px solid #eee">${esc(l.desc||'')}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:center;color:#555">${esc(l.ref||'')}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right">${l.venc?fBRL(l.venc):''}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right;color:#b91c1c">${l.desc_val?fBRL(l.desc_val):''}</td>
+    </tr>`).join('');
+
+  w.document.write(`<html><head><meta charset="utf-8"><title>Recibo — ${esc(emp.nome)} — ${rec.mes}/${rec.ano}</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;color:#111;max-width:760px;margin:0 auto;padding:22px 26px;font-size:12px;line-height:1.6}
+    .topo{background:#1e293b;color:#fff;padding:12px 16px;border-radius:7px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{background:#f1f5f9;text-align:left;padding:6px 8px;font-size:11px}
+    .box{border:1px solid #cbd5e1;border-radius:8px;padding:11px 14px;margin-top:14px}
+    .assin{margin-top:44px;display:flex;gap:26px;flex-wrap:wrap}
+    .assin div{flex:1;min-width:220px;border-top:1px solid #333;padding-top:5px;text-align:center;font-size:11px}
+    @media print{ body{padding:6px} .noprint{display:none} }
+  </style></head><body>
+    <div class="topo">
+      <div><strong style="font-size:14px">RECIBO DE PRESTAÇÃO DE SERVIÇOS</strong><br>
+        <span style="font-size:11px;opacity:.85">${esc(cfg.nomeRazao||cfg.nomeFantasia||'')}</span></div>
+      <div style="text-align:right;font-size:12px">${MESES[rec.mes-1]}/${rec.ano}</div>
+    </div>
+
+    <table style="margin-bottom:14px">
+      <tr><td style="padding:3px 0;width:110px;color:#555">Tomador:</td><td style="padding:3px 0"><strong>${esc(cfg.nomeRazao||cfg.nomeFantasia||'')}</strong>${cfg.cnpj?' — CNPJ '+esc(cfg.cnpj):''}</td></tr>
+      <tr><td style="padding:3px 0;color:#555">Prestador:</td><td style="padding:3px 0"><strong>${esc(emp.nome)}</strong>${emp.cnpj?' — CNPJ '+esc(emp.cnpj):(emp.cpf?' — CPF '+esc(emp.cpf):'')}</td></tr>
+      <tr><td style="padding:3px 0;color:#555">Serviço:</td><td style="padding:3px 0">${esc(emp.cargo||'Prestação de serviços')}${emp.tipoContrato?' · '+esc(emp.tipoContrato):''}</td></tr>
+      ${rec.obs?`<tr><td style="padding:3px 0;color:#555">Observação:</td><td style="padding:3px 0">${esc(rec.obs)}</td></tr>`:''}
+    </table>
+
+    <table>
+      <thead><tr><th>Descrição</th><th style="text-align:center">Referência</th><th style="text-align:right">Valor</th><th style="text-align:right">Desconto</th></tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>
+
+    <div class="box">
+      <table>
+        <tr><td style="padding:3px 0">Valor bruto</td><td style="padding:3px 0;text-align:right">${fBRL(t.bruto)}</td></tr>
+        ${t.desc?`<tr><td style="padding:3px 0">Descontos</td><td style="padding:3px 0;text-align:right;color:#b91c1c">− ${fBRL(t.desc)}</td></tr>`:''}
+        ${t.ret.map(r=>`<tr><td style="padding:3px 0">${esc(r.desc)}</td><td style="padding:3px 0;text-align:right;color:#b91c1c">− ${fBRL(r.valor)}</td></tr>`).join('')}
+        <tr><td style="padding:8px 0 0;font-weight:bold;font-size:13px;border-top:1.5px solid #333">Líquido a pagar</td>
+            <td style="padding:8px 0 0;text-align:right;font-weight:bold;font-size:15px;border-top:1.5px solid #333">${fBRL(t.liquido)}</td></tr>
+      </table>
+    </div>
+
+    <p style="margin-top:16px;font-size:11.5px">Declaro haver recebido a importância líquida discriminada neste recibo, referente aos serviços prestados no período indicado, dando plena quitação.</p>
+
+    <div class="assin">
+      <div>${esc(emp.nome)}<br><span style="color:#666">Prestador de Serviços</span></div>
+      <div>${esc(cfg.nomeRazao||cfg.nomeFantasia||'')}<br><span style="color:#666">Tomador</span></div>
+    </div>
+    <div style="text-align:center;margin-top:16px;font-size:11px">${esc(cfg.cidade||'')}, _____ de ______________________ de _________.</div>
+
+    <div style="font-size:9.5px;color:#666;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:8px">
+      Documento gerado pelo Atlas RH em ${new Date().toLocaleString('pt-BR')}. Este recibo não substitui a nota fiscal de serviços quando ela for exigida do prestador.
+    </div>
+
+    <div class="noprint" style="text-align:center;margin:20px 0">
+      <button onclick="window.print()" style="background:#1d4ed8;color:#fff;border:none;border-radius:8px;padding:11px 22px;font-size:14px;font-weight:700;cursor:pointer">🖨 Imprimir / Salvar em PDF</button>
+    </div>
+  </body></html>`);
+  w.document.close();
+}
+
+window.pjAbrirRecibo=pjAbrirRecibo;
+window.pjRenderRecibo=pjRenderRecibo;
+window.pjSalvar=pjSalvar;
+window.pjImprimirRecibo=pjImprimirRecibo;
+window.pjImportarDescontos=pjImportarDescontos;
+window.pjAtualizarTotais=pjAtualizarTotais;
+window.pjTotais=pjTotais;
+window.pjCarregarRecibo=pjCarregarRecibo;
+
   // ── Estado do painel de holerite externo ──────────────────────────
   window._HOL_EXT = {
     tab: 'contratados',   // 'contratados' | 'interno'
@@ -40337,7 +41049,7 @@ console.log('[v18] ✅ Módulo Assinatura Digital carregado — canvas + SHA-256
     const empSelector = contratados.length > 0 ? `
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
         <div style="font-size:13px;font-weight:700;color:var(--mt)">Funcionário:</div>
-        <select onchange="window._HOL_EXT.empId=this.value||null;navigate('holerite')"
+        <select onchange="window._HOL_EXT.empId=this.value||null; if(this.value&&typeof pjAbrirRecibo==='function'){pjAbrirRecibo(this.value);}else{navigate('holerite');}"
           style="padding:6px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;color:var(--tx)">
           <option value="">— selecionar —</option>
           ${contratados.map(e =>
@@ -40385,7 +41097,7 @@ console.log('[v18] ✅ Módulo Assinatura Digital carregado — canvas + SHA-256
           <div>
             <div style="font-size:16px;font-weight:800;color:#fff">Holerite para Contratados / PJ</div>
             <div style="font-size:12px;color:rgba(255,255,255,.65);margin-top:2px">
-              Sistema externo integrado · <span style="font-family:monospace;font-size:11px">${url}</span>
+              Recibo de prestação de serviços — dentro do Atlas RH · <span style="font-family:monospace;font-size:11px">${url}</span>
             </div>
           </div>
         </div>
@@ -40406,42 +41118,15 @@ console.log('[v18] ✅ Módulo Assinatura Digital carregado — canvas + SHA-256
       <div style="padding:16px 20px">
         ${semContratados}
         ${empSelector}
+        ${emp ? (typeof window._pjPainelDescontos==='function' ? window._pjPainelDescontos(emp) : '') : ''}
 
-        <!-- iframe com o sistema de holerite externo -->
-        <div style="border:1.5px solid #E0E7FF;border-radius:10px;overflow:hidden;background:#F8FAFC;
-                    box-shadow:0 2px 12px rgba(124,58,237,.08)">
-          <!-- Barra de endereço decorativa -->
-          <div style="background:#F1F5F9;border-bottom:1px solid #E2E8F0;padding:7px 12px;
-                      display:flex;align-items:center;gap:8px">
-            <div style="display:flex;gap:5px">
-              <div style="width:10px;height:10px;border-radius:50%;background:#FC5C7D"></div>
-              <div style="width:10px;height:10px;border-radius:50%;background:#FBBC05"></div>
-              <div style="width:10px;height:10px;border-radius:50%;background:#34D399"></div>
-            </div>
-            <div style="flex:1;background:#fff;border:1px solid #E2E8F0;border-radius:5px;
-                        padding:3px 10px;font-size:11px;font-family:monospace;color:#64748B;
-                        white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-              ${iframeUrl}
-            </div>
-          </div>
-          <iframe
-            id="hol-ext-frame"
-            src="${iframeUrl}"
-            style="width:100%;height:720px;border:none;display:block;background:#fff"
-            allow="clipboard-read; clipboard-write"
-            title="Holerite Contratados — Sistema Externo">
-          </iframe>
-        </div>
+        ${emp ? (typeof pjRenderRecibo==='function' ? pjRenderRecibo(emp) : '') : ''}
 
-        <!-- Rodapé informativo -->
-        <div style="margin-top:12px;background:#F0F9FF;border:1px solid #BAE6FD;border-radius:9px;
-                    padding:10px 14px;font-size:12px;color:#0369A1;display:flex;gap:10px;align-items:center">
-          <span style="font-size:18px">ℹ️</span>
-          <div>
-            O holerite gerado aqui é <strong>independente</strong> do módulo CLT e pode ser impresso ou salvo em PDF
-            diretamente pelo sistema externo. Para vincular um funcionário, selecione-o no campo acima.
-          </div>
-        </div>
+        ${!emp && contratados.length ? `<div style="background:#F0F9FF;border:1px solid #BAE6FD;border-radius:10px;padding:16px 20px;font-size:13px;color:#0369A1;line-height:1.6">
+          Selecione um contratado acima para montar o <strong>recibo de prestação de serviços</strong> do mês.
+          Os descontos lançados em Ocorrências e Adiantamentos entram automaticamente.
+        </div>` : ''}
+
       </div>
     </div>`;
   }
@@ -46995,10 +47680,110 @@ window.auditLimpar=auditLimpar;
 // Para prestadores/PJ/contratados que NÃO têm registro de ponto.
 // ════════════════════════════════════════════════════════════════════
 const OCC_TIPOS = {
-  falta:        { label:'Falta',            icon:'🚫', cor:'#DC2626', bg:'#FEF2F2' },
-  atestado:     { label:'Atestado',         icon:'🩺', cor:'#2563EB', bg:'#EFF6FF' },
-  saida_antec:  { label:'Saída antecipada', icon:'🕒', cor:'#D97706', bg:'#FFFBEB' }
+  falta:        { label:'Falta',            icon:'🚫', cor:'#DC2626', bg:'#FEF2F2', desconta:'dia'   },
+  atestado:     { label:'Atestado',         icon:'🩺', cor:'#2563EB', bg:'#EFF6FF', desconta:null    },
+  atraso:       { label:'Chegou atrasado',  icon:'⏰', cor:'#D97706', bg:'#FFFBEB', desconta:'horas' },
+  saida_antec:  { label:'Saída antecipada', icon:'🕒', cor:'#D97706', bg:'#FFFBEB', desconta:'horas' },
+  meio_periodo: { label:'Meio período',     icon:'◐',  cor:'#7C3AED', bg:'#F5F3FF', desconta:'horas' },
+  suspensao:    { label:'Suspensão',        icon:'⛔', cor:'#B91C1C', bg:'#FEF2F2', desconta:'dia'   }
 };
+
+// ── Desconto por horas nas ocorrências de contratados ─────────────────────
+// Contratado/PJ não bate ponto, então o desconto não sai do cartão: é apurado
+// aqui, a partir da jornada contratada e das horas informadas na ocorrência.
+// Valor da hora = remuneração ÷ (jornada diária × dias úteis do mês).
+function _occJornadaDiaria(emp){
+  const ent=(emp&&emp.horarioEntrada)||'09:00';
+  const sai=(emp&&emp.horarioSaida)||'17:50';
+  const min=t=>{const p=String(t).split(':');return (+p[0])*60+(+p[1]||0);};
+  const bruto=min(sai)-min(ent);
+  // Só desconta intervalo se ele estiver cadastrado. Antes assumia 1 hora
+  // sempre, e uma jornada de 4h sem intervalo virava 3h — inflando o valor da
+  // hora e, com ele, todo desconto de quem faz meio período.
+  // A CLT só exige intervalo acima de 6 horas de jornada (art. 71).
+  let alm=0;
+  if(emp&&emp.horarioAlmoco&&emp.horarioVoltaAlmoco){
+    alm=Math.max(0,min(emp.horarioVoltaAlmoco)-min(emp.horarioAlmoco));
+  }else if(bruto>360){
+    alm=60;   // jornada acima de 6h sem intervalo cadastrado: assume 1 hora
+  }
+  const liquido=Math.max(60, bruto-alm);
+  return liquido/60;   // em horas
+}
+function _occDiasUteisMes(ano, mes){
+  const nd=new Date(ano,mes,0).getDate();
+  let uteis=0;
+  for(let d=1;d<=nd;d++){
+    const dw=new Date(ano,mes-1,d).getDay();
+    if(dw!==0) uteis++;   // exclui domingos; sábado conta (comércio)
+  }
+  return uteis||26;
+}
+function occValorHora(emp, ano, mes){
+  const sal=parseFloat(emp&&emp.salario)||0;
+  if(sal<=0) return 0;
+  const jd=_occJornadaDiaria(emp);
+  const du=_occDiasUteisMes(ano,mes);
+  const horasMes=jd*du;
+  return horasMes>0 ? +(sal/horasMes).toFixed(4) : 0;
+}
+
+// Calcula sozinho as horas a descontar a partir do horário informado, usando a
+// jornada cadastrada do contratado. Assim o RH digita "saiu 15:30" e o sistema
+// resolve o resto — sem precisar converter 2h20m em 2,33h na mão.
+function occHorasAutomaticas(colabId, tipo, horaInformada){
+  const emp=(APP.employees||[]).find(e=>e.id===colabId);
+  if(!emp||!horaInformada) return null;
+  const min=t=>{ const p=String(t||'').split(':'); const h=+p[0],m=+p[1]; return (isNaN(h)||isNaN(m))?null:h*60+m; };
+  const hInf=min(horaInformada);
+  if(hInf===null) return null;
+
+  const entrada=min(emp.horarioEntrada||'09:00');
+  const saida  =min(emp.horarioSaida  ||'17:50');
+  const almIni =min(emp.horarioAlmoco);
+  const almFim =min(emp.horarioVoltaAlmoco);
+
+  let minutos=0;
+  if(tipo==='saida_antec'){
+    if(hInf>=saida) return 0;                 // saiu no horário ou depois
+    minutos=saida-Math.max(hInf,entrada);
+    // Se o almoço fica dentro do período perdido, ele não conta como trabalho.
+    if(almIni!==null&&almFim!==null&&almIni>=Math.max(hInf,entrada)&&almFim<=saida){
+      minutos-=Math.max(0,almFim-almIni);
+    }
+  }else if(tipo==='atraso'){
+    if(hInf<=entrada) return 0;               // chegou no horário ou antes
+    minutos=Math.min(hInf,saida)-entrada;
+    if(almIni!==null&&almFim!==null&&almFim<=Math.min(hInf,saida)&&almIni>=entrada){
+      minutos-=Math.max(0,almFim-almIni);
+    }
+  }else{
+    return null;
+  }
+  return Math.max(0, +(minutos/60).toFixed(2));
+}
+window.occHorasAutomaticas=occHorasAutomaticas;
+
+// Quanto descontar de uma ocorrência. Devolve {horas, valor, base}.
+function occDesconto(occ){
+  const emp=(APP.employees||[]).find(e=>e.id===occ.colabId);
+  if(!emp) return {horas:0, valor:0, base:'sem colaborador'};
+  const tipo=OCC_TIPOS[occ.tipo];
+  if(!tipo||!tipo.desconta) return {horas:0, valor:0, base:'não gera desconto'};
+  const d=new Date((occ.data||'')+'T00:00');
+  if(isNaN(d)) return {horas:0, valor:0, base:'data inválida'};
+  const ano=d.getFullYear(), mes=d.getMonth()+1;
+  const vh=occValorHora(emp,ano,mes);
+  const jd=_occJornadaDiaria(emp);
+  let horas;
+  if(tipo.desconta==='dia') horas=jd;
+  else horas=parseFloat(occ.horas)||0;
+  if(horas<=0) return {horas:0, valor:0, base:'sem horas informadas'};
+  return {horas:+horas.toFixed(2), valor:+(horas*vh).toFixed(2), valorHora:vh,
+          base:`${horas.toFixed(2)}h × ${fBRL(vh)}`};
+}
+window.occValorHora=occValorHora;
+window.occDesconto=occDesconto;
 
 function _occContratados(){
   const ativos = (APP&&APP.employees)?APP.employees.filter(e=>e.status==='ativo'):[];
@@ -47029,7 +47814,7 @@ function rOcorrenciasContratados(){
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
         <div>
           <label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase">Contratado</label>
-          <select id="occ-colab" style="width:100%;padding:8px 10px;border:1px solid #CBD5E1;border-radius:8px;font-size:13px;margin-top:4px" ${contratados.length?'':'disabled'}>
+          <select id="occ-colab" onchange="_occPreviewDesconto()" style="width:100%;padding:8px 10px;border:1px solid #CBD5E1;border-radius:8px;font-size:13px;margin-top:4px" ${contratados.length?'':'disabled'}>
             ${optsColab || '<option>— nenhum contratado —</option>'}
           </select>
         </div>
@@ -47043,13 +47828,18 @@ function rOcorrenciasContratados(){
         </div>
         <div>
           <label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase">Data</label>
-          <input type="date" id="occ-data" value="${new Date().toISOString().slice(0,10)}" style="width:100%;padding:8px 10px;border:1px solid #CBD5E1;border-radius:8px;font-size:13px;margin-top:4px">
+          <input type="date" id="occ-data" onchange="_occPreviewDesconto()" value="${new Date().toISOString().slice(0,10)}" style="width:100%;padding:8px 10px;border:1px solid #CBD5E1;border-radius:8px;font-size:13px;margin-top:4px">
         </div>
         <div id="occ-hora-wrap" style="display:none">
-          <label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase">Horário de saída</label>
-          <input type="time" id="occ-hora" style="width:100%;padding:8px 10px;border:1px solid #CBD5E1;border-radius:8px;font-size:13px;margin-top:4px">
+          <label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase">Horário</label>
+          <input type="time" id="occ-hora" onchange="_occPreviewDesconto()" style="width:100%;padding:8px 10px;border:1px solid #CBD5E1;border-radius:8px;font-size:13px;margin-top:4px">
+        </div>
+        <div id="occ-horas-wrap" style="display:none">
+          <label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase">Horas a descontar</label>
+          <input type="number" id="occ-horas" step="0.5" min="0" placeholder="ex.: 2" oninput="_occPreviewDesconto()" style="width:100%;padding:8px 10px;border:1px solid #CBD5E1;border-radius:8px;font-size:13px;margin-top:4px">
         </div>
       </div>
+      <div id="occ-desc-preview" style="display:none;margin-top:10px"></div>
       <div style="margin-top:12px">
         <label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase">Motivo / Observação</label>
         <textarea id="occ-motivo" rows="2" placeholder="Ex.: atestado médico de 1 dia, consulta, problema pessoal..." style="width:100%;padding:8px 10px;border:1px solid #CBD5E1;border-radius:8px;font-size:13px;margin-top:4px;resize:vertical;font-family:inherit"></textarea>
@@ -47104,9 +47894,51 @@ function rOcorrenciasContratados(){
 window.rOcorrenciasContratados = rOcorrenciasContratados;
 
 function _occToggleHora(){
-  const tipo=document.getElementById('occ-tipo'); const wrap=document.getElementById('occ-hora-wrap');
-  if(tipo&&wrap) wrap.style.display = (tipo.value==='saida_antec') ? 'block' : 'none';
+  const tipo=document.getElementById('occ-tipo');
+  const wrapHora=document.getElementById('occ-hora-wrap');
+  const wrapHoras=document.getElementById('occ-horas-wrap');
+  if(!tipo) return;
+  const t=(typeof OCC_TIPOS!=='undefined'&&OCC_TIPOS[tipo.value])?OCC_TIPOS[tipo.value]:{};
+  // Atraso e saida antecipada pedem o horario - dele o sistema deriva as horas.
+  const pedeHorario=(tipo.value==='saida_antec'||tipo.value==='atraso');
+  if(wrapHora)  wrapHora.style.display  = pedeHorario ? 'block' : 'none';
+  if(wrapHoras) wrapHoras.style.display = (t.desconta==='horas') ? 'block' : 'none';
+  const lbl=document.querySelector('#occ-hora-wrap label');
+  if(lbl) lbl.textContent = (tipo.value==='atraso') ? 'Horário de chegada' : 'Horário de saída';
+  _occPreviewDesconto();
 }
+
+// Mostra o desconto antes de salvar. Com o horário informado, as horas são
+// calculadas a partir dele e da jornada — sem conversão manual.
+function _occPreviewDesconto(){
+  const box=document.getElementById('occ-desc-preview');
+  if(!box) return;
+  const g=id=>{const el=document.getElementById(id);return el?el.value:'';};
+  const tipoV=g('occ-tipo'), colabId=g('occ-colab'), data=g('occ-data');
+  const t=(typeof OCC_TIPOS!=='undefined'&&OCC_TIPOS[tipoV])?OCC_TIPOS[tipoV]:{};
+  if(!t.desconta || !colabId || !data){ box.style.display='none'; return; }
+  let horas=g('occ-horas');
+  const hAuto=(typeof occHorasAutomaticas==='function')?occHorasAutomaticas(colabId,tipoV,g('occ-hora')):null;
+  if(hAuto!==null && hAuto!==undefined){
+    horas=hAuto;
+    const el=document.getElementById('occ-horas');
+    if(el && String(el.value)!==String(hAuto)) el.value=hAuto;
+  }
+  const r=(typeof occDesconto==='function')?occDesconto({colabId, tipo:tipoV, data, horas}):{valor:0,base:''};
+  if(!r.valor){
+    box.style.display='block';
+    box.innerHTML='<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:8px 11px;font-size:11.5px;color:#64748B">'+esc(r.base||'informe os dados')+'</div>';
+    return;
+  }
+  const emp=(APP.employees||[]).find(e=>e.id===colabId);
+  const jornada=emp?((emp.horarioEntrada||'09:00')+' às '+(emp.horarioSaida||'17:50')):'';
+  const origem=(hAuto!==null&&hAuto!==undefined&&hAuto>0)
+    ? '<br><span style="font-size:10.5px;opacity:.8">calculado pelo horário informado · jornada '+esc(jornada)+'</span>' : '';
+  box.style.display='block';
+  box.innerHTML='<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:9px 11px;font-size:12px;color:#991B1B;line-height:1.5">'+
+    '<strong>Desconto: '+fBRL(r.valor)+'</strong><br><span style="font-size:11px;opacity:.85">'+esc(r.base)+'</span>'+origem+'</div>';
+}
+window._occPreviewDesconto=_occPreviewDesconto;
 window._occToggleHora=_occToggleHora;
 function _occFileLabel(inp){
   const el=document.getElementById('occ-file-nome');
@@ -47121,16 +47953,30 @@ async function occSalvar(){
   const tipo=document.getElementById('occ-tipo').value;
   const data=document.getElementById('occ-data').value;
   const hora=document.getElementById('occ-hora')?document.getElementById('occ-hora').value:'';
+  const horasEl=document.getElementById('occ-horas');
+  let horas=horasEl?(parseFloat(horasEl.value)||0):0;
+  // O horário informado tem prioridade sobre o campo de horas: garante que o
+  // valor salvo corresponda ao horário que está na tela.
+  try{
+    const _hAuto=(typeof occHorasAutomaticas==='function')
+      ? occHorasAutomaticas(colabId, tipo, document.getElementById('occ-hora')?document.getElementById('occ-hora').value:'')
+      : null;
+    if(_hAuto!==null && _hAuto!==undefined && _hAuto>0) horas=_hAuto;
+  }catch(_){}
   const motivo=document.getElementById('occ-motivo').value.trim();
   const fileInp=document.getElementById('occ-file');
 
   if(!colabId){ if(typeof toast==='function') toast('Selecione o contratado','warn'); return; }
   if(!data){ if(typeof toast==='function') toast('Informe a data','warn'); return; }
   if(tipo==='saida_antec' && !hora){ if(typeof toast==='function') toast('Informe o horário de saída','warn'); return; }
+  // Sem as horas não há como calcular o desconto de quem não bate ponto.
+  if((OCC_TIPOS[tipo]||{}).desconta==='horas' && !(horas>0)){
+    if(typeof toast==='function') toast('Informe quantas horas devem ser descontadas','err'); return;
+  }
 
   const rec = {
     id: (typeof uid==='function'?uid():String(Date.now())),
-    colabId, colabNome, tipo, data, hora: hora||'', motivo,
+    colabId, colabNome, tipo, data, hora: hora||'', horas, motivo,
     criadoEm: new Date().toISOString(),
     criadoPor: (typeof _getRHUser==='function'?_getRHUser():'RH')
   };
@@ -47146,6 +47992,14 @@ async function occSalvar(){
     }catch(e){ console.warn('[occ] anexo falhou',e); }
   }
 
+  // Guarda o desconto apurado no momento do lançamento. Congelar aqui evita
+  // que uma mudança de salário depois altere retroativamente o valor.
+  try{
+    if(typeof occDesconto==='function'){
+      const _d=occDesconto(rec);
+      if(_d && _d.valor>0){ rec.descontoValor=_d.valor; rec.descontoHoras=_d.horas; rec.descontoBase=_d.base; }
+    }
+  }catch(_){}
   if(!Array.isArray(APP.ocorrenciasContratados)) APP.ocorrenciasContratados=[];
   // Falta/atestado: grava no cartão-ponto para alimentar o holerite (com DSR automático)
   let avisoHolerite='';
@@ -47253,7 +48107,10 @@ function _occAplicarNoPonto(occ){
   // Só falta e atestado afetam o holerite (saída antecipada é só registro)
   if(occ.tipo!=='falta' && occ.tipo!=='atestado') return null;
   const d = new Date(occ.data+'T00:00');
-  const ano=d.getFullYear(), mes=d.getMonth(), dia=d.getDate();
+  // getMonth() devolve 0 a 11, mas a chave do cartão-ponto usa 1 a 12
+  // (ex.: 'emp_2026_3' é março). Sem o +1, as ocorrências de contratados eram
+  // gravadas no MÊS ANTERIOR e o desconto saía na folha errada.
+  const ano=d.getFullYear(), mes=d.getMonth()+1, dia=d.getDate();
   const k=`${occ.colabId}_${ano}_${mes}`;
   if(!APP.pontos[k]) APP.pontos[k]={};
   // Não sobrescreve um dia que já tenha batidas reais
