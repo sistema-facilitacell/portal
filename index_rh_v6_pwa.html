@@ -6899,6 +6899,7 @@ function _cardAssinaturas(ano, mes){
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn btn-sm" style="background:#F1F5F9;color:#475569" onclick="atualizarAssinaturas(${ano},${mes})" title="Busca na nuvem quem assinou">🔄 Atualizar</button>
+        <button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8;font-weight:700" onclick="abrirHistoricoAssinaturas(6)" title="Ver assinaturas de todos os meses">📅 Outros meses</button>
         ${st.pendentes.length?`<button class="btn btn-sm" style="background:#25D366;color:#fff;font-weight:700" onclick="cobrarAssinaturasHolerite(${ano},${mes})">📱 Cobrar pendentes</button>`:''}
       </div>
     </div>
@@ -6947,6 +6948,93 @@ function cobrarAssinaturasHolerite(ano, mes){
      ${cards}
      <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>`,560);
 }
+
+// ── HISTÓRICO DE ASSINATURAS ───────────────────────────────────────────────
+// O card do topo mostra só a competência aberta. Aqui vem a visão de vários
+// meses de uma vez, para conferir se ficou algum holerite antigo sem assinar —
+// que é justamente o que passa despercebido no dia a dia.
+async function abrirHistoricoAssinaturas(mesesAtras){
+  mesesAtras = mesesAtras || 6;
+  const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  openModal('✍️ Assinaturas por competência',
+    '<div style="text-align:center;padding:40px;color:#64748B">⏳ Consultando os últimos '+mesesAtras+' meses…</div>',760);
+
+  const hoje=new Date();
+  const comps=[];
+  for(let i=0;i<mesesAtras;i++){
+    const d=new Date(hoje.getFullYear(), hoje.getMonth()-i, 1);
+    comps.push({ano:d.getFullYear(), mes:d.getMonth()+1});
+  }
+
+  const linhas=[];
+  for(const c of comps){
+    try{
+      await carregarAssinaturasHolerite(c.ano, c.mes, true);
+      const st=_statusAssinaturas(c.ano, c.mes);
+      linhas.push({...c, st});
+    }catch(e){ console.warn('[Histórico]',c.ano,c.mes,e&&e.message); }
+  }
+
+  const totalPend=linhas.reduce((s,l)=>s+l.st.pendentes.length,0);
+  const barra=(st)=>{
+    const t=st.total||1;
+    const pa=Math.round(st.assinados.length/t*100);
+    const pp=Math.round(st.pendentes.length/t*100);
+    const pn=100-pa-pp;
+    return `<div style="display:flex;height:7px;border-radius:4px;overflow:hidden;background:#F1F5F9;min-width:90px">
+      <div style="width:${pa}%;background:#059669"></div>
+      <div style="width:${pp}%;background:#D97706"></div>
+      <div style="width:${pn}%;background:#DC2626"></div></div>`;
+  };
+
+  const corpo=linhas.map(l=>{
+    const st=l.st;
+    const completo=st.assinados.length===st.total && st.total>0;
+    const nomes=st.pendentes.map(p=>(p.emp.nome||'').split(' ')[0]).join(', ');
+    return `<tr style="border-top:1px solid #F1F5F9;background:${completo?'#F0FDF4':(st.pendentes.length?'#FFFBEB':'#fff')}">
+      <td style="padding:9px 11px;font-weight:600;white-space:nowrap">${MESES[l.mes-1]}/${l.ano}</td>
+      <td style="padding:9px 6px">${barra(st)}</td>
+      <td style="text-align:center;padding:9px 6px;color:#047857;font-weight:700">${st.assinados.length}</td>
+      <td style="text-align:center;padding:9px 6px;color:${st.pendentes.length?'#B45309':'#94A3B8'};font-weight:700">${st.pendentes.length}</td>
+      <td style="text-align:center;padding:9px 6px;color:${st.naoPublicados.length?'#DC2626':'#94A3B8'};font-weight:700">${st.naoPublicados.length}</td>
+      <td style="padding:9px 11px;font-size:11px;color:#92400E">${esc(nomes)}</td>
+      <td style="padding:9px 11px;text-align:right">
+        ${st.pendentes.length?`<button class="btn btn-sm" style="background:#25D366;color:#fff;font-size:10.5px" onclick="closeModal();cobrarAssinaturasHolerite(${l.ano},${l.mes})">📱 Cobrar</button>`:'<span style="color:#059669;font-size:15px">✓</span>'}
+      </td></tr>`;
+  }).join('');
+
+  openModal('✍️ Assinaturas por competência',`
+    <div style="background:${totalPend?'#FFFBEB':'#ECFDF5'};border:1px solid ${totalPend?'#FDE68A':'#A7F3D0'};border-radius:9px;padding:10px 13px;margin-bottom:12px;font-size:12.5px;color:${totalPend?'#92400E':'#047857'};line-height:1.5">
+      ${totalPend
+        ? `<strong>${totalPend} assinatura(s) pendente(s)</strong> nos últimos ${mesesAtras} meses. Holerite sem assinatura é a prova que falta se o pagamento for questionado.`
+        : `<strong>Todas as competências em dia.</strong> Nenhuma assinatura pendente nos últimos ${mesesAtras} meses.`}
+    </div>
+    <div style="border:1px solid #E2E8F0;border-radius:10px;overflow:auto;max-height:400px">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+        <thead><tr style="background:#1e293b;color:#fff;position:sticky;top:0">
+          <th style="text-align:left;padding:8px 11px">Competência</th>
+          <th style="padding:8px 6px"></th>
+          <th style="padding:8px 6px">✓</th>
+          <th style="padding:8px 6px">⏳</th>
+          <th style="padding:8px 6px">✗</th>
+          <th style="text-align:left;padding:8px 11px">Quem falta</th>
+          <th style="padding:8px 11px"></th>
+        </tr></thead>
+        <tbody>${corpo||'<tr><td colspan="7" style="padding:16px;text-align:center;color:#94A3B8">Sem dados</td></tr>'}</tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:#64748B;margin-top:9px">
+      <span><span style="display:inline-block;width:9px;height:9px;background:#059669;border-radius:2px"></span> assinado</span>
+      <span><span style="display:inline-block;width:9px;height:9px;background:#D97706;border-radius:2px"></span> aguardando</span>
+      <span><span style="display:inline-block;width:9px;height:9px;background:#DC2626;border-radius:2px"></span> não enviado ao portal</span>
+    </div>
+    <div class="mft">
+      <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+      ${mesesAtras<12?`<button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8" onclick="abrirHistoricoAssinaturas(12)">Ver 12 meses</button>`:''}
+    </div>`,760);
+}
+window.abrirHistoricoAssinaturas=abrirHistoricoAssinaturas;
+
 async function atualizarAssinaturas(ano,mes){
   toast('🔄 Verificando assinaturas…','ok',1800);
   await carregarAssinaturasHolerite(ano,mes,true);
