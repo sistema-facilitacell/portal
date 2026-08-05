@@ -6825,14 +6825,29 @@ async function carregarAssinaturasHolerite(ano, mes, forcar){
   const dados={};
   if(!FBASE){ window._ASSIN_CACHE[chave]={ts:Date.now(),dados}; return dados; }
   try{
-    const ativos=(APP.employees||[]).filter(e=>e&&e.status==='ativo');
-    const docs=await Promise.all(ativos.map(e=>
-      FBASE.collection('holerites').doc(`${e.id}_${ano}_${mes}`).get()
-        .then(d=>({id:e.id, d:d.exists?d.data():null}))
-        .catch(()=>({id:e.id, d:null}))
-    ));
-    docs.forEach(x=>{ if(x.d) dados[x.id]=x.d; });
-  }catch(err){ console.warn('[Assinaturas] falha ao ler:', err&&err.message); }
+    // Consulta por CAMPO, não por ID do documento. O portal localiza os
+    // holerites com where('empId'...), então o ID pode ter sido gerado de outra
+    // forma — buscar por `empId_ano_mes` deixava de fora holerites válidos e
+    // assinaturas apareciam como pendentes.
+    const snap=await FBASE.collection('holerites')
+      .where('ano','==',Number(ano)).where('mes','==',Number(mes)).get();
+    snap.forEach(doc=>{
+      const d=doc.data();
+      if(d && d.empId) dados[d.empId]=d;
+    });
+  }catch(err){
+    console.warn('[Assinaturas] consulta por campo falhou, tentando por id:', err&&err.message);
+    // Reserva: alguns documentos antigos podem não ter ano/mes gravados.
+    try{
+      const ativos=(APP.employees||[]).filter(e=>e&&e.status==='ativo');
+      const docs=await Promise.all(ativos.map(e=>
+        FBASE.collection('holerites').doc(`${e.id}_${ano}_${mes}`).get()
+          .then(d=>({id:e.id, d:d.exists?d.data():null}))
+          .catch(()=>({id:e.id, d:null}))
+      ));
+      docs.forEach(x=>{ if(x.d) dados[x.id]=x.d; });
+    }catch(e2){ console.warn('[Assinaturas] falha ao ler:', e2&&e2.message); }
+  }
   window._ASSIN_CACHE[chave]={ts:Date.now(),dados};
   return dados;
 }
