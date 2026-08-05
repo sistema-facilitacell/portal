@@ -175,7 +175,26 @@ const _SB_CRYPTO = {
 };
 
 // ── Inicializa Supabase ──────────────────────────────
+// ── SUPABASE DESATIVADO ────────────────────────────────────────────────────
+// O Firebase é o banco do sistema e guarda tudo. O Supabase era apenas uma
+// cópia extra e, na prática, trouxe mais problema do que proteção: a cifragem
+// com senha por dispositivo corrompeu holerites, e as falhas de conexão
+// enchiam o registro de erros sem que nada estivesse errado com os dados.
+//
+// O código foi mantido, mas inerte — nada é lido nem gravado lá. Para religar
+// (não recomendado sem antes revisar a cifragem):
+//   localStorage.setItem('fcrh_supabase_on','1')
+const SUPABASE_ATIVO = (function(){
+  try{ return localStorage.getItem('fcrh_supabase_on')==='1'; }catch(_){ return false; }
+})();
+
 async function connectSupabase(){
+  if(!SUPABASE_ATIVO){
+    SB_READY=false; SBASE=null; SB_ERROR=null;
+    try{ _sbUpdateUI('off'); }catch(_){}
+    console.log('[Supabase] Desativado — o Firebase é o banco do sistema.');
+    return false;
+  }
   // SEC-04 FIX: valida formato da chave antes de tentar conectar.
   // O Supabase aceita DOIS formatos de chave pública:
   //   • JWT legado, começando com "eyJ" (projetos mais antigos)
@@ -273,6 +292,7 @@ CREATE POLICY "hr_audit_insert" ON hr_audit_log FOR INSERT WITH CHECK (auth.uid(
 
 // ── Salva no Supabase ────────────────────────────────
 async function sbSave(k){
+  if(!SUPABASE_ATIVO) return;   // desativado: o dado já foi para o Firebase
   if(!SB_READY || !SBASE){
     SB_SAVE_QUEUE[k] = true;
     return;
@@ -307,6 +327,7 @@ async function sbSave(k){
 
 // ── Carrega do Supabase ──────────────────────────────
 async function sbLoad(k){
+  if(!SUPABASE_ATIVO) return null;
   if(!SB_READY || !SBASE) return null;
   try{
     const { data, error } = await SBASE.from('hr_data').select('payload,updated_at').eq('id',k).single();
@@ -382,6 +403,13 @@ async function sbLoadAll(){
 function _sbUpdateUI(state){
   const el = document.getElementById('sb-status');
   if(!el) return;
+  // Com o Supabase desativado, o indicador some da tela — não faz sentido
+  // mostrar alerta de algo que foi desligado de propósito.
+  if(typeof SUPABASE_ATIVO!=='undefined' && !SUPABASE_ATIVO){
+    el.style.display='none';
+    return;
+  }
+  el.style.display='';
   const map = {
     online:  { dot:'#22c55e', txt:'🔒 Supabase • seguro' },
     offline: { dot:'#f59e0b', txt:'☁ Supabase • offline' },
@@ -408,6 +436,32 @@ function saveSupabaseKey(url, key){
 
 // ── Modal de configuração do Supabase ───────────────────────
 async function openSupabaseConfigModal(){
+  // Com o Supabase desligado, o modal deixa de pedir chave e passa a explicar
+  // a situação — pedir configuração de algo desativado só gera confusão.
+  if(typeof SUPABASE_ATIVO!=='undefined' && !SUPABASE_ATIVO){
+    openModal('🗄️ Banco de dados',`
+      <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:#047857;line-height:1.6">
+        <strong>Firebase — ativo e funcionando.</strong><br>
+        É onde todos os dados do sistema ficam guardados: colaboradores, ponto, holerites, contratos, férias.
+      </div>
+      <div style="font-size:12.5px;color:#475569;line-height:1.65">
+        O <strong>Supabase</strong>, que servia como cópia extra, foi <strong>desativado</strong>. Ele exigia uma
+        segunda configuração, falhava com frequência e a cifragem por dispositivo chegou a deixar dados ilegíveis.
+        Como o Firebase já guarda tudo, a cópia extra trazia mais risco que proteção.
+        <br><br>
+        <strong>Sua proteção contra perda de dados hoje:</strong>
+      </div>
+      <div style="display:grid;gap:7px;margin-top:10px">
+        <div style="background:#F8FAFC;border-radius:9px;padding:9px 12px;font-size:12.5px;color:#334155">☁️ <strong>Firebase</strong> — sincroniza entre todos os computadores</div>
+        <div style="background:#F8FAFC;border-radius:9px;padding:9px 12px;font-size:12.5px;color:#334155">💾 <strong>Backup manual</strong> — baixe o arquivo toda semana e guarde fora do sistema</div>
+        <div style="background:#F8FAFC;border-radius:9px;padding:9px 12px;font-size:12.5px;color:#334155">🗄️ <strong>Arquivo histórico</strong> — registros antigos ficam guardados na nuvem</div>
+      </div>
+      <div class="mft">
+        <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+        <button class="btn btn-blue" onclick="closeModal();openBackup()">💾 Fazer backup agora</button>
+      </div>`,560);
+    return;
+  }
   // Considera também a chave embutida no sistema. Antes só lia o localStorage:
   // como a chave padrão do arquivo não fica guardada lá, o modal mostrava
   // "chave inválida" mesmo com o Supabase conectado — e levava a pessoa a
@@ -6758,24 +6812,70 @@ function holCarregarDados(){
 // Mostra, na competência exibida, quem já assinou e quem ainda não. O recibo
 // assinado é a prova de que o pagamento foi entregue — sem ele, em discussão
 // trabalhista prevalece a alegação do empregado de que não recebeu.
+// Cache das assinaturas lidas da coleção 'holerites'. É lá que o PORTAL grava
+// quando o colaborador assina — e não em APP.salarios, que só o RH alimenta.
+// Era essa a razão de assinaturas feitas no portal continuarem como pendentes:
+// o painel olhava para o lugar errado.
+window._ASSIN_CACHE = window._ASSIN_CACHE || {};
+
+async function carregarAssinaturasHolerite(ano, mes, forcar){
+  const chave=ano+'_'+mes;
+  const c=window._ASSIN_CACHE[chave];
+  if(!forcar && c && (Date.now()-c.ts)<60000) return c.dados;
+  const dados={};
+  if(!FBASE){ window._ASSIN_CACHE[chave]={ts:Date.now(),dados}; return dados; }
+  try{
+    const ativos=(APP.employees||[]).filter(e=>e&&e.status==='ativo');
+    const docs=await Promise.all(ativos.map(e=>
+      FBASE.collection('holerites').doc(`${e.id}_${ano}_${mes}`).get()
+        .then(d=>({id:e.id, d:d.exists?d.data():null}))
+        .catch(()=>({id:e.id, d:null}))
+    ));
+    docs.forEach(x=>{ if(x.d) dados[x.id]=x.d; });
+  }catch(err){ console.warn('[Assinaturas] falha ao ler:', err&&err.message); }
+  window._ASSIN_CACHE[chave]={ts:Date.now(),dados};
+  return dados;
+}
+
 function _statusAssinaturas(ano, mes){
   const ativos=(APP.employees||[]).filter(e=>e&&e.status==='ativo');
+  const nuvem=(window._ASSIN_CACHE[ano+'_'+mes]||{}).dados||{};
   const assinados=[], pendentes=[], naoPublicados=[];
   ativos.forEach(e=>{
     const salKey=`${e.id}_${ano}_${mes}`;
     const salRec=(APP.salarios||{})[salKey]||{};
     const holRec=(typeof getHolRec==='function')?getHolRec(salKey):((APP.holRascunho||{})[salKey]||{});
-    const sig=salRec['_sig_'+ano+'_'+mes];
-    const sigTs=salRec['_sig_ts_'+ano+'_'+mes];
-    const publicado=holRec['_hol_publicado_'+ano+'_'+mes]||salRec['_hol_publicado_'+ano+'_'+mes];
-    if(sig) assinados.push({emp:e, quando:sigTs});
-    else if(publicado) pendentes.push({emp:e, desde:publicado});
+    const doc=nuvem[e.id]||null;
+
+    // Assinatura pode vir do portal (coleção holerites) ou de coleta presencial
+    // feita no próprio RH (APP.salarios). Vale a que existir.
+    const sigPortal = doc && (doc.assinaturaData || doc.assinado===true);
+    const sigLocal  = salRec['_sig_'+ano+'_'+mes];
+    const quando    = (doc && (doc.assinaturaTs||doc.assinaturaData)) || salRec['_sig_ts_'+ano+'_'+mes];
+    const origem    = sigPortal ? 'portal' : (sigLocal ? 'presencial' : null);
+
+    const publicado = (doc && (doc.publicado || doc.pago || doc.assinaturaData || doc.linhas))
+                   || holRec['_hol_publicado_'+ano+'_'+mes]
+                   || salRec['_hol_publicado_'+ano+'_'+mes];
+
+    if(sigPortal||sigLocal) assinados.push({emp:e, quando, origem});
+    else if(publicado) pendentes.push({emp:e, desde:(doc&&doc.publicadoEm)||holRec['_hol_publicado_'+ano+'_'+mes]});
     else naoPublicados.push({emp:e});
   });
   return {assinados, pendentes, naoPublicados, total:ativos.length};
 }
 
 function _cardAssinaturas(ano, mes){
+  // Dispara a leitura da nuvem em segundo plano. Na primeira montagem o card
+  // sai com o que houver em memória e se atualiza sozinho quando os dados
+  // chegam — assim a tela não trava esperando a rede.
+  const _ck=ano+'_'+mes;
+  if(!window._ASSIN_CACHE[_ck] || (Date.now()-window._ASSIN_CACHE[_ck].ts)>60000){
+    carregarAssinaturasHolerite(ano,mes,true).then(()=>{
+      const alvo=document.getElementById('assin-box');
+      if(alvo) alvo.outerHTML=_cardAssinaturas(ano,mes);
+    }).catch(()=>{});
+  }
   let st;
   try{ st=_statusAssinaturas(ano,mes); }catch(e){ console.warn('[Assinaturas]',e&&e.message); return ''; }
   if(!st.total) return '';
@@ -6791,13 +6891,16 @@ function _cardAssinaturas(ano, mes){
 
   const alerta=st.pendentes.length>0||st.naoPublicados.length>0;
   return `
-  <div class="card" style="border-left:4px solid ${alerta?'#D97706':'#059669'};margin-bottom:14px">
+  <div id="assin-box" class="card" style="border-left:4px solid ${alerta?'#D97706':'#059669'};margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:11px">
       <div>
         <div style="font-size:14px;font-weight:800;color:#0F172A">✍️ Assinatura dos holerites — ${MESES[mes]}/${ano}</div>
         <div style="font-size:12px;color:#64748B">${st.assinados.length} de ${st.total} colaborador(es) já assinaram</div>
       </div>
-      ${st.pendentes.length?`<button class="btn btn-sm" style="background:#25D366;color:#fff;font-weight:700" onclick="cobrarAssinaturasHolerite(${ano},${mes})">📱 Cobrar pendentes</button>`:''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm" style="background:#F1F5F9;color:#475569" onclick="atualizarAssinaturas(${ano},${mes})" title="Busca na nuvem quem assinou">🔄 Atualizar</button>
+        ${st.pendentes.length?`<button class="btn btn-sm" style="background:#25D366;color:#fff;font-weight:700" onclick="cobrarAssinaturasHolerite(${ano},${mes})">📱 Cobrar pendentes</button>`:''}
+      </div>
     </div>
 
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:${(st.pendentes.length||st.naoPublicados.length||st.assinados.length)?'11px':'0'}">
@@ -6818,7 +6921,8 @@ function _cardAssinaturas(ano, mes){
 
     ${st.assinados.length?`<div>
       <div style="font-size:11px;font-weight:800;color:#047857;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Assinados</div>
-      ${st.assinados.map(a=>pessoa((a.emp.nome||'').split(' ').slice(0,2).join(' '), a.quando?`· ${dt(a.quando)}`:'', '#047857')).join('')}
+      ${st.assinados.map(a=>pessoa((a.emp.nome||'').split(' ').slice(0,2).join(' '), (a.quando?`· ${dt(a.quando)}`:'')+(a.origem==='portal'?' 📱':''), '#047857')).join('')}
+      <div style="font-size:10.5px;color:#94A3B8;margin-top:3px">📱 = assinado pelo próprio colaborador no portal</div>
     </div>`:''}
   </div>`;
 }
@@ -6843,6 +6947,16 @@ function cobrarAssinaturasHolerite(ano, mes){
      ${cards}
      <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>`,560);
 }
+async function atualizarAssinaturas(ano,mes){
+  toast('🔄 Verificando assinaturas…','ok',1800);
+  await carregarAssinaturasHolerite(ano,mes,true);
+  const alvo=document.getElementById('assin-box');
+  if(alvo) alvo.outerHTML=_cardAssinaturas(ano,mes);
+  const st=_statusAssinaturas(ano,mes);
+  toast('✅ '+st.assinados.length+' de '+st.total+' assinaram','ok',3500);
+}
+window.atualizarAssinaturas=atualizarAssinaturas;
+window.carregarAssinaturasHolerite=carregarAssinaturasHolerite;
 window._statusAssinaturas=_statusAssinaturas;
 window._cardAssinaturas=_cardAssinaturas;
 window.cobrarAssinaturasHolerite=cobrarAssinaturasHolerite;
@@ -9674,15 +9788,29 @@ window.addEventListener('unhandledrejection', function(e){
   };
 })();
 
+// Mostra há quanto tempo o erro aconteceu. Sem isso, uma falha de dias atrás
+// parece estar acontecendo agora e gera alarme à toa.
+function _errlogQuando(d){
+  const min=Math.floor((Date.now()-d.getTime())/60000);
+  let rel;
+  if(min<1) rel='agora';
+  else if(min<60) rel='há '+min+' min';
+  else if(min<1440) rel='há '+Math.floor(min/60)+'h';
+  else rel='há '+Math.floor(min/1440)+' dia(s)';
+  return rel+' · '+d.toLocaleString('pt-BR');
+}
+
 function abrirLogErros(){
   const lista=_errlogLer().slice().reverse();
+  // Quantos erros são recentes de verdade (última hora)
+  const recentes=lista.filter(e=>{ const t=new Date(e.ts).getTime(); return !isNaN(t) && (Date.now()-t)<3600000; }).length;
   const cor={js:'#DC2626',promise:'#D97706',console:'#2563EB',firebase:'#7C3AED',geral:'#64748B'};
   const linhas=lista.map(e=>{
     const d=new Date(e.ts);
     return `<div style="border-left:3px solid ${cor[e.origem]||'#94A3B8'};background:#F8FAFC;border-radius:8px;padding:9px 11px;margin-bottom:7px">
       <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:3px">
         <span style="font-size:10.5px;font-weight:800;color:${cor[e.origem]||'#64748B'};text-transform:uppercase">${esc(e.origem)}${e.n>1?' ×'+e.n:''}</span>
-        <span style="font-size:10.5px;color:#94A3B8">${isNaN(d)?'':d.toLocaleString('pt-BR')}</span>
+        <span style="font-size:10.5px;color:#94A3B8">${isNaN(d)?'':_errlogQuando(d)}</span>
       </div>
       <div style="font-size:12px;color:#1E293B;word-break:break-word;line-height:1.45">${esc(e.msg)}</div>
       ${e.det?`<div style="font-size:10.5px;color:#94A3B8;margin-top:3px;word-break:break-all">${esc(e.det)}</div>`:''}
@@ -9690,9 +9818,14 @@ function abrirLogErros(){
   }).join('');
 
   openModal('📋 Registro de Erros',`
-    <div style="font-size:12.5px;color:#64748B;margin-bottom:12px;line-height:1.55">
+    <div style="font-size:12.5px;color:#64748B;margin-bottom:10px;line-height:1.55">
       Últimos ${ERRLOG_MAX} erros guardados neste navegador. Serve para descobrir falhas que aconteceram sem ninguém ver — gravação que não subiu, chave de IA recusada, tela que quebrou.
     </div>
+    ${lista.length?`<div style="background:${recentes?'#FEF2F2':'#ECFDF5'};border:1px solid ${recentes?'#FECACA':'#A7F3D0'};border-radius:9px;padding:9px 12px;margin-bottom:11px;font-size:12px;color:${recentes?'#991B1B':'#047857'};line-height:1.5">
+      ${recentes
+        ? `<strong>${recentes} erro(s) na última hora</strong> — estes merecem atenção.`
+        : `<strong>Nenhum erro na última hora.</strong> Os registros abaixo são antigos e provavelmente já foram resolvidos.`}
+    </div>`:''}
     ${lista.length===0
       ? '<div style="text-align:center;padding:32px;color:#94A3B8"><div style="font-size:30px;margin-bottom:8px">✓</div><div style="font-weight:600">Nenhum erro registrado</div></div>'
       : `<div style="max-height:380px;overflow:auto">${linhas}</div>`}
@@ -9737,21 +9870,15 @@ async function rodarDiagnostico(){
     }
   }
 
-  // 1b. Espelho no Supabase (cópia extra dos dados sensíveis)
-  if(typeof SBASE==='undefined' || !SBASE){
-    add('Cópia extra (Supabase)','alerta','Não conectado. Os dados continuam salvos no Firebase — esta é apenas uma segunda cópia.');
-  }else{
+  // O Supabase foi desativado — não há o que testar. Se um dia for religado,
+  // esta verificação volta a rodar sozinha.
+  if(typeof SUPABASE_ATIVO!=='undefined' && SUPABASE_ATIVO && typeof SBASE!=='undefined' && SBASE){
     try{
       const { error } = await SBASE.from('hr_data').select('id').limit(1);
       if(error) throw new Error(error.message||'erro');
       add('Cópia extra (Supabase)','ok','Conectado e gravando a segunda cópia');
     }catch(e){
-      const msg=String((e&&e.message)||'');
-      const falhaRede=/failed to fetch|networkerror|load failed/i.test(msg);
-      add('Cópia extra (Supabase)','alerta',
-        falhaRede
-          ? 'Não está respondendo (projeto pausado ou fora do ar). Seus dados seguem salvos no Firebase — só a segunda cópia está parada.'
-          : 'Falhou: '+msg.slice(0,90)+'. Os dados continuam no Firebase.');
+      add('Cópia extra (Supabase)','alerta','Não está respondendo. Os dados seguem salvos no Firebase.');
     }
   }
 
@@ -11018,9 +11145,9 @@ function abrirConfiguracoes(){
         <div style="font-size:12px;font-weight:700;color:${fbOk?'#047857':'#B91C1C'}">${fbOk?'☁️ Nuvem ativa':'⚠️ Nuvem desconectada'}</div>
         <div style="font-size:11px;color:#64748B;margin-top:1px">${pend?pend+' gravação(ões) pendente(s)':'Tudo sincronizado'}</div>
       </div>
-      <div style="flex:1;min-width:150px;background:${sbOk?'#ECFDF5':'#F8FAFC'};border-radius:9px;padding:9px 11px;cursor:pointer" onclick="closeModal();setTimeout(()=>openSupabaseConfigModal(),120)">
-        <div style="font-size:12px;font-weight:700;color:${sbOk?'#047857':'#64748B'}">🔒 Cópia extra ${sbOk?'ativa':'inativa'}</div>
-        <div style="font-size:11px;color:#64748B;margin-top:1px">${sbOk?'Supabase gravando':'Toque para configurar'}</div>
+      <div style="flex:1;min-width:150px;background:#F8FAFC;border-radius:9px;padding:9px 11px">
+        <div style="font-size:12px;font-weight:700;color:#334155">🗄️ Banco de dados</div>
+        <div style="font-size:11px;color:#64748B;margin-top:1px">Firebase — único banco do sistema</div>
       </div>
     </div>
 
@@ -11046,7 +11173,7 @@ function abrirConfiguracoes(){
     ${grupo('Sistema',[
       item('🏢','Empresa &amp; IA','Dados da empresa e modelo de IA','openEmpresaCfgModal()','#0891B2'),
       item('🤖','Chaves de IA','Groq e Anthropic','openAnthropicKeyModal()','#7C3AED'),
-      item('🔒','Supabase','Cópia extra dos dados sensíveis','openSupabaseConfigModal()','#334155')
+      item('🔑','Reparar dados cifrados','Reabre dados que ficaram ilegíveis','repararDadosCifrados()','#DC2626')
     ])}
 
     <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>`,720);
