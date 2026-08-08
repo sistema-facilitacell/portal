@@ -2072,7 +2072,7 @@ function calcIRRF(b, rendimentoBruto){
 // O módulo usa caminho próprio de persistência (Firestore collection separada +
 // localStorage 'fcrh_comprovantes') — não entra em _VALID_KEYS/fbLoad para não
 // conflitar com a lógica da collection comprovantes_pagamento.
-let APP={employees:[],candidates:[],pontos:{},financeiro:{},atestados:[],admissoes:{},demissoes:{},salarios:{},holRascunho:{},metaDiaria:{},faltaPagar:[],advertencias:[],ferias:[],avaliacoes:[],comunicados:[],bancohoras:{},contratos:[],comprovantes:[],bhSolicitacoes:[],empresaCfg:{},lancamentos_bh:{},wf_ferias:[],wf_contratos_alertas:[],wf_holerite_auto:[],wf_onboarding:[],portalSolicitacoes:[],ocorrenciasContratados:[],agendaEventos:[],adiantamentos:[]};
+let APP={employees:[],candidates:[],pontos:{},financeiro:{},atestados:[],admissoes:{},demissoes:{},salarios:{},holRascunho:{},metaDiaria:{},faltaPagar:[],advertencias:[],ferias:[],avaliacoes:[],comunicados:[],bancohoras:{},contratos:[],comprovantes:[],bhSolicitacoes:[],empresaCfg:{},lancamentos_bh:{},portalSolicitacoes:[],ocorrenciasContratados:[],agendaEventos:[],adiantamentos:[]};
 
 // FIX-BUG2: helper para escapar HTML em mensagens de erro (previne XSS)
 function _escHtml(s){
@@ -2456,10 +2456,6 @@ const _VALID_KEYS=new Set(['employees','candidates','pontos','financeiro','atest
   // FIX-P1: chaves anteriormente ausentes — persistência completa
   'lancamentos_bh',        // lançamentos manuais do módulo Banco de Horas
   'bhSolicitacoes',        // solicitações de BH (multi-dispositivo/multi-usuário)
-  'wf_ferias',             // workflow de férias
-  'wf_contratos_alertas',  // workflow de alertas de contratos
-  'wf_holerite_auto',      // workflow de geração automática de holerite
-  'wf_onboarding',         // workflow de onboarding
   'portalSolicitacoes',    // solicitações do portal do colaborador
   'ocorrenciasContratados',// faltas/atestados/saídas de contratados sem registro de ponto
   'agendaEventos',         // eventos manuais da Agenda de RH
@@ -3252,7 +3248,6 @@ const NAV_GROUPS = [
   ]},
   { label: 'Automação', items: [
     {id:'assinatura_digital',label:'Assinatura Digital',icon:'<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>'},
-    {id:'workflows',label:'Workflows Automáticos',icon:'<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>'},
     {id:'alarmes_portal',label:'Alarmes do Portal',icon:'<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="12" y1="2" x2="12" y2="4"/>'},
   ]},
   { label: 'Ferramentas', items: [
@@ -3264,7 +3259,7 @@ const NAV_GROUPS = [
 ];
 // Mantém NAV flat para compatibilidade com MOD, navigate(), etc.
 const NAV = NAV_GROUPS.flatMap(g => g.items);
-const PAGE_TITLES={dashboard:'Dashboard',portaislinks:'Links dos Portais',funcionarios:'Funcionários',ponto:'Cartão Ponto',financeiro:'Financeiro',holerite:'Holerite',atestados:'Atestados Médicos',candidatos:'Candidatos',admissao:'Admissão',demissao:'Demissão',metadiaria:'Meta Diária',salarios:'Salários & Metas',biometrico:'Ponto Biométrico',relatorio:'Relatório Financeiro Mensal',advertencias:'Advertências e Suspensões',suspensao:'Suspensões Disciplinares',ferias:'Controle de Férias',desempenho:'Avaliação de Desempenho',comunicados:'Comunicados & Avisos',bancohoras:'Banco de Horas',recrutamento:'Recrutamento Atlas',contratos:'Contratos & Documentos Admissionais',comprovantes:'Comprovantes de Pagamento',workflows:'Workflows Automáticos',assinatura_digital:'Assinatura Digital',alarmes_portal:'Alarmes do Portal',solicitacoes_portal:'Solicitações do Portal',absenteismo:'Dashboard de Absenteísmo',agenda_rh:'Agenda de RH',doc_templates:'Templates de Documentos'};
+const PAGE_TITLES={dashboard:'Dashboard',portaislinks:'Links dos Portais',funcionarios:'Funcionários',ponto:'Cartão Ponto',financeiro:'Financeiro',holerite:'Holerite',atestados:'Atestados Médicos',candidatos:'Candidatos',admissao:'Admissão',demissao:'Demissão',metadiaria:'Meta Diária',salarios:'Salários & Metas',biometrico:'Ponto Biométrico',relatorio:'Relatório Financeiro Mensal',advertencias:'Advertências e Suspensões',suspensao:'Suspensões Disciplinares',ferias:'Controle de Férias',desempenho:'Avaliação de Desempenho',comunicados:'Comunicados & Avisos',bancohoras:'Banco de Horas',recrutamento:'Recrutamento Atlas',contratos:'Contratos & Documentos Admissionais',comprovantes:'Comprovantes de Pagamento',assinatura_digital:'Assinatura Digital',alarmes_portal:'Alarmes do Portal',solicitacoes_portal:'Solicitações do Portal',absenteismo:'Dashboard de Absenteísmo',agenda_rh:'Agenda de RH',doc_templates:'Templates de Documentos'};
 
 // ── Helper: gera array de anos dinâmico ──────────
 function anosDisponiveis(extra=1){
@@ -3433,7 +3428,7 @@ function navigate(mod){
     return;
   }
 
-  const renders={dashboard:(typeof window._rDashComAlertas==="function"?window._rDashComAlertas:rDash),funcionarios:rFuncs,ponto:rPonto,financeiro:rFin,holerite:rHolerite,atestados:rAtestados,candidatos:rCand,admissao:rAdmissao,demissao:rDemissao,salarios:rSalarios,metadiaria:rMetaDiaria,biometrico:function(){ return (typeof window.rBiometrico==='function') ? window.rBiometrico() : rBiometrico(); },relatorio:rRelatorio,advertencias:rAdvertencias,ferias:rFerias,desempenho:rDesempenho,comunicados:rComunicados,bancohoras:rBancoHoras,recrutamento:rRecrutamento,contratos:function(){ return (typeof rContratos==='function') ? rContratos() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Contratos carregando...</div>'; },comprovantes:rComprovantes,portaislinks:rPortaisLinks,workflows:rWorkflows,assinatura_digital:function(){ return (typeof window.rAssinaturaDigital==='function') ? window.rAssinaturaDigital() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Assinatura carregando...</div>'; },alarmes_portal:rAlarmesPortal,solicitacoes_portal:rSolicitacoesPortal,absenteismo:rAbsenteismo,suspensao:function(){ const t=document.getElementById('_susp_module_html_'); return t?t.innerHTML:'<div class="card" style="padding:30px;text-align:center">⏳ Módulo Suspensões carregando...</div>'; },agenda_rh:rAgendaRH,doc_templates:rDocTemplates,auditoria:function(){ return (typeof window.rAuditoria==='function') ? window.rAuditoria() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando auditoria...</div>'; },ocorrencias_contratados:function(){ return (typeof window.rOcorrenciasContratados==='function') ? window.rOcorrenciasContratados() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },adiantamentos:function(){ return (typeof window.rAdiantamentos==='function') ? window.rAdiantamentos() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; }};
+  const renders={dashboard:(typeof window._rDashComAlertas==="function"?window._rDashComAlertas:rDash),funcionarios:rFuncs,ponto:rPonto,financeiro:rFin,holerite:rHolerite,atestados:rAtestados,candidatos:rCand,admissao:rAdmissao,demissao:rDemissao,salarios:rSalarios,metadiaria:rMetaDiaria,biometrico:function(){ return (typeof window.rBiometrico==='function') ? window.rBiometrico() : rBiometrico(); },relatorio:rRelatorio,advertencias:rAdvertencias,ferias:rFerias,desempenho:rDesempenho,comunicados:rComunicados,bancohoras:rBancoHoras,recrutamento:rRecrutamento,contratos:function(){ return (typeof rContratos==='function') ? rContratos() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Contratos carregando...</div>'; },comprovantes:rComprovantes,portaislinks:rPortaisLinks,assinatura_digital:function(){ return (typeof window.rAssinaturaDigital==='function') ? window.rAssinaturaDigital() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Assinatura carregando...</div>'; },alarmes_portal:rAlarmesPortal,solicitacoes_portal:rSolicitacoesPortal,absenteismo:rAbsenteismo,suspensao:function(){ const t=document.getElementById('_susp_module_html_'); return t?t.innerHTML:'<div class="card" style="padding:30px;text-align:center">⏳ Módulo Suspensões carregando...</div>'; },agenda_rh:rAgendaRH,doc_templates:rDocTemplates,auditoria:function(){ return (typeof window.rAuditoria==='function') ? window.rAuditoria() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando auditoria...</div>'; },ocorrencias_contratados:function(){ return (typeof window.rOcorrenciasContratados==='function') ? window.rOcorrenciasContratados() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },adiantamentos:function(){ return (typeof window.rAdiantamentos==='function') ? window.rAdiantamentos() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; }};
   // FIX-C1: try-catch no dispatcher — evita tela branca se qualquer render lançar erro
   try {
     document.getElementById('content').innerHTML=(renders[mod]||rDash)();
@@ -38923,702 +38918,6 @@ console.log('[v13] ✅ Chat RH ↔ Portal do Colaborador carregado — Firebase 
 </script>
 
 <!-- ═══════════════════════════════════════════════════════════════ -->
-<!-- MÓDULO: WORKFLOWS AUTOMÁTICOS v1.0                             -->
-<!-- 4 fluxos: Férias · Onboarding · Alertas de Contrato · Holerite -->
-<!-- ═══════════════════════════════════════════════════════════════ -->
-<script>
-// ── Helpers locais ─────────────────────────────────────────────
-const _wfToday = () => today();
-const _wfFmt   = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') : '—';
-const _wfDiff  = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000);
-const _wfSave  = () => { save('wf_ferias'); save('wf_contratos_alertas'); save('wf_holerite_auto'); save('wf_onboarding'); };
-
-// ── Garante arrays inicializados ───────────────────────────────
-function _wfInit() {
-  if (!Array.isArray(APP.wf_ferias))           APP.wf_ferias = [];
-  if (!Array.isArray(APP.wf_contratos_alertas)) APP.wf_contratos_alertas = [];
-  if (!Array.isArray(APP.wf_holerite_auto))     APP.wf_holerite_auto = [];
-  if (!Array.isArray(APP.wf_onboarding))        APP.wf_onboarding = [];
-}
-
-// ════════════════════════════════════════════════════════════════
-// RENDER PRINCIPAL — módulo Workflows Automáticos
-// ════════════════════════════════════════════════════════════════
-function rWorkflows() {
-  _wfInit();
-  _wfRunAllChecks(); // dispara checks automáticos sempre que entra no módulo
-
-  const tabId = window._wfTab || 'ferias';
-
-  const tabs = [
-    { id: 'ferias',    icon: '🏖️', label: 'Aprovação de Férias' },
-    { id: 'onboarding',icon: '🚀', label: 'Onboarding' },
-    { id: 'contratos', icon: '📋', label: 'Contratos & Alertas' },
-    { id: 'holerite',  icon: '💰', label: 'Holerite Automático' },
-  ];
-
-  const tabsHtml = tabs.map(t => `
-    <button onclick="window._wfTab='${t.id}';navigate('workflows')"
-      style="display:flex;align-items:center;gap:7px;padding:10px 18px;border:none;cursor:pointer;font-size:13px;font-weight:${tabId===t.id?'700':'500'};
-      color:${tabId===t.id?'var(--blue)':'var(--mt)'};background:transparent;border-bottom:2px solid ${tabId===t.id?'var(--blue)':'transparent'};
-      transition:all .15s;font-family:var(--font)">
-      ${t.icon} ${t.label}
-    </button>`).join('');
-
-  let body = '';
-  if (tabId === 'ferias')     body = _wfRenderFerias();
-  if (tabId === 'onboarding') body = _wfRenderOnboarding();
-  if (tabId === 'contratos')  body = _wfRenderContratos();
-  if (tabId === 'holerite')   body = _wfRenderHolerite();
-
-  return `
-  <div style="margin-bottom:16px">
-    <div style="background:#fff;border:1px solid var(--border);border-radius:12px 12px 0 0;padding:4px 8px;display:flex;gap:2px;overflow-x:auto">
-      ${tabsHtml}
-    </div>
-    <div style="background:#fff;border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;padding:22px">
-      ${body}
-    </div>
-  </div>`;
-}
-
-// ════════════════════════════════════════════════════════════════
-// ABA 1 — APROVAÇÃO DE FÉRIAS
-// Fluxo: Solicitação → Gestor → RH → Confirmação
-// ════════════════════════════════════════════════════════════════
-function _wfRenderFerias() {
-  _wfInit();
-  const solics = APP.wf_ferias;
-  const ativos = APP.employees.filter(e => e.status === 'ativo');
-
-  // KPIs
-  const pendentes  = solics.filter(s => s.etapa === 'solicitado').length;
-  const em_aprv    = solics.filter(s => s.etapa === 'gestor_aprovado').length;
-  const aprovadas  = solics.filter(s => s.etapa === 'aprovado').length;
-  const rejeitadas = solics.filter(s => s.etapa === 'rejeitado').length;
-
-  const kpis = [
-    ['⏳', 'Aguardando Gestor', pendentes,  '#D97706', '#FFF7ED'],
-    ['✅', 'Aguardando RH',     em_aprv,    '#2563EB', '#EFF6FF'],
-    ['🏖️', 'Aprovadas',        aprovadas,  '#059669', '#F0FDF4'],
-    ['❌', 'Rejeitadas',        rejeitadas, '#DC2626', '#FEF2F2'],
-  ].map(([ic, lb, vl, cor, bg]) => `
-    <div style="flex:1;min-width:120px;background:${bg};border:1px solid ${cor}22;border-radius:10px;padding:14px 16px;text-align:center">
-      <div style="font-size:20px;margin-bottom:4px">${ic}</div>
-      <div style="font-size:22px;font-weight:900;color:${cor}">${vl}</div>
-      <div style="font-size:11px;color:${cor};font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-top:2px">${lb}</div>
-    </div>`).join('');
-
-  // Opções de funcionários para select
-  const empOpts = ativos.map(e => `<option value="${e.id}">${esc(e.nome)} — ${esc(e.cargo || '')}</option>`).join('');
-
-  // Tabela de solicitações
-  const etapaLabel = {
-    solicitado:      { l: '⏳ Aguardando Gestor',  c: '#D97706', bg: '#FFF7ED' },
-    gestor_aprovado: { l: '🔵 Aguardando RH',      c: '#2563EB', bg: '#EFF6FF' },
-    gestor_rejeitado:{ l: '❌ Recusado pelo Gestor',c: '#DC2626', bg: '#FEF2F2' },
-    aprovado:        { l: '✅ Aprovado',             c: '#059669', bg: '#F0FDF4' },
-    rejeitado:       { l: '❌ Rejeitado',            c: '#DC2626', bg: '#FEF2F2' },
-  };
-
-  const linhas = [...solics].sort((a, b) => (b.criadoEm || '').localeCompare(a.criadoEm || '')).map(s => {
-    const emp = APP.employees.find(e => e.id === s.empId);
-    const et  = etapaLabel[s.etapa] || { l: s.etapa, c: '#6B7280', bg: '#F1F5F9' };
-    const dias = s.dataInicio && s.dataFim ? _wfDiff(s.dataInicio, s.dataFim) + 1 : '—';
-    return `
-    <tr style="border-bottom:1px solid #F1F5F9">
-      <td style="padding:11px 12px">${av(emp?.nome || '?', s.empId, 30)} <span style="font-size:13px;font-weight:600;margin-left:8px">${esc(emp?.nome || 'Desconhecido')}</span></td>
-      <td style="padding:11px 12px;font-size:13px">${_wfFmt(s.dataInicio)} → ${_wfFmt(s.dataFim)}</td>
-      <td style="padding:11px 12px;font-size:13px;font-weight:700;text-align:center">${dias}</td>
-      <td style="padding:11px 12px"><span style="background:${et.bg};color:${et.c};font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap">${et.l}</span></td>
-      <td style="padding:11px 12px">
-        <div style="display:flex;gap:5px;flex-wrap:wrap">
-          ${s.etapa === 'solicitado' ? `
-            <button class="btn btn-sm btn-green" onclick="wfFeriasAvancar('${s.id}','gestor_aprovado')">✓ Gestor Aprova</button>
-            <button class="btn btn-sm btn-red"   onclick="wfFeriasAvancar('${s.id}','gestor_rejeitado')">✗ Recusar</button>` : ''}
-          ${s.etapa === 'gestor_aprovado' ? `
-            <button class="btn btn-sm btn-blue"  onclick="wfFeriasAvancar('${s.id}','aprovado')">✅ RH Confirma</button>
-            <button class="btn btn-sm btn-red"   onclick="wfFeriasAvancar('${s.id}','rejeitado')">✗ RH Rejeita</button>` : ''}
-          ${(s.etapa === 'aprovado') ? `<span style="font-size:12px;color:#059669">Gozo: ${_wfFmt(s.dataInicio)}</span>` : ''}
-          <button class="btn btn-sm" style="background:#F1F5F9;color:#64748B;font-size:11px" onclick="wfFeriasExcluir('${s.id}')">🗑</button>
-        </div>
-      </td>
-    </tr>`;
-  }).join('') || '<tr><td colspan="5" style="padding:20px;text-align:center;color:#94A3B8">Nenhuma solicitação de férias registrada.</td></tr>';
-
-  return `
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
-    <div>
-      <div style="font-size:17px;font-weight:800">Aprovação de Férias</div>
-      <div style="font-size:12px;color:var(--mt);margin-top:2px">Fluxo: Solicitação → Gestor → RH → Confirmação automática</div>
-    </div>
-    <button class="btn btn-blue" onclick="wfFeriasNova()">+ Nova Solicitação</button>
-  </div>
-  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">${kpis}</div>
-  <div class="card" style="padding:0;overflow:hidden">
-    <div style="padding:12px 16px;background:#F8FAFC;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.06em">
-      Solicitações (${solics.length})
-    </div>
-    <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse">
-        <thead><tr style="background:#F8FAFC">
-          <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase">Colaborador</th>
-          <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase">Período</th>
-          <th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase">Dias</th>
-          <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase">Etapa</th>
-          <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase">Ações</th>
-        </tr></thead>
-        <tbody>${linhas}</tbody>
-      </table>
-    </div>
-  </div>`;
-}
-
-function wfFeriasNova() {
-  const ativos = APP.employees.filter(e => e.status === 'ativo');
-  const empOpts = ativos.map(e => `<option value="${e.id}">${esc(e.nome)}</option>`).join('');
-  const hoje = _wfToday();
-  openModal('🏖️ Nova Solicitação de Férias', `
-    <div class="fld"><label>Colaborador</label><select id="wf-f-emp">${empOpts}</select></div>
-    <div class="g2">
-      <div class="fld"><label>Data de Início</label><input type="date" id="wf-f-ini" value="${hoje}" min="${hoje}"></div>
-      <div class="fld"><label>Data de Fim</label><input type="date" id="wf-f-fim"></div>
-    </div>
-    <div class="fld"><label>Observação</label><textarea id="wf-f-obs" rows="2" placeholder="Motivo, observações..."></textarea></div>
-    <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px 12px;font-size:12px;color:#1D4ED8;margin-top:8px">
-      ℹ️ Ao salvar, a solicitação entra no fluxo: <strong>Aguardando aprovação do Gestor</strong> → depois RH confirma.
-    </div>
-    <div class="mft">
-      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-blue" onclick="wfFeriasSalvar()">Solicitar Férias</button>
-    </div>`, 520);
-}
-
-function wfFeriasSalvar() {
-  _wfInit();
-  const empId = document.getElementById('wf-f-emp')?.value;
-  const ini   = document.getElementById('wf-f-ini')?.value;
-  const fim   = document.getElementById('wf-f-fim')?.value;
-  const obs   = document.getElementById('wf-f-obs')?.value || '';
-  if (!empId || !ini || !fim) { toast('Preencha todos os campos.', 'err'); return; }
-  if (fim < ini) { toast('Data de fim deve ser após o início.', 'err'); return; }
-  const solic = { id: uid(), empId, dataInicio: ini, dataFim: fim, obs, etapa: 'solicitado',
-    criadoEm: new Date().toISOString(), historico: [{ etapa: 'solicitado', ts: new Date().toISOString(), por: 'RH' }] };
-  APP.wf_ferias.push(solic);
-  save('wf_ferias');
-  closeModal();
-  toast('✅ Solicitação criada! Aguardando aprovação do gestor.', 'ok');
-  navigate('workflows');
-}
-
-function wfFeriasAvancar(id, novaEtapa) {
-  _wfInit();
-  const s = APP.wf_ferias.find(x => x.id === id);
-  if (!s) return;
-  const etapaAnterior = s.etapa;
-  s.etapa = novaEtapa;
-  if (!s.historico) s.historico = [];
-  s.historico.push({ etapa: novaEtapa, ts: new Date().toISOString(), por: 'RH' });
-
-  // Se aprovado pelo RH: cria registro em APP.ferias automaticamente
-  if (novaEtapa === 'aprovado') {
-    if (!Array.isArray(APP.ferias)) APP.ferias = [];
-    const emp = APP.employees.find(e => e.id === s.empId);
-    // Verifica se já existe período igual
-    const jaExiste = APP.ferias.some(f => f.empId === s.empId && f.inicio === s.dataInicio);
-    if (!jaExiste) {
-      APP.ferias.push({
-        id: uid(), empId: s.empId, nome: emp?.nome || '', cargo: emp?.cargo || '',
-        inicio: s.dataInicio, fim: s.dataFim,
-        dias: _wfDiff(s.dataInicio, s.dataFim) + 1,
-        status: 'aprovado', origem: 'workflow', wfId: s.id,
-        criadoEm: new Date().toISOString()
-      });
-      save('ferias');
-    }
-    toast('✅ Férias aprovadas e registradas no sistema!', 'ok', 4000);
-  } else if (novaEtapa === 'gestor_aprovado') {
-    toast('✅ Gestor aprovou! Aguardando confirmação do RH.', 'ok');
-  } else if (novaEtapa === 'gestor_rejeitado' || novaEtapa === 'rejeitado') {
-    toast('❌ Solicitação rejeitada.', 'warn');
-  }
-  save('wf_ferias');
-  navigate('workflows');
-}
-
-async function wfFeriasExcluir(id) {
-  if (!await confirmDialog('Excluir esta solicitação de férias?', { danger: true, btnOk: 'Excluir' })) return;
-  APP.wf_ferias = APP.wf_ferias.filter(x => x.id !== id);
-  save('wf_ferias');
-  toast('Solicitação excluída.', 'warn');
-  navigate('workflows');
-}
-
-// ════════════════════════════════════════════════════════════════
-// ABA 2 — ONBOARDING AUTOMATIZADO
-// Checklist de tarefas para novos colaboradores
-// ════════════════════════════════════════════════════════════════
-const WF_ONBOARDING_TASKS = [
-  { id: 'docs',        label: 'Documentos pessoais entregues',      grupo: 'Admissão' },
-  { id: 'contrato',    label: 'Contrato assinado',                  grupo: 'Admissão' },
-  { id: 'ctps',        label: 'CTPS registrada',                    grupo: 'Admissão' },
-  { id: 'aso',         label: 'ASO (exame admissional) emitido',    grupo: 'Admissão' },
-  { id: 'crachá',      label: 'Crachá e uniforme entregues',        grupo: 'Recepção' },
-  { id: 'sistemas',    label: 'Acessos aos sistemas liberados',      grupo: 'TI' },
-  { id: 'email',       label: 'E-mail corporativo criado',          grupo: 'TI' },
-  { id: 'apresentacao',label: 'Apresentação à equipe realizada',    grupo: 'Integração' },
-  { id: 'treinamento', label: 'Treinamento inicial concluído',      grupo: 'Integração' },
-  { id: 'boas_vindas', label: 'E-mail de boas-vindas enviado',      grupo: 'RH' },
-  { id: 'mentor',      label: 'Mentor/responsável designado',       grupo: 'RH' },
-  { id: 'metas',       label: 'Metas e expectativas alinhadas',     grupo: 'Gestão' },
-];
-
-function _wfRenderOnboarding() {
-  _wfInit();
-  const onboardings = APP.wf_onboarding;
-  const ativos = APP.employees.filter(e => e.status === 'ativo');
-
-  const cards = onboardings.map(ob => {
-    const emp = APP.employees.find(e => e.id === ob.empId);
-    const tasks = ob.tasks || {};
-    const concluidas = WF_ONBOARDING_TASKS.filter(t => tasks[t.id]).length;
-    const total = WF_ONBOARDING_TASKS.length;
-    const pct = Math.round((concluidas / total) * 100);
-    const cor = pct === 100 ? '#059669' : pct >= 50 ? '#D97706' : '#DC2626';
-
-    const taskRows = WF_ONBOARDING_TASKS.map(t => `
-      <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #F8FAFC">
-        <input type="checkbox" id="wf-ob-${ob.id}-${t.id}" ${tasks[t.id] ? 'checked' : ''}
-          onchange="wfOnboardingToggle('${ob.id}','${t.id}',this.checked)"
-          style="width:16px;height:16px;cursor:pointer;accent-color:var(--green)">
-        <span style="font-size:13px;color:${tasks[t.id]?'#94A3B8':'var(--tx)'};${tasks[t.id]?'text-decoration:line-through':''}">
-          ${esc(t.label)}
-        </span>
-        <span style="margin-left:auto;font-size:10px;background:#F1F5F9;color:#64748B;padding:2px 8px;border-radius:10px">${t.grupo}</span>
-      </div>`).join('');
-
-    return `
-    <div class="card" style="margin-bottom:14px">
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap">
-        ${av(emp?.nome || '?', ob.empId, 42)}
-        <div style="flex:1;min-width:0">
-          <div style="font-size:16px;font-weight:800">${esc(emp?.nome || 'Desconhecido')}</div>
-          <div style="font-size:12px;color:var(--mt)">${esc(emp?.cargo || '')} · Admitido em ${_wfFmt(ob.dataAdmissao || emp?.dataAdmissao)}</div>
-        </div>
-        <div style="text-align:center">
-          <div style="font-size:22px;font-weight:900;color:${cor}">${pct}%</div>
-          <div style="font-size:11px;color:var(--mt)">${concluidas}/${total} tarefas</div>
-        </div>
-        <button class="btn btn-sm" style="background:#FEF2F2;color:#DC2626;font-size:11px" onclick="wfOnboardingExcluir('${ob.id}')">🗑 Remover</button>
-      </div>
-      <div style="background:#F8FAFC;border-radius:8px;height:8px;margin-bottom:14px;overflow:hidden">
-        <div style="background:${cor};height:100%;width:${pct}%;border-radius:8px;transition:width .4s"></div>
-      </div>
-      ${taskRows}
-    </div>`;
-  }).join('') || `<div class="card" style="text-align:center;padding:32px;color:#94A3B8"><div style="font-size:32px;margin-bottom:10px">🚀</div><div style="font-size:15px;font-weight:600">Nenhum onboarding ativo</div><div style="font-size:13px;margin-top:6px">Clique em "Iniciar Onboarding" para adicionar um colaborador ao fluxo.</div></div>`;
-
-  const empOpts = ativos.map(e => `<option value="${e.id}">${esc(e.nome)} — ${esc(e.cargo||'')}</option>`).join('');
-
-  return `
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
-    <div>
-      <div style="font-size:17px;font-weight:800">Onboarding Automatizado</div>
-      <div style="font-size:12px;color:var(--mt);margin-top:2px">Checklist estruturado para integração de novos colaboradores</div>
-    </div>
-    <button class="btn btn-blue" onclick="wfOnboardingNovo()">+ Iniciar Onboarding</button>
-  </div>
-  ${cards}`;
-}
-
-function wfOnboardingNovo() {
-  const ativos = APP.employees.filter(e => e.status === 'ativo');
-  const empOpts = ativos.map(e => `<option value="${e.id}">${esc(e.nome)} — ${esc(e.cargo||'')}</option>`).join('');
-  openModal('🚀 Iniciar Onboarding', `
-    <div class="fld"><label>Colaborador</label><select id="wf-ob-emp">${empOpts}</select></div>
-    <div class="fld"><label>Data de Admissão</label><input type="date" id="wf-ob-dt" value="${_wfToday()}"></div>
-    <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:10px 12px;font-size:12px;color:#166534;margin-top:8px">
-      ✅ Será criado um checklist com ${WF_ONBOARDING_TASKS.length} tarefas de integração para acompanhar o processo.
-    </div>
-    <div class="mft">
-      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-blue" onclick="wfOnboardingSalvar()">Iniciar</button>
-    </div>`, 460);
-}
-
-function wfOnboardingSalvar() {
-  _wfInit();
-  const empId = document.getElementById('wf-ob-emp')?.value;
-  const dt    = document.getElementById('wf-ob-dt')?.value;
-  if (!empId) { toast('Selecione um colaborador.', 'err'); return; }
-  // Evita duplicata
-  if (APP.wf_onboarding.some(o => o.empId === empId)) {
-    toast('⚠ Este colaborador já tem um onboarding ativo.', 'warn'); return;
-  }
-  APP.wf_onboarding.push({ id: uid(), empId, dataAdmissao: dt, tasks: {}, criadoEm: new Date().toISOString() });
-  save('wf_onboarding');
-  closeModal();
-  toast('✅ Onboarding iniciado!', 'ok');
-  navigate('workflows');
-}
-
-function wfOnboardingToggle(obId, taskId, checked) {
-  _wfInit();
-  const ob = APP.wf_onboarding.find(o => o.id === obId);
-  if (!ob) return;
-  if (!ob.tasks) ob.tasks = {};
-  ob.tasks[taskId] = checked ? new Date().toISOString() : null;
-  save('wf_onboarding');
-  // Verifica conclusão total
-  const concluidas = WF_ONBOARDING_TASKS.filter(t => ob.tasks[t.id]).length;
-  if (concluidas === WF_ONBOARDING_TASKS.length) {
-    toast('🎉 Onboarding 100% concluído! Colaborador totalmente integrado.', 'ok', 5000);
-  }
-}
-
-async function wfOnboardingExcluir(obId) {
-  if (!await confirmDialog('Remover este onboarding do acompanhamento?', { danger: true, btnOk: 'Remover' })) return;
-  APP.wf_onboarding = APP.wf_onboarding.filter(o => o.id !== obId);
-  save('wf_onboarding');
-  toast('Onboarding removido.', 'warn');
-  navigate('workflows');
-}
-
-// ════════════════════════════════════════════════════════════════
-// ABA 3 — ALERTAS DE VENCIMENTO DE CONTRATOS (30/60/90 dias)
-// ════════════════════════════════════════════════════════════════
-function _wfRenderContratos() {
-  _wfInit();
-
-  // Varredura automática nos employees com contrato_validade
-  const hoje = _wfToday();
-  const alertas = [];
-
-  APP.employees.forEach(emp => {
-    if (!emp.contrato_validade && !emp.dataFimContrato) return;
-    const validade = emp.contrato_validade || emp.dataFimContrato;
-    if (!validade) return;
-    const diff = _wfDiff(hoje, validade);
-
-    let urgencia = null;
-    if (diff < 0)   urgencia = { label: 'VENCIDO',   cor: '#DC2626', bg: '#FEF2F2', dias: Math.abs(diff) + ' dias atrás' };
-    else if (diff <= 30) urgencia = { label: '30 DIAS',  cor: '#DC2626', bg: '#FEF2F2', dias: diff + ' dias' };
-    else if (diff <= 60) urgencia = { label: '60 DIAS',  cor: '#D97706', bg: '#FFF7ED', dias: diff + ' dias' };
-    else if (diff <= 90) urgencia = { label: '90 DIAS',  cor: '#2563EB', bg: '#EFF6FF', dias: diff + ' dias' };
-
-    if (urgencia) alertas.push({ emp, validade, diff, urgencia });
-  });
-
-  alertas.sort((a, b) => a.diff - b.diff);
-
-  // Também mostra configurações adicionais (wf_contratos_alertas)
-  const historico = APP.wf_contratos_alertas || [];
-
-  const linhasAlertas = alertas.length > 0 ? alertas.map(a => {
-    const jaRenovado = historico.some(h => h.empId === a.emp.id && h.acao === 'renovado' && h.novaValidade > hoje);
-    return `
-    <tr style="border-bottom:1px solid #F1F5F9;${jaRenovado ? 'opacity:.5' : ''}">
-      <td style="padding:11px 12px">${av(a.emp.nome, a.emp.id, 30)} <span style="font-size:13px;font-weight:600;margin-left:8px">${esc(a.emp.nome)}</span></td>
-      <td style="padding:11px 12px;font-size:13px">${esc(a.emp.cargo || '—')}</td>
-      <td style="padding:11px 12px;font-size:13px">${_wfFmt(a.validade)}</td>
-      <td style="padding:11px 12px;text-align:center">
-        <span style="background:${a.urgencia.bg};color:${a.urgencia.cor};font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px">${a.urgencia.label} — ${a.urgencia.dias}</span>
-      </td>
-      <td style="padding:11px 12px">
-        ${jaRenovado ? '<span style="font-size:12px;color:#059669;font-weight:700">✓ Renovado</span>' : `
-        <div style="display:flex;gap:5px">
-          <button class="btn btn-sm btn-green" onclick="wfContratoRenovar('${a.emp.id}')">🔄 Renovar</button>
-          <button class="btn btn-sm" style="background:#EFF6FF;color:var(--blue);font-size:11px" onclick="wfContratoIgnorar('${a.emp.id}')">↷ Ignorar</button>
-        </div>`}
-      </td>
-    </tr>`;
-  }).join('') : '<tr><td colspan="5" style="padding:24px;text-align:center;color:#94A3B8">✅ Nenhum contrato próximo do vencimento.</td></tr>';
-
-  // Funcionários sem data de vencimento cadastrada
-  const semValidade = APP.employees.filter(e => e.status === 'ativo' && !e.contrato_validade && !e.dataFimContrato);
-
-  return `
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
-    <div>
-      <div style="font-size:17px;font-weight:800">Alertas de Vencimento de Contratos</div>
-      <div style="font-size:12px;color:var(--mt);margin-top:2px">Monitoramento automático — 30 · 60 · 90 dias antes do vencimento</div>
-    </div>
-    <button class="btn btn-ghost btn-sm" onclick="navigate('workflows')">🔄 Atualizar</button>
-  </div>
-
-  ${alertas.length > 0 ? `
-  <div style="background:#FFF7ED;border:1px solid #FDE68A;border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:13px;color:#92400E;display:flex;align-items:center;gap:10px">
-    ⚠️ <strong>${alertas.length} contrato(s)</strong> próximo(s) do vencimento ou vencidos. Tome uma ação.
-  </div>` : ''}
-
-  <div class="card" style="padding:0;overflow:hidden;margin-bottom:16px">
-    <div style="padding:12px 16px;background:#F8FAFC;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:var(--mt);text-transform:uppercase">Alertas Ativos (${alertas.length})</div>
-    <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse">
-        <thead><tr style="background:#F8FAFC">
-          <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase">Colaborador</th>
-          <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase">Cargo</th>
-          <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase">Vencimento</th>
-          <th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase">Urgência</th>
-          <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase">Ação</th>
-        </tr></thead>
-        <tbody>${linhasAlertas}</tbody>
-      </table>
-    </div>
-  </div>
-
-  ${semValidade.length > 0 ? `
-  <div class="card" style="background:#F8FAFC;border-color:#E2E8F0">
-    <div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--mt)">⚠ ${semValidade.length} colaborador(es) sem data de vencimento cadastrada</div>
-    <div style="font-size:12px;color:#94A3B8;margin-bottom:10px">Acesse o cadastro do colaborador e preencha o campo "Vencimento do Contrato" para ativar o monitoramento automático.</div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px">
-      ${semValidade.slice(0,8).map(e => `<span style="background:#F1F5F9;border-radius:20px;padding:4px 12px;font-size:12px;color:#64748B">${esc(e.nome)}</span>`).join('')}
-      ${semValidade.length > 8 ? `<span style="background:#F1F5F9;border-radius:20px;padding:4px 12px;font-size:12px;color:#94A3B8">+${semValidade.length - 8} mais</span>` : ''}
-    </div>
-  </div>` : ''}`;
-}
-
-function wfContratoRenovar(empId) {
-  const emp = APP.employees.find(e => e.id === empId);
-  const hoje = _wfToday();
-  openModal(`🔄 Renovar Contrato — ${esc(emp?.nome || '')}`, `
-    <div class="fld"><label>Nova data de vencimento</label><input type="date" id="wf-ct-nova" value="${hoje}"></div>
-    <div class="fld"><label>Tipo de renovação</label>
-      <select id="wf-ct-tipo">
-        <option value="prazo">Prazo determinado</option>
-        <option value="indeterminado">Prazo indeterminado</option>
-        <option value="estagio">Estágio prorrogado</option>
-      </select>
-    </div>
-    <div class="fld"><label>Observação</label><textarea id="wf-ct-obs" rows="2"></textarea></div>
-    <div class="mft">
-      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-green" onclick="wfContratoSalvarRenovacao('${empId}')">Confirmar Renovação</button>
-    </div>`, 460);
-}
-
-function wfContratoSalvarRenovacao(empId) {
-  _wfInit();
-  const novaValidade = document.getElementById('wf-ct-nova')?.value;
-  const tipo = document.getElementById('wf-ct-tipo')?.value || 'prazo';
-  const obs  = document.getElementById('wf-ct-obs')?.value || '';
-  if (!novaValidade) { toast('Informe a nova data de vencimento.', 'err'); return; }
-  // Atualiza no employee
-  const emp = APP.employees.find(e => e.id === empId);
-  if (emp) { emp.contrato_validade = novaValidade; emp.dataFimContrato = novaValidade; }
-  save('employees');
-  // Registra no log de contratos
-  APP.wf_contratos_alertas.push({
-    id: uid(), empId, acao: 'renovado', tipo, novaValidade, obs, ts: new Date().toISOString()
-  });
-  save('wf_contratos_alertas');
-  closeModal();
-  toast(`✅ Contrato de ${esc(emp?.nome || '')} renovado até ${_wfFmt(novaValidade)}!`, 'ok', 4000);
-  navigate('workflows');
-}
-
-function wfContratoIgnorar(empId) {
-  _wfInit();
-  APP.wf_contratos_alertas.push({ id: uid(), empId, acao: 'ignorado', ts: new Date().toISOString() });
-  save('wf_contratos_alertas');
-  toast('Alerta ignorado para este ciclo.', 'warn');
-  navigate('workflows');
-}
-
-// ════════════════════════════════════════════════════════════════
-// ABA 4 — GERAÇÃO AUTOMÁTICA DE HOLERITE
-// Fecha o mês e dispara geração para todos os ativos
-// ════════════════════════════════════════════════════════════════
-function _wfRenderHolerite() {
-  _wfInit();
-  const registros = APP.wf_holerite_auto;
-  const hoje = new Date();
-  const mesAtual = hoje.getMonth();
-  const anoAtual = hoje.getFullYear();
-  const mesAnterior = mesAtual === 0 ? 11 : mesAtual - 1;
-  const anoMesAnterior = mesAtual === 0 ? anoAtual - 1 : anoAtual;
-  const mesKey = (mes, ano) => `${ano}-${String(mes + 1).padStart(2, '0')}`;
-  const mesLabel = (mes, ano) => `${MONTHS[mes]}/${ano}`;
-
-  const ativos = APP.employees.filter(e => e.status === 'ativo');
-  const mesKeyAnterior = mesKey(mesAnterior, anoMesAnterior);
-  const jaGerado = registros.some(r => r.mesKey === mesKeyAnterior);
-
-  // Histórico de gerações
-  const hist = [...registros].sort((a,b) => b.ts.localeCompare(a.ts)).slice(0, 10);
-  const histHtml = hist.length > 0 ? hist.map(r => `
-    <tr style="border-bottom:1px solid #F1F5F9">
-      <td style="padding:10px 12px;font-size:13px;font-weight:700">${r.mesLabel || r.mesKey}</td>
-      <td style="padding:10px 12px;font-size:13px;text-align:center">${r.qtd}</td>
-      <td style="padding:10px 12px;font-size:13px">${new Date(r.ts).toLocaleString('pt-BR')}</td>
-      <td style="padding:10px 12px;font-size:13px">${esc(r.por || 'RH')}</td>
-      <td style="padding:10px 12px">
-        <button class="btn btn-sm" style="background:#EFF6FF;color:var(--blue);font-size:11px" onclick="navigate('holerite')">Ver Holerites</button>
-      </td>
-    </tr>`).join('') : '<tr><td colspan="5" style="padding:16px;text-align:center;color:#94A3B8">Nenhuma geração automática registrada.</td></tr>';
-
-  return `
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
-    <div>
-      <div style="font-size:17px;font-weight:800">Fechamento e Geração de Holerite</div>
-      <div style="font-size:12px;color:var(--mt);margin-top:2px">Geração em lote para todos os colaboradores ativos ao fechar o mês</div>
-    </div>
-  </div>
-
-  <!-- Card de ação principal -->
-  <div class="card" style="border:2px solid ${jaGerado?'#BBF7D0':'#BFDBFE'};background:${jaGerado?'#F0FDF4':'#EFF6FF'};margin-bottom:20px">
-    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-      <div style="font-size:36px">${jaGerado ? '✅' : '💰'}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:16px;font-weight:800;color:${jaGerado?'#059669':'#1D4ED8'}">
-          ${jaGerado ? `Holerite de ${mesLabel(mesAnterior, anoMesAnterior)} já foi gerado` : `Fechar ${mesLabel(mesAnterior, anoMesAnterior)}`}
-        </div>
-        <div style="font-size:13px;color:${jaGerado?'#166534':'#1D4ED8'};margin-top:4px">
-          ${jaGerado ? `${ativos.length} colaboradores processados. Acesse a aba Holerite para imprimir.`
-          : `${ativos.length} colaboradores ativos serão processados. Os holerites ficarão disponíveis na aba Holerite.`}
-        </div>
-      </div>
-      ${!jaGerado ? `
-      <button class="btn btn-blue" style="font-size:14px;padding:12px 24px;font-weight:800" onclick="wfGerarHolerites()">
-        ⚡ Gerar Holerites — ${mesLabel(mesAnterior, anoMesAnterior)}
-      </button>` : `
-      <button class="btn btn-green" style="font-size:13px" onclick="navigate('holerite')">Ver Holerites →</button>`}
-    </div>
-  </div>
-
-  <!-- Configuração de fechamento automático -->
-  <div class="card" style="margin-bottom:20px">
-    <div style="font-size:14px;font-weight:700;margin-bottom:12px">⚙️ Configuração de Fechamento</div>
-    <div class="g2">
-      <div class="fld">
-        <label>Dia de fechamento da folha</label>
-        <select id="wf-hol-dia-fech" onchange="wfSalvarConfigHol()">
-          ${[25,26,27,28,29,30].map(d => `<option value="${d}" ${(APP.empresaCfg?.hol_dia_fechamento||30)==d?'selected':''}>Todo dia ${d}</option>`).join('')}
-        </select>
-      </div>
-      <div class="fld">
-        <label>Notificar antes (dias)</label>
-        <select id="wf-hol-aviso" onchange="wfSalvarConfigHol()">
-          ${[1,2,3,5].map(d => `<option value="${d}" ${(APP.empresaCfg?.hol_aviso_dias||2)==d?'selected':''}>Avisar ${d} dia(s) antes</option>`).join('')}
-        </select>
-      </div>
-    </div>
-    <div style="font-size:12px;color:#94A3B8;margin-top:8px">💡 O sistema verificará automaticamente ao entrar no módulo Workflows e alertará quando estiver próximo do fechamento.</div>
-  </div>
-
-  <!-- Histórico -->
-  <div class="card" style="padding:0;overflow:hidden">
-    <div style="padding:12px 16px;background:#F8FAFC;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:var(--mt);text-transform:uppercase">Histórico de Gerações</div>
-    <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse">
-        <thead><tr style="background:#F8FAFC">
-          <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase">Competência</th>
-          <th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase">Colaboradores</th>
-          <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase">Gerado em</th>
-          <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase">Por</th>
-          <th style="padding:9px 12px;font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase">Ação</th>
-        </tr></thead>
-        <tbody>${histHtml}</tbody>
-      </table>
-    </div>
-  </div>`;
-}
-
-async function wfGerarHolerites() {
-  _wfInit();
-  const hoje = new Date();
-  const mesAnterior = hoje.getMonth() === 0 ? 11 : hoje.getMonth() - 1;
-  const anoMesAnterior = hoje.getMonth() === 0 ? hoje.getFullYear() - 1 : hoje.getFullYear();
-  const mesKey = `${anoMesAnterior}-${String(mesAnterior + 1).padStart(2, '0')}`;
-  const mesLbl = `${MONTHS[mesAnterior]}/${anoMesAnterior}`;
-  const ativos = APP.employees.filter(e => e.status === 'ativo');
-
-  if (!await confirmDialog(`Gerar holerites de ${mesLbl} para ${ativos.length} colaboradores?\n\nEsta ação criará rascunhos automáticos baseados nos salários cadastrados.`, { btnOk: 'Gerar Holerites' })) return;
-
-  let gerados = 0;
-  ativos.forEach(emp => {
-    const sal = (APP.salarios?.[emp.id]?.salario) || emp.salario || 0;
-    if (!sal) return;
-    // Cria rascunho de holerite no APP.holRascunho (chave empId_mesKey)
-    const hKey = `${emp.id}_${mesKey}`;
-    if (!APP.holRascunho[hKey]) {
-      APP.holRascunho[hKey] = {
-        empId: emp.id, mes: mesAnterior, ano: anoMesAnterior,
-        salarioBase: parseFloat(sal),
-        celVend: 0, comissaoValor: 0, metaValor: 0,
-        geradoAuto: true, geradoEm: new Date().toISOString()
-      };
-      gerados++;
-    }
-  });
-
-  save('holRascunho');
-
-  // Registra no histórico
-  APP.wf_holerite_auto.push({
-    id: uid(), mesKey, mesLabel: mesLbl, qtd: gerados,
-    ts: new Date().toISOString(), por: 'RH'
-  });
-  save('wf_holerite_auto');
-
-  toast(`✅ ${gerados} holerite(s) de ${mesLbl} gerado(s)! Acesse a aba Holerite para revisar e imprimir.`, 'ok', 5000);
-  navigate('workflows');
-}
-
-function wfSalvarConfigHol() {
-  if (!APP.empresaCfg) APP.empresaCfg = {};
-  APP.empresaCfg.hol_dia_fechamento = parseInt(document.getElementById('wf-hol-dia-fech')?.value || '30');
-  APP.empresaCfg.hol_aviso_dias     = parseInt(document.getElementById('wf-hol-aviso')?.value || '2');
-  save('empresaCfg');
-  toast('✅ Configuração salva.', 'ok');
-}
-
-// ════════════════════════════════════════════════════════════════
-// VERIFICAÇÕES AUTOMÁTICAS — dispara ao entrar no módulo
-// ════════════════════════════════════════════════════════════════
-function _wfRunAllChecks() {
-  _wfCheckHoleriteFechamento();
-  _wfCheckContratosVencendo();
-}
-
-function _wfCheckHoleriteFechamento() {
-  const cfg = APP.empresaCfg || {};
-  const diaFech  = cfg.hol_dia_fechamento || 30;
-  const diasAviso = cfg.hol_aviso_dias || 2;
-  const hoje = new Date();
-  const diaHoje = hoje.getDate();
-  // Alerta se estiver dentro da janela de aviso antes do fechamento
-  if (diaHoje >= (diaFech - diasAviso) && diaHoje <= diaFech) {
-    const mesAnterior = hoje.getMonth() === 0 ? 11 : hoje.getMonth() - 1;
-    const anoMesAnterior = hoje.getMonth() === 0 ? hoje.getFullYear() - 1 : hoje.getFullYear();
-    const mesKey = `${anoMesAnterior}-${String(mesAnterior + 1).padStart(2, '0')}`;
-    const jaGerado = (APP.wf_holerite_auto || []).some(r => r.mesKey === mesKey);
-    if (!jaGerado) {
-      setTimeout(() => toast(`⚠️ Fechamento da folha próximo (dia ${diaFech}). Acesse Workflows → Holerite para gerar.`, 'warn', 6000), 500);
-    }
-  }
-}
-
-function _wfCheckContratosVencendo() {
-  const hoje = _wfToday();
-  const urgentes = APP.employees.filter(e => {
-    if (!e.status === 'ativo') return false;
-    const val = e.contrato_validade || e.dataFimContrato;
-    if (!val) return false;
-    return _wfDiff(hoje, val) <= 30;
-  });
-  if (urgentes.length > 0 && MOD === 'workflows') {
-    // Já está na tela de workflows, não precisa de toast extra
-  }
-}
-
-// FIX-P1: wf_ferias, wf_contratos_alertas, wf_holerite_auto, wf_onboarding
-// agora estão em _VALID_KEYS → save() persiste corretamente em Firebase + Supabase.
-// O hook de monkey-patch abaixo era ineficaz (save() bloqueava chaves inválidas).
-_wfInit();
-
-console.log('[v17] ✅ Módulo Workflows Automáticos carregado — 4 fluxos: Férias · Onboarding · Contratos · Holerite');
-</script>
 
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <!-- MÓDULO v18 — ASSINATURA DIGITAL (canvas + hash SHA-256 + audit)   -->
@@ -43231,41 +42530,77 @@ function exportarESocial(mes, ano) {
 
 // ════════════════════════════════════════════════════════════════════════
 // MODULE 2 — APROVAÇÃO DE HORAS EXTRAS (WORKFLOW GESTOR)
-// APP.horasExtras: { [id]: { empId, data, minutos, motivo, status, aprovadoPor, aprovadoEm } }
+// Coleção Firestore: portal_he_solicitacoes — mesma coleção onde o Portal
+// do Colaborador (_enviarHE, em portal_v2_pwa.html) grava os pedidos.
+// FIX: antes este módulo só lia de APP.horasExtras (memória local, nunca
+// preenchida por ninguém) — por isso a tela sempre mostrava zero. Agora lê
+// e grava direto na nuvem, igual ao padrão já usado em bh_solicitacoes.
 // ════════════════════════════════════════════════════════════════════════
 (function _instalarAprovacaoHE() {
 
-  // Inicializa state
-  if (!APP.horasExtras) APP.horasExtras = {};
-  if (!window._VALID_KEYS?.has?.('horasExtras')) {
-    try { _VALID_KEYS.add('horasExtras'); } catch(e) {}
+  let _HE_SOLIC_LISTA = [];
+
+  async function _loadHESolicFirestore() {
+    if (typeof FBASE === 'undefined' || !FBASE) { _HE_SOLIC_LISTA = []; return; }
+    try {
+      const snap = await FBASE.collection('portal_he_solicitacoes').orderBy('solicitadoEm', 'desc').limit(300).get();
+      _HE_SOLIC_LISTA = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch(e) {
+      // sem índice — busca sem order e ordena localmente
+      try {
+        const snap2 = await FBASE.collection('portal_he_solicitacoes').get();
+        _HE_SOLIC_LISTA = snap2.docs.map(d => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => (b.solicitadoEm || '').localeCompare(a.solicitadoEm || ''));
+      } catch(_) { _HE_SOLIC_LISTA = []; }
+    }
+  }
+  window._loadHESolicFirestore = _loadHESolicFirestore;
+
+  function _fmtMinHE(m) {
+    const abs = Math.abs(m||0), h = Math.floor(abs/60), mi = abs%60;
+    return h + 'h' + (mi>0 ? ' ' + mi + 'min' : '');
   }
 
   // ── Renderiza módulo de Aprovação de Horas Extras ─────────────────────
+  // Padrão: mostra esqueleto na hora, carrega Firestore em background
+  // (igual rBHSolicitacoes / rSolicitacoesPortal).
   window.rAprovacaoHE = function() {
-    const lista = Object.values(APP.horasExtras || {}).sort((a, b) => (b.solicitadoEm||'').localeCompare(a.solicitadoEm||''));
+    setTimeout(async () => {
+      await _loadHESolicFirestore();
+      const container = document.getElementById('he-aprov-container');
+      if (container) container.innerHTML = _htmlAprovacaoHE();
+    }, 0);
+    return `<div id="he-aprov-container" style="min-height:120px">
+      <div style="text-align:center;padding:32px;color:var(--mt)">
+        <div style="font-size:28px;margin-bottom:8px">⏳</div>
+        <div style="font-size:14px">Carregando solicitações de hora extra...</div>
+      </div>
+    </div>`;
+  };
+
+  function _htmlAprovacaoHE() {
+    const lista = _HE_SOLIC_LISTA;
     const pendentes = lista.filter(h => h.status === 'pendente');
     const aprovados = lista.filter(h => h.status === 'aprovado');
-    const rejeitados = lista.filter(h => h.status === 'rejeitado');
+    const rejeitados = lista.filter(h => h.status === 'recusado' || h.status === 'rejeitado');
 
     const badgePendente = pendentes.length > 0
       ? `<span style="background:#DC2626;color:#fff;border-radius:12px;padding:1px 8px;font-size:11px;font-weight:800;margin-left:8px">${pendentes.length}</span>` : '';
 
     const renderRow = (h, showActions) => {
       const emp = APP.employees.find(e => e.id === h.empId);
-      const nomeEmp = emp?.nome || h.empId;
-      const horas = Math.floor((h.minutos||0)/60);
-      const mins  = (h.minutos||0) % 60;
-      const durStr = `${horas}h${mins>0?` ${mins}min`:''}`;
-      const statusCor = h.status==='aprovado' ? '#059669' : h.status==='rejeitado' ? '#DC2626' : '#D97706';
-      const statusLabel = h.status==='aprovado' ? '✅ Aprovado' : h.status==='rejeitado' ? '❌ Rejeitado' : '⏳ Pendente';
+      const nomeEmp = emp?.nome || h.empNome || h.empId || '—';
+      const durStr = _fmtMinHE(h.minutos);
+      const stNorm = (h.status === 'rejeitado') ? 'recusado' : h.status;
+      const statusCor = stNorm==='aprovado' ? '#059669' : stNorm==='recusado' ? '#DC2626' : stNorm==='cancelado' ? '#64748B' : '#D97706';
+      const statusLabel = stNorm==='aprovado' ? '✅ Aprovado' : stNorm==='recusado' ? '❌ Recusado' : stNorm==='cancelado' ? '🚫 Cancelado' : '⏳ Pendente';
       return `<tr>
-        <td style="padding:10px 8px;font-weight:600">${_escHtml(nomeEmp)}</td>
+        <td style="padding:10px 8px;font-weight:600">${esc(nomeEmp)}</td>
         <td style="padding:10px 8px;font-size:13px">${h.data||'-'}</td>
         <td style="padding:10px 8px;font-size:13px;text-align:center;font-weight:700;color:#2563EB">${durStr}</td>
-        <td style="padding:10px 8px;font-size:12px;color:#64748B;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_escHtml(h.motivo||'-')}</td>
+        <td style="padding:10px 8px;font-size:12px;color:#64748B;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(h.motivo||'-')}</td>
         <td style="padding:10px 8px;text-align:center"><span style="font-size:12px;font-weight:700;color:${statusCor}">${statusLabel}</span></td>
-        <td style="padding:10px 8px;font-size:11px;color:#94A3B8">${h.aprovadoPor?_escHtml(h.aprovadoPor):'-'}</td>
+        <td style="padding:10px 8px;font-size:11px;color:#94A3B8">${h.aprovadoPor?esc(h.aprovadoPor):'-'}</td>
         <td style="padding:10px 8px">
           ${showActions ? `
           <div style="display:flex;gap:6px">
@@ -43287,14 +42622,19 @@ function exportarESocial(mes, ano) {
         </table></div>`
       : `<div style="text-align:center;padding:24px 0;color:#94A3B8;font-size:13px">🎉 Nenhuma hora extra aguardando aprovação.</div>`;
 
-    const historicoRows = [...aprovados, ...rejeitados].slice(0, 30).map(h => renderRow(h, false)).join('');
+    const historicoRows = [...aprovados, ...rejeitados]
+      .sort((a,b)=>(b.aprovadoEm||b.recusadoEm||'').localeCompare(a.aprovadoEm||a.recusadoEm||''))
+      .slice(0, 30).map(h => renderRow(h, false)).join('');
 
     return `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
         <div>
           <div style="font-size:20px;font-weight:800">⏱ Aprovação de Horas Extras${badgePendente}</div>
-          <div style="font-size:13px;color:#64748B;margin-top:2px">Gerencie as solicitações de horas extras antes de lançar no Banco de Horas.</div>
+          <div style="font-size:13px;color:#64748B;margin-top:2px">Gerencie as solicitações enviadas pelo Portal do Colaborador antes de lançar no Banco de Horas.</div>
         </div>
-        <button class="btn btn-blue" onclick="abrirModalSolicitarHE()">➕ Lançar HE Manual</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-sm" onclick="_recarregarHESolic()">🔄 Atualizar</button>
+          <button class="btn btn-blue" onclick="abrirModalSolicitarHE()">➕ Lançar HE Manual</button>
+        </div>
       </div>
 
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:16px">
@@ -43332,60 +42672,106 @@ function exportarESocial(mes, ano) {
           <tbody>${historicoRows}</tbody>
         </table></div>
       </div>` : ''}`;
+  }
+
+  window._recarregarHESolic = async function() {
+    const container = document.getElementById('he-aprov-container');
+    if (container) container.innerHTML = `<div style="text-align:center;padding:32px;color:var(--mt)"><div style="font-size:28px;margin-bottom:8px">🔄</div><div style="font-size:14px">Atualizando...</div></div>`;
+    await _loadHESolicFirestore();
+    if (container) container.innerHTML = _htmlAprovacaoHE();
+    else if (typeof MOD !== 'undefined' && MOD === 'aprovacao_he') navigate('aprovacao_he');
   };
 
   // ── Aprovar ──────────────────────────────────────────────────────────
-  window.heAprovar = function(id) {
-    const he = APP.horasExtras[id];
-    if (!he) return;
-    he.status = 'aprovado';
-    he.aprovadoPor = 'RH';
-    he.aprovadoEm = new Date().toISOString();
-    // Lança automaticamente no Banco de Horas
-    if (!APP.bancohoras[he.empId]) APP.bancohoras[he.empId] = [];
-    APP.bancohoras[he.empId].push({
-      id: 'he_' + he.id,
-      data: he.data,
-      tipo: 'credito',
-      minutos: he.minutos,
-      obs: 'HE aprovada: ' + (he.motivo || ''),
-      criadoEm: new Date().toISOString(),
-      aprovadoPor: 'RH'
-    });
-    save('horasExtras');
-    save('bancohoras');
-    const c = document.getElementById('content');
-    if (c && MOD === 'aprovacao_he') c.innerHTML = rAprovacaoHE();
-    toast('✅ Hora extra aprovada e lançada no Banco de Horas!', 'ok');
+  window.heAprovar = async function(id) {
+    const he = _HE_SOLIC_LISTA.find(h => h.id === id);
+    if (!he) { toast('Solicitação não encontrada.', 'warn'); return; }
+    if (typeof FBASE === 'undefined' || !FBASE) { toast('Sem conexão Firebase.', 'warn'); return; }
+    try {
+      await FBASE.collection('portal_he_solicitacoes').doc(id).update({
+        status: 'aprovado',
+        aprovadoPor: 'RH',
+        aprovadoEm: new Date().toISOString()
+      });
+      // Credita automaticamente no Banco de Horas
+      if (!APP.bancohoras[he.empId]) APP.bancohoras[he.empId] = [];
+      APP.bancohoras[he.empId].push({
+        id: 'he_' + he.id,
+        data: he.data,
+        tipo: 'credito',
+        minutos: he.minutos,
+        obs: 'HE aprovada: ' + (he.motivo || ''),
+        criadoEm: new Date().toISOString(),
+        aprovadoPor: 'RH',
+        _solId: id
+      });
+      save('bancohoras');
+      // Notifica o colaborador no Portal
+      try {
+        await FBASE.collection('portal_notificacoes').add({
+          empId: he.empId, empCpf: he.empCpf || '',
+          tipo: 'solicitacao',
+          titulo: '✅ Hora Extra aprovada',
+          corpo: `Sua solicitação de ${_fmtMinHE(he.minutos)} de hora extra em ${he.data||''} foi aprovada e creditada no Banco de Horas.`,
+          lida: false,
+          criadoEm: new Date().toISOString(),
+          solicitacaoId: id,
+        });
+      } catch(_) {}
+      he.status = 'aprovado'; he.aprovadoPor = 'RH'; he.aprovadoEm = new Date().toISOString();
+      const container = document.getElementById('he-aprov-container');
+      if (container) container.innerHTML = _htmlAprovacaoHE();
+      try{ if(typeof auditLog==='function') auditLog('Aprovou hora extra de '+(he.empNome||he.empId), _fmtMinHE(he.minutos)+' em '+(he.data||''), 'aprovacao_he'); }catch(_){}
+      toast('✅ Hora extra aprovada e lançada no Banco de Horas!', 'ok');
+    } catch(e) { alert('Erro ao aprovar: ' + e.message); }
   };
 
   // ── Rejeitar ─────────────────────────────────────────────────────────
   window.heRejeitar = function(id) {
     openModal('❌ Rejeitar Hora Extra', `
-      <div style="font-size:13px;color:#64748B;margin-bottom:12px">Informe o motivo da rejeição (opcional).</div>
+      <div style="font-size:13px;color:#64748B;margin-bottom:12px">Informe o motivo da rejeição (o colaborador verá esta mensagem).</div>
       <div class="fld"><label>Motivo da rejeição</label>
         <textarea id="he-rej-motivo" rows="3" placeholder="Ex: não autorizado pela gerência..."></textarea>
       </div>
       <div class="mft">
         <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-        <button class="btn" style="background:#FEF2F2;color:#DC2626" onclick="
-          const he=APP.horasExtras['${id}'];
-          if(he){
-            he.status='rejeitado';
-            he.aprovadoPor='RH';
-            he.aprovadoEm=new Date().toISOString();
-            he.motivoRejeicao=document.getElementById('he-rej-motivo').value;
-            save('horasExtras');
-            const c=document.getElementById('content');
-            if(c&&MOD==='aprovacao_he')c.innerHTML=rAprovacaoHE();
-          }
-          closeModal();
-          toast('Hora extra rejeitada.','err');
-        ">❌ Confirmar Rejeição</button>
+        <button class="btn" style="background:#FEF2F2;color:#DC2626" onclick="heConfirmarRejeicao('${id}')">❌ Confirmar Rejeição</button>
       </div>`, 440);
   };
 
-  // ── Modal para lançar HE manual ───────────────────────────────────────
+  window.heConfirmarRejeicao = async function(id) {
+    const he = _HE_SOLIC_LISTA.find(h => h.id === id);
+    const motivo = (document.getElementById('he-rej-motivo')||{}).value || '';
+    closeModal();
+    if (!he) { toast('Solicitação não encontrada.', 'warn'); return; }
+    if (typeof FBASE === 'undefined' || !FBASE) { toast('Sem conexão Firebase.', 'warn'); return; }
+    try {
+      await FBASE.collection('portal_he_solicitacoes').doc(id).update({
+        status: 'recusado',
+        aprovadoPor: 'RH',
+        recusadoEm: new Date().toISOString(),
+        respostaRH: motivo || ''
+      });
+      try {
+        await FBASE.collection('portal_notificacoes').add({
+          empId: he.empId, empCpf: he.empCpf || '',
+          tipo: 'solicitacao',
+          titulo: '❌ Hora Extra recusada',
+          corpo: motivo ? `Motivo: ${motivo}` : 'Sua solicitação de hora extra foi recusada pelo RH.',
+          lida: false,
+          criadoEm: new Date().toISOString(),
+          solicitacaoId: id,
+        });
+      } catch(_) {}
+      he.status = 'recusado'; he.aprovadoPor = 'RH'; he.respostaRH = motivo || '';
+      const container = document.getElementById('he-aprov-container');
+      if (container) container.innerHTML = _htmlAprovacaoHE();
+      toast('Hora extra rejeitada.', 'warn');
+    } catch(e) { alert('Erro ao rejeitar: ' + e.message); }
+  };
+
+  // ── Modal para lançar HE manual (feito pelo próprio RH) ────────────────
+  // Grava direto na mesma coleção do Portal, para tudo ficar unificado.
   window.abrirModalSolicitarHE = function() {
     const empOpts = APP.employees.filter(e=>e.status==='ativo').map(e=>`<option value="${e.id}">${_escHtml(e.nome)}</option>`).join('');
     openModal('➕ Lançar Hora Extra', `
@@ -43414,30 +42800,41 @@ function exportarESocial(mes, ano) {
       </div>
       <div class="mft">
         <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-        <button class="btn btn-blue" onclick="
-          const empId=document.getElementById('he-emp').value;
-          const data=document.getElementById('he-data').value;
-          const horas=parseInt(document.getElementById('he-horas').value)||0;
-          const mins=parseInt(document.getElementById('he-mins').value)||0;
-          const minutos=horas*60+mins;
-          const motivo=document.getElementById('he-motivo').value;
-          const status=document.getElementById('he-status').value;
-          if(!empId||!data||minutos<=0){toast('Preencha todos os campos.','err');return;}
-          const id=uid();
-          if(!APP.horasExtras) APP.horasExtras={};
-          APP.horasExtras[id]={id,empId,data,minutos,motivo,status,solicitadoEm:new Date().toISOString(),aprovadoPor:status==='aprovado'?'RH':'',aprovadoEm:status==='aprovado'?new Date().toISOString():''};
-          if(status==='aprovado'){
-            if(!APP.bancohoras[empId])APP.bancohoras[empId]=[];
-            APP.bancohoras[empId].push({id:'he_'+id,data,tipo:'credito',minutos,obs:'HE aprovada: '+motivo,criadoEm:new Date().toISOString(),aprovadoPor:'RH'});
-            save('bancohoras');
-          }
-          save('horasExtras');
-          closeModal();
-          const c=document.getElementById('content');
-          if(c&&MOD==='aprovacao_he')c.innerHTML=rAprovacaoHE();
-          toast(status==='aprovado'?'✅ HE lançada e aprovada!':'✅ HE registrada — aguardando aprovação.','ok');
-        ">💾 Salvar</button>
+        <button class="btn btn-blue" onclick="_heSalvarManual()">💾 Salvar</button>
       </div>`, 500);
+  };
+
+  window._heSalvarManual = async function() {
+    const empId=document.getElementById('he-emp').value;
+    const data=document.getElementById('he-data').value;
+    const horas=parseInt(document.getElementById('he-horas').value)||0;
+    const mins=parseInt(document.getElementById('he-mins').value)||0;
+    const minutos=horas*60+mins;
+    const motivo=document.getElementById('he-motivo').value;
+    const status=document.getElementById('he-status').value;
+    if(!empId||!data||minutos<=0){toast('Preencha todos os campos.','err');return;}
+    if (typeof FBASE === 'undefined' || !FBASE) { toast('Sem conexão Firebase.', 'warn'); return; }
+    const emp = APP.employees.find(e=>e.id===empId);
+    const id = 'he_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+    const sol = {
+      id, empId, empNome: emp?.nome||'', empCpf: emp?.cpf||'',
+      data, minutos, motivo, status,
+      solicitadoEm: new Date().toISOString(),
+      solicitadoPor: 'RH',
+      aprovadoPor: status==='aprovado' ? 'RH' : '',
+      aprovadoEm: status==='aprovado' ? new Date().toISOString() : ''
+    };
+    try {
+      await FBASE.collection('portal_he_solicitacoes').doc(id).set(sol);
+      if (status==='aprovado') {
+        if(!APP.bancohoras[empId])APP.bancohoras[empId]=[];
+        APP.bancohoras[empId].push({id:'he_'+id,data,tipo:'credito',minutos,obs:'HE aprovada: '+motivo,criadoEm:new Date().toISOString(),aprovadoPor:'RH',_solId:id});
+        save('bancohoras');
+      }
+      closeModal();
+      await _recarregarHESolic();
+      toast(status==='aprovado'?'✅ HE lançada e aprovada!':'✅ HE registrada — aguardando aprovação.','ok');
+    } catch(e) { toast('Erro ao salvar: '+e.message, 'err'); }
   };
 
   // ── Adiciona ao NAV e PAGE_TITLES ─────────────────────────────────────
@@ -43463,7 +42860,6 @@ function exportarESocial(mes, ano) {
       buildNav();
       document.getElementById('page-title').textContent = 'Aprovação de Horas Extras';
       document.getElementById('emp-count').textContent = APP.employees.filter(e=>e.status==='ativo').length + ' ativos';
-      const pendentes = Object.values(APP.horasExtras||{}).filter(h=>h.status==='pendente').length;
       document.getElementById('content').innerHTML = rAprovacaoHE();
       return;
     }
@@ -43670,6 +43066,7 @@ function exportarESocial(mes, ano) {
   };
 
 })();
+
 
 // ════════════════════════════════════════════════════════════════════════
 // MODULE 4 — NOTIFICAÇÕES PROATIVAS PARA O RH
