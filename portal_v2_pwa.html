@@ -9651,16 +9651,20 @@ let HE_LIST = [];
 async function loadHorasExtras() {
   if (!DB || !EMP) return;
   try {
-    const snap = await DB.collection('hr_data').doc('horasExtras').get();
-    const all = snap.exists ? (snap.data().value || {}) : {};
-    HE_LIST = Object.values(all)
-      .filter(h => h.empId === EMP.id)
-      .sort((a, b) => (b.solicitadoEm || '').localeCompare(a.solicitadoEm || ''));
+    // FIX: lê da mesma coleção onde _enviarHE() grava (portal_he_solicitacoes),
+    // e não mais de hr_data/horasExtras (lugar que nunca era escrito).
+    const snap = await DB.collection('portal_he_solicitacoes')
+      .where('empId', '==', EMP.id)
+      .orderBy('solicitadoEm', 'desc')
+      .limit(30)
+      .get();
+    HE_LIST = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   } catch(e) {
-    // fallback: coleção independente
+    // fallback: sem índice composto — busca tudo e filtra/ordena localmente
     try {
-      const snap2 = await DB.collection('horasExtras').where('empId','==',EMP.id).orderBy('solicitadoEm','desc').limit(30).get();
-      HE_LIST = snap2.docs.map(d => ({id: d.id, ...d.data()}));
+      const snap2 = await DB.collection('portal_he_solicitacoes').where('empId','==',EMP.id).get();
+      HE_LIST = snap2.docs.map(d => ({id: d.id, ...d.data()}))
+        .sort((a, b) => (b.solicitadoEm || '').localeCompare(a.solicitadoEm || ''));
     } catch(_) {}
   }
   _atualizarBadgeHE();
