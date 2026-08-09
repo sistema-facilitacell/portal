@@ -2460,6 +2460,8 @@ const _VALID_KEYS=new Set(['employees','candidates','pontos','financeiro','atest
   'ocorrenciasContratados',// faltas/atestados/saídas de contratados sem registro de ponto
   'agendaEventos',         // eventos manuais da Agenda de RH
   'adiantamentos',         // vales e adiantamentos a descontar no holerite
+  'convocacoes',           // convocações do contrato intermitente (art. 452-A)
+  'recibosInt',            // recibos discriminados do trabalho intermitente
 ]);
 
 // ── save(k) — salva local + Firebase + Supabase (dados sensíveis) ──
@@ -3245,6 +3247,11 @@ const NAV_GROUPS = [
   ]},
   { label: 'Prestadores', items: [
     {id:'contratos_pj',label:'Contratos PJ (Vendedores)',icon:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'},
+    {id:'contratos_int',label:'Contrato Intermitente',icon:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01"/>'},
+    {id:'convocacoes',label:'Convocações',icon:'<path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>'},
+    {id:'recibos_int',label:'Recibos Intermitente',icon:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>'},
+    {id:'regularizacao',label:'Painel de Regularização',icon:'<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>'},
+    {id:'pacote_contador',label:'Pacote do Contador',icon:'<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/>'},
   ]},
   { label: 'Conformidade & Risco', items: [
     {id:'conformidade',label:'Alertas de Conformidade',icon:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'},
@@ -3267,7 +3274,7 @@ const NAV_GROUPS = [
 ];
 // Mantém NAV flat para compatibilidade com MOD, navigate(), etc.
 const NAV = NAV_GROUPS.flatMap(g => g.items);
-const PAGE_TITLES={dashboard:'Dashboard',portaislinks:'Links dos Portais',funcionarios:'Funcionários',ponto:'Cartão Ponto',financeiro:'Financeiro',holerite:'Holerite',atestados:'Atestados Médicos',candidatos:'Candidatos',admissao:'Admissão',demissao:'Demissão',metadiaria:'Meta Diária',salarios:'Salários & Metas',biometrico:'Ponto Biométrico',relatorio:'Relatório Financeiro Mensal',advertencias:'Advertências e Suspensões',suspensao:'Suspensões Disciplinares',ferias:'Controle de Férias',desempenho:'Avaliação de Desempenho',comunicados:'Comunicados & Avisos',bancohoras:'Banco de Horas',recrutamento:'Recrutamento Atlas',contratos:'Contratos & Documentos Admissionais',comprovantes:'Comprovantes de Pagamento',assinatura_digital:'Assinatura Digital',alarmes_portal:'Alarmes do Portal',solicitacoes_portal:'Solicitações do Portal',absenteismo:'Dashboard de Absenteísmo',agenda_rh:'Agenda de RH',doc_templates:'Templates de Documentos',contratos_pj:'Contratos PJ — Prestadores de Serviço',conformidade:'Alertas de Conformidade Trabalhista',pj_risco:'Risco de Vínculo Empregatício (PJ)',backup:'Backup & Restauração',fechamento:'Fechamento Mensal Guiado',bh_testes:'Autoteste do Banco de Horas',consultor_clt:'Consultor CLT — Dúvidas Trabalhistas'};
+const PAGE_TITLES={dashboard:'Dashboard',portaislinks:'Links dos Portais',funcionarios:'Funcionários',ponto:'Cartão Ponto',financeiro:'Financeiro',holerite:'Holerite',atestados:'Atestados Médicos',candidatos:'Candidatos',admissao:'Admissão',demissao:'Demissão',metadiaria:'Meta Diária',salarios:'Salários & Metas',biometrico:'Ponto Biométrico',relatorio:'Relatório Financeiro Mensal',advertencias:'Advertências e Suspensões',suspensao:'Suspensões Disciplinares',ferias:'Controle de Férias',desempenho:'Avaliação de Desempenho',comunicados:'Comunicados & Avisos',bancohoras:'Banco de Horas',recrutamento:'Recrutamento Atlas',contratos:'Contratos & Documentos Admissionais',comprovantes:'Comprovantes de Pagamento',assinatura_digital:'Assinatura Digital',alarmes_portal:'Alarmes do Portal',solicitacoes_portal:'Solicitações do Portal',absenteismo:'Dashboard de Absenteísmo',agenda_rh:'Agenda de RH',doc_templates:'Templates de Documentos',contratos_pj:'Contratos PJ — Prestadores de Serviço',conformidade:'Alertas de Conformidade Trabalhista',pj_risco:'Risco de Vínculo Empregatício (PJ)',backup:'Backup & Restauração',fechamento:'Fechamento Mensal Guiado',bh_testes:'Autoteste do Banco de Horas',consultor_clt:'Consultor CLT — Dúvidas Trabalhistas',contratos_int:'Contrato de Trabalho Intermitente',convocacoes:'Convocações — Trabalho Intermitente',recibos_int:'Recibos Discriminados',regularizacao:'Painel de Regularização',pacote_contador:'Pacote Mensal do Contador'};
 
 // ── Helper: gera array de anos dinâmico ──────────
 function anosDisponiveis(extra=1){
@@ -3436,7 +3443,7 @@ function navigate(mod){
     return;
   }
 
-  const renders={dashboard:(typeof window._rDashComAlertas==="function"?window._rDashComAlertas:rDash),funcionarios:rFuncs,ponto:rPonto,financeiro:rFin,holerite:rHolerite,atestados:rAtestados,candidatos:rCand,admissao:rAdmissao,demissao:rDemissao,salarios:rSalarios,metadiaria:rMetaDiaria,biometrico:function(){ return (typeof window.rBiometrico==='function') ? window.rBiometrico() : rBiometrico(); },relatorio:rRelatorio,advertencias:rAdvertencias,ferias:rFerias,desempenho:rDesempenho,comunicados:rComunicados,bancohoras:rBancoHoras,recrutamento:rRecrutamento,contratos:function(){ return (typeof rContratos==='function') ? rContratos() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Contratos carregando...</div>'; },comprovantes:rComprovantes,portaislinks:rPortaisLinks,assinatura_digital:function(){ return (typeof window.rAssinaturaDigital==='function') ? window.rAssinaturaDigital() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Assinatura carregando...</div>'; },alarmes_portal:rAlarmesPortal,solicitacoes_portal:rSolicitacoesPortal,absenteismo:rAbsenteismo,suspensao:function(){ const t=document.getElementById('_susp_module_html_'); return t?t.innerHTML:'<div class="card" style="padding:30px;text-align:center">⏳ Módulo Suspensões carregando...</div>'; },agenda_rh:rAgendaRH,doc_templates:rDocTemplates,auditoria:function(){ return (typeof window.rAuditoria==='function') ? window.rAuditoria() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando auditoria...</div>'; },ocorrencias_contratados:function(){ return (typeof window.rOcorrenciasContratados==='function') ? window.rOcorrenciasContratados() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },adiantamentos:function(){ return (typeof window.rAdiantamentos==='function') ? window.rAdiantamentos() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },contratos_pj:function(){ return (typeof window.rContratosPJ==='function') ? window.rContratosPJ() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando Contratos PJ...</div>'; },conformidade:function(){ return (typeof window.rConformidade==='function') ? window.rConformidade() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },pj_risco:function(){ return (typeof window.rPJRisco==='function') ? window.rPJRisco() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },backup:function(){ return (typeof window.rBackup==='function') ? window.rBackup() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },fechamento:function(){ return (typeof window.rFechamento==='function') ? window.rFechamento() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },bh_testes:function(){ return (typeof window.rBHTestes==='function') ? window.rBHTestes() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },consultor_clt:function(){ return (typeof window.rConsultorCLT==='function') ? window.rConsultorCLT() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando Consultor CLT...</div>'; }};
+  const renders={dashboard:(typeof window._rDashComAlertas==="function"?window._rDashComAlertas:rDash),funcionarios:rFuncs,ponto:rPonto,financeiro:rFin,holerite:rHolerite,atestados:rAtestados,candidatos:rCand,admissao:rAdmissao,demissao:rDemissao,salarios:rSalarios,metadiaria:rMetaDiaria,biometrico:function(){ return (typeof window.rBiometrico==='function') ? window.rBiometrico() : rBiometrico(); },relatorio:rRelatorio,advertencias:rAdvertencias,ferias:rFerias,desempenho:rDesempenho,comunicados:rComunicados,bancohoras:rBancoHoras,recrutamento:rRecrutamento,contratos:function(){ return (typeof rContratos==='function') ? rContratos() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Contratos carregando...</div>'; },comprovantes:rComprovantes,portaislinks:rPortaisLinks,assinatura_digital:function(){ return (typeof window.rAssinaturaDigital==='function') ? window.rAssinaturaDigital() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Assinatura carregando...</div>'; },alarmes_portal:rAlarmesPortal,solicitacoes_portal:rSolicitacoesPortal,absenteismo:rAbsenteismo,suspensao:function(){ const t=document.getElementById('_susp_module_html_'); return t?t.innerHTML:'<div class="card" style="padding:30px;text-align:center">⏳ Módulo Suspensões carregando...</div>'; },agenda_rh:rAgendaRH,doc_templates:rDocTemplates,auditoria:function(){ return (typeof window.rAuditoria==='function') ? window.rAuditoria() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando auditoria...</div>'; },ocorrencias_contratados:function(){ return (typeof window.rOcorrenciasContratados==='function') ? window.rOcorrenciasContratados() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },adiantamentos:function(){ return (typeof window.rAdiantamentos==='function') ? window.rAdiantamentos() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },contratos_pj:function(){ return (typeof window.rContratosPJ==='function') ? window.rContratosPJ() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando Contratos PJ...</div>'; },conformidade:function(){ return (typeof window.rConformidade==='function') ? window.rConformidade() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },pj_risco:function(){ return (typeof window.rPJRisco==='function') ? window.rPJRisco() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },backup:function(){ return (typeof window.rBackup==='function') ? window.rBackup() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },fechamento:function(){ return (typeof window.rFechamento==='function') ? window.rFechamento() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },bh_testes:function(){ return (typeof window.rBHTestes==='function') ? window.rBHTestes() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },consultor_clt:function(){ return (typeof window.rConsultorCLT==='function') ? window.rConsultorCLT() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando Consultor CLT...</div>'; },contratos_int:function(){ return (typeof window.rContratosInt==='function') ? window.rContratosInt() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },convocacoes:function(){ return (typeof window.rConvocacoes==='function') ? window.rConvocacoes() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },recibos_int:function(){ return (typeof window.rRecibosInt==='function') ? window.rRecibosInt() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },regularizacao:function(){ return (typeof window.rRegularizacao==='function') ? window.rRegularizacao() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },pacote_contador:function(){ return (typeof window.rPacoteContador==='function') ? window.rPacoteContador() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; }};
   // FIX-C1: try-catch no dispatcher — evita tela branca se qualquer render lançar erro
   try {
     document.getElementById('content').innerHTML=(renders[mod]||rDash)();
@@ -48681,6 +48688,11 @@ console.log('[Atlas] Módulo de Gestão de Feriados carregado ✅');
     +   '<div class="fld"><label>% de comissão sobre acessórios/serviços</label><input id="pj-com-perc" type="number" step="0.01" value="0" placeholder="Ex: 5"></div>'
     + '</div>'
     + '<div class="g2">'
+    +   '<div class="fld"><label>Bônus a cada X aparelhos — quantidade</label><input id="pj-bonus-qtd" type="number" min="1" value="3" placeholder="Ex: 3"></div>'
+    +   '<div class="fld"><label>Valor do bônus por lote (R$)</label><input id="pj-bonus-val" type="number" step="0.01" value="0" placeholder="0 = sem bônus"></div>'
+    + '</div>'
+    + '<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:9px 12px;margin:-4px 0 12px;font-size:11.5px;color:#1E40AF;line-height:1.5">Ex.: 3 aparelhos = R$ 50 de bônus. Vendeu 10 no mês → 3 lotes completos = R$ 150. As 1 unidade restante não gera bônus nem passa para o mês seguinte. Deixe o valor em 0 para não incluir esta cláusula.</div>'
+    + '<div class="g2">'
     +   '<div class="fld"><label>Valor fixo mensal — pró-labore de serviço (R$)</label><input id="pj-fixo" type="number" step="0.01" value="0" placeholder="Opcional"></div>'
     +   '<div class="fld"><label>Meta mínima mensal (aparelhos)</label><input id="pj-meta" type="number" value="0" placeholder="Ex: 40"></div>'
     + '</div>'
@@ -48734,6 +48746,7 @@ console.log('[Atlas] Módulo de Gestão de Feriados carregado ✅');
       p_cnpj:_g('pj-p-cnpj'), p_end:_g('pj-p-end'), p_email:_g('pj-p-email'), p_tel:_g('pj-p-tel'),
       objeto:_g('pj-obj'),
       comCel:parseFloat(_g('pj-com-cel')||0), comPerc:parseFloat(_g('pj-com-perc')||0),
+      bonusQtd:parseInt(_g('pj-bonus-qtd')||0,10), bonusVal:parseFloat(_g('pj-bonus-val')||0),
       fixo:parseFloat(_g('pj-fixo')||0), meta:parseInt(_g('pj-meta')||0,10),
       diaPag:parseInt(_g('pj-dia-pag')||5,10), vigencia:parseInt(_g('pj-vigencia')||0,10),
       ajEstorno:!!(document.getElementById('pj-aj-estorno')||{}).checked,
@@ -48758,6 +48771,7 @@ console.log('[Atlas] Módulo de Gestão de Feriados carregado ✅');
     if(d.fixo>0) remun += '<li>Valor fixo mensal de <strong>'+_brl(d.fixo)+'</strong> a título de serviço contratado;</li>';
     if(d.comCel>0) remun += '<li>Comissão de <strong>'+_brl(d.comCel)+'</strong> por aparelho celular efetivamente vendido e faturado;</li>';
     if(d.comPerc>0) remun += '<li>Comissão de <strong>'+d.comPerc+'%</strong> sobre o valor de acessórios e serviços correlatos vendidos;</li>';
+    if(d.bonusVal>0 && d.bonusQtd>0) remun += '<li>Bônus de produtividade de <strong>'+_brl(d.bonusVal)+'</strong> a cada <strong>'+d.bonusQtd+' (aparelhos)</strong> efetivamente vendidos e faturados na competência, apurado por lotes completos — frações não geram bônus proporcional e não são acumuladas para a competência seguinte;</li>';
     remun += '</ul><p>O pagamento ocorrerá até o dia <strong>'+d.diaPag+'</strong> do mês subsequente à prestação, contra apresentação da NFS-e. A remuneração é vinculada a <strong>resultado/produção</strong>, e não a jornada ou horário.</p>';
 
     // Ajustes financeiros legítimos
@@ -48808,11 +48822,78 @@ console.log('[Atlas] Módulo de Gestão de Feriados carregado ✅');
     if(typeof printHtml==='function') printHtml('<div class="doc-page">'+_gerarContratoHTML(d,num)+'</div>','Contrato PJ (prévia) — '+(d.p_nome||''));
   };
 
+  // Valida CNPJ (14 dígitos + dígitos verificadores)
+  function _cnpjValido(v){
+    var c=String(v||'').replace(/\D/g,'');
+    if(c.length!==14 || /^(\d)\1{13}$/.test(c)) return false;
+    var t=c.length-2, n=c.substring(0,t), dv=c.substring(t), s=0, p=t-7;
+    for(var i=t;i>=1;i--){ s+=n.charAt(t-i)*p--; if(p<2) p=9; }
+    var r=s%11<2?0:11-s%11;
+    if(r!=dv.charAt(0)) return false;
+    t=t+1; n=c.substring(0,t); s=0; p=t-7;
+    for(i=t;i>=1;i--){ s+=n.charAt(t-i)*p--; if(p<2) p=9; }
+    r=s%11<2?0:11-s%11;
+    return r==dv.charAt(1);
+  }
+
   // Salvar + gerar PDF
   window.pjSalvarEGerar = async function(){
     var d=_coletar();
-    if(!d.p_razao || !d.p_cnpj){ _toast('Preencha ao menos a razão social e o CNPJ da PJ.','err'); return; }
     if(!d.p_nome){ _toast('Informe o nome do responsável pela PJ.','err'); return; }
+
+    // ── TRAVA: sem CNPJ não existe contrato PJ ──────────────────────────────
+    // Emitir um "contrato PJ" para quem não tem pessoa jurídica cria prova
+    // escrita contra a empresa: o documento descreve uma relação civil que na
+    // prática é de emprego. Sem contrato, discute-se versão contra versão;
+    // com ele, a prova já está pronta. Por isso bloqueamos aqui.
+    var cnpjLimpo=String(d.p_cnpj||'').replace(/\D/g,'');
+    if(cnpjLimpo.length!==14){
+      openModal('⚠️ Sem CNPJ não dá para emitir contrato PJ', ''
+        + '<div style="background:#FEF2F2;border:1.5px solid #FECACA;border-radius:10px;padding:14px;margin-bottom:13px;font-size:13px;color:#B91C1C;line-height:1.6">'
+        +   '<strong>PJ significa pessoa jurídica.</strong> Sem CNPJ ativo e emissão de nota fiscal, não existe prestação de serviços PJ — existe uma relação de trabalho.'
+        + '</div>'
+        + '<div style="font-size:13px;line-height:1.65;margin-bottom:13px">'
+        +   'Assinar um contrato PJ com quem não tem CNPJ <strong>piora</strong> a situação da empresa: o documento vira prova de que a relação foi disfarçada. É melhor não ter contrato nenhum do que ter esse.'
+        + '</div>'
+        + '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:13px;font-size:12.5px;line-height:1.6;color:#065F46">'
+        +   '<strong>Caminhos que funcionam:</strong><br>'
+        +   '• <strong>Contrato intermitente</strong> — registrado em carteira, você convoca só quando precisa e paga pelas horas trabalhadas. Costuma ser o melhor encaixe no varejo.<br>'
+        +   '• <strong>Registro CLT normal</strong> — mais caro, risco zero.<br>'
+        +   '• <strong>MEI</strong> — a pessoa abre o próprio CNPJ. Resolve a falta de CNPJ, mas se houver horário e subordinação o risco de vínculo continua.'
+        + '</div>'
+        + '<div class="mft" style="margin-top:14px">'
+        +   '<button class="btn btn-ghost" onclick="closeModal()">Voltar e informar o CNPJ</button>'
+        +   '<button class="btn btn-green" onclick="closeModal();navigate(\'contratos_int\')">Emitir Contrato Intermitente →</button>'
+        + '</div>', 560);
+      return;
+    }
+    if(!d.p_razao){ _toast('Informe a razão social da PJ.','err'); return; }
+
+    // ── TRAVA JURÍDICA: sem CNPJ não existe contrato PJ ────────────────────
+    // Emitir um "contrato de prestação PJ" para quem não tem pessoa jurídica
+    // cria prova escrita de uma relação que, na prática, é de emprego. O
+    // documento passa a jogar CONTRA a empresa num processo.
+    if(!_cnpjValido(d.p_cnpj)){
+      openModal('⛔ CNPJ inválido — contrato bloqueado', ''
+        + '<div style="background:#FEF2F2;border:1.5px solid #FECACA;border-radius:11px;padding:15px;margin-bottom:13px">'
+        +   '<div style="font-weight:800;font-size:14px;color:#B91C1C;margin-bottom:6px">Não dá para emitir contrato PJ sem CNPJ válido</div>'
+        +   '<div style="font-size:12.5px;color:#7F1D1D;line-height:1.6">PJ significa <strong>pessoa jurídica</strong>: exige CNPJ ativo e emissão de nota fiscal. Uma pessoa física que trabalha com habitualidade, recebe comissão e não tem empresa aberta é, para a lei, <strong>empregado sem registro</strong> — e não prestador de serviço.</div>'
+        + '</div>'
+        + '<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:13px;margin-bottom:13px;font-size:12.5px;color:#78350F;line-height:1.6">'
+        +   'Assinar este contrato mesmo assim seria pior do que não ter contrato nenhum: você entregaria ao juiz um documento descrevendo por escrito uma relação que a realidade contradiz. Sem o papel, é a palavra de um contra a do outro; com ele, a prova já está pronta.'
+        + '</div>'
+        + '<div style="font-size:12.5px;line-height:1.6;margin-bottom:6px"><strong>Os caminhos legais:</strong></div>'
+        + '<ul style="margin:0 0 10px 18px;font-size:12.5px;line-height:1.7;color:#334155">'
+        +   '<li><strong>Contrato intermitente</strong> — registrado em carteira, você convoca só quando precisa e paga as horas efetivamente trabalhadas. Costuma ser o que melhor encaixa no varejo.</li>'
+        +   '<li><strong>CLT integral</strong> — mais caro, encerra o risco por completo.</li>'
+        +   '<li><strong>Abrir MEI</strong> — resolve a falta de CNPJ, mas se continuar batendo ponto e cumprindo horário, o risco de vínculo permanece.</li>'
+        + '</ul>'
+        + '<div class="mft">'
+        +   '<button class="btn btn-ghost" onclick="closeModal()">Voltar e corrigir</button>'
+        +   '<button class="btn btn-green" onclick="closeModal();navigate(\'contrato_intermitente\')">📄 Emitir contrato intermitente</button>'
+        + '</div>', 560);
+      return;
+    }
 
     var numero = _proximoNumero();
     var htmlDoc = _gerarContratoHTML(d, numero);
@@ -50327,6 +50408,1080 @@ console.log('[Atlas] Módulo Conformidade & Risco carregado ✅');
 })();
 
 console.log('[Atlas] Módulo Consultor CLT carregado ✅');
+</script>
+
+<!-- ═══ MÓDULO CONTRATO INTERMITENTE ═══ -->
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// MÓDULO: CONTRATO DE TRABALHO INTERMITENTE
+// ---------------------------------------------------------------------------
+// Alternativa legal para quem hoje trabalha sem registro. O empregado é
+// registrado em carteira, mas só é convocado quando há necessidade e recebe
+// pelas horas efetivamente trabalhadas, com férias, 13º, DSR e FGTS pagos
+// proporcionalmente ao final de cada período.
+//
+// Base legal: CLT art. 443 §3º e art. 452-A (Lei 13.467/2017).
+// Guarda em APP.contratos com tipo:'INTERMITENTE' (mesmo sync do Firebase).
+// ═══════════════════════════════════════════════════════════════════════════
+(function(){
+  'use strict';
+
+  var SIGN_BASE = (typeof ADV_SIGN_URL !== 'undefined' && ADV_SIGN_URL)
+    ? ADV_SIGN_URL.replace('assinatura_adv.html','assinar_contrato_pj.html')
+    : 'https://atlasrh.com.br/assinar_contrato_pj.html';
+
+  function _esc(s){ return (typeof esc==='function') ? esc(s) : String(s==null?'':s); }
+  function _brl(v){ return (typeof fBRL==='function') ? fBRL(v) : ('R$ '+(parseFloat(v||0).toFixed(2))); }
+  function _uid(){ return (typeof uid==='function') ? uid() : Math.random().toString(36).slice(2,10); }
+  function _toast(m,t,d){ if(typeof toast==='function') toast(m,t||'ok',d||3200); }
+  function _hoje(){ return new Date().toISOString().slice(0,10); }
+  function _fmtData(iso){ if(!iso) return '—'; try{ return new Date(iso+'T00:00:00').toLocaleDateString('pt-BR'); }catch(e){ return iso; } }
+  function _empresa(){ return (typeof EMPRESA_CFG!=='undefined' && EMPRESA_CFG) ? EMPRESA_CFG : {}; }
+  function _g(id){ var el=document.getElementById(id); return el?String(el.value||'').trim():''; }
+
+  async function _sha256(txt){
+    try{
+      var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(txt));
+      return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+    }catch(e){ return ''; }
+  }
+
+  function _proximoNumero(){
+    var ano=new Date().getFullYear();
+    var lista=(APP.contratos||[]).filter(function(c){ return c && c.tipo==='INTERMITENTE' && (c.numero||'').indexOf('INT-'+ano)===0; });
+    var max=0;
+    lista.forEach(function(c){ var m=(c.numero||'').match(/INT-\d{4}-(\d+)/); if(m){ var n=parseInt(m[1],10); if(n>max) max=n; } });
+    return 'INT-'+ano+'-'+String(max+1).padStart(4,'0');
+  }
+
+  function _romano(n){ var m=['','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV']; return m[n]||String(n); }
+
+  // ── LISTA ─────────────────────────────────────────────────────────────────
+  window.rContratosInt = function(){
+    try{ if(typeof lsLoad==='function'){ var ls=lsLoad('contratos'); if(ls&&Array.isArray(ls)&&ls.length>=(APP.contratos||[]).length) APP.contratos=ls; } }catch(e){}
+    var ints=(APP.contratos||[]).filter(function(c){ return c && c.tipo==='INTERMITENTE'; })
+      .sort(function(a,b){ return (b.criadoEm||'').localeCompare(a.criadoEm||''); });
+
+    var linhas=ints.map(function(c){
+      var cor=c.assinado?'#059669':'#D97706', bg=c.assinado?'#F0FDF4':'#FFFBEB', tx=c.assinado?'✓ Assinado':'⏳ Pendente';
+      return '<tr>'
+        + '<td style="font-family:monospace;font-weight:700;font-size:12px">'+_esc(c.numero||'—')+'</td>'
+        + '<td style="font-weight:600;font-size:13px">'+_esc(c.empNome||'—')+'<div style="font-size:11px;color:var(--mt)">'+_esc(c.funcao||'')+'</div></td>'
+        + '<td style="font-size:12px">'+_esc(c.empCpf||'—')+'</td>'
+        + '<td style="font-size:12px">'+_brl(c.valorHora||0)+'/h</td>'
+        + '<td style="text-align:center"><span style="background:'+bg+';color:'+cor+';padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">'+tx+'</span></td>'
+        + '<td><div style="display:flex;gap:5px;flex-wrap:wrap">'
+        +   '<button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8" onclick="intImprimir(\''+c.id+'\')">🖨 PDF</button>'
+        +   '<button class="btn btn-sm" style="background:#F0FDF4;color:#059669" onclick="intGerarLink(\''+c.id+'\')">✍️ Link</button>'
+        +   '<button class="btn btn-sm btn-icon-red" style="padding:4px 8px" onclick="intExcluir(\''+c.id+'\')">🗑</button>'
+        + '</div></td></tr>';
+    }).join('');
+
+    return ''
+    + '<div class="card" style="margin-bottom:14px;border-left:4px solid #059669;background:#F0FDF4">'
+    +   '<div style="display:flex;gap:12px;align-items:flex-start">'
+    +     '<div style="font-size:22px">✅</div>'
+    +     '<div style="flex:1">'
+    +       '<div style="font-weight:800;font-size:14px;color:#065F46;margin-bottom:4px">A saída legal para quem não tem CNPJ</div>'
+    +       '<div style="font-size:12.5px;color:#065F46;line-height:1.55">No contrato intermitente o colaborador é <strong>registrado em carteira</strong>, mas você o convoca só quando precisa e paga apenas pelas horas efetivamente trabalhadas — com férias, 13º, DSR e FGTS proporcionais pagos ao fim de cada período. Resolve a informalidade sem o custo de um contrato integral parado em mês fraco. Base: CLT art. 443 §3º e art. 452-A.</div>'
+    +     '</div>'
+    +   '</div>'
+    + '</div>'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">'
+    +   '<div style="font-size:15px;font-weight:700">📄 Contratos intermitentes <span style="font-size:12px;color:var(--mt);font-weight:500">('+ints.length+')</span></div>'
+    +   '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +     '<button class="btn btn-sm btn-ghost" onclick="intSimulador()">🧮 Simular custo</button>'
+    +     '<button class="btn btn-blue" onclick="intNovoContrato()">+ Novo Contrato</button>'
+    +   '</div>'
+    + '</div>'
+    + (ints.length
+        ? '<div class="card" style="padding:0;overflow-x:auto"><table style="margin:0"><thead><tr><th>Nº</th><th>Colaborador</th><th>CPF</th><th>Valor/h</th><th>Status</th><th>Ações</th></tr></thead><tbody>'+linhas+'</tbody></table></div>'
+        : '<div class="card" style="text-align:center;padding:40px;color:var(--mt)"><div style="font-size:40px">📭</div><div style="font-weight:700;margin-top:8px">Nenhum contrato intermitente</div><div style="font-size:13px;margin-top:6px">Clique em <strong>+ Novo Contrato</strong> para registrar o primeiro colaborador.</div></div>')
+    + '<div style="font-size:11px;color:var(--mt);margin-top:14px;line-height:1.5">O contrato intermitente exige registro na CTPS e envio ao eSocial. Combine com seu contador antes da primeira convocação.</div>';
+  };
+
+  // ── FORMULÁRIO ────────────────────────────────────────────────────────────
+  window.intNovoContrato = function(){
+    var emp=_empresa();
+    var ativos=(APP.employees||[]).filter(function(e){ return e && e.status!=='demitido'; });
+    var opts='<option value="">— preencher manualmente —</option>'
+      + ativos.map(function(e){ return '<option value="'+e.id+'">'+_esc(e.nome)+(e.cargo?' · '+_esc(e.cargo):'')+'</option>'; }).join('');
+
+    var html=''
+    + '<div style="max-height:70vh;overflow-y:auto;padding-right:4px">'
+    + '<div class="fld"><label>Puxar dados de um cadastro existente (opcional)</label><select id="int-fromEmp" onchange="intPreencherDeEmp()">'+opts+'</select></div>'
+
+    + '<div style="font-weight:800;font-size:13px;color:#1E3A5F;margin:14px 0 8px;border-bottom:2px solid #E2E8F0;padding-bottom:5px">1) EMPREGADORA</div>'
+    + '<div class="g2">'
+    +   '<div class="fld"><label>Razão social</label><input id="int-e-razao" value="'+_esc(emp.nomeRazao||'')+'"></div>'
+    +   '<div class="fld"><label>CNPJ</label><input id="int-e-cnpj" value="'+_esc(emp.cnpj||'')+'"></div>'
+    + '</div>'
+    + '<div class="g2">'
+    +   '<div class="fld"><label>Cidade</label><input id="int-e-cidade" value="'+_esc(emp.cidade||'')+'"></div>'
+    +   '<div class="fld"><label>UF</label><input id="int-e-uf" value="'+_esc(emp.uf||'')+'" maxlength="2"></div>'
+    + '</div>'
+    + '<div class="fld"><label>Endereço / local de prestação</label><input id="int-e-end" value="'+_esc(emp.endereco||'')+'" placeholder="Rua, nº, bairro — loja onde vai trabalhar"></div>'
+
+    + '<div style="font-weight:800;font-size:13px;color:#1E3A5F;margin:14px 0 8px;border-bottom:2px solid #E2E8F0;padding-bottom:5px">2) EMPREGADO</div>'
+    + '<div class="g2">'
+    +   '<div class="fld"><label>Nome completo</label><input id="int-p-nome" placeholder="Nome completo"></div>'
+    +   '<div class="fld"><label>CPF</label><input id="int-p-cpf" placeholder="000.000.000-00"></div>'
+    + '</div>'
+    + '<div class="g2">'
+    +   '<div class="fld"><label>RG</label><input id="int-p-rg" placeholder="Opcional"></div>'
+    +   '<div class="fld"><label>PIS/NIS</label><input id="int-p-pis" placeholder="Necessário para o eSocial"></div>'
+    + '</div>'
+    + '<div class="fld"><label>Endereço do empregado</label><input id="int-p-end" placeholder="Rua, nº, bairro, cidade/UF"></div>'
+    + '<div class="g2">'
+    +   '<div class="fld"><label>Telefone / WhatsApp</label><input id="int-p-tel" placeholder="(45) 90000-0000"></div>'
+    +   '<div class="fld"><label>E-mail</label><input id="int-p-email" placeholder="email@dominio.com"></div>'
+    + '</div>'
+
+    + '<div style="font-weight:800;font-size:13px;color:#1E3A5F;margin:14px 0 8px;border-bottom:2px solid #E2E8F0;padding-bottom:5px">3) FUNÇÃO E REMUNERAÇÃO</div>'
+    + '<div class="fld"><label>Função</label><input id="int-funcao" value="Vendedor" placeholder="Ex: Vendedor"></div>'
+    + '<div class="g2">'
+    +   '<div class="fld"><label>Valor da hora (R$)</label><input id="int-hora" type="number" step="0.01" value="7.50" placeholder="Nunca abaixo do mínimo/hora"></div>'
+    +   '<div class="fld"><label>Comissão por aparelho vendido (R$)</label><input id="int-com-cel" type="number" step="0.01" value="15.00"></div>'
+    + '</div>'
+    + '<div class="g2">'
+    +   '<div class="fld"><label>Bônus a cada X aparelhos — quantidade</label><input id="int-bonus-qtd" type="number" min="1" value="3"></div>'
+    +   '<div class="fld"><label>Valor do bônus por lote (R$)</label><input id="int-bonus-val" type="number" step="0.01" value="0" placeholder="0 = sem bônus"></div>'
+    + '</div>'
+    + '<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:9px 12px;margin-bottom:12px;font-size:11.5px;color:#92400E;line-height:1.5">O valor da hora não pode ser inferior ao salário mínimo por hora, nem menor que o pago a quem exerce a mesma função na empresa (CLT art. 452-A). Confirme o piso da sua convenção coletiva.</div>'
+
+    + '<div style="font-weight:800;font-size:13px;color:#1E3A5F;margin:14px 0 8px;border-bottom:2px solid #E2E8F0;padding-bottom:5px">4) REGRAS DE CONVOCAÇÃO</div>'
+    + '<div class="g2">'
+    +   '<div class="fld"><label>Antecedência da convocação (dias corridos)</label><input id="int-antec" type="number" min="3" value="3"></div>'
+    +   '<div class="fld"><label>Prazo para o empregado responder</label><input id="int-resp" value="1 dia útil" readonly style="background:#F1F5F9"></div>'
+    + '</div>'
+    + '<div class="fld"><label>Meio de convocação</label><select id="int-meio"><option>WhatsApp</option><option>Mensagem de texto (SMS)</option><option>E-mail</option><option>Pessoalmente, com recibo</option></select></div>'
+    + '<div class="fld"><label>Observações / cláusulas extras (opcional)</label><textarea id="int-obs" rows="2" placeholder="Ex: uniforme, escala preferencial de finais de semana..."></textarea></div>'
+    + '<div class="fld"><label>Data de início do contrato</label><input id="int-dataInicio" type="date" value="'+_hoje()+'"></div>'
+    + '</div>'
+
+    + '<div class="mft" style="margin-top:12px">'
+    +   '<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>'
+    +   '<button class="btn btn-blue" onclick="intPrevisualizar()">👁 Pré-visualizar</button>'
+    +   '<button class="btn btn-green" onclick="intSalvarEGerar()">💾 Salvar & Gerar PDF</button>'
+    + '</div>';
+
+    openModal('📄 Novo Contrato de Trabalho Intermitente', html, 720);
+  };
+
+  window.intPreencherDeEmp = function(){
+    var id=_g('int-fromEmp'); if(!id) return;
+    var e=(APP.employees||[]).find(function(x){ return x.id===id; }); if(!e) return;
+    function set(f,v){ var el=document.getElementById(f); if(el&&v) el.value=v; }
+    set('int-p-nome',e.nome||''); set('int-p-cpf',e.cpf||''); set('int-p-rg',e.rg||'');
+    set('int-p-tel',e.telefone||''); set('int-p-email',e.email||'');
+    if(e.cargo) set('int-funcao',e.cargo);
+    _toast('Dados de '+(e.nome||'').split(' ')[0]+' preenchidos.','ok');
+  };
+
+  function _coletar(){
+    return {
+      e_razao:_g('int-e-razao'), e_cnpj:_g('int-e-cnpj'), e_cidade:_g('int-e-cidade'),
+      e_uf:_g('int-e-uf'), e_end:_g('int-e-end'),
+      p_nome:_g('int-p-nome'), p_cpf:_g('int-p-cpf'), p_rg:_g('int-p-rg'), p_pis:_g('int-p-pis'),
+      p_end:_g('int-p-end'), p_tel:_g('int-p-tel'), p_email:_g('int-p-email'),
+      funcao:_g('int-funcao'), hora:parseFloat(_g('int-hora')||0),
+      comCel:parseFloat(_g('int-com-cel')||0),
+      bonusQtd:parseInt(_g('int-bonus-qtd')||0,10), bonusVal:parseFloat(_g('int-bonus-val')||0),
+      antec:parseInt(_g('int-antec')||3,10), meio:_g('int-meio'),
+      obs:_g('int-obs'), dataInicio:_g('int-dataInicio')||_hoje()
+    };
+  }
+
+  // ── HTML DO CONTRATO ──────────────────────────────────────────────────────
+  function _gerarHTML(d, numero){
+    var emp=_empresa();
+    var comarca=(d.e_cidade||emp.cidade||'Foz do Iguaçu'), uf=(d.e_uf||emp.uf||'PR');
+    var cl=1;
+    function C(t,c){ var n=cl++; return '<div style="margin:12px 0"><div style="font-weight:700;font-size:13px;margin-bottom:4px">CLÁUSULA '+_romano(n)+' — '+t+'</div><div style="font-size:12.5px;line-height:1.6;text-align:justify">'+c+'</div></div>'; }
+
+    var remun='<p>Pelas horas efetivamente trabalhadas, o EMPREGADO receberá:</p><ul style="margin:6px 0 6px 18px;font-size:12.5px;line-height:1.6">'
+      + '<li>Valor de <strong>'+_brl(d.hora)+' por hora</strong> trabalhada;</li>';
+    if(d.comCel>0) remun += '<li>Comissão de <strong>'+_brl(d.comCel)+'</strong> por aparelho efetivamente vendido e faturado;</li>';
+    if(d.bonusVal>0 && d.bonusQtd>0) remun += '<li>Bônus de <strong>'+_brl(d.bonusVal)+'</strong> a cada <strong>'+d.bonusQtd+'</strong> aparelhos vendidos na competência, apurado por lotes completos;</li>';
+    remun += '</ul><p>O valor da hora não é inferior ao salário mínimo horário nem ao valor devido aos demais empregados que exercem a mesma função, em observância ao art. 452-A da CLT.</p>';
+
+    var estilo='<style>'
+      + '.int-doc{font-family:"Roboto",Arial,sans-serif;color:#111;max-width:820px;margin:0 auto}'
+      + '.int-doc h1{font-size:16px;text-align:center;margin:0 0 4px}'
+      + '.int-doc .sub{text-align:center;font-size:12px;color:#555;margin-bottom:14px}'
+      + '.int-doc .box{border:1px solid #999;border-radius:6px;padding:10px 12px;margin:8px 0;font-size:12.5px;line-height:1.6}'
+      + '.int-doc .sign{margin-top:36px;display:flex;gap:40px;justify-content:space-between}'
+      + '.int-doc .sign div{flex:1;text-align:center;border-top:1px solid #111;padding-top:6px;font-size:12px}'
+      + '</style>';
+
+    return estilo + '<div class="int-doc">'
+      + '<h1>CONTRATO INDIVIDUAL DE TRABALHO INTERMITENTE</h1>'
+      + '<div class="sub">Nº '+_esc(numero)+' · CLT art. 443 §3º e art. 452-A · Emitido em '+_fmtData(_hoje())+'</div>'
+      + '<div class="box"><strong>EMPREGADORA:</strong> '+_esc(d.e_razao||emp.nomeRazao||'')+', CNPJ '+_esc(d.e_cnpj||emp.cnpj||'')+', com estabelecimento em '+_esc(d.e_end||'')+', '+_esc(comarca)+'/'+_esc(uf)+'.<br><br>'
+      + '<strong>EMPREGADO:</strong> '+_esc(d.p_nome||'')+', CPF '+_esc(d.p_cpf||'')+(d.p_rg?', RG '+_esc(d.p_rg):'')+(d.p_pis?', PIS/NIS '+_esc(d.p_pis):'')+', residente em '+_esc(d.p_end||'—')+', telefone '+_esc(d.p_tel||'—')+'.</div>'
+
+      + C('DO OBJETO E DA MODALIDADE','<p>O EMPREGADO é admitido na função de <strong>'+_esc(d.funcao||'')+'</strong> sob a modalidade de <strong>trabalho intermitente</strong>, nos termos do art. 443 §3º da CLT: a prestação de serviços é descontínua, alternando períodos de atividade e de inatividade, determinados em horas, dias ou meses.</p><p>O contrato é registrado na CTPS e informado ao eSocial, com todos os direitos trabalhistas assegurados na proporção do tempo trabalhado.</p>')
+
+      + C('DA CONVOCAÇÃO E DO ACEITE','<p>A EMPREGADORA convocará o EMPREGADO por <strong>'+_esc(d.meio||'WhatsApp')+'</strong>, com antecedência mínima de <strong>'+d.antec+' (dias) corridos</strong>, informando a jornada a ser cumprida.</p><p>O EMPREGADO terá <strong>1 (um) dia útil</strong> para responder ao chamado. O silêncio será entendido como <strong>recusa</strong>, e a recusa não descaracteriza a subordinação nem constitui falta disciplinar (art. 452-A §§1º e 2º).</p><p>O EMPREGADO é livre para recusar convocações e para prestar serviços a outros contratantes.</p>')
+
+      + C('DO DESCUMPRIMENTO APÓS O ACEITE','<p>Aceita a convocação, a parte que descumprir sem justo motivo pagará à outra, no prazo de 30 (trinta) dias, <strong>multa de 50% da remuneração que seria devida</strong>, permitida a compensação em igual prazo (art. 452-A §3º).</p>')
+
+      + C('DA REMUNERAÇÃO', remun)
+
+      + C('DO PAGAMENTO E DAS VERBAS PROPORCIONAIS','<p>Ao final de cada período de prestação de serviços, o EMPREGADO receberá <strong>imediatamente</strong>, de forma discriminada em recibo, as seguintes parcelas (art. 452-A §§6º e 7º):</p><ul style="margin:6px 0 6px 18px;font-size:12.5px;line-height:1.6"><li>Remuneração pelas horas trabalhadas;</li><li>Férias proporcionais acrescidas de um terço;</li><li>Décimo terceiro salário proporcional;</li><li>Repouso semanal remunerado;</li><li>Adicionais legais eventualmente devidos.</li></ul><p>A EMPREGADORA recolherá a contribuição previdenciária e o FGTS sobre esses valores, fornecendo ao EMPREGADO o comprovante do recolhimento (art. 452-A §8º).</p>')
+
+      + C('DO PERÍODO DE INATIVIDADE','<p>O período de inatividade <strong>não é considerado tempo à disposição</strong> da EMPREGADORA e não é remunerado (art. 452-A §5º). Durante a inatividade o EMPREGADO pode prestar serviços a outros contratantes, inclusive do mesmo ramo.</p>')
+
+      + C('DAS FÉRIAS','<p>A cada 12 (doze) meses, o EMPREGADO adquire o direito de usufruir, nos doze meses subsequentes, <strong>um mês de férias</strong>, período no qual não poderá ser convocado para prestar serviços pela mesma EMPREGADORA (art. 452-A §9º).</p>')
+
+      + C('DA JORNADA E DOS INTERVALOS','<p>Durante os períodos de atividade aplicam-se integralmente as normas de jornada, intervalos e adicionais previstas na CLT, incluindo o registro de ponto e o intervalo intrajornada.</p>')
+
+      + C('DA VIGÊNCIA E DA RESCISÃO','<p>O contrato vigora por prazo <strong>indeterminado</strong> a partir de '+_fmtData(d.dataInicio)+'. A rescisão observará as regras da CLT aplicáveis ao contrato intermitente, com as verbas apuradas proporcionalmente ao tempo trabalhado.</p>')
+
+      + C('DA CONFIDENCIALIDADE E LGPD','<p>O EMPREGADO obriga-se a manter sigilo sobre dados de clientes, preços e informações comerciais, tratando dados pessoais conforme a Lei 13.709/2018 (LGPD), exclusivamente para as finalidades do trabalho.</p>')
+
+      + (d.obs ? C('DISPOSIÇÕES ADICIONAIS','<p>'+_esc(d.obs)+'</p>') : '')
+
+      + C('DO FORO','<p>Fica eleito o foro da Comarca de '+_esc(comarca)+'/'+_esc(uf)+' para dirimir controvérsias oriundas deste contrato.</p>')
+
+      + '<p style="margin-top:14px;font-size:12.5px">'+_esc(comarca)+'/'+_esc(uf)+', '+_fmtData(d.dataInicio)+'.</p>'
+      + '<div class="sign"><div>'+_esc(d.e_razao||emp.nomeRazao||'')+'<br><small>EMPREGADORA</small></div><div>'+_esc(d.p_nome||'')+'<br><small>EMPREGADO</small></div></div>'
+      + '</div>';
+  }
+
+  window.intPrevisualizar = function(){
+    var d=_coletar();
+    if(!d.p_nome){ _toast('Informe o nome do empregado.','err'); return; }
+    if(typeof printHtml==='function') printHtml('<div class="doc-page">'+_gerarHTML(d,'INT-PRÉVIA')+'</div>','Contrato Intermitente (prévia)');
+  };
+
+  window.intSalvarEGerar = async function(){
+    var d=_coletar();
+    if(!d.p_nome){ _toast('Informe o nome completo do empregado.','err'); return; }
+    if(String(d.p_cpf||'').replace(/\D/g,'').length!==11){ _toast('Informe um CPF válido (11 dígitos).','err'); return; }
+    if(!(d.hora>0)){ _toast('Informe o valor da hora.','err'); return; }
+
+    var numero=_proximoNumero();
+    var html=_gerarHTML(d,numero);
+    var hash=await _sha256(numero+'|'+d.p_cpf+'|'+d.dataInicio+'|'+html.length);
+
+    var c={ id:_uid(), tipo:'INTERMITENTE', numero:numero,
+      empNome:d.p_nome, empCpf:d.p_cpf, empTel:d.p_tel, empEmail:d.p_email,
+      funcao:d.funcao, valorHora:d.hora, dataInicio:d.dataInicio,
+      dados:d, html:html, hash:hash, assinado:false,
+      criadoEm:new Date().toISOString(), criadoPor:'RH' };
+
+    if(!Array.isArray(APP.contratos)) APP.contratos=[];
+    APP.contratos.push(c);
+    if(typeof save==='function') save('contratos');
+    try{ if(typeof auditLog==='function') auditLog('Emitiu contrato intermitente '+numero, d.p_nome, 'contratos_int'); }catch(e){}
+
+    closeModal();
+    _toast('✅ Contrato '+numero+' salvo!','ok',4000);
+    if(typeof printHtml==='function') printHtml('<div class="doc-page">'+html+'</div>','Contrato Intermitente '+numero+' — '+d.p_nome);
+    if(typeof navigate==='function') navigate('contratos_int');
+  };
+
+  window.intImprimir = function(id){
+    var c=(APP.contratos||[]).find(function(x){ return x.id===id; });
+    if(!c){ _toast('Contrato não encontrado.','err'); return; }
+    var html=c.html || _gerarHTML(c.dados||{}, c.numero);
+    if(c.assinado){
+      html += '<div style="margin-top:26px;border:1.5px solid #059669;border-radius:8px;padding:14px;font-family:Roboto,Arial,sans-serif">'
+        + '<div style="font-weight:700;font-size:13px;color:#065F46;margin-bottom:8px">✅ ASSINATURA ELETRÔNICA REGISTRADA</div>'
+        + '<div style="display:flex;gap:14px;align-items:center;justify-content:center;margin:8px 0;flex-wrap:wrap">'
+        +   (c.assinaturaImg ? '<div style="text-align:center"><img src="'+c.assinaturaImg+'" style="max-height:80px"><div style="font-size:9.5px;color:#555">Assinatura</div></div>' : '')
+        +   (c.assinaturaSelfie ? '<div style="text-align:center"><img src="'+c.assinaturaSelfie+'" style="height:80px;width:80px;object-fit:cover;border-radius:6px;border:1px solid #999"><div style="font-size:9.5px;color:#555">Foto no ato</div></div>' : '')
+        + '</div>'
+        + '<table style="width:100%;font-size:11.5px;border-collapse:collapse">'
+        +   '<tr><td style="padding:3px 0;color:#555;width:150px">Assinado por</td><td>'+_esc(c.assinaturaNome||c.empNome||'')+'</td></tr>'
+        +   '<tr><td style="padding:3px 0;color:#555">CPF</td><td>'+_esc(c.assinaturaCpf||'')+'</td></tr>'
+        +   '<tr><td style="padding:3px 0;color:#555">Data e hora</td><td>'+(c.assinaturaEm?new Date(c.assinaturaEm).toLocaleString('pt-BR'):'—')+'</td></tr>'
+        + '</table>'
+        + '<div style="margin-top:8px;font-family:monospace;font-size:9.5px;word-break:break-all;background:#F0FDF4;padding:7px;border-radius:5px"><strong>Hash SHA-256:</strong> '+_esc(c.assinaturaHash||'')+'</div>'
+        + '<div style="font-size:10px;color:#555;margin-top:6px">Assinatura eletrônica nos termos da Lei 14.063/2020 e da MP 2.200-2/2001.</div>'
+        + '</div>';
+    }
+    if(typeof printHtml==='function') printHtml('<div class="doc-page">'+html+'</div>','Contrato Intermitente '+c.numero+' — '+(c.empNome||''));
+  };
+
+  window.intExcluir = function(id){
+    var c=(APP.contratos||[]).find(function(x){ return x.id===id; });
+    if(!c) return;
+    if(!confirm('Excluir o contrato '+c.numero+' de '+(c.empNome||'')+'?')) return;
+    APP.contratos=APP.contratos.filter(function(x){ return x.id!==id; });
+    if(typeof save==='function') save('contratos');
+    _toast('Contrato excluído.','ok');
+    if(typeof navigate==='function') navigate('contratos_int');
+  };
+
+  // ── LINK DE ASSINATURA (mesma página do contrato PJ) ──────────────────────
+  window.intGerarLink = async function(id){
+    var c=(APP.contratos||[]).find(function(x){ return x.id===id; });
+    if(!c){ _toast('Contrato não encontrado.','err'); return; }
+    if(typeof FBASE==='undefined' || !FBASE){ _toast('Firebase não conectado — necessário para o link.','err',5000); return; }
+
+    openModal('🔗 Gerando link...', '<div style="text-align:center;padding:32px"><div style="font-size:34px">⏳</div><div style="font-size:14px;color:#64748B;margin-top:8px">Gerando link seguro...</div></div>', 420);
+    try{
+      var token='intsig_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9);
+      await FBASE.collection('contratopj_sign_tokens').doc(token).set({
+        contratoId:id, numero:c.numero||'', tipo:'INTERMITENTE',
+        prestadorNome:c.empNome||'', prestadorDoc:c.empCpf||'', prestadorDocLabel:'CPF',
+        prestadorCnpj:'', hash:c.hash||'', html:c.html||'',
+        ativo:true, usado:false, criadoEm:new Date().toISOString(),
+        expiresAt:new Date(Date.now()+7*24*3600*1000).toISOString(), criadoPor:'RH'
+      });
+      var signUrl=SIGN_BASE+'?tk='+token;
+      var nomeCurto=(c.empNome||'Colaborador').split(' ')[0];
+      var waMsg=encodeURIComponent('Olá '+nomeCurto+'! 👋\n\nSegue seu Contrato de Trabalho Intermitente nº '+(c.numero||'')+' para leitura e assinatura digital.\n\n🔗 Clique para ler e assinar (sem senha):\n'+signUrl+'\n\n⏰ Link válido por 7 dias.');
+      var tel=(c.empTel||'').replace(/\D/g,'');
+      var waLink=tel?('https://wa.me/55'+tel+'?text='+waMsg):('https://web.whatsapp.com/send?text='+waMsg);
+
+      c.linkToken=token; c.linkGeradoEm=new Date().toISOString();
+      if(typeof save==='function') save('contratos');
+
+      closeModal();
+      openModal('🔗 Link de Assinatura — '+nomeCurto, ''
+        + '<div style="display:flex;flex-direction:column;gap:14px">'
+        + '<div style="background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px">✅</div><div style="font-weight:800;color:#065F46;font-size:14px;margin-top:4px">Link gerado!</div></div>'
+        + '<div style="background:#F8FAFC;border:1.5px solid #E2E8F0;border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;margin-bottom:8px">🔗 Link direto</div><div style="display:flex;gap:8px;align-items:center"><input type="text" value="'+signUrl+'" readonly id="_int_link" style="font-size:11px;background:#fff;border:1.5px solid #E2E8F0;border-radius:8px;padding:8px 10px;flex:1;font-family:monospace"><button class="btn btn-sm btn-ghost" onclick="navigator.clipboard.writeText(\''+signUrl+'\').then(()=>{this.textContent=\'✔ Copiado\';setTimeout(()=>this.textContent=\'📋 Copiar\',2000)}).catch(()=>{document.getElementById(\'_int_link\').select();document.execCommand(\'copy\')})">📋 Copiar</button></div></div>'
+        + '<a href="'+waLink+'" target="_blank" class="btn btn-green" style="text-decoration:none;text-align:center">📱 Enviar por WhatsApp</a>'
+        + '</div>', 480);
+    }catch(e){ closeModal(); _toast('Erro: '+(e.message||e),'err',5000); }
+  };
+
+  // ── SIMULADOR DE CUSTO ────────────────────────────────────────────────────
+  window.intSimulador = function(){
+    openModal('🧮 Simular custo mensal', ''
+      + '<div style="font-size:12.5px;color:#475569;line-height:1.55;margin-bottom:13px">Compare quanto custa o mesmo colaborador em cada modalidade. Use para levar números ao seu contador.</div>'
+      + '<div class="g2">'
+      +   '<div class="fld"><label>Horas trabalhadas no mês</label><input id="sim-h" type="number" value="100" oninput="intCalcSim()"></div>'
+      +   '<div class="fld"><label>Valor da hora (R$)</label><input id="sim-vh" type="number" step="0.01" value="7.50" oninput="intCalcSim()"></div>'
+      + '</div>'
+      + '<div class="fld"><label>Comissões e bônus no mês (R$)</label><input id="sim-com" type="number" step="0.01" value="600" oninput="intCalcSim()"></div>'
+      + '<div id="sim-out" style="margin-top:8px"></div>'
+      + '<div style="font-size:11px;color:#94A3B8;margin-top:12px;line-height:1.5">Estimativa simplificada, com FGTS de 8% e provisões de férias+1/3 e 13º. Não inclui INSS patronal (que varia conforme o enquadramento da empresa), vale-transporte, benefícios de convenção nem contribuições de terceiros. Confirme com seu contador.</div>'
+      + '<div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>', 560);
+    setTimeout(intCalcSim, 80);
+  };
+
+  window.intCalcSim = function(){
+    var h=parseFloat(_g('sim-h')||0), vh=parseFloat(_g('sim-vh')||0), com=parseFloat(_g('sim-com')||0);
+    var base=h*vh+com;
+    // Intermitente: paga proporcionais a cada período
+    var ferias=base/12*1.3333, decimo=base/12, fgts=(base+ferias+decimo)*0.08;
+    var totalInt=base+ferias+decimo+fgts;
+    // CLT integral: assume mesmo valor base como salário + encargos
+    var feriasC=base/12*1.3333, decimoC=base/12, fgtsC=(base+feriasC+decimoC)*0.08;
+    var totalClt=base+feriasC+decimoC+fgtsC;
+
+    var out=document.getElementById('sim-out');
+    if(!out) return;
+    function linha(l,v,cor){ return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #F1F5F9;font-size:13px"><span style="color:#64748B">'+l+'</span><span style="font-weight:700;color:'+(cor||'#0F172A')+'">'+_brl(v)+'</span></div>'; }
+    out.innerHTML=''
+      + '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:13px;margin-bottom:10px">'
+      +   '<div style="font-weight:800;font-size:13px;color:#065F46;margin-bottom:6px">Intermitente (registrado)</div>'
+      +   linha('Horas + comissões',base)
+      +   linha('Férias + 1/3 (provisão)',ferias)
+      +   linha('13º (provisão)',decimo)
+      +   linha('FGTS 8%',fgts)
+      +   '<div style="display:flex;justify-content:space-between;padding-top:8px;font-size:14px;font-weight:900;color:#065F46"><span>Custo do mês</span><span>'+_brl(totalInt)+'</span></div>'
+      + '</div>'
+      + '<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:13px">'
+      +   '<div style="font-weight:800;font-size:13px;color:#92400E;margin-bottom:6px">Situação atual (informal)</div>'
+      +   linha('Pago hoje',base)
+      +   '<div style="font-size:12px;color:#92400E;margin-top:8px;line-height:1.5">Economia aparente de <strong>'+_brl(totalInt-base)+'</strong> por mês. Mas o passivo acumula: se houver reclamação, paga-se tudo isso retroativo por até 5 anos, mais multa por falta de registro e honorários.</div>'
+      + '</div>';
+  };
+
+})();
+
+console.log('[Atlas] Módulo Contrato Intermitente carregado ✅');
+</script>
+
+<!-- ═══ MÓDULO OPERAÇÃO INTERMITENTE ═══ -->
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// MÓDULO: OPERAÇÃO DO TRABALHO INTERMITENTE
+// ---------------------------------------------------------------------------
+// O contrato intermitente só se sustenta se a rotina for registrada. Este
+// módulo cobre o ciclo completo:
+//   1) rConvocacoes    — convoca, envia por WhatsApp e registra aceite/recusa
+//   2) rRecibosInt     — recibo discriminado por período (CLT art. 452-A §7º)
+//   3) rRegularizacao  — painel de quem ainda está informal e em que etapa está
+//   4) rPacoteContador — consolidado mensal para enviar ao contador
+//
+// Coleção Firestore usada pelo Portal: convocacoes_int
+// ═══════════════════════════════════════════════════════════════════════════
+(function(){
+  'use strict';
+
+  function _esc(s){ return (typeof esc==='function') ? esc(s) : String(s==null?'':s); }
+  function _brl(v){ return (typeof fBRL==='function') ? fBRL(v) : ('R$ '+(parseFloat(v||0).toFixed(2))); }
+  function _uid(){ return (typeof uid==='function') ? uid() : Math.random().toString(36).slice(2,10); }
+  function _toast(m,t,d){ if(typeof toast==='function') toast(m,t||'ok',d||3200); }
+  function _hoje(){ return new Date().toISOString().slice(0,10); }
+  function _g(id){ var el=document.getElementById(id); return el?String(el.value||'').trim():''; }
+  function _empresa(){ return (typeof EMPRESA_CFG!=='undefined' && EMPRESA_CFG) ? EMPRESA_CFG : {}; }
+  function _fmtD(iso){ if(!iso) return '—'; try{ return new Date(String(iso).slice(0,10)+'T00:00:00').toLocaleDateString('pt-BR'); }catch(e){ return iso; } }
+  function _fmtDT(iso){ if(!iso) return '—'; try{ return new Date(iso).toLocaleString('pt-BR'); }catch(e){ return iso; } }
+  function _zp(n){ return String(n).padStart(2,'0'); }
+  var MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  if(!Array.isArray(APP.convocacoes)) APP.convocacoes=[];
+  if(!Array.isArray(APP.recibosInt)) APP.recibosInt=[];
+
+  function _contratosInt(){
+    return (APP.contratos||[]).filter(function(c){ return c && c.tipo==='INTERMITENTE'; });
+  }
+  function _acharContrato(empCpf, empNome){
+    var cpf=String(empCpf||'').replace(/\D/g,'');
+    return _contratosInt().find(function(c){
+      return (cpf && String(c.empCpf||'').replace(/\D/g,'')===cpf) || (empNome && c.empNome===empNome);
+    });
+  }
+
+  // ── Dias úteis entre datas (para prazo de resposta) ──────────────────────
+  function _addDiasUteis(d, n){
+    var x=new Date(d.getTime()), add=0;
+    while(add<n){
+      x.setDate(x.getDate()+1);
+      var dw=x.getDay();
+      if(dw!==0 && dw!==6) add++;
+    }
+    return x;
+  }
+
+  function _statusConv(c){
+    if(c.status==='aceita'||c.status==='recusada'||c.status==='cumprida') return c.status;
+    if(c.prazoResposta && new Date(c.prazoResposta)<new Date()) return 'expirada';
+    return 'pendente';
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // 1) CONVOCAÇÕES
+  // ═══════════════════════════════════════════════════════════════════════
+  window.rConvocacoes = function(){
+    var lista=(APP.convocacoes||[]).slice().sort(function(a,b){ return (b.criadoEm||'').localeCompare(a.criadoEm||''); });
+    var pend=lista.filter(function(c){ return _statusConv(c)==='pendente'; }).length;
+    var aceitas=lista.filter(function(c){ return _statusConv(c)==='aceita'; }).length;
+    var recus=lista.filter(function(c){ return _statusConv(c)==='recusada'; }).length;
+
+    var CORES={pendente:{c:'#D97706',b:'#FFFBEB',t:'⏳ Aguardando'},aceita:{c:'#059669',b:'#F0FDF4',t:'✓ Aceita'},
+               recusada:{c:'#64748B',b:'#F8FAFC',t:'✕ Recusada'},expirada:{c:'#B91C1C',b:'#FEF2F2',t:'⌛ Sem resposta'},
+               cumprida:{c:'#1D4ED8',b:'#EFF6FF',t:'✓ Cumprida'}};
+
+    var linhas=lista.slice(0,60).map(function(c){
+      var st=_statusConv(c), S=CORES[st]||CORES.pendente;
+      return '<tr>'
+        + '<td style="font-weight:600;font-size:13px">'+_esc(c.nome||'—')+'<div style="font-size:11px;color:var(--mt)">'+_esc(c.funcao||'')+'</div></td>'
+        + '<td style="font-size:12.5px">'+_fmtD(c.dataTrabalho)+'<div style="font-size:11px;color:var(--mt)">'+_esc(c.horaInicio||'')+'–'+_esc(c.horaFim||'')+'</div></td>'
+        + '<td style="font-size:12px">'+(c.horasPrev||0)+'h</td>'
+        + '<td style="font-size:11.5px;color:var(--mt)">'+_fmtDT(c.prazoResposta)+'</td>'
+        + '<td style="text-align:center"><span style="background:'+S.b+';color:'+S.c+';padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap">'+S.t+'</span>'
+        +   (c.respondidoEm?'<div style="font-size:10px;color:var(--mt);margin-top:2px">'+_fmtDT(c.respondidoEm)+'</div>':'')+'</td>'
+        + '<td><div style="display:flex;gap:5px;flex-wrap:wrap">'
+        +   '<button class="btn btn-sm" style="background:#F0FDF4;color:#059669" onclick="convWhatsApp(\''+c.id+'\')">📱</button>'
+        +   (st==='aceita'?'<button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8" onclick="convMarcar(\''+c.id+'\',\'cumprida\')">✓ Cumprida</button>':'')
+        +   (st==='pendente'||st==='expirada'?'<button class="btn btn-sm btn-ghost" onclick="convResponderRH(\''+c.id+'\')">Registrar resposta</button>':'')
+        +   '<button class="btn btn-sm btn-icon-red" style="padding:4px 8px" onclick="convExcluir(\''+c.id+'\')">🗑</button>'
+        + '</div></td></tr>';
+    }).join('');
+
+    function kpi(v,l,c,b){ return '<div style="flex:1;min-width:100px;background:'+b+';border-radius:12px;padding:13px;text-align:center"><div style="font-size:23px;font-weight:900;color:'+c+'">'+v+'</div><div style="font-size:11px;color:'+c+';font-weight:700">'+l+'</div></div>'; }
+
+    return ''
+    + '<div class="card" style="margin-bottom:14px;border-left:4px solid #1E3A5F">'
+    +   '<div style="font-weight:800;font-size:14px;margin-bottom:4px">📢 Por que registrar a convocação</div>'
+    +   '<div style="font-size:12.5px;color:#475569;line-height:1.55">O contrato promete convocação com antecedência e prazo de resposta. Se isso ficar só numa conversa de WhatsApp, você não consegue provar nada — e a multa por descumprimento após o aceite (art. 452-A §3º) fica inaplicável. Aqui cada convocação fica registrada com data, prazo e a resposta do colaborador.</div>'
+    + '</div>'
+    + '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
+    +   kpi(pend,'Aguardando','#92400E','#FFFBEB')+kpi(aceitas,'Aceitas','#065F46','#F0FDF4')+kpi(recus,'Recusadas','#475569','#F8FAFC')
+    + '</div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">'
+    +   '<div style="font-size:15px;font-weight:700">Convocações</div>'
+    +   '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +     '<button class="btn btn-sm btn-ghost" onclick="convSincronizar()">🔄 Verificar respostas</button>'
+    +     '<button class="btn btn-blue" onclick="convNova()">+ Nova Convocação</button>'
+    +   '</div>'
+    + '</div>'
+    + (lista.length
+        ? '<div class="card" style="padding:0;overflow-x:auto"><table style="margin:0"><thead><tr><th>Colaborador</th><th>Data / Horário</th><th>Horas</th><th>Responder até</th><th>Status</th><th>Ações</th></tr></thead><tbody>'+linhas+'</tbody></table></div>'
+        : '<div class="card" style="text-align:center;padding:40px;color:var(--mt)"><div style="font-size:40px">📢</div><div style="font-weight:700;margin-top:8px">Nenhuma convocação ainda</div><div style="font-size:13px;margin-top:6px">Emita um contrato intermitente e depois convoque por aqui.</div></div>');
+  };
+
+  window.convNova = function(){
+    var ints=_contratosInt();
+    if(!ints.length){
+      _toast('Emita um contrato intermitente primeiro.','err',4500);
+      if(typeof navigate==='function') navigate('contratos_int');
+      return;
+    }
+    var opts=ints.map(function(c){ return '<option value="'+c.id+'">'+_esc(c.empNome)+' · '+_esc(c.funcao||'')+'</option>'; }).join('');
+    var emp=_empresa();
+    var amanha=new Date(Date.now()+4*86400000).toISOString().slice(0,10);
+
+    openModal('📢 Nova Convocação', ''
+      + '<div class="fld"><label>Colaborador</label><select id="cv-contrato">'+opts+'</select></div>'
+      + '<div class="g2">'
+      +   '<div class="fld"><label>Data do trabalho</label><input id="cv-data" type="date" value="'+amanha+'" onchange="convCalcHoras()"></div>'
+      +   '<div class="fld"><label>Local</label><input id="cv-local" value="'+_esc(emp.endereco||'')+'" placeholder="Loja"></div>'
+      + '</div>'
+      + '<div class="g2">'
+      +   '<div class="fld"><label>Início</label><input id="cv-ini" type="time" value="09:00" onchange="convCalcHoras()"></div>'
+      +   '<div class="fld"><label>Término</label><input id="cv-fim" type="time" value="18:00" onchange="convCalcHoras()"></div>'
+      + '</div>'
+      + '<div class="g2">'
+      +   '<div class="fld"><label>Intervalo (minutos)</label><input id="cv-int" type="number" value="60" onchange="convCalcHoras()"></div>'
+      +   '<div class="fld"><label>Horas previstas</label><input id="cv-horas" readonly style="background:#F1F5F9;font-weight:700"></div>'
+      + '</div>'
+      + '<div id="cv-aviso" style="margin-bottom:12px"></div>'
+      + '<div class="fld"><label>Observações (opcional)</label><textarea id="cv-obs" rows="2" placeholder="Ex: reforço para o sábado de promoção"></textarea></div>'
+      + '<div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>'
+      + '<button class="btn btn-green" onclick="convSalvar()">📢 Convocar e enviar</button></div>', 620);
+    setTimeout(convCalcHoras, 60);
+  };
+
+  window.convCalcHoras = function(){
+    var ini=_g('cv-ini'), fim=_g('cv-fim'), inter=parseInt(_g('cv-int')||0,10);
+    var el=document.getElementById('cv-horas'); if(!el) return;
+    function m(t){ var p=String(t||'').split(':'); return p.length===2?(parseInt(p[0],10)*60+parseInt(p[1],10)):0; }
+    var tot=m(fim)-m(ini)-inter;
+    if(tot<0) tot=0;
+    el.value=(tot/60).toFixed(2).replace('.',',')+' h';
+    el.dataset.min=tot;
+
+    // Aviso de antecedência mínima (3 dias corridos — art. 452-A §1º)
+    var av=document.getElementById('cv-aviso'); if(!av) return;
+    var dt=_g('cv-data');
+    if(dt){
+      var dias=Math.floor((new Date(dt+'T00:00:00')-new Date(new Date().toISOString().slice(0,10)+'T00:00:00'))/86400000);
+      av.innerHTML = dias<3
+        ? '<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:9px 12px;font-size:12px;color:#B91C1C;line-height:1.5">⚠️ Faltam apenas <strong>'+dias+' dia(s)</strong>. O art. 452-A §1º exige <strong>3 dias corridos</strong> de antecedência. Convocar com menos prazo enfraquece a validade da convocação.</div>'
+        : '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:9px 12px;font-size:12px;color:#065F46">✓ Antecedência de '+dias+' dias — dentro do exigido.</div>';
+    }
+  };
+
+  window.convSalvar = async function(){
+    var cid=_g('cv-contrato');
+    var c=(APP.contratos||[]).find(function(x){ return x.id===cid; });
+    if(!c){ _toast('Selecione o colaborador.','err'); return; }
+    var dt=_g('cv-data');
+    if(!dt){ _toast('Informe a data do trabalho.','err'); return; }
+    var el=document.getElementById('cv-horas');
+    var min=parseInt((el&&el.dataset.min)||0,10);
+    if(min<=0){ _toast('Horário inválido.','err'); return; }
+
+    var prazo=_addDiasUteis(new Date(), 1); // 1 dia útil para responder
+    var conv={
+      id:_uid(), contratoId:c.id, numero:c.numero||'',
+      empId:c.empId||'', nome:c.empNome||'', cpf:c.empCpf||'', tel:c.empTel||'',
+      funcao:c.funcao||'', valorHora:c.valorHora||0,
+      dataTrabalho:dt, horaInicio:_g('cv-ini'), horaFim:_g('cv-fim'),
+      intervaloMin:parseInt(_g('cv-int')||0,10), horasPrev:+(min/60).toFixed(2),
+      local:_g('cv-local'), obs:_g('cv-obs'),
+      status:'pendente', prazoResposta:prazo.toISOString(),
+      criadoEm:new Date().toISOString(), criadoPor:'RH'
+    };
+
+    APP.convocacoes.push(conv);
+    if(typeof save==='function') save('convocacoes');
+
+    // Publica para o Portal responder
+    try{
+      if(typeof FBASE!=='undefined' && FBASE){
+        await FBASE.collection('convocacoes_int').doc(conv.id).set(conv);
+      }
+    }catch(e){ console.warn('[conv] firestore:',e); }
+
+    try{ if(typeof auditLog==='function') auditLog('Convocou '+conv.nome,'dia '+_fmtD(dt),'convocacoes'); }catch(e){}
+    closeModal();
+    _toast('✅ Convocação registrada!','ok');
+    convWhatsApp(conv.id);
+    if(typeof navigate==='function') navigate('convocacoes');
+  };
+
+  window.convWhatsApp = function(id){
+    var c=(APP.convocacoes||[]).find(function(x){ return x.id===id; });
+    if(!c) return;
+    var emp=_empresa();
+    var msg=encodeURIComponent(
+      'CONVOCAÇÃO PARA TRABALHO — '+(emp.nomeRazao||'')+'\n\n'
+      + 'Olá '+String(c.nome||'').split(' ')[0]+'!\n\n'
+      + 'Você está sendo convocado(a) para prestar serviços:\n\n'
+      + '📅 Data: '+_fmtD(c.dataTrabalho)+'\n'
+      + '🕐 Horário: '+(c.horaInicio||'')+' às '+(c.horaFim||'')+' (intervalo de '+(c.intervaloMin||0)+' min)\n'
+      + '⏱ Horas previstas: '+String(c.horasPrev||0).replace('.',',')+'h\n'
+      + '📍 Local: '+(c.local||'')+'\n'
+      + '💰 Valor da hora: '+ (c.valorHora? ('R$ '+Number(c.valorHora).toFixed(2).replace('.',',')) : 'conforme contrato') +'\n\n'
+      + (c.obs? ('Obs.: '+c.obs+'\n\n') : '')
+      + '⚠️ Responda ATÉ '+_fmtDT(c.prazoResposta)+'.\n'
+      + 'Se não houver resposta no prazo, será considerada RECUSA — e recusar não gera nenhuma penalidade (CLT art. 452-A §2º).\n\n'
+      + 'Responda com ACEITO ou RECUSO, ou use o Portal do Colaborador.'
+    );
+    var tel=String(c.tel||'').replace(/\D/g,'');
+    window.open(tel?('https://wa.me/55'+tel+'?text='+msg):('https://web.whatsapp.com/send?text='+msg),'_blank');
+  };
+
+  window.convResponderRH = function(id){
+    var c=(APP.convocacoes||[]).find(function(x){ return x.id===id; });
+    if(!c) return;
+    openModal('Registrar resposta — '+_esc(c.nome), ''
+      + '<div style="font-size:12.5px;color:#475569;line-height:1.55;margin-bottom:13px">Use quando o colaborador responder por fora do Portal (WhatsApp, telefone, pessoalmente). A resposta fica registrada com data e hora.</div>'
+      + '<div class="fld"><label>Como respondeu?</label><select id="cv-resp"><option value="aceita">Aceitou</option><option value="recusada">Recusou</option></select></div>'
+      + '<div class="fld"><label>Registrado por (opcional)</label><input id="cv-quem" placeholder="Quem recebeu a resposta"></div>'
+      + '<div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>'
+      + '<button class="btn btn-green" onclick="convMarcar(\''+id+'\',document.getElementById(\'cv-resp\').value)">Salvar</button></div>', 460);
+  };
+
+  window.convMarcar = async function(id, status){
+    var c=(APP.convocacoes||[]).find(function(x){ return x.id===id; });
+    if(!c) return;
+    c.status=status;
+    c.respondidoEm=new Date().toISOString();
+    var q=document.getElementById('cv-quem');
+    if(q && q.value) c.respondidoPor=q.value;
+    if(typeof save==='function') save('convocacoes');
+    try{ if(typeof FBASE!=='undefined' && FBASE) await FBASE.collection('convocacoes_int').doc(id).update({status:status,respondidoEm:c.respondidoEm}); }catch(e){}
+    try{ closeModal(); }catch(e){}
+    _toast('Registrado: '+status,'ok');
+    if(typeof navigate==='function') navigate('convocacoes');
+  };
+
+  window.convExcluir = function(id){
+    var c=(APP.convocacoes||[]).find(function(x){ return x.id===id; });
+    if(!c) return;
+    if(!confirm('Excluir a convocação de '+(c.nome||'')+' para '+_fmtD(c.dataTrabalho)+'?')) return;
+    APP.convocacoes=APP.convocacoes.filter(function(x){ return x.id!==id; });
+    if(typeof save==='function') save('convocacoes');
+    try{ if(typeof FBASE!=='undefined' && FBASE) FBASE.collection('convocacoes_int').doc(id).delete(); }catch(e){}
+    _toast('Convocação excluída.','ok');
+    if(typeof navigate==='function') navigate('convocacoes');
+  };
+
+  // Puxa respostas dadas pelo Portal
+  window.convSincronizar = async function(){
+    if(typeof FBASE==='undefined' || !FBASE){ _toast('Firebase não conectado.','err'); return; }
+    _toast('🔄 Verificando respostas...','ok',1600);
+    try{
+      var snap=await FBASE.collection('convocacoes_int').get();
+      var n=0;
+      snap.forEach(function(doc){
+        var r=doc.data()||{};
+        var loc=(APP.convocacoes||[]).find(function(x){ return x.id===doc.id; });
+        if(loc && r.status && r.status!==loc.status && (r.status==='aceita'||r.status==='recusada')){
+          loc.status=r.status;
+          loc.respondidoEm=r.respondidoEm||new Date().toISOString();
+          loc.respondidoPor=r.respondidoPor||'Portal';
+          n++;
+        }
+      });
+      if(n){ if(typeof save==='function') save('convocacoes'); _toast('✅ '+n+' resposta(s) atualizadas!','ok',4000); if(typeof navigate==='function') navigate('convocacoes'); }
+      else _toast('Nenhuma resposta nova.','ok');
+    }catch(e){ _toast('Erro: '+(e.message||e),'err',5000); }
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // 2) RECIBOS DISCRIMINADOS (art. 452-A §§6º e 7º)
+  // ═══════════════════════════════════════════════════════════════════════
+  window.rRecibosInt = function(){
+    var lista=(APP.recibosInt||[]).slice().sort(function(a,b){ return (b.criadoEm||'').localeCompare(a.criadoEm||''); });
+    var linhas=lista.slice(0,60).map(function(r){
+      return '<tr>'
+        + '<td style="font-family:monospace;font-size:12px;font-weight:700">'+_esc(r.numero||'')+'</td>'
+        + '<td style="font-weight:600;font-size:13px">'+_esc(r.nome||'')+'</td>'
+        + '<td style="font-size:12px">'+_fmtD(r.periodoIni)+' a '+_fmtD(r.periodoFim)+'</td>'
+        + '<td style="font-size:12px">'+String(r.horas||0).replace('.',',')+'h</td>'
+        + '<td style="font-size:12.5px;font-weight:700">'+_brl(r.total||0)+'</td>'
+        + '<td><div style="display:flex;gap:5px">'
+        +   '<button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8" onclick="recImprimir(\''+r.id+'\')">🖨 PDF</button>'
+        +   '<button class="btn btn-sm btn-icon-red" style="padding:4px 8px" onclick="recExcluir(\''+r.id+'\')">🗑</button>'
+        + '</div></td></tr>';
+    }).join('');
+
+    return ''
+    + '<div class="card" style="margin-bottom:14px;border-left:4px solid #D97706;background:#FFFBEB">'
+    +   '<div style="font-weight:800;font-size:14px;color:#92400E;margin-bottom:4px">📌 Obrigação a cada pagamento, não mensal</div>'
+    +   '<div style="font-size:12.5px;color:#78350F;line-height:1.55">No trabalho intermitente, ao final de <strong>cada período de prestação</strong> o colaborador deve receber imediatamente e com recibo discriminado: horas, férias + 1/3, 13º, DSR e os adicionais devidos (art. 452-A §§6º e 7º). Este gerador monta o recibo já com o cálculo separado.</div>'
+    + '</div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">'
+    +   '<div style="font-size:15px;font-weight:700">🧾 Recibos emitidos <span style="font-size:12px;color:var(--mt);font-weight:500">('+lista.length+')</span></div>'
+    +   '<button class="btn btn-blue" onclick="recNovo()">+ Novo Recibo</button>'
+    + '</div>'
+    + (lista.length
+        ? '<div class="card" style="padding:0;overflow-x:auto"><table style="margin:0"><thead><tr><th>Nº</th><th>Colaborador</th><th>Período</th><th>Horas</th><th>Total</th><th>Ações</th></tr></thead><tbody>'+linhas+'</tbody></table></div>'
+        : '<div class="card" style="text-align:center;padding:40px;color:var(--mt)"><div style="font-size:40px">🧾</div><div style="font-weight:700;margin-top:8px">Nenhum recibo emitido</div></div>');
+  };
+
+  window.recNovo = function(){
+    var ints=_contratosInt();
+    if(!ints.length){ _toast('Emita um contrato intermitente primeiro.','err',4000); return; }
+    var opts=ints.map(function(c){ return '<option value="'+c.id+'">'+_esc(c.empNome)+' · '+_brl(c.valorHora||0)+'/h</option>'; }).join('');
+    var hj=new Date();
+    var ini=new Date(hj.getFullYear(),hj.getMonth(),1).toISOString().slice(0,10);
+
+    openModal('🧾 Novo Recibo Discriminado', ''
+      + '<div style="max-height:70vh;overflow-y:auto;padding-right:4px">'
+      + '<div class="fld"><label>Colaborador</label><select id="rc-contrato" onchange="recCalc()">'+opts+'</select></div>'
+      + '<div class="g2">'
+      +   '<div class="fld"><label>Período — de</label><input id="rc-ini" type="date" value="'+ini+'" onchange="recPuxarHoras()"></div>'
+      +   '<div class="fld"><label>até</label><input id="rc-fim" type="date" value="'+_hoje()+'" onchange="recPuxarHoras()"></div>'
+      + '</div>'
+      + '<div style="text-align:right;margin-bottom:10px"><button class="btn btn-sm btn-ghost" onclick="recPuxarHoras()">⏱ Puxar horas das convocações cumpridas</button></div>'
+      + '<div class="g2">'
+      +   '<div class="fld"><label>Horas trabalhadas</label><input id="rc-horas" type="number" step="0.01" value="0" oninput="recCalc()"></div>'
+      +   '<div class="fld"><label>Valor da hora (R$)</label><input id="rc-vh" type="number" step="0.01" value="0" oninput="recCalc()"></div>'
+      + '</div>'
+      + '<div style="font-weight:800;font-size:12.5px;color:#1E3A5F;margin:12px 0 8px;border-bottom:2px solid #E2E8F0;padding-bottom:5px">COMISSÕES</div>'
+      + '<div class="g2">'
+      +   '<div class="fld"><label>Aparelhos vendidos</label><input id="rc-ap" type="number" value="0" oninput="recCalc()"></div>'
+      +   '<div class="fld"><label>Comissão por aparelho (R$)</label><input id="rc-vcom" type="number" step="0.01" value="0" oninput="recCalc()"></div>'
+      + '</div>'
+      + '<div class="g2">'
+      +   '<div class="fld"><label>Bônus a cada X aparelhos</label><input id="rc-bqtd" type="number" value="0" oninput="recCalc()"></div>'
+      +   '<div class="fld"><label>Valor do bônus por lote (R$)</label><input id="rc-bval" type="number" step="0.01" value="0" oninput="recCalc()"></div>'
+      + '</div>'
+      + '<div class="fld"><label>Outros valores (adicionais, ajuda de custo) — R$</label><input id="rc-outros" type="number" step="0.01" value="0" oninput="recCalc()"></div>'
+      + '<div id="rc-out"></div>'
+      + '</div>'
+      + '<div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>'
+      + '<button class="btn btn-green" onclick="recSalvar()">💾 Salvar & Gerar PDF</button></div>', 660);
+    setTimeout(function(){ recPreencherDoContrato(); recCalc(); }, 70);
+  };
+
+  window.recPreencherDoContrato = function(){
+    var c=(APP.contratos||[]).find(function(x){ return x.id===_g('rc-contrato'); });
+    if(!c) return;
+    var d=c.dados||{};
+    function set(id,v){ var el=document.getElementById(id); if(el) el.value=v; }
+    set('rc-vh', c.valorHora||0);
+    set('rc-vcom', d.comCel||0);
+    set('rc-bqtd', d.bonusQtd||0);
+    set('rc-bval', d.bonusVal||0);
+  };
+
+  // Soma as horas das convocações cumpridas no período
+  window.recPuxarHoras = function(){
+    var c=(APP.contratos||[]).find(function(x){ return x.id===_g('rc-contrato'); });
+    if(!c) return;
+    var ini=_g('rc-ini'), fim=_g('rc-fim');
+    if(!ini||!fim) return;
+    var tot=0, n=0;
+    (APP.convocacoes||[]).forEach(function(v){
+      if(v.contratoId!==c.id) return;
+      if(_statusConv(v)!=='cumprida' && _statusConv(v)!=='aceita') return;
+      if(v.dataTrabalho>=ini && v.dataTrabalho<=fim){ tot+=parseFloat(v.horasPrev||0); n++; }
+    });
+    var el=document.getElementById('rc-horas');
+    if(el){ el.value=tot.toFixed(2); }
+    recCalc();
+    _toast(n?('⏱ '+n+' convocação(ões) somadas: '+tot.toFixed(2).replace('.',',')+'h'):'Nenhuma convocação no período.', n?'ok':'err');
+  };
+
+  function _calcRecibo(){
+    var horas=parseFloat(_g('rc-horas')||0), vh=parseFloat(_g('rc-vh')||0);
+    var ap=parseInt(_g('rc-ap')||0,10), vcom=parseFloat(_g('rc-vcom')||0);
+    var bqtd=parseInt(_g('rc-bqtd')||0,10), bval=parseFloat(_g('rc-bval')||0);
+    var outros=parseFloat(_g('rc-outros')||0);
+
+    var valorHoras=horas*vh;
+    var comissao=ap*vcom;
+    var lotes=(bqtd>0)?Math.floor(ap/bqtd):0;
+    var bonus=lotes*bval;
+    var bruto=valorHoras+comissao+bonus+outros;
+
+    // DSR: aproximação de 1 descanso a cada 6 dias trabalhados
+    var dsr=bruto/6;
+    var base=bruto+dsr;
+    var ferias=base/12, terco=ferias/3;
+    var decimo=base/12;
+    var fgts=(base+ferias+terco+decimo)*0.08;
+    var total=base+ferias+terco+decimo;
+
+    return {horas:horas,vh:vh,ap:ap,vcom:vcom,bqtd:bqtd,bval:bval,lotes:lotes,outros:outros,
+      valorHoras:valorHoras,comissao:comissao,bonus:bonus,bruto:bruto,dsr:dsr,
+      ferias:ferias,terco:terco,decimo:decimo,fgts:fgts,total:total};
+  }
+
+  window.recCalc = function(){
+    var r=_calcRecibo();
+    var out=document.getElementById('rc-out');
+    if(!out) return;
+    function L(l,v,neg){ return '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #F1F5F9;font-size:12.5px"><span style="color:#64748B">'+l+'</span><span style="font-weight:700;color:'+(neg?'#B91C1C':'#0F172A')+'">'+_brl(v)+'</span></div>'; }
+    out.innerHTML='<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:13px;margin-top:6px">'
+      + L('Horas ('+String(r.horas).replace('.',',')+'h × '+_brl(r.vh)+')', r.valorHoras)
+      + (r.comissao?L('Comissão ('+r.ap+' aparelhos)', r.comissao):'')
+      + (r.bonus?L('Bônus ('+r.lotes+' lote(s) de '+r.bqtd+')', r.bonus):'')
+      + (r.outros?L('Outros', r.outros):'')
+      + L('DSR — repouso semanal', r.dsr)
+      + L('Férias proporcionais', r.ferias)
+      + L('1/3 constitucional', r.terco)
+      + L('13º proporcional', r.decimo)
+      + '<div style="display:flex;justify-content:space-between;padding-top:9px;font-size:15px;font-weight:900;color:#065F46"><span>Líquido a pagar</span><span>'+_brl(r.total)+'</span></div>'
+      + '<div style="font-size:11px;color:#64748B;margin-top:8px;line-height:1.5">FGTS a recolher pela empresa: <strong>'+_brl(r.fgts)+'</strong> (não é descontado do colaborador). O INSS deve ser retido conforme a tabela vigente — confirme com o contador.</div>'
+      + '</div>';
+  };
+
+  window.recSalvar = async function(){
+    var c=(APP.contratos||[]).find(function(x){ return x.id===_g('rc-contrato'); });
+    if(!c){ _toast('Selecione o colaborador.','err'); return; }
+    var r=_calcRecibo();
+    if(!(r.total>0)){ _toast('Informe as horas ou os valores.','err'); return; }
+
+    var ano=new Date().getFullYear();
+    var seq=(APP.recibosInt||[]).filter(function(x){ return (x.numero||'').indexOf('REC-'+ano)===0; }).length+1;
+    var rec={ id:_uid(), numero:'REC-'+ano+'-'+String(seq).padStart(4,'0'),
+      contratoId:c.id, nome:c.empNome, cpf:c.empCpf, funcao:c.funcao,
+      periodoIni:_g('rc-ini'), periodoFim:_g('rc-fim'),
+      horas:r.horas, valorHora:r.vh, aparelhos:r.ap,
+      valorHoras:r.valorHoras, comissao:r.comissao, bonus:r.bonus, outros:r.outros,
+      dsr:r.dsr, ferias:r.ferias, terco:r.terco, decimo:r.decimo, fgts:r.fgts, total:r.total,
+      criadoEm:new Date().toISOString() };
+
+    APP.recibosInt.push(rec);
+    if(typeof save==='function') save('recibosInt');
+    try{ if(typeof auditLog==='function') auditLog('Emitiu recibo '+rec.numero, rec.nome, 'recibos_int'); }catch(e){}
+    closeModal();
+    _toast('✅ Recibo '+rec.numero+' salvo!','ok',4000);
+    recImprimir(rec.id);
+    if(typeof navigate==='function') navigate('recibos_int');
+  };
+
+  window.recImprimir = function(id){
+    var r=(APP.recibosInt||[]).find(function(x){ return x.id===id; });
+    if(!r){ _toast('Recibo não encontrado.','err'); return; }
+    var emp=_empresa();
+    function L(l,v){ return '<tr><td style="padding:5px 0;font-size:12.5px">'+l+'</td><td style="padding:5px 0;text-align:right;font-size:12.5px;font-weight:700">'+_brl(v)+'</td></tr>'; }
+    var html='<div style="font-family:Roboto,Arial,sans-serif;max-width:720px;margin:0 auto;color:#111">'
+      + '<h2 style="text-align:center;font-size:16px;margin:0 0 3px">RECIBO DE PAGAMENTO — TRABALHO INTERMITENTE</h2>'
+      + '<div style="text-align:center;font-size:11.5px;color:#555;margin-bottom:14px">Nº '+_esc(r.numero)+' · CLT art. 452-A §§6º e 7º</div>'
+      + '<div style="border:1px solid #999;border-radius:6px;padding:10px 12px;font-size:12.5px;line-height:1.6;margin-bottom:12px">'
+      +   '<strong>EMPREGADORA:</strong> '+_esc(emp.nomeRazao||'')+' — CNPJ '+_esc(emp.cnpj||'')+'<br>'
+      +   '<strong>EMPREGADO:</strong> '+_esc(r.nome||'')+' — CPF '+_esc(r.cpf||'')+' — Função: '+_esc(r.funcao||'')+'<br>'
+      +   '<strong>PERÍODO:</strong> '+_fmtD(r.periodoIni)+' a '+_fmtD(r.periodoFim)+' — <strong>'+String(r.horas).replace('.',',')+' horas</strong>'
+      + '</div>'
+      + '<table style="width:100%;border-collapse:collapse">'
+      +   L('Remuneração pelas horas trabalhadas ('+String(r.horas).replace('.',',')+'h × '+_brl(r.valorHora)+')', r.valorHoras)
+      +   (r.comissao?L('Comissão sobre vendas ('+r.aparelhos+' aparelhos)', r.comissao):'')
+      +   (r.bonus?L('Bônus de produtividade', r.bonus):'')
+      +   (r.outros?L('Outros valores', r.outros):'')
+      +   L('Repouso semanal remunerado (DSR)', r.dsr)
+      +   L('Férias proporcionais', r.ferias)
+      +   L('Um terço constitucional', r.terco)
+      +   L('Décimo terceiro proporcional', r.decimo)
+      + '</table>'
+      + '<div style="border-top:2px solid #111;margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-size:15px;font-weight:900"><span>TOTAL LÍQUIDO</span><span>'+_brl(r.total)+'</span></div>'
+      + '<div style="font-size:11.5px;color:#555;margin-top:10px;line-height:1.55">FGTS recolhido pela empregadora: <strong>'+_brl(r.fgts)+'</strong>. Valores de INSS retidos conforme tabela vigente, quando devidos.</div>'
+      + '<div style="margin-top:34px;display:flex;gap:40px"><div style="flex:1;text-align:center;border-top:1px solid #111;padding-top:6px;font-size:12px">'+_esc(emp.nomeRazao||'')+'<br><small>EMPREGADORA</small></div>'
+      + '<div style="flex:1;text-align:center;border-top:1px solid #111;padding-top:6px;font-size:12px">'+_esc(r.nome||'')+'<br><small>EMPREGADO — recebi a importância acima</small></div></div>'
+      + '<div style="text-align:center;font-size:11px;color:#666;margin-top:16px">'+_esc(emp.cidade||'')+'/'+_esc(emp.uf||'')+', '+_fmtD(r.periodoFim)+'</div>'
+      + '</div>';
+    if(typeof printHtml==='function') printHtml('<div class="doc-page">'+html+'</div>','Recibo '+r.numero+' — '+(r.nome||''));
+  };
+
+  window.recExcluir = function(id){
+    var r=(APP.recibosInt||[]).find(function(x){ return x.id===id; });
+    if(!r) return;
+    if(!confirm('Excluir o recibo '+r.numero+'?')) return;
+    APP.recibosInt=APP.recibosInt.filter(function(x){ return x.id!==id; });
+    if(typeof save==='function') save('recibosInt');
+    _toast('Recibo excluído.','ok');
+    if(typeof navigate==='function') navigate('recibos_int');
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // 3) PAINEL DE REGULARIZAÇÃO
+  // ═══════════════════════════════════════════════════════════════════════
+  window.rRegularizacao = function(){
+    var ativos=(APP.employees||[]).filter(function(e){ return e && e.status==='ativo'; });
+
+    var linhas=ativos.map(function(e){
+      var cpf=String(e.cpf||'').replace(/\D/g,'');
+      var cnpj=String(e.cnpj||'').replace(/\D/g,'');
+      var tipo=String(e.tipoContrato||'').toUpperCase();
+      var cInt=_contratosInt().find(function(c){ return String(c.empCpf||'').replace(/\D/g,'')===cpf && cpf; });
+      var cPJ=(APP.contratos||[]).find(function(c){ return c && c.tipo==='PJ' && String(c.prestadorCnpj||'').replace(/\D/g,'')===cnpj && cnpj; });
+
+      var etapas=[
+        {n:'Cadastro completo', ok: !!(e.nome && cpf.length===11)},
+        {n:'Contrato emitido',  ok: !!(cInt||cPJ)},
+        {n:'Contrato assinado', ok: !!((cInt&&cInt.assinado)||(cPJ&&cPJ.assinado))},
+        {n:'Registro/eSocial',  ok: !!e.registradoESocial, manual:true}
+      ];
+      var feitas=etapas.filter(function(x){ return x.ok; }).length;
+      var pct=Math.round(feitas/etapas.length*100);
+
+      var sit, cor, bg;
+      if(cPJ && cnpj.length===14){ sit='PJ com CNPJ'; cor='#1D4ED8'; bg='#EFF6FF'; }
+      else if(cInt){ sit='Intermitente'; cor='#059669'; bg='#F0FDF4'; }
+      else if(tipo.indexOf('PJ')>=0 && cnpj.length!==14){ sit='PJ sem CNPJ ⚠️'; cor='#B91C1C'; bg='#FEF2F2'; }
+      else if(!cInt && !cPJ){ sit='Informal ⚠️'; cor='#B91C1C'; bg='#FEF2F2'; }
+      else { sit='—'; cor='#64748B'; bg='#F8FAFC'; }
+
+      return '<div class="card" style="margin-bottom:10px;padding:14px">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">'
+        +   '<div><div style="font-weight:800;font-size:13.5px">'+_esc(e.nome||'')+'</div>'
+        +     '<div style="font-size:11.5px;color:#64748B">'+_esc(e.cargo||'—')+'</div></div>'
+        +   '<span style="background:'+bg+';color:'+cor+';padding:4px 12px;border-radius:20px;font-size:11px;font-weight:800">'+sit+'</span>'
+        + '</div>'
+        + '<div style="display:flex;gap:6px;margin-bottom:8px">'
+        +   etapas.map(function(x){ return '<div style="flex:1;height:5px;border-radius:3px;background:'+(x.ok?'#059669':'#E2E8F0')+'"></div>'; }).join('')
+        + '</div>'
+        + '<div style="display:flex;gap:11px;flex-wrap:wrap;font-size:11.5px">'
+        +   etapas.map(function(x){ return '<span style="color:'+(x.ok?'#059669':'#94A3B8')+'">'+(x.ok?'✓':'○')+' '+x.n+'</span>'; }).join('')
+        + '</div>'
+        + (!cInt && !cPJ
+            ? '<div style="margin-top:10px"><button class="btn btn-sm btn-green" onclick="navigate(\'contratos_int\')">Regularizar com contrato intermitente →</button></div>'
+            : '')
+        + '<div style="font-size:11px;color:#94A3B8;margin-top:7px">'+pct+'% concluído</div>'
+        + '</div>';
+    }).join('');
+
+    var informais=ativos.filter(function(e){
+      var cpf=String(e.cpf||'').replace(/\D/g,''), cnpj=String(e.cnpj||'').replace(/\D/g,'');
+      var temInt=_contratosInt().some(function(c){ return String(c.empCpf||'').replace(/\D/g,'')===cpf && cpf; });
+      var temPJ=(APP.contratos||[]).some(function(c){ return c && c.tipo==='PJ' && String(c.prestadorCnpj||'').replace(/\D/g,'')===cnpj && cnpj; });
+      return !temInt && !temPJ;
+    }).length;
+
+    return ''
+    + '<div class="card" style="margin-bottom:14px;border-left:5px solid '+(informais?'#B91C1C':'#059669')+';background:'+(informais?'#FEF2F2':'#F0FDF4')+'">'
+    +   '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">'
+    +     '<div style="font-size:30px">'+(informais?'⚠️':'✅')+'</div>'
+    +     '<div style="flex:1;min-width:190px">'
+    +       '<div style="font-weight:900;font-size:15px;color:'+(informais?'#B91C1C':'#065F46')+'">'
+    +         (informais? informais+' colaborador(es) sem contrato' : 'Todos com contrato emitido')+'</div>'
+    +       '<div style="font-size:12.5px;color:'+(informais?'#991B1B':'#047857')+';margin-top:2px">'
+    +         (informais? 'Cada pessoa sem registro é multa por empregado não registrado (CLT arts. 41 e 47) mais verbas retroativas se houver reclamação.' : 'Continue acompanhando a assinatura e o envio ao eSocial.')+'</div>'
+    +     '</div>'
+    +   '</div>'
+    + '</div>'
+    + '<div style="font-size:15px;font-weight:700;margin-bottom:11px">🚦 Situação por colaborador</div>'
+    + (linhas || '<div class="card" style="text-align:center;padding:34px;color:var(--mt)">Nenhum colaborador ativo.</div>')
+    + '<div style="font-size:11px;color:var(--mt);margin-top:12px;line-height:1.5">A etapa <strong>Registro/eSocial</strong> é marcada manualmente no cadastro do funcionário, já que o envio é feito pelo contador fora deste sistema.</div>';
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // 4) PACOTE MENSAL PARA O CONTADOR
+  // ═══════════════════════════════════════════════════════════════════════
+  var PC_ANO=new Date().getFullYear(), PC_MES=new Date().getMonth();
+  window.pcMudarMes = function(){
+    var v=document.getElementById('pc-mes');
+    if(v){ var p=String(v.value||'').split('-'); PC_ANO=parseInt(p[0],10); PC_MES=parseInt(p[1],10)-1; }
+    if(typeof navigate==='function') navigate('pacote_contador');
+  };
+
+  function _dadosPacote(ano,mes){
+    var ini=ano+'-'+_zp(mes+1)+'-01';
+    var fim=ano+'-'+_zp(mes+1)+'-'+_zp(new Date(ano,mes+1,0).getDate());
+    var recs=(APP.recibosInt||[]).filter(function(r){ return r.periodoFim>=ini && r.periodoFim<=fim; });
+    var convs=(APP.convocacoes||[]).filter(function(c){ return c.dataTrabalho>=ini && c.dataTrabalho<=fim; });
+    var adms=(APP.employees||[]).filter(function(e){ return e.dataAdmissao && e.dataAdmissao>=ini && e.dataAdmissao<=fim; });
+    var dems=(APP.demissoes||[]).filter(function(d){ return d && d.data && d.data>=ini && d.data<=fim; });
+    return {ini:ini,fim:fim,recs:recs,convs:convs,adms:adms,dems:dems};
+  }
+
+  window.rPacoteContador = function(){
+    var D=_dadosPacote(PC_ANO,PC_MES);
+    var totPago=D.recs.reduce(function(s,r){ return s+(r.total||0); },0);
+    var totFgts=D.recs.reduce(function(s,r){ return s+(r.fgts||0); },0);
+    var totHoras=D.recs.reduce(function(s,r){ return s+(r.horas||0); },0);
+
+    var opts='';
+    var base=new Date();
+    for(var i=0;i<14;i++){
+      var d=new Date(base.getFullYear(),base.getMonth()-i,1);
+      opts+='<option value="'+d.getFullYear()+'-'+_zp(d.getMonth()+1)+'"'+((d.getFullYear()===PC_ANO&&d.getMonth()===PC_MES)?' selected':'')+'>'+MESES[d.getMonth()]+'/'+d.getFullYear()+'</option>';
+    }
+    function kpi(v,l){ return '<div style="flex:1;min-width:120px;background:#F8FAFC;border-radius:12px;padding:14px;text-align:center"><div style="font-size:21px;font-weight:900">'+v+'</div><div style="font-size:11px;color:#64748B;font-weight:700">'+l+'</div></div>'; }
+
+    return ''
+    + '<div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">'
+    +   '<label style="font-size:13px;font-weight:600">Competência:</label>'
+    +   '<select id="pc-mes" onchange="pcMudarMes()" style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px">'+opts+'</select>'
+    +   '<div style="flex:1"></div>'
+    +   '<button class="btn btn-sm btn-ghost" onclick="pcBaixarCSV()">📥 Baixar CSV</button>'
+    +   '<button class="btn btn-blue" onclick="pcImprimir()">🖨 Gerar pacote</button>'
+    + '</div>'
+    + '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
+    +   kpi(D.recs.length,'Recibos')+kpi(totHoras.toFixed(0)+'h','Horas')+kpi(_brl(totPago),'Total pago')+kpi(_brl(totFgts),'FGTS')
+    + '</div>'
+    + '<div class="card" style="margin-bottom:12px">'
+    +   '<div style="font-weight:700;font-size:14px;margin-bottom:8px">📦 O que vai no pacote</div>'
+    +   '<div style="font-size:12.5px;color:#475569;line-height:1.7">'
+    +     '• <strong>'+D.recs.length+'</strong> recibo(s) discriminado(s), com horas, comissões e proporcionais<br>'
+    +     '• <strong>'+D.convs.length+'</strong> convocação(ões) do período, com status de aceite<br>'
+    +     '• <strong>'+D.adms.length+'</strong> admissão(ões) e <strong>'+D.dems.length+'</strong> desligamento(s)<br>'
+    +     '• Totais de FGTS a recolher por colaborador'
+    +   '</div>'
+    + '</div>'
+    + (D.recs.length
+        ? '<div class="card" style="padding:0;overflow-x:auto"><table style="margin:0"><thead><tr><th>Colaborador</th><th>Período</th><th>Horas</th><th>Bruto</th><th>Total</th><th>FGTS</th></tr></thead><tbody>'
+          + D.recs.map(function(r){
+              return '<tr><td style="font-size:12.5px;font-weight:600">'+_esc(r.nome||'')+'</td>'
+                + '<td style="font-size:12px">'+_fmtD(r.periodoIni)+'–'+_fmtD(r.periodoFim)+'</td>'
+                + '<td style="font-size:12px">'+String(r.horas||0).replace('.',',')+'h</td>'
+                + '<td style="font-size:12px">'+_brl((r.valorHoras||0)+(r.comissao||0)+(r.bonus||0)+(r.outros||0))+'</td>'
+                + '<td style="font-size:12.5px;font-weight:700">'+_brl(r.total||0)+'</td>'
+                + '<td style="font-size:12px">'+_brl(r.fgts||0)+'</td></tr>';
+            }).join('')
+          + '</tbody></table></div>'
+        : '<div class="card" style="text-align:center;padding:34px;color:var(--mt)">Nenhum recibo nesta competência.</div>');
+  };
+
+  window.pcImprimir = function(){
+    var D=_dadosPacote(PC_ANO,PC_MES), emp=_empresa();
+    var totPago=D.recs.reduce(function(s,r){ return s+(r.total||0); },0);
+    var totFgts=D.recs.reduce(function(s,r){ return s+(r.fgts||0); },0);
+
+    var html='<div style="font-family:Roboto,Arial,sans-serif;max-width:820px;margin:0 auto;color:#111">'
+      + '<h2 style="text-align:center;font-size:16px;margin:0 0 3px">RESUMO MENSAL PARA CONTABILIDADE</h2>'
+      + '<div style="text-align:center;font-size:11.5px;color:#555;margin-bottom:14px">'+_esc(emp.nomeRazao||'')+' — CNPJ '+_esc(emp.cnpj||'')+' · Competência '+MESES[PC_MES]+'/'+PC_ANO+'</div>'
+      + '<h3 style="font-size:13px;margin:16px 0 6px">1. Pagamentos do trabalho intermitente</h3>'
+      + (D.recs.length
+          ? '<table style="width:100%;border-collapse:collapse;font-size:11.5px"><thead><tr style="background:#F1F5F9"><th style="padding:5px;text-align:left">Colaborador</th><th style="padding:5px">CPF</th><th style="padding:5px">Período</th><th style="padding:5px">Horas</th><th style="padding:5px;text-align:right">Total</th><th style="padding:5px;text-align:right">FGTS</th></tr></thead><tbody>'
+            + D.recs.map(function(r){ return '<tr><td style="padding:4px;border-bottom:1px solid #eee">'+_esc(r.nome||'')+'</td><td style="padding:4px;border-bottom:1px solid #eee">'+_esc(r.cpf||'')+'</td><td style="padding:4px;border-bottom:1px solid #eee">'+_fmtD(r.periodoIni)+'–'+_fmtD(r.periodoFim)+'</td><td style="padding:4px;border-bottom:1px solid #eee;text-align:center">'+String(r.horas||0).replace('.',',')+'</td><td style="padding:4px;border-bottom:1px solid #eee;text-align:right">'+_brl(r.total||0)+'</td><td style="padding:4px;border-bottom:1px solid #eee;text-align:right">'+_brl(r.fgts||0)+'</td></tr>'; }).join('')
+            + '</tbody></table>'
+            + '<div style="text-align:right;font-size:12.5px;font-weight:800;margin-top:7px">Total pago: '+_brl(totPago)+' · FGTS a recolher: '+_brl(totFgts)+'</div>'
+          : '<div style="font-size:12px;color:#666">Nenhum pagamento na competência.</div>')
+      + '<h3 style="font-size:13px;margin:18px 0 6px">2. Convocações</h3>'
+      + (D.convs.length
+          ? '<table style="width:100%;border-collapse:collapse;font-size:11.5px"><thead><tr style="background:#F1F5F9"><th style="padding:5px;text-align:left">Colaborador</th><th style="padding:5px">Data</th><th style="padding:5px">Horas</th><th style="padding:5px">Situação</th></tr></thead><tbody>'
+            + D.convs.map(function(c){ return '<tr><td style="padding:4px;border-bottom:1px solid #eee">'+_esc(c.nome||'')+'</td><td style="padding:4px;border-bottom:1px solid #eee;text-align:center">'+_fmtD(c.dataTrabalho)+'</td><td style="padding:4px;border-bottom:1px solid #eee;text-align:center">'+(c.horasPrev||0)+'</td><td style="padding:4px;border-bottom:1px solid #eee;text-align:center">'+_statusConv(c)+'</td></tr>'; }).join('')
+            + '</tbody></table>'
+          : '<div style="font-size:12px;color:#666">Nenhuma convocação na competência.</div>')
+      + '<h3 style="font-size:13px;margin:18px 0 6px">3. Movimentações</h3>'
+      + '<div style="font-size:12px;line-height:1.7">Admissões: <strong>'+D.adms.length+'</strong>'
+      + (D.adms.length?' — '+D.adms.map(function(e){ return _esc(e.nome)+' ('+_fmtD(e.dataAdmissao)+')'; }).join('; '):'')
+      + '<br>Desligamentos: <strong>'+D.dems.length+'</strong></div>'
+      + '<div style="font-size:10.5px;color:#666;margin-top:20px;line-height:1.5">Documento gerado pelo Atlas RH em '+new Date().toLocaleString('pt-BR')+'. Os valores de INSS e demais retenções devem ser apurados pela contabilidade conforme as tabelas vigentes.</div>'
+      + '</div>';
+    if(typeof printHtml==='function') printHtml('<div class="doc-page">'+html+'</div>','Pacote contador '+MESES[PC_MES]+'-'+PC_ANO);
+  };
+
+  window.pcBaixarCSV = function(){
+    var D=_dadosPacote(PC_ANO,PC_MES);
+    var linhas=[['Colaborador','CPF','Periodo inicio','Periodo fim','Horas','Valor hora','Comissao','Bonus','DSR','Ferias','Terco','13o','Total','FGTS']];
+    D.recs.forEach(function(r){
+      linhas.push([r.nome||'',r.cpf||'',r.periodoIni||'',r.periodoFim||'',r.horas||0,r.valorHora||0,
+        (r.comissao||0).toFixed(2),(r.bonus||0).toFixed(2),(r.dsr||0).toFixed(2),(r.ferias||0).toFixed(2),
+        (r.terco||0).toFixed(2),(r.decimo||0).toFixed(2),(r.total||0).toFixed(2),(r.fgts||0).toFixed(2)]);
+    });
+    var csv=linhas.map(function(l){ return l.map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(';'); }).join('\n');
+    try{
+      var blob=new Blob(["\ufeff"+csv],{type:'text/csv;charset=utf-8'});
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a');
+      a.href=url; a.download='contador-'+PC_ANO+'-'+_zp(PC_MES+1)+'.csv';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); },30000);
+      _toast('📥 CSV baixado.','ok');
+    }catch(e){ _toast('Erro ao gerar CSV.','err'); }
+  };
+
+})();
+
+console.log('[Atlas] Módulo Operação Intermitente carregado ✅');
 </script>
 
 </body>
