@@ -201,6 +201,18 @@ function verContrato(){
   w.document.close();
 }
 
+// ── Textos que mudam conforme o tipo de contrato ───────────────────
+// Num contrato de emprego intermitente seria ERRADO (e prejudicial) pedir
+// que a pessoa declare atuar "sem subordinação" — isso só vale para PJ.
+function ehIntermitente(){ return String(DOC.tipo||'').toUpperCase()==='INTERMITENTE'; }
+function rotuloDoc(){ return DOC.prestadorDocLabel || (ehIntermitente() ? 'CPF' : 'CNPJ'); }
+function valorDoc(){ return DOC.prestadorDoc || DOC.prestadorCnpj || '—'; }
+function textoCk2(){
+  return ehIntermitente()
+    ? 'Estou ciente de que este é um <strong>contrato de trabalho intermitente</strong>, com registro em carteira, e de que serei convocado com antecedência mínima, podendo <strong>recusar convocações</strong> sem que isso configure falta.'
+    : 'Confirmo que atuo como <strong>pessoa jurídica autônoma</strong>, sem subordinação, horário fixo ou exclusividade, e que sou responsável pelos tributos da minha empresa.';
+}
+
 // ── Tela principal de assinatura ───────────────────────────────────
 function render(){
   app(''
@@ -209,8 +221,8 @@ function render(){
   +   '<div style="font-weight:900;font-size:16px;margin-bottom:2px">Contrato nº '+esc(DOC.numero||'—')+'</div>'
   +   '<div class="meta">Leia o documento abaixo com atenção antes de assinar.</div>'
   +   '<div style="margin-top:12px">'
-  +     '<div class="info"><span>Prestador</span><span>'+esc(DOC.prestadorNome||'—')+'</span></div>'
-  +     '<div class="info"><span>CNPJ</span><span>'+esc(DOC.prestadorCnpj||'—')+'</span></div>'
+  +     '<div class="info"><span>'+(ehIntermitente()?'Colaborador':'Prestador')+'</span><span>'+esc(DOC.prestadorNome||'—')+'</span></div>'
+  +     '<div class="info"><span>'+esc(rotuloDoc())+'</span><span>'+esc(valorDoc())+'</span></div>'
   +     '<div class="info" style="border:none"><span>Emitido em</span><span>'+(DOC.criadoEm?new Date(DOC.criadoEm).toLocaleDateString('pt-BR'):'—')+'</span></div>'
   +   '</div>'
   + '</div>'
@@ -250,7 +262,7 @@ function render(){
   +   '</div>'
 
   +   '<label class="chk"><input type="checkbox" id="ck1"><span>Declaro que <strong>li integralmente</strong> o contrato acima e concordo com todas as suas cláusulas.</span></label>'
-  +   '<label class="chk"><input type="checkbox" id="ck2"><span>Confirmo que atuo como <strong>pessoa jurídica autônoma</strong>, sem subordinação, horário fixo ou exclusividade, e que sou responsável pelos tributos da minha empresa.</span></label>'
+  +   '<label class="chk"><input type="checkbox" id="ck2"><span>'+textoCk2()+'</span></label>'
   +   '<label class="chk"><input type="checkbox" id="ck3"><span>Autorizo o registro dos meus dados — nome, CPF, assinatura, data/hora, dados do dispositivo e, se eu optar por capturá-la, <strong>minha imagem facial</strong> — com a finalidade exclusiva de comprovar a autoria desta assinatura (LGPD — Lei 13.709/2018).</span></label>'
 
   +   '<button class="btn btn-go" id="btn-sign" onclick="assinar()">✍️ Assinar contrato</button>'
