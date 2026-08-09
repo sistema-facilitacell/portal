@@ -3237,11 +3237,113 @@ function renderTab(tab) {
 }
 
 // ── ABA AVISOS ───────────────────────────────────────────────
+
+// ═══════════════════════════════════════════════════════════════════
+// CONVOCAÇÕES DO TRABALHO INTERMITENTE (CLT art. 452-A)
+// -------------------------------------------------------------------
+// O colaborador responde aqui, com registro de data/hora. Recusar não
+// gera penalidade (§2º) — o texto deixa isso explícito para ele.
+// ═══════════════════════════════════════════════════════════════════
+let CONVOCACOES = [];
+
+async function loadConvocacoes() {
+  CONVOCACOES = [];
+  try {
+    if (!DB || !EMP) return;
+    const cpf = String(EMP.cpf || '').replace(/\D/g, '');
+    const snap = await DB.collection('convocacoes_int').get();
+    snap.forEach(doc => {
+      const d = doc.data() || {};
+      const mesmoCpf = cpf && String(d.cpf || '').replace(/\D/g, '') === cpf;
+      const mesmoId = d.empId && EMP.id && d.empId === EMP.id;
+      if (mesmoCpf || mesmoId) CONVOCACOES.push({ ...d, _id: doc.id });
+    });
+    CONVOCACOES.sort((a, b) => String(b.criadoEm || '').localeCompare(String(a.criadoEm || '')));
+  } catch (e) { console.warn('[conv] load:', e && e.message); }
+}
+
+function _convExpirada(c) {
+  return c.prazoResposta && new Date(c.prazoResposta) < new Date();
+}
+
+async function responderConvocacao(id, resposta) {
+  const c = CONVOCACOES.find(x => x._id === id);
+  if (!c) return;
+  const txt = resposta === 'aceita'
+    ? 'Confirmar que você ACEITA esta convocação?'
+    : 'Confirmar que você RECUSA esta convocação?\n\nRecusar não gera nenhuma penalidade.';
+  if (!confirm(txt)) return;
+  try {
+    const agora = new Date().toISOString();
+    await DB.collection('convocacoes_int').doc(id).update({
+      status: resposta, respondidoEm: agora, respondidoPor: 'Portal'
+    });
+    c.status = resposta; c.respondidoEm = agora;
+    if (typeof toast === 'function') toast(resposta === 'aceita' ? '✅ Convocação aceita!' : 'Convocação recusada.');
+    const el = document.getElementById('content');
+    if (el && CURRENT_TAB === 'avisos') renderAvisos(el);
+  } catch (e) {
+    alert('Não foi possível registrar sua resposta. Verifique a conexão e tente de novo.');
+  }
+}
+
+function _renderConvocacoes() {
+  if (!CONVOCACOES.length) return '';
+  const pend = CONVOCACOES.filter(c => (!c.status || c.status === 'pendente') && !_convExpirada(c));
+  const recentes = CONVOCACOES.filter(c => c.status === 'aceita' || c.status === 'recusada').slice(0, 3);
+  if (!pend.length && !recentes.length) return '';
+
+  const fmtD = iso => { try { return new Date(String(iso).slice(0,10) + 'T00:00:00').toLocaleDateString('pt-BR', {weekday:'short', day:'2-digit', month:'long'}); } catch(e){ return iso; } };
+  const fmtDT = iso => { try { return new Date(iso).toLocaleString('pt-BR'); } catch(e){ return iso; } };
+
+  let html = '';
+
+  if (pend.length) {
+    html += '<div class="sh">📢 Convocações aguardando sua resposta</div>';
+    html += pend.map(c => `
+      <div style="background:#FFFBEB;border:2px solid #FDE68A;border-radius:14px;padding:16px;margin:0 12px 12px">
+        <div style="font-size:16px;font-weight:800;color:#92400E;margin-bottom:8px">Trabalho em ${fmtD(c.dataTrabalho)}</div>
+        <div style="font-size:14px;color:#78350F;line-height:1.8">
+          🕐 <strong>${esc(c.horaInicio||'')} às ${esc(c.horaFim||'')}</strong> (intervalo de ${c.intervaloMin||0} min)<br>
+          ⏱ ${String(c.horasPrev||0).replace('.',',')} horas previstas<br>
+          📍 ${esc(c.local||'—')}<br>
+          💰 ${c.valorHora ? 'R$ ' + Number(c.valorHora).toFixed(2).replace('.',',') + ' por hora' : 'Conforme contrato'}
+        </div>
+        ${c.obs ? `<div style="font-size:13px;color:#78350F;margin-top:8px;font-style:italic">${esc(c.obs)}</div>` : ''}
+        <div style="background:#fff;border-radius:9px;padding:10px;margin-top:11px;font-size:12px;color:#92400E;line-height:1.5">
+          ⏰ Responda até <strong>${fmtDT(c.prazoResposta)}</strong>.<br>
+          Sem resposta no prazo, vale como recusa. <strong>Recusar não gera penalidade</strong> (CLT art. 452-A §2º).
+        </div>
+        <div style="display:flex;gap:9px;margin-top:12px">
+          <button onclick="responderConvocacao('${c._id}','aceita')" style="flex:1;background:linear-gradient(135deg,#059669,#047857);color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:800;cursor:pointer">✓ Aceitar</button>
+          <button onclick="responderConvocacao('${c._id}','recusada')" style="flex:1;background:#fff;color:#64748B;border:1.5px solid #CBD5E1;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer">Recusar</button>
+        </div>
+      </div>`).join('');
+  }
+
+  if (recentes.length) {
+    html += '<div class="sh">Convocações recentes</div>';
+    html += recentes.map(c => {
+      const ok = c.status === 'aceita';
+      return `<div style="background:#fff;border:1px solid #E2E8F0;border-left:4px solid ${ok?'#059669':'#94A3B8'};border-radius:12px;padding:13px;margin:0 12px 9px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+          <div style="font-size:14px;font-weight:700">${fmtD(c.dataTrabalho)}</div>
+          <span style="font-size:11px;font-weight:800;color:${ok?'#059669':'#64748B'};background:${ok?'#F0FDF4':'#F1F5F9'};padding:3px 10px;border-radius:20px">${ok?'✓ Aceita':'✕ Recusada'}</span>
+        </div>
+        <div style="font-size:12px;color:#64748B;margin-top:4px">${esc(c.horaInicio||'')}–${esc(c.horaFim||'')} · ${String(c.horasPrev||0).replace('.',',')}h${c.respondidoEm?' · respondido em '+fmtDT(c.respondidoEm):''}</div>
+      </div>`;
+    }).join('');
+  }
+
+  return html;
+}
+
 async function renderAvisos(c) {
   c.innerHTML = '<div class="empty"><div class="empty-icon">🔔</div><div>Carregando avisos...</div></div>';
   if (!DB) { await initFirebase(); }
   if (!DB) { c.innerHTML = '<div class="empty"><div class="empty-icon">📡</div><div>Sem conexão com servidor.</div></div>'; return; }
   await loadComunicados();
+  await loadConvocacoes();
 
   // ── Marca TODOS os avisos exibidos como lidos ──────────────
   const lidos = _avGetLidos();
@@ -3258,15 +3360,19 @@ async function renderAvisos(c) {
   // Zera badge
   _avAtualizarBadge();
 
+  const _convHtml = _renderConvocacoes();
+
   if (!COMUNICADOS.length) {
-    c.innerHTML = '<div class="empty"><div class="empty-icon">🎉</div><div style="font-size:16px;font-weight:700;color:#1E293B;margin-bottom:6px">Nenhum aviso no momento</div><div style="font-size:13px">Você está em dia!</div></div>';
+    c.innerHTML = _convHtml + (_convHtml
+      ? ''
+      : '<div class="empty"><div class="empty-icon">🎉</div><div style="font-size:16px;font-weight:700;color:#1E293B;margin-bottom:6px">Nenhum aviso no momento</div><div style="font-size:13px">Você está em dia!</div></div>');
     return;
   }
 
   const TYPE_COR = { info: '#1D4ED8', aviso: '#B45309', urgente: '#B91C1C', reuniao: '#7C3AED', financeiro: '#D97706', beneficio: '#DB2777' };
   const TYPE_ICO = { info: '📢', aviso: '⚠️', urgente: '🚨', reuniao: '📅', financeiro: '💰', beneficio: '🎁' };
 
-  c.innerHTML = '<div class="sh">Avisos e Comunicados</div>' + COMUNICADOS.filter(a => a && a.texto).map(com => {
+  c.innerHTML = _convHtml + '<div class="sh">Avisos e Comunicados</div>' + COMUNICADOS.filter(a => a && a.texto).map(com => {
     const cor = TYPE_COR[com.tipo || 'info'] || '#1D4ED8';
     const ico = TYPE_ICO[com.tipo || 'info'] || '📢';
     const eraNovoAntesDeAbrir = com._avId && !lidos.has(String(com._avId));
