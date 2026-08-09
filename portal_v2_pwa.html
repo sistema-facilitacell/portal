@@ -27,6 +27,7 @@
 </script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700;800;900&family=Barlow+Condensed:wght@700;800;900&display=swap');
 
@@ -1686,6 +1687,12 @@ function afterLogin() {
 
   // ── Agendamento de lembrete de ponto às 08h50 ──────────────
   agendarLembretePonto();
+
+  // ── Push real (funciona com o app FECHADO) ─────────────────
+  // Registra o token FCM deste aparelho. A Cloud Function "lembretePonto"
+  // usa esse token para notificar antes do horário, sem depender do portal
+  // estar aberto — que era a limitação do lembrete por setTimeout.
+  setTimeout(() => registrarPushToken(), 5000);
 
   // ── Lembrete inteligente baseado no padrão pessoal de horários ──
   setTimeout(() => agendarLembreteIAPonto(), 4000);
@@ -6325,6 +6332,65 @@ async function agendarLembreteIAPonto() {
 // Campos:  ativo (bool), antecedenciaMin (int, padrão 10),
 //          horarios: [ { tipo:'entrada'|'saida'|'almoco_volta', hora:'08:50', label:'Entrada manhã' }, … ]
 // ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+// PUSH REAL — registro do token FCM
+// -------------------------------------------------------------------
+// Um PWA não roda JavaScript com o app fechado, então o lembrete via
+// setTimeout só funciona com o portal aberto. Registrando este token,
+// a Cloud Function "lembretePonto" consegue enviar a notificação pelo
+// servidor e ela chega no celular mesmo com tudo fechado.
+//
+// ⚠️ Cole abaixo a chave VAPID do seu projeto:
+// Firebase Console → Configurações do projeto → Cloud Messaging →
+// "Certificados push da Web" → Gerar par de chaves → copie a chave pública.
+// ═══════════════════════════════════════════════════════════════════
+const VAPID_PUBLIC_KEY = 'COLE_AQUI_SUA_CHAVE_VAPID';
+
+async function registrarPushToken() {
+  try {
+    if (!EMP || !DB) return;
+    if (typeof firebase === 'undefined' || !firebase.messaging) return;
+    if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
+    if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.indexOf('COLE_AQUI') === 0) {
+      console.warn('[Push] Chave VAPID não configurada — push em segundo plano desativado.');
+      return;
+    }
+
+    // Só pede permissão se ainda não foi decidida (não insiste com quem negou)
+    if (Notification.permission === 'denied') return;
+    if (Notification.permission === 'default') {
+      const p = await Notification.requestPermission();
+      if (p !== 'granted') return;
+    }
+
+    const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    const messaging = firebase.messaging();
+    const token = await messaging.getToken({
+      vapidKey: VAPID_PUBLIC_KEY,
+      serviceWorkerRegistration: reg
+    });
+    if (!token) return;
+
+    // Evita regravar o mesmo token a cada abertura
+    const cache = localStorage.getItem('atlas_push_token');
+    if (cache === token) return;
+
+    await DB.collection('push_tokens').doc(token).set({
+      token: token,
+      empId: EMP.id,
+      empNome: EMP.nome || '',
+      ativo: true,
+      dispositivo: navigator.userAgent || '',
+      atualizadoEm: new Date().toISOString()
+    }, { merge: true });
+
+    localStorage.setItem('atlas_push_token', token);
+    console.log('[Push] Token registrado ✅');
+  } catch (e) {
+    console.warn('[Push] Falha ao registrar token:', e && e.message);
+  }
+}
+
 async function agendarLembretePonto() {
   if (PONTO_REMINDER_SCHEDULED) return;
   PONTO_REMINDER_SCHEDULED = true;
@@ -6613,30 +6679,41 @@ async function agendarLembretePonto() {
     // Não dispara domingo
     if (now.getDay() === 0) { setTimeout(() => _dispararLembrete(slot, idx), _msParaHora(slot.hora)); return; }
 
-    // FIX-PORTAL-ALARM-1: verifica se o horário de hoje já passou mas ainda está dentro da janela de 30 min
-    // (ex: usuário abriu o portal APÓS o horário configurado — não deve pular para amanhã)
+    // FIX-PORTAL-ALARM-1 (revisado): quando o colaborador abre o portal APÓS o
+    // horário configurado, o lembrete precisa "alcançá-lo" (catch-up). A janela
+    // antiga de 30 min era curta demais: quem abrisse o app 40 min depois do
+    // horário nunca via o alerta, tornando-o inútil. Agora a janela de catch-up
+    // para ENTRADA vai até o fim do expediente (ou 6h como teto), desde que o
+    // colaborador ainda NÃO tenha batido o ponto de entrada naquele dia. Assim,
+    // abrir o app a qualquer momento antes da saída, sem ter batido, dispara o
+    // alerta imediatamente — que é justamente o propósito do lembrete.
     const msHoje = _msParaHoraHoje(slot.hora); // negativo se já passou
     const msAteAmanha = _msParaHora(slot.hora); // sempre positivo (amanhã se passou)
-    const dentroJanela = msHoje >= -(30 * 60 * 1000) && msHoje < 0; // passou há menos de 30 min
 
-    // Se o horário já passou há mais de 30 min hoje, agenda apenas para amanhã (sem disparar)
-    if (msHoje < -(30 * 60 * 1000)) {
-      setTimeout(() => _dispararLembrete(slot, idx), msAteAmanha);
-      return;
-    }
-
-    // Para entradas: verifica se já bateu
+    // Já bateu o ponto relevante hoje? Então não precisa lembrar — reagenda p/ amanhã.
     if (slot.tipo === 'entrada') {
       const jaBateu = TODAY_PUNCHES.some(p => p.date === today && p.type === 'in');
-      if (jaBateu) { setTimeout(() => _dispararLembrete(slot, idx), _msParaHora(slot.hora)); return; }
+      if (jaBateu) { setTimeout(() => _dispararLembrete(slot, idx), msAteAmanha); return; }
     }
-    // Para saídas: verifica se ainda está dentro (tem entrada mas não saída)
     if (slot.tipo === 'saida') {
       const hasIn  = TODAY_PUNCHES.some(p => p.date === today && p.type === 'in');
       const hasOut = TODAY_PUNCHES.some(p => p.date === today && p.type === 'out');
-      if (!hasIn || hasOut) { setTimeout(() => _dispararLembrete(slot, idx), _msParaHora(slot.hora)); return; }
+      // Só faz sentido lembrar da saída se entrou e ainda não saiu
+      if (!hasIn || hasOut) { setTimeout(() => _dispararLembrete(slot, idx), msAteAmanha); return; }
     }
 
+    // Janela de catch-up: entrada = até fim do expediente (teto 6h);
+    // demais tipos mantêm janela curta de 30 min (não faz sentido alertar
+    // uma pausa/saída horas depois).
+    const JANELA_ENTRADA = 6 * 60 * 60 * 1000; // 6h
+    const JANELA_OUTROS  = 30 * 60 * 1000;     // 30min
+    const janela = (slot.tipo === 'entrada') ? JANELA_ENTRADA : JANELA_OUTROS;
+
+    // Se passou há mais que a janela, agenda apenas para amanhã (sem disparar agora)
+    if (msHoje < -janela) {
+      setTimeout(() => _dispararLembrete(slot, idx), msAteAmanha);
+      return;
+    }
     // Se ainda falta tempo (horário futuro), agenda o timer normalmente
     if (msHoje > 0) {
       setTimeout(() => _dispararLembrete(slot, idx), msHoje);
@@ -6678,14 +6755,18 @@ async function agendarLembretePonto() {
   cfg.horarios.forEach((slot, idx) => {
     if (!slot.hora || !/^\d{2}:\d{2}$/.test(slot.hora)) return;
     const msHoje = _msParaHoraHoje(slot.hora);
-    if (msHoje >= -(30 * 60 * 1000) && msHoje <= 0) {
-      // Passou há menos de 30 min — dispara imediatamente (100ms para o DOM carregar)
+    // Janela de catch-up igual à usada em _dispararLembrete: entrada tem janela
+    // longa (6h) para alcançar quem abre o app tarde sem ter batido o ponto.
+    const janela = (slot.tipo === 'entrada') ? (6 * 60 * 60 * 1000) : (30 * 60 * 1000);
+    if (msHoje >= -janela && msHoje <= 0) {
+      // Já passou mas ainda dentro da janela — avalia disparo imediato
+      // (_dispararLembrete decide se dispara, checando se o ponto já foi batido).
       setTimeout(() => _dispararLembrete(slot, idx), 100);
     } else if (msHoje > 0) {
       // Ainda não chegou hoje — agenda para o horário exato
       setTimeout(() => _dispararLembrete(slot, idx), msHoje);
     } else {
-      // Passou há mais de 30 min — agenda para amanhã
+      // Passou há mais que a janela — agenda para amanhã
       setTimeout(() => _dispararLembrete(slot, idx), _msParaHora(slot.hora));
     }
   });
