@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Assinatura de Contrato PJ — Atlas RH</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Roboto',Arial,sans-serif;background:#F1F5F9;color:#0F172A;min-height:100vh;padding-bottom:40px}
+.top{background:linear-gradient(135deg,#1E3A5F,#152B47);color:#fff;padding:18px 20px;box-shadow:0 2px 12px rgba(0,0,0,.18)}
+.top h1{font-size:16px;font-weight:900;letter-spacing:.02em}
+.top p{font-size:12px;opacity:.75;margin-top:2px}
+.wrap{max-width:820px;margin:0 auto;padding:18px 14px}
+.card{background:#fff;border-radius:14px;padding:18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.center{text-align:center}
+.spin{width:38px;height:38px;border:4px solid #E2E8F0;border-top-color:#C9A84C;border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 12px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.err{background:#FEF2F2;border:1.5px solid #FECACA;color:#B91C1C;border-radius:12px;padding:20px;text-align:center}
+.err .ico{font-size:38px;margin-bottom:8px}
+.badge{display:inline-block;background:#FFFBEB;color:#92400E;border:1px solid #FDE68A;border-radius:20px;padding:4px 12px;font-size:11px;font-weight:700;margin-bottom:10px}
+.docbox{background:#fff;border:1px solid #E2E8F0;border-radius:12px;padding:16px;max-height:52vh;overflow-y:auto;font-size:12.5px;line-height:1.6}
+.docbox::-webkit-scrollbar{width:7px}.docbox::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:5px}
+.lbl{font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.fld{margin-bottom:13px}
+.fld input{width:100%;padding:11px 13px;border:1.5px solid #E2E8F0;border-radius:9px;font-size:14px;font-family:inherit;background:#F8FAFC}
+.fld input:focus{outline:none;border-color:#C9A84C;background:#fff}
+.chk{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.5;margin-bottom:12px;cursor:pointer}
+.chk input{margin-top:3px;width:17px;height:17px;flex-shrink:0;accent-color:#C9A84C}
+#pad{width:100%;height:180px;border:2px dashed #CBD5E1;border-radius:12px;background:#fff;touch-action:none;display:block}
+.padwrap{position:relative}
+.padhint{position:absolute;top:50%;left:0;right:0;transform:translateY(-50%);text-align:center;color:#CBD5E1;font-size:13px;pointer-events:none}
+.btn{width:100%;padding:14px;border:none;border-radius:11px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit}
+.btn-go{background:linear-gradient(135deg,#C9A84C,#B8932A);color:#fff;box-shadow:0 3px 10px rgba(201,168,76,.35)}
+.btn-go:disabled{background:#CBD5E1;box-shadow:none;cursor:not-allowed}
+.btn-gh{background:#F1F5F9;color:#475569;font-size:13px;padding:9px;width:auto;border:1px solid #E2E8F0}
+.legal{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:12px;font-size:11.5px;color:#1E40AF;line-height:1.55;margin-bottom:14px}
+.camwrap{position:relative;border-radius:12px;overflow:hidden;background:#0F172A;aspect-ratio:4/3;display:none}
+.camwrap video,.camwrap img{width:100%;height:100%;object-fit:cover;display:block}
+.camwrap video{transform:scaleX(-1)}
+.camph{border:2px dashed #CBD5E1;border-radius:12px;background:#F8FAFC;padding:22px 14px;text-align:center}
+.camph .ic{font-size:30px;margin-bottom:6px}
+.camph p{font-size:12.5px;color:#64748B;line-height:1.5}
+.camok{position:absolute;top:8px;right:8px;background:#059669;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:14px}
+.ok{background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:14px;padding:26px;text-align:center}
+.ok .ico{font-size:46px;margin-bottom:10px}
+.ok h2{color:#065F46;font-size:18px;margin-bottom:6px}
+.hash{font-family:monospace;font-size:10px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:7px;padding:9px;word-break:break-all;margin-top:10px;color:#475569;text-align:left}
+.row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:14px}
+.meta{font-size:12px;color:#64748B;margin-top:4px}
+.info{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #F1F5F9;font-size:13px}
+.info span:first-child{color:#64748B}
+.info span:last-child{font-weight:600;text-align:right}
+@media print{.top,.noprint{display:none!important}body{background:#fff}.card{box-shadow:none}}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>✍️ Assinatura Digital de Contrato</h1>
+  <p>Contrato de Prestação de Serviços — Pessoa Jurídica</p>
+</div>
+
+<div class="wrap" id="app">
+  <div class="card center">
+    <div class="spin"></div>
+    <div style="font-size:14px;color:#64748B">Carregando contrato...</div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// PÁGINA DE ASSINATURA — CONTRATO PJ
+// Lê o token (?tk=) da coleção contratopj_sign_tokens, exibe o contrato
+// e registra a assinatura com data/hora, hash SHA-256 e user agent.
+// Base legal: Lei 14.063/2020 (assinatura eletrônica) + MP 2.200-2/2001.
+// ═══════════════════════════════════════════════════════════════════
+var FB_CFG = {
+  apiKey:            'AIzaSyAucORaywW7Dl-v1PB-lMtEA-5tl_uCqug',
+  projectId:         'rh-facilitacell',
+  storageBucket:     'rh-facilitacell.firebasestorage.app',
+  messagingSenderId: '98798741381',
+  appId:             '1:98798741381:web:f441b922d1c968880a46ec'
+};
+if (location.protocol !== 'file:') FB_CFG.authDomain = 'rh-facilitacell.firebaseapp.com';
+
+var DB = null, TOKEN = null, DOC = null, PAD = null, CTX = null, TEM_ASSIN = false;
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function app(h){ $('app').innerHTML = h; }
+
+function erro(titulo, msg){
+  app('<div class="card"><div class="err"><div class="ico">⚠️</div>'
+    + '<div style="font-weight:800;font-size:16px;margin-bottom:6px">'+esc(titulo)+'</div>'
+    + '<div style="font-size:13px;line-height:1.5">'+msg+'</div></div></div>');
+}
+
+async function sha256(txt){
+  try{
+    var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(txt));
+    return Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+  }catch(e){ return ''; }
+}
+
+function soDigitos(s){ return String(s||'').replace(/\D/g,''); }
+
+// ── Validação de CPF (dígitos verificadores) ───────────────────────
+function cpfValido(cpf){
+  cpf = soDigitos(cpf);
+  if(cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
+  var s=0, r;
+  for(var i=1;i<=9;i++) s += parseInt(cpf.substring(i-1,i),10)*(11-i);
+  r = (s*10)%11; if(r===10||r===11) r=0;
+  if(r !== parseInt(cpf.substring(9,10),10)) return false;
+  s=0;
+  for(i=1;i<=10;i++) s += parseInt(cpf.substring(i-1,i),10)*(12-i);
+  r = (s*10)%11; if(r===10||r===11) r=0;
+  return r === parseInt(cpf.substring(10,11),10);
+}
+
+// ── Inicialização ──────────────────────────────────────────────────
+window.addEventListener('load', function(){
+  setTimeout(iniciar, 350);
+});
+
+async function iniciar(){
+  var params = new URLSearchParams(location.search);
+  TOKEN = params.get('tk');
+
+  if(!TOKEN){
+    erro('Link inválido', 'Este endereço não contém um código de assinatura. Solicite um novo link ao RH.');
+    return;
+  }
+
+  if(typeof firebase === 'undefined'){
+    erro('Falha de conexão', 'Não foi possível carregar os componentes necessários. Verifique sua internet e recarregue a página.');
+    return;
+  }
+
+  try{
+    firebase.initializeApp(FB_CFG);
+    DB = firebase.firestore();
+  }catch(e){
+    try{ DB = firebase.firestore(); }catch(e2){
+      erro('Falha de conexão', 'Não foi possível conectar ao servidor. Tente novamente em alguns instantes.');
+      return;
+    }
+  }
+
+  try{
+    var snap = await DB.collection('contratopj_sign_tokens').doc(TOKEN).get();
+    if(!snap.exists){
+      erro('Link não encontrado', 'Este código de assinatura não existe ou foi removido. Solicite um novo link ao RH.');
+      return;
+    }
+    DOC = snap.data();
+
+    if(DOC.usado === true){
+      mostrarJaAssinado();
+      return;
+    }
+    if(DOC.ativo === false){
+      erro('Link cancelado', 'Este link de assinatura foi cancelado pelo RH. Solicite um novo.');
+      return;
+    }
+    if(DOC.expiresAt && new Date(DOC.expiresAt) < new Date()){
+      erro('Link expirado', 'Este link venceu em <strong>'+new Date(DOC.expiresAt).toLocaleDateString('pt-BR')+'</strong>. Solicite um novo link ao RH.');
+      return;
+    }
+
+    render();
+  }catch(e){
+    console.error(e);
+    erro('Erro ao carregar', 'Não foi possível abrir o contrato. Verifique sua conexão e tente novamente.');
+  }
+}
+
+// ── Já assinado ────────────────────────────────────────────────────
+function mostrarJaAssinado(){
+  var d = DOC.assinatura || {};
+  app('<div class="card"><div class="ok">'
+    + '<div class="ico">✅</div><h2>Contrato já assinado</h2>'
+    + '<div style="font-size:13px;color:#047857">Este contrato foi assinado em <strong>'
+    + (d.dataHora ? new Date(d.dataHora).toLocaleString('pt-BR') : '—') + '</strong>.</div>'
+    + (d.hash ? '<div class="hash"><strong>Hash SHA-256:</strong><br>'+esc(d.hash)+'</div>' : '')
+    + '<div class="row noprint"><button class="btn btn-gh" onclick="verContrato()">📄 Ver contrato</button></div>'
+    + '</div></div>');
+}
+
+function verContrato(){
+  var w = window.open('', '_blank');
+  if(!w) return;
+  w.document.write('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">'
+    + '<title>Contrato '+esc(DOC.numero||'')+'</title>'
+    + '<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">'
+    + '<style>body{font-family:Roboto,Arial,sans-serif;padding:28px;max-width:820px;margin:0 auto;color:#111}</style>'
+    + '</head><body>' + (DOC.html||'<p>Documento indisponível.</p>') + '</body></html>');
+  w.document.close();
+}
+
+// ── Tela principal de assinatura ───────────────────────────────────
+function render(){
+  app(''
+  + '<div class="card">'
+  +   '<div class="badge">⏳ Aguardando sua assinatura</div>'
+  +   '<div style="font-weight:900;font-size:16px;margin-bottom:2px">Contrato nº '+esc(DOC.numero||'—')+'</div>'
+  +   '<div class="meta">Leia o documento abaixo com atenção antes de assinar.</div>'
+  +   '<div style="margin-top:12px">'
+  +     '<div class="info"><span>Prestador</span><span>'+esc(DOC.prestadorNome||'—')+'</span></div>'
+  +     '<div class="info"><span>CNPJ</span><span>'+esc(DOC.prestadorCnpj||'—')+'</span></div>'
+  +     '<div class="info" style="border:none"><span>Emitido em</span><span>'+(DOC.criadoEm?new Date(DOC.criadoEm).toLocaleDateString('pt-BR'):'—')+'</span></div>'
+  +   '</div>'
+  + '</div>'
+
+  + '<div class="card">'
+  +   '<div class="lbl">📄 Documento</div>'
+  +   '<div class="docbox" id="docbox">'+(DOC.html||'<p>Documento indisponível.</p>')+'</div>'
+  +   '<div style="text-align:center;margin-top:10px"><button class="btn btn-gh" onclick="verContrato()">🔍 Abrir em tela cheia</button></div>'
+  + '</div>'
+
+  + '<div class="card noprint">'
+  +   '<div class="lbl">✍️ Sua assinatura</div>'
+  +   '<div class="legal">⚖️ <strong>Validade jurídica:</strong> ao assinar, você declara ter lido e concordado com todas as cláusulas deste contrato. Serão registrados data, hora, dispositivo e um código de integridade (hash SHA-256), conforme a Lei 14.063/2020 e a MP 2.200-2/2001.</div>'
+
+  +   '<div class="fld"><div class="lbl">Nome completo do responsável</div>'
+  +     '<input id="in-nome" value="'+esc(DOC.prestadorNome||'')+'" placeholder="Seu nome completo"></div>'
+  +   '<div class="fld"><div class="lbl">CPF do responsável</div>'
+  +     '<input id="in-cpf" inputmode="numeric" placeholder="000.000.000-00" oninput="maskCpf(this)"></div>'
+
+  +   '<div class="lbl" style="margin-top:6px">Desenhe sua assinatura abaixo</div>'
+  +   '<div class="padwrap"><canvas id="pad"></canvas>'
+  +     '<div class="padhint" id="padhint">✏️ assine aqui com o dedo ou mouse</div></div>'
+  +   '<div style="text-align:right;margin:8px 0 14px"><button class="btn btn-gh" onclick="limparPad()">🧹 Limpar</button></div>'
+
+  // ── Selfie de confirmação (opcional, mas incentivada) ──
+  +   '<div class="lbl" style="margin-top:6px">📸 Foto de confirmação <span style="text-transform:none;letter-spacing:0;font-weight:500;color:#94A3B8">(recomendada)</span></div>'
+  +   '<div id="cam-ph" class="camph">'
+  +     '<div class="ic">📷</div>'
+  +     '<p>Uma foto sua no momento da assinatura dá muito mais força ao contrato.<br>Leva 5 segundos.</p>'
+  +     '<button class="btn btn-gh" style="margin-top:10px" onclick="abrirCamera()">Ativar câmera</button>'
+  +     '<div id="cam-erro" style="font-size:11.5px;color:#B45309;margin-top:9px;display:none"></div>'
+  +   '</div>'
+  +   '<div id="cam-wrap" class="camwrap"><video id="cam-video" playsinline muted></video><img id="cam-foto" style="display:none"><div id="cam-ok" class="camok" style="display:none">✓ capturada</div></div>'
+  +   '<div id="cam-acoes" style="display:none;text-align:right;margin:8px 0 14px">'
+  +     '<button class="btn btn-gh" id="cam-btn-tirar" onclick="tirarFoto()">📸 Tirar foto</button> '
+  +     '<button class="btn btn-gh" id="cam-btn-refazer" style="display:none" onclick="refazerFoto()">🔄 Refazer</button>'
+  +   '</div>'
+
+  +   '<label class="chk"><input type="checkbox" id="ck1"><span>Declaro que <strong>li integralmente</strong> o contrato acima e concordo com todas as suas cláusulas.</span></label>'
+  +   '<label class="chk"><input type="checkbox" id="ck2"><span>Confirmo que atuo como <strong>pessoa jurídica autônoma</strong>, sem subordinação, horário fixo ou exclusividade, e que sou responsável pelos tributos da minha empresa.</span></label>'
+  +   '<label class="chk"><input type="checkbox" id="ck3"><span>Autorizo o registro dos meus dados — nome, CPF, assinatura, data/hora, dados do dispositivo e, se eu optar por capturá-la, <strong>minha imagem facial</strong> — com a finalidade exclusiva de comprovar a autoria desta assinatura (LGPD — Lei 13.709/2018).</span></label>'
+
+  +   '<button class="btn btn-go" id="btn-sign" onclick="assinar()">✍️ Assinar contrato</button>'
+  +   '<div id="msg" style="margin-top:10px;font-size:13px;text-align:center"></div>'
+  + '</div>');
+
+  initPad();
+}
+
+// ── Máscara de CPF ─────────────────────────────────────────────────
+function maskCpf(el){
+  var v = soDigitos(el.value).slice(0,11);
+  v = v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2');
+  el.value = v;
+}
+
+// ── Canvas de assinatura ───────────────────────────────────────────
+function initPad(){
+  PAD = $('pad');
+  var r = PAD.getBoundingClientRect();
+  var dpr = window.devicePixelRatio || 1;
+  PAD.width = r.width * dpr;
+  PAD.height = r.height * dpr;
+  CTX = PAD.getContext('2d');
+  CTX.scale(dpr, dpr);
+  CTX.lineWidth = 2.2;
+  CTX.lineCap = 'round';
+  CTX.lineJoin = 'round';
+  CTX.strokeStyle = '#0F172A';
+
+  var desenhando = false;
+
+  function pos(e){
+    var rect = PAD.getBoundingClientRect();
+    var t = (e.touches && e.touches[0]) ? e.touches[0] : e;
+    return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+  }
+  function start(e){
+    e.preventDefault(); desenhando = true; TEM_ASSIN = true;
+    var h = $('padhint'); if(h) h.style.display = 'none';
+    var p = pos(e); CTX.beginPath(); CTX.moveTo(p.x, p.y);
+  }
+  function move(e){
+    if(!desenhando) return;
+    e.preventDefault();
+    var p = pos(e); CTX.lineTo(p.x, p.y); CTX.stroke();
+  }
+  function end(e){ if(e) e.preventDefault(); desenhando = false; }
+
+  PAD.addEventListener('mousedown', start);
+  PAD.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', end);
+  PAD.addEventListener('touchstart', start, {passive:false});
+  PAD.addEventListener('touchmove', move, {passive:false});
+  PAD.addEventListener('touchend', end, {passive:false});
+}
+
+function limparPad(){
+  if(!CTX) return;
+  CTX.clearRect(0,0,PAD.width,PAD.height);
+  TEM_ASSIN = false;
+  var h = $('padhint'); if(h) h.style.display = '';
+}
+
+// ── Selfie de confirmação ──────────────────────────────────────────
+// Opcional de propósito: se a câmera falhar ou for negada, o prestador
+// ainda consegue concluir a assinatura. Perder um contrato assinado por
+// problema de webcam seria pior que não ter a foto.
+var STREAM = null, SELFIE = null;
+
+async function abrirCamera(){
+  var erro = $('cam-erro');
+  try{
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      throw new Error('Este navegador não suporta captura de foto.');
+    }
+    STREAM = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode:'user', width:{ideal:640}, height:{ideal:480} },
+      audio: false
+    });
+    var v = $('cam-video');
+    v.srcObject = STREAM;
+    await v.play();
+    $('cam-ph').style.display = 'none';
+    $('cam-wrap').style.display = 'block';
+    $('cam-acoes').style.display = 'block';
+  }catch(e){
+    var msg = (e && e.name==='NotAllowedError')
+      ? 'Permissão de câmera negada. Você pode assinar sem a foto — é opcional.'
+      : 'Não foi possível abrir a câmera. Você pode assinar sem a foto — é opcional.';
+    if(erro){ erro.textContent = msg; erro.style.display = 'block'; }
+  }
+}
+
+function pararCamera(){
+  try{ if(STREAM){ STREAM.getTracks().forEach(function(t){ t.stop(); }); STREAM = null; } }catch(e){}
+}
+
+function tirarFoto(){
+  var v = $('cam-video');
+  if(!v || !v.videoWidth) return;
+  var c = document.createElement('canvas');
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  var x = c.getContext('2d');
+  // Espelha para bater com o que a pessoa vê na tela
+  x.translate(c.width, 0); x.scale(-1, 1);
+  x.drawImage(v, 0, 0, c.width, c.height);
+  SELFIE = c.toDataURL('image/jpeg', 0.72);
+
+  var img = $('cam-foto');
+  img.src = SELFIE; img.style.display = 'block';
+  v.style.display = 'none';
+  $('cam-ok').style.display = 'block';
+  $('cam-btn-tirar').style.display = 'none';
+  $('cam-btn-refazer').style.display = 'inline-block';
+  pararCamera();
+}
+
+function refazerFoto(){
+  SELFIE = null;
+  $('cam-foto').style.display = 'none';
+  $('cam-video').style.display = 'block';
+  $('cam-ok').style.display = 'none';
+  $('cam-btn-tirar').style.display = 'inline-block';
+  $('cam-btn-refazer').style.display = 'none';
+  abrirCamera();
+}
+
+// ── Assinar ────────────────────────────────────────────────────────
+async function assinar(){
+  var msg = $('msg');
+  function falha(t){ msg.innerHTML = '<span style="color:#DC2626;font-weight:600">'+t+'</span>'; }
+
+  var nome = ($('in-nome').value||'').trim();
+  var cpf  = ($('in-cpf').value||'').trim();
+
+  if(nome.length < 5 || nome.indexOf(' ') < 0){ falha('Informe seu nome completo.'); return; }
+  if(!cpfValido(cpf)){ falha('CPF inválido. Confira os números digitados.'); return; }
+  if(!TEM_ASSIN){ falha('Desenhe sua assinatura no quadro acima.'); return; }
+  if(!$('ck1').checked || !$('ck2').checked || !$('ck3').checked){ falha('Marque as três confirmações para prosseguir.'); return; }
+
+  // Foto é opcional — apenas confirma uma vez antes de seguir sem ela
+  if(!SELFIE && !window.__avisouSelfie){
+    window.__avisouSelfie = true;
+    msg.innerHTML = '<span style="color:#B45309;font-weight:600">Você não tirou a foto de confirmação. Ela é opcional — toque em <strong>Assinar</strong> de novo para concluir sem foto, ou use o botão da câmera acima.</span>';
+    return;
+  }
+
+  var btn = $('btn-sign');
+  pararCamera();
+  btn.disabled = true; btn.textContent = '⏳ Registrando assinatura...';
+  msg.innerHTML = '';
+
+  try{
+    var png = PAD.toDataURL('image/png');
+    var agora = new Date().toISOString();
+    // A selfie entra no hash: se a foto for trocada depois, o código não confere
+    var hash = await sha256((DOC.hash||'') + '|' + soDigitos(cpf) + '|' + agora + '|' + png.length + '|' + (SELFIE ? SELFIE.length : 0));
+
+    var assinatura = {
+      nome: nome,
+      cpf: soDigitos(cpf),
+      dataHora: agora,
+      hash: hash,
+      imagem: png,
+      selfie: SELFIE || '',
+      temSelfie: !!SELFIE,
+      userAgent: navigator.userAgent || '',
+      idioma: navigator.language || '',
+      tela: (screen.width||0) + 'x' + (screen.height||0),
+      fusoHorario: (Intl.DateTimeFormat().resolvedOptions().timeZone || ''),
+      confirmouLeitura: true,
+      confirmouAutonomia: true,
+      consentiuLGPD: true
+    };
+
+    // 1) Marca o token como usado
+    await DB.collection('contratopj_sign_tokens').doc(TOKEN).update({
+      usado: true, ativo: false, assinadoEm: agora, assinatura: assinatura
+    });
+
+    // 2) Grava o registro definitivo da assinatura
+    await DB.collection('contratopj_assinaturas').doc(String(DOC.contratoId||TOKEN)).set({
+      contratoId: DOC.contratoId||'', numero: DOC.numero||'',
+      prestadorNome: DOC.prestadorNome||'', prestadorCnpj: DOC.prestadorCnpj||'',
+      hashContrato: DOC.hash||'', assinatura: assinatura, token: TOKEN, registradoEm: agora
+    });
+
+    sucesso(assinatura);
+  }catch(e){
+    console.error(e);
+    btn.disabled = false; btn.textContent = '✍️ Assinar contrato';
+    falha('Não foi possível registrar a assinatura. Verifique sua conexão e tente novamente.');
+  }
+}
+
+function sucesso(a){
+  app('<div class="card"><div class="ok">'
+  + '<div class="ico">🎉</div><h2>Contrato assinado!</h2>'
+  + '<div style="font-size:13.5px;color:#047857;line-height:1.55">Obrigado, <strong>'+esc(a.nome.split(' ')[0])+'</strong>. Sua assinatura foi registrada com sucesso e o RH já foi notificado.</div>'
+  + (a.selfie ? '<div style="margin-top:12px"><img src="'+a.selfie+'" style="width:96px;height:96px;object-fit:cover;border-radius:12px;border:2px solid #86EFAC"></div>' : '')
+  + '<div style="margin-top:14px;text-align:left;background:#fff;border:1px solid #D1FAE5;border-radius:10px;padding:12px">'
+  +   '<div class="info"><span>Contrato</span><span>'+esc(DOC.numero||'—')+'</span></div>'
+  +   '<div class="info"><span>Assinante</span><span>'+esc(a.nome)+'</span></div>'
+  +   '<div class="info" style="border:none"><span>Data e hora</span><span>'+new Date(a.dataHora).toLocaleString('pt-BR')+'</span></div>'
+  + '</div>'
+  + '<div class="hash"><strong>Código de integridade (SHA-256):</strong><br>'+esc(a.hash)+'</div>'
+  + '<div class="row noprint">'
+  +   '<button class="btn btn-gh" onclick="verContrato()">📄 Ver contrato</button>'
+  +   '<button class="btn btn-gh" onclick="window.print()">🖨 Salvar comprovante</button>'
+  + '</div>'
+  + '<div style="font-size:11px;color:#059669;margin-top:12px">Guarde este código. Ele comprova a integridade do documento assinado.</div>'
+  + '</div></div>');
+}
+</script>
+</body>
+</html>
