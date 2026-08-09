@@ -3244,13 +3244,21 @@ const NAV_GROUPS = [
     {id:'contratos',label:'Contratos & Docs',icon:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>'},
   ]},
   { label: 'Prestadores', items: [
-    {id:'__prestadores_ext__',label:'Contratos de Prestação',icon:'<path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',ext:'prestadores.html'},
+    {id:'contratos_pj',label:'Contratos PJ (Vendedores)',icon:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'},
+  ]},
+  { label: 'Conformidade & Risco', items: [
+    {id:'conformidade',label:'Alertas de Conformidade',icon:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'},
+    {id:'pj_risco',label:'Risco de Vínculo (PJ)',icon:'<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'},
+    {id:'fechamento',label:'Fechamento Mensal',icon:'<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>'},
+    {id:'backup',label:'Backup & Restauração',icon:'<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>'},
+    {id:'bh_testes',label:'Autoteste Banco de Horas',icon:'<path d="M9 2v6l-5 9a2 2 0 0 0 1.75 3h12.5A2 2 0 0 0 20 17l-5-9V2"/><line x1="8" y1="2" x2="16" y2="2"/>'},
   ]},
   { label: 'Automação', items: [
     {id:'assinatura_digital',label:'Assinatura Digital',icon:'<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>'},
     {id:'alarmes_portal',label:'Alarmes do Portal',icon:'<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="12" y1="2" x2="12" y2="4"/>'},
   ]},
   { label: 'Ferramentas', items: [
+    {id:'consultor_clt',label:'Consultor CLT (IA)',icon:'<path d="M12 3v18"/><path d="M5 7h14"/><path d="M5 7l-3 7a4 4 0 0 0 6 0z"/><path d="M19 7l3 7a4 4 0 0 1-6 0z"/><path d="M8 21h8"/>'},
     {id:'agenda_rh',label:'Agenda de RH',icon:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>'},
     {id:'doc_templates',label:'Templates de Documentos',icon:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>'},
     {id:'auditoria',label:'Logs de Auditoria',icon:'<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>'},
@@ -3259,7 +3267,7 @@ const NAV_GROUPS = [
 ];
 // Mantém NAV flat para compatibilidade com MOD, navigate(), etc.
 const NAV = NAV_GROUPS.flatMap(g => g.items);
-const PAGE_TITLES={dashboard:'Dashboard',portaislinks:'Links dos Portais',funcionarios:'Funcionários',ponto:'Cartão Ponto',financeiro:'Financeiro',holerite:'Holerite',atestados:'Atestados Médicos',candidatos:'Candidatos',admissao:'Admissão',demissao:'Demissão',metadiaria:'Meta Diária',salarios:'Salários & Metas',biometrico:'Ponto Biométrico',relatorio:'Relatório Financeiro Mensal',advertencias:'Advertências e Suspensões',suspensao:'Suspensões Disciplinares',ferias:'Controle de Férias',desempenho:'Avaliação de Desempenho',comunicados:'Comunicados & Avisos',bancohoras:'Banco de Horas',recrutamento:'Recrutamento Atlas',contratos:'Contratos & Documentos Admissionais',comprovantes:'Comprovantes de Pagamento',assinatura_digital:'Assinatura Digital',alarmes_portal:'Alarmes do Portal',solicitacoes_portal:'Solicitações do Portal',absenteismo:'Dashboard de Absenteísmo',agenda_rh:'Agenda de RH',doc_templates:'Templates de Documentos'};
+const PAGE_TITLES={dashboard:'Dashboard',portaislinks:'Links dos Portais',funcionarios:'Funcionários',ponto:'Cartão Ponto',financeiro:'Financeiro',holerite:'Holerite',atestados:'Atestados Médicos',candidatos:'Candidatos',admissao:'Admissão',demissao:'Demissão',metadiaria:'Meta Diária',salarios:'Salários & Metas',biometrico:'Ponto Biométrico',relatorio:'Relatório Financeiro Mensal',advertencias:'Advertências e Suspensões',suspensao:'Suspensões Disciplinares',ferias:'Controle de Férias',desempenho:'Avaliação de Desempenho',comunicados:'Comunicados & Avisos',bancohoras:'Banco de Horas',recrutamento:'Recrutamento Atlas',contratos:'Contratos & Documentos Admissionais',comprovantes:'Comprovantes de Pagamento',assinatura_digital:'Assinatura Digital',alarmes_portal:'Alarmes do Portal',solicitacoes_portal:'Solicitações do Portal',absenteismo:'Dashboard de Absenteísmo',agenda_rh:'Agenda de RH',doc_templates:'Templates de Documentos',contratos_pj:'Contratos PJ — Prestadores de Serviço',conformidade:'Alertas de Conformidade Trabalhista',pj_risco:'Risco de Vínculo Empregatício (PJ)',backup:'Backup & Restauração',fechamento:'Fechamento Mensal Guiado',bh_testes:'Autoteste do Banco de Horas',consultor_clt:'Consultor CLT — Dúvidas Trabalhistas'};
 
 // ── Helper: gera array de anos dinâmico ──────────
 function anosDisponiveis(extra=1){
@@ -3428,7 +3436,7 @@ function navigate(mod){
     return;
   }
 
-  const renders={dashboard:(typeof window._rDashComAlertas==="function"?window._rDashComAlertas:rDash),funcionarios:rFuncs,ponto:rPonto,financeiro:rFin,holerite:rHolerite,atestados:rAtestados,candidatos:rCand,admissao:rAdmissao,demissao:rDemissao,salarios:rSalarios,metadiaria:rMetaDiaria,biometrico:function(){ return (typeof window.rBiometrico==='function') ? window.rBiometrico() : rBiometrico(); },relatorio:rRelatorio,advertencias:rAdvertencias,ferias:rFerias,desempenho:rDesempenho,comunicados:rComunicados,bancohoras:rBancoHoras,recrutamento:rRecrutamento,contratos:function(){ return (typeof rContratos==='function') ? rContratos() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Contratos carregando...</div>'; },comprovantes:rComprovantes,portaislinks:rPortaisLinks,assinatura_digital:function(){ return (typeof window.rAssinaturaDigital==='function') ? window.rAssinaturaDigital() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Assinatura carregando...</div>'; },alarmes_portal:rAlarmesPortal,solicitacoes_portal:rSolicitacoesPortal,absenteismo:rAbsenteismo,suspensao:function(){ const t=document.getElementById('_susp_module_html_'); return t?t.innerHTML:'<div class="card" style="padding:30px;text-align:center">⏳ Módulo Suspensões carregando...</div>'; },agenda_rh:rAgendaRH,doc_templates:rDocTemplates,auditoria:function(){ return (typeof window.rAuditoria==='function') ? window.rAuditoria() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando auditoria...</div>'; },ocorrencias_contratados:function(){ return (typeof window.rOcorrenciasContratados==='function') ? window.rOcorrenciasContratados() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },adiantamentos:function(){ return (typeof window.rAdiantamentos==='function') ? window.rAdiantamentos() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; }};
+  const renders={dashboard:(typeof window._rDashComAlertas==="function"?window._rDashComAlertas:rDash),funcionarios:rFuncs,ponto:rPonto,financeiro:rFin,holerite:rHolerite,atestados:rAtestados,candidatos:rCand,admissao:rAdmissao,demissao:rDemissao,salarios:rSalarios,metadiaria:rMetaDiaria,biometrico:function(){ return (typeof window.rBiometrico==='function') ? window.rBiometrico() : rBiometrico(); },relatorio:rRelatorio,advertencias:rAdvertencias,ferias:rFerias,desempenho:rDesempenho,comunicados:rComunicados,bancohoras:rBancoHoras,recrutamento:rRecrutamento,contratos:function(){ return (typeof rContratos==='function') ? rContratos() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Contratos carregando...</div>'; },comprovantes:rComprovantes,portaislinks:rPortaisLinks,assinatura_digital:function(){ return (typeof window.rAssinaturaDigital==='function') ? window.rAssinaturaDigital() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Assinatura carregando...</div>'; },alarmes_portal:rAlarmesPortal,solicitacoes_portal:rSolicitacoesPortal,absenteismo:rAbsenteismo,suspensao:function(){ const t=document.getElementById('_susp_module_html_'); return t?t.innerHTML:'<div class="card" style="padding:30px;text-align:center">⏳ Módulo Suspensões carregando...</div>'; },agenda_rh:rAgendaRH,doc_templates:rDocTemplates,auditoria:function(){ return (typeof window.rAuditoria==='function') ? window.rAuditoria() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando auditoria...</div>'; },ocorrencias_contratados:function(){ return (typeof window.rOcorrenciasContratados==='function') ? window.rOcorrenciasContratados() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },adiantamentos:function(){ return (typeof window.rAdiantamentos==='function') ? window.rAdiantamentos() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },contratos_pj:function(){ return (typeof window.rContratosPJ==='function') ? window.rContratosPJ() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando Contratos PJ...</div>'; },conformidade:function(){ return (typeof window.rConformidade==='function') ? window.rConformidade() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },pj_risco:function(){ return (typeof window.rPJRisco==='function') ? window.rPJRisco() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },backup:function(){ return (typeof window.rBackup==='function') ? window.rBackup() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },fechamento:function(){ return (typeof window.rFechamento==='function') ? window.rFechamento() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },bh_testes:function(){ return (typeof window.rBHTestes==='function') ? window.rBHTestes() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },consultor_clt:function(){ return (typeof window.rConsultorCLT==='function') ? window.rConsultorCLT() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando Consultor CLT...</div>'; }};
   // FIX-C1: try-catch no dispatcher — evita tela branca se qualquer render lançar erro
   try {
     document.getElementById('content').innerHTML=(renders[mod]||rDash)();
@@ -6185,7 +6193,8 @@ function rFin(){
     <select onchange="FIN_STATE.ano=+this.value;navigate('financeiro')">
       ${anosDisponiveis().map(y=>`<option${ano===y?' selected':''}>${y}</option>`).join('')}
     </select>
-    <div style="margin-left:auto;padding:8px 14px;background:#F0FDF4;border-radius:8px;border:1px solid #BBF7D0;font-size:13px;color:#166534;font-weight:700">Total pago este mês: ${fBRL(totPago)}</div>
+    <button class="btn btn-sm" style="margin-left:auto;background:#FFF7ED;color:#D97706;border:1px solid #FDE68A;font-weight:700" onclick="openFinInfo()">💰 Principais funções</button>
+    <div style="padding:8px 14px;background:#F0FDF4;border-radius:8px;border:1px solid #BBF7D0;font-size:13px;color:#166534;font-weight:700">Total pago este mês: ${fBRL(totPago)}</div>
   </div>
   ${ativos.map(e=>{
     const r=gFinRec(e.id);const bons=r.bonificacoes||[];const totBon=bons.reduce((s,b)=>s+parseFloat(b.valor||0),0);
@@ -6225,6 +6234,23 @@ function rFin(){
     </div>`;}).join('')}`;
 }
 
+function openFinInfo(){
+  const item=(t,d)=>`<li style="margin-bottom:9px;line-height:1.5"><strong>${t}:</strong> ${d}</li>`;
+  openModal('💰 Principais funções', `
+    <ul style="margin:0;padding-left:20px;font-size:13.5px;color:var(--tx)">
+      ${item('Folha de pagamento','salários, horas extras, faltas, atrasos e adicionais.')}
+      ${item('Descontos','INSS, IRRF, faltas, DSR, adiantamentos, benefícios e outros descontos autorizados.')}
+      ${item('Férias','cálculo e controle de pagamentos de férias.')}
+      ${item('13º salário','cálculo e acompanhamento das parcelas.')}
+      ${item('Rescisões','cálculo de saldo de salário, aviso-prévio, férias, 13º, FGTS e demais verbas.')}
+      ${item('Benefícios','controle de vale-transporte, vale-alimentação, plano de saúde etc.')}
+      ${item('Ponto','conferir horas trabalhadas, faltas, atrasos e banco de horas para fechar a folha.')}
+      ${item('Contabilidade','enviar informações necessárias para a contabilidade realizar os fechamentos e obrigações.')}
+      ${item('Controle de custos','saber quanto a empresa está gastando com funcionários por mês.')}
+      ${item('Adiantamentos','controlar valores antecipados aos colaboradores e seus respectivos descontos.')}
+      ${item('Conferência','verificar se os valores calculados pelo sistema/contabilidade estão corretos antes do pagamento.')}
+    </ul>`);
+}
 function toggleSal(eid){const r=gFinRec(eid);r.salarioPago=!r.salarioPago;save('financeiro');toast(r.salarioPago?'Salário marcado como pago!':'Desmarcado.');requestAnimationFrame(()=>navigate('financeiro'));}
 function toggleBon(eid,bid){
   const r=gFinRec(eid);
@@ -34913,6 +34939,20 @@ async function aprovarSolicitacaoBH(id) {
         }
         save('pontos');
         try{ if(typeof auditLog==='function') auditLog('Compensação marcada no Cartão Ponto', `dia ${sol.data} — ${sol.tipo}`, 'cartao_ponto'); }catch(_){}
+
+        // ── RESYNC do banco de horas do mês afetado ─────────────────────
+        // Recalcula crédito/débito automáticos pelo Cartão Ponto (agora já
+        // marcado como folga/compensação), removendo os lançamentos auto
+        // antigos e regravando IMEDIATAMENTE no Firebase. Assim o saldo do
+        // RH e o do Portal do Colaborador ficam idênticos na hora, sem
+        // débito duplicado.
+        try{
+          if(typeof bhSyncSilencioso==='function'){
+            bhSyncSilencioso(_ano, _mes, [sol.empId]);
+          } else if(typeof _syncBHMes==='function'){
+            _syncBHMes(_ano, _mes, [sol.empId]);
+          }
+        }catch(_sErr){ console.warn('[aprovarSolic→resyncBH] erro:', _sErr); }
       }
     }catch(_pErr){ console.warn('[aprovarSolic→ponto] erro:', _pErr); }
     // Notifica colaborador via portal_notificacoes
@@ -39753,6 +39793,19 @@ console.log('[v18] ✅ Módulo Assinatura Digital carregado — canvas + SHA-256
       if (!valid) continue; // sem entrada+saída válidos = não gera saldo
 
       const diff = worked - diaEsp;
+
+      // ── Dia com COMPENSAÇÃO de BH aprovada pelo RH ─────────────────────
+      // (saída antecipada / entrada tardia / outro). O débito dessa ausência
+      // já foi lançado MANUALMENTE no ato da aprovação (aprovarSolicitacaoBH).
+      // Se recalculássemos o débito aqui a partir das batidas reais, o
+      // funcionário seria descontado DUAS vezes. Portanto: neste dia,
+      // creditamos horas extras normalmente (se trabalhou além), mas NUNCA
+      // geramos débito automático — a baixa já está no lançamento manual.
+      if (reg.compensacao && reg.compensacao.solId) {
+        if (diff > 2) credMin += diff;
+        continue; // suprime qualquer débito automático deste dia
+      }
+
       // Tolerância de 5 min para não gerar débito por pequenos atrasos de relógio
       if (diff > 2) {
         credMin += diff;
@@ -39884,6 +39937,12 @@ console.log('[v18] ✅ Módulo Assinatura Digital carregado — canvas + SHA-256
     mes = mes !== undefined ? mes : hoje.getMonth();
     return _syncBHMes(ano, mes, empIds || null);
   };
+
+  // ── EXPOSIÇÃO PARA AUTOTESTE ─────────────────────────────────────────────
+  // O módulo "Autoteste do Banco de Horas" precisa chamar o motor de cálculo
+  // real (e não uma cópia), para que os testes validem o código em produção.
+  window._bhCalcDia      = function(reg, emp){ return _calcDia(reg, emp); };
+  window._bhCalcMesPonto = function(emp, ano, mes){ return _calcBHMesPonto(emp, ano, mes); };
 
   // ── Substitui saldoBH para nunca clampear em 0 indevidamente ──────────
   // O saldo real pode ser negativo (funcionário deve horas)
@@ -48471,6 +48530,1799 @@ window._adicionarCidadeFeriado = _adicionarCidadeFeriado;
 (async ()=>{ try{ await loadFeriadosMunicipais(); }catch(_){} })();
 
 console.log('[Atlas] Módulo de Gestão de Feriados carregado ✅');
+</script>
+
+<!-- ═══ MÓDULO CONTRATOS PJ (Prestadores/Vendedores) ═══ -->
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// MÓDULO: CONTRATOS PJ (Prestadores de Serviço — Vendedores)
+// ---------------------------------------------------------------------------
+// Gerador de Contrato de Prestação de Serviços PJ juridicamente DEFENSÁVEL,
+// alinhado ao cenário 2026 (Reforma Trabalhista / Lei 6.019/74 arts. 4º-A a
+// 5º-D / jurisprudência STF Tema 1389). NÃO inclui desconto por falta, atraso
+// ou saída antecipada — esses seriam prova de subordinação/controle de jornada
+// e caracterizariam vínculo empregatício (pejotização fraudulenta).
+//
+// Em vez disso, usa mecanismos financeiros LEGÍTIMOS:
+//   • Estorno/glosa de comissão (venda cancelada, devolvida ou inadimplida)
+//   • Recuperação de adiantamento pago sobre comissão futura
+//   • Meta mínima de produtividade e rescisão por não-entrega
+//
+// Persiste em APP.contratos (tag tipo:'PJ') → sincroniza no Firebase como os
+// demais contratos. Gera PDF/impressão (printHtml) e link de assinatura digital
+// (coleção Firestore contratopj_sign_tokens → assinar.html).
+// ═══════════════════════════════════════════════════════════════════════════
+(function(){
+  'use strict';
+
+  var SIGN_BASE = (typeof ADV_SIGN_URL !== 'undefined' && ADV_SIGN_URL)
+    ? ADV_SIGN_URL.replace('assinatura_adv.html','assinar_contrato_pj.html')
+    : 'https://atlasrh.com.br/assinar_contrato_pj.html';
+
+  function _esc(s){ return (typeof esc==='function') ? esc(s) : String(s==null?'':s); }
+  function _brl(v){ return (typeof fBRL==='function') ? fBRL(v) : ('R$ '+(parseFloat(v||0).toFixed(2))); }
+  function _uid(){ return (typeof uid==='function') ? uid() : Math.random().toString(36).slice(2,10); }
+  function _toast(m,t,d){ if(typeof toast==='function') toast(m,t||'ok',d||3200); }
+  function _hoje(){ var d=new Date(); return d.toISOString().slice(0,10); }
+  function _fmtData(iso){ if(!iso) return '—'; try{ return new Date(iso+'T00:00:00').toLocaleDateString('pt-BR'); }catch(e){ return iso; } }
+  function _empresa(){ return (typeof EMPRESA_CFG!=='undefined' && EMPRESA_CFG) ? EMPRESA_CFG : {}; }
+  function _g(id){ var el=document.getElementById(id); return el?String(el.value||'').trim():''; }
+
+  async function _sha256(txt){
+    try{
+      var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(txt));
+      return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+    }catch(e){ return ''; }
+  }
+
+  // Numeração sequencial atômica: PJ-AAAA-#### (por ano)
+  function _proximoNumero(){
+    var ano = new Date().getFullYear();
+    var lista = (APP.contratos||[]).filter(function(c){ return c && c.tipo==='PJ' && (c.numero||'').indexOf('PJ-'+ano)===0; });
+    var max = 0;
+    lista.forEach(function(c){
+      var m = (c.numero||'').match(/PJ-\d{4}-(\d+)/);
+      if(m){ var n=parseInt(m[1],10); if(n>max) max=n; }
+    });
+    return 'PJ-'+ano+'-'+String(max+1).padStart(4,'0');
+  }
+
+  // ── RENDER PRINCIPAL ──────────────────────────────────────────────────────
+  window.rContratosPJ = function(){
+    try{ if(typeof lsLoad==='function'){ var ls=lsLoad('contratos'); if(ls&&Array.isArray(ls)&&ls.length>=(APP.contratos||[]).length) APP.contratos=ls; } }catch(e){}
+    var pjs = (APP.contratos||[]).filter(function(c){ return c && c.tipo==='PJ'; })
+      .sort(function(a,b){ return (b.criadoEm||'').localeCompare(a.criadoEm||''); });
+
+    var linhas = pjs.map(function(c){
+      var stCor = c.assinado ? '#059669' : '#D97706';
+      var stBg  = c.assinado ? '#F0FDF4' : '#FFFBEB';
+      var stTxt = c.assinado ? '✓ Assinado' : '⏳ Pendente';
+      return '<tr>'
+        + '<td style="font-family:monospace;font-weight:700;font-size:12px">'+_esc(c.numero||'—')+'</td>'
+        + '<td style="font-weight:600;font-size:13px">'+_esc(c.prestadorNome||'—')+'<div style="font-size:11px;color:var(--mt)">'+_esc(c.prestadorRazao||'')+'</div></td>'
+        + '<td style="font-size:12px">'+_esc(c.prestadorCnpj||'—')+'</td>'
+        + '<td style="font-size:12px">'+_fmtData(c.dataInicio)+'</td>'
+        + '<td style="text-align:center"><span style="background:'+stBg+';color:'+stCor+';padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">'+stTxt+'</span></td>'
+        + '<td><div style="display:flex;gap:5px;flex-wrap:wrap">'
+        +   '<button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8" onclick="pjImprimir(\''+c.id+'\')">🖨 PDF</button>'
+        +   '<button class="btn btn-sm" style="background:#F0FDF4;color:#059669" onclick="pjGerarLink(\''+c.id+'\')">✍️ Link Assinatura</button>'
+        +   '<button class="btn btn-sm btn-icon-red" style="padding:4px 8px" onclick="pjExcluir(\''+c.id+'\')">🗑</button>'
+        + '</div></td>'
+        + '</tr>';
+    }).join('');
+
+    return ''
+    + '<div class="card" style="margin-bottom:14px;border-left:4px solid #D97706;background:#FFFBEB">'
+    +   '<div style="display:flex;gap:12px;align-items:flex-start">'
+    +     '<div style="font-size:22px">⚖️</div>'
+    +     '<div style="flex:1">'
+    +       '<div style="font-weight:800;font-size:14px;color:#92400E;margin-bottom:4px">Contrato PJ seguro — sem risco de vínculo</div>'
+    +       '<div style="font-size:12.5px;color:#78350F;line-height:1.5">Este gerador cria contratos de <strong>prestação de serviços</strong> alinhados à legislação vigente em 2026. Ele <strong>não</strong> inclui desconto por falta, atraso ou saída antecipada — isso caracterizaria subordinação e controle de jornada, transformando o PJ em vínculo CLT num processo. No lugar, usa <strong>estorno de comissão</strong> e <strong>recuperação de adiantamento</strong>, que dão o mesmo controle financeiro sem o risco jurídico.</div>'
+    +     '</div>'
+    +   '</div>'
+    + '</div>'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">'
+    +   '<div style="font-size:15px;font-weight:700">📄 Contratos PJ emitidos <span style="font-size:12px;color:var(--mt);font-weight:500">('+pjs.length+')</span></div>'
+    +   '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +     '<button class="btn btn-sm btn-ghost" onclick="pjVerificarAssinaturas()">🔄 Verificar assinaturas</button>'
+    +     '<button class="btn btn-blue" onclick="pjNovoContrato()">+ Novo Contrato PJ</button>'
+    +   '</div>'
+    + '</div>'
+    + (pjs.length
+        ? '<div class="card" style="padding:0;overflow-x:auto"><table style="margin:0"><thead><tr>'
+          + '<th>Nº</th><th>Prestador</th><th>CNPJ</th><th>Início</th><th>Status</th><th>Ações</th>'
+          + '</tr></thead><tbody>'+linhas+'</tbody></table></div>'
+        : '<div class="card" style="text-align:center;padding:40px;color:var(--mt)"><div style="font-size:40px;margin-bottom:10px">📭</div><div style="font-weight:700">Nenhum contrato PJ ainda</div><div style="font-size:13px;margin-top:6px">Clique em <strong>+ Novo Contrato PJ</strong> para gerar o primeiro.</div></div>');
+  };
+
+  // ── FORMULÁRIO NOVO CONTRATO ──────────────────────────────────────────────
+  window.pjNovoContrato = function(){
+    var emp = _empresa();
+    var ativos = (APP.employees||[]).filter(function(e){ return e && e.status==='ativo'; });
+    var optsFunc = '<option value="">— preencher manualmente —</option>'
+      + ativos.map(function(e){ return '<option value="'+e.id+'">'+_esc(e.nome)+(e.cargo?' · '+_esc(e.cargo):'')+'</option>'; }).join('');
+
+    var html = ''
+    + '<div style="max-height:70vh;overflow-y:auto;padding-right:4px">'
+    // Importar de funcionário existente
+    + '<div class="fld"><label>Puxar dados de um cadastro existente (opcional)</label>'
+    +   '<select id="pj-fromEmp" onchange="pjPreencherDeEmp()">'+optsFunc+'</select></div>'
+
+    + '<div style="font-weight:800;font-size:13px;color:#1E3A5F;margin:14px 0 8px;border-bottom:2px solid #E2E8F0;padding-bottom:5px">1) CONTRATANTE (sua empresa)</div>'
+    + '<div class="g2">'
+    +   '<div class="fld"><label>Razão social</label><input id="pj-e-razao" value="'+_esc(emp.nomeRazao||'')+'"></div>'
+    +   '<div class="fld"><label>CNPJ</label><input id="pj-e-cnpj" value="'+_esc(emp.cnpj||'')+'"></div>'
+    + '</div>'
+    + '<div class="g2">'
+    +   '<div class="fld"><label>Cidade</label><input id="pj-e-cidade" value="'+_esc(emp.cidade||'')+'"></div>'
+    +   '<div class="fld"><label>UF</label><input id="pj-e-uf" value="'+_esc(emp.uf||'')+'" maxlength="2"></div>'
+    + '</div>'
+    + '<div class="fld"><label>Endereço da empresa</label><input id="pj-e-end" value="'+_esc(emp.endereco||'')+'" placeholder="Rua, nº, bairro"></div>'
+
+    + '<div style="font-weight:800;font-size:13px;color:#1E3A5F;margin:14px 0 8px;border-bottom:2px solid #E2E8F0;padding-bottom:5px">2) PRESTADOR (PJ contratado)</div>'
+    + '<div class="g2">'
+    +   '<div class="fld"><label>Nome do responsável / sócio</label><input id="pj-p-nome" placeholder="Nome completo"></div>'
+    +   '<div class="fld"><label>CPF do responsável</label><input id="pj-p-cpf" placeholder="000.000.000-00"></div>'
+    + '</div>'
+    + '<div class="g2">'
+    +   '<div class="fld"><label>Razão social da PJ</label><input id="pj-p-razao" placeholder="Ex: João Vendas ME"></div>'
+    +   '<div class="fld"><label>CNPJ da PJ</label><input id="pj-p-cnpj" placeholder="00.000.000/0000-00"></div>'
+    + '</div>'
+    + '<div class="fld"><label>Endereço da PJ</label><input id="pj-p-end" placeholder="Rua, nº, bairro, cidade/UF"></div>'
+    + '<div class="g2">'
+    +   '<div class="fld"><label>E-mail</label><input id="pj-p-email" placeholder="email@dominio.com"></div>'
+    +   '<div class="fld"><label>Telefone / WhatsApp</label><input id="pj-p-tel" placeholder="(45) 90000-0000"></div>'
+    + '</div>'
+
+    + '<div style="font-weight:800;font-size:13px;color:#1E3A5F;margin:14px 0 8px;border-bottom:2px solid #E2E8F0;padding-bottom:5px">3) OBJETO E REMUNERAÇÃO</div>'
+    + '<div class="fld"><label>Serviço prestado</label><input id="pj-obj" value="Prestação de serviços de venda e intermediação comercial de aparelhos celulares, acessórios e serviços correlatos"></div>'
+    + '<div class="g2">'
+    +   '<div class="fld"><label>Comissão por aparelho vendido (R$)</label><input id="pj-com-cel" type="number" step="0.01" value="15.00"></div>'
+    +   '<div class="fld"><label>% de comissão sobre acessórios/serviços</label><input id="pj-com-perc" type="number" step="0.01" value="0" placeholder="Ex: 5"></div>'
+    + '</div>'
+    + '<div class="g2">'
+    +   '<div class="fld"><label>Valor fixo mensal — pró-labore de serviço (R$)</label><input id="pj-fixo" type="number" step="0.01" value="0" placeholder="Opcional"></div>'
+    +   '<div class="fld"><label>Meta mínima mensal (aparelhos)</label><input id="pj-meta" type="number" value="0" placeholder="Ex: 40"></div>'
+    + '</div>'
+    + '<div class="g2">'
+    +   '<div class="fld"><label>Dia de pagamento (NF-e)</label><input id="pj-dia-pag" type="number" min="1" max="28" value="5"></div>'
+    +   '<div class="fld"><label>Vigência (meses, 0 = indeterminado)</label><input id="pj-vigencia" type="number" value="12"></div>'
+    + '</div>'
+
+    + '<div style="font-weight:800;font-size:13px;color:#1E3A5F;margin:14px 0 8px;border-bottom:2px solid #E2E8F0;padding-bottom:5px">4) AJUSTES FINANCEIROS LEGÍTIMOS</div>'
+    + '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#065F46">Estes substituem "desconto de falta/atraso". São ajustes sobre a <strong>comissão</strong>, não sobre jornada — juridicamente seguros.</div>'
+    + '<label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;font-size:13px"><input type="checkbox" id="pj-aj-estorno" checked style="margin-top:2px"><span><strong>Estorno de comissão</strong> por venda cancelada, devolvida (arrependimento/CDC) ou inadimplida (chargeback / financiamento negado).</span></label>'
+    + '<label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;font-size:13px"><input type="checkbox" id="pj-aj-adiant" checked style="margin-top:2px"><span><strong>Recuperação de adiantamento</strong>: valores adiantados sobre comissão futura são compensados na próxima NF/competência.</span></label>'
+    + '<label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;font-size:13px"><input type="checkbox" id="pj-aj-meta" checked style="margin-top:2px"><span><strong>Meta mínima de produtividade</strong>: não atingir a meta por 2 competências consecutivas autoriza revisão/rescisão do contrato.</span></label>'
+    + '<label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;font-size:13px"><input type="checkbox" id="pj-aj-multa" style="margin-top:2px"><span><strong>Multa por rescisão antecipada imotivada</strong> (proporcional, cláusula civil).</span></label>'
+    + '<div class="fld"><label>Observações / cláusulas extras (opcional)</label><textarea id="pj-obs" rows="2" placeholder="Ex: exclusividade de loja X, regras de repasse de leads..."></textarea></div>'
+
+    + '<div class="fld"><label>Data de início da prestação</label><input id="pj-dataInicio" type="date" value="'+_hoje()+'"></div>'
+    + '</div>'
+
+    + '<div class="mft" style="margin-top:12px">'
+    +   '<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>'
+    +   '<button class="btn btn-blue" onclick="pjPrevisualizar()">👁 Pré-visualizar</button>'
+    +   '<button class="btn btn-green" onclick="pjSalvarEGerar()">💾 Salvar & Gerar PDF</button>'
+    + '</div>';
+
+    openModal('📄 Novo Contrato PJ — Vendedor', html, 720);
+  };
+
+  // Puxa dados de um funcionário cadastrado
+  window.pjPreencherDeEmp = function(){
+    var id = _g('pj-fromEmp');
+    if(!id) return;
+    var e = (APP.employees||[]).find(function(x){ return x.id===id; });
+    if(!e) return;
+    function set(f,v){ var el=document.getElementById(f); if(el&&v) el.value=v; }
+    set('pj-p-nome', e.nome||'');
+    set('pj-p-cpf', e.cpf||'');
+    set('pj-p-cnpj', e.cnpj||'');
+    set('pj-p-email', e.email||'');
+    set('pj-p-tel', e.telefone||'');
+    if(e.razaoSocial) set('pj-p-razao', e.razaoSocial);
+    _toast('Dados de '+(e.nome||'').split(' ')[0]+' preenchidos.','ok');
+  };
+
+  // Coleta os dados do formulário
+  function _coletar(){
+    return {
+      e_razao:_g('pj-e-razao'), e_cnpj:_g('pj-e-cnpj'), e_cidade:_g('pj-e-cidade'),
+      e_uf:_g('pj-e-uf'), e_end:_g('pj-e-end'),
+      p_nome:_g('pj-p-nome'), p_cpf:_g('pj-p-cpf'), p_razao:_g('pj-p-razao'),
+      p_cnpj:_g('pj-p-cnpj'), p_end:_g('pj-p-end'), p_email:_g('pj-p-email'), p_tel:_g('pj-p-tel'),
+      objeto:_g('pj-obj'),
+      comCel:parseFloat(_g('pj-com-cel')||0), comPerc:parseFloat(_g('pj-com-perc')||0),
+      fixo:parseFloat(_g('pj-fixo')||0), meta:parseInt(_g('pj-meta')||0,10),
+      diaPag:parseInt(_g('pj-dia-pag')||5,10), vigencia:parseInt(_g('pj-vigencia')||0,10),
+      ajEstorno:!!(document.getElementById('pj-aj-estorno')||{}).checked,
+      ajAdiant:!!(document.getElementById('pj-aj-adiant')||{}).checked,
+      ajMeta:!!(document.getElementById('pj-aj-meta')||{}).checked,
+      ajMulta:!!(document.getElementById('pj-aj-multa')||{}).checked,
+      obs:_g('pj-obs'), dataInicio:_g('pj-dataInicio')||_hoje()
+    };
+  }
+
+  // ── GERA O HTML DO CONTRATO ───────────────────────────────────────────────
+  function _gerarContratoHTML(d, numero){
+    var emp=_empresa();
+    var comarca = (d.e_cidade||emp.cidade||'Foz do Iguaçu');
+    var uf = (d.e_uf||emp.uf||'PR');
+    var vig = d.vigencia>0 ? ('prazo determinado de <strong>'+d.vigencia+' (meses)</strong>, renovável por acordo escrito entre as partes') : 'prazo <strong>indeterminado</strong>, podendo ser rescindido conforme cláusula própria';
+    var cl = 1;
+    function clausula(titulo, corpo){ var n=cl++; return '<div style="margin:12px 0"><div style="font-weight:700;font-size:13px;margin-bottom:4px">CLÁUSULA '+_romano(n)+' — '+titulo+'</div><div style="font-size:12.5px;line-height:1.6;text-align:justify">'+corpo+'</div></div>'; }
+
+    // Remuneração
+    var remun = '<p>Pela prestação dos serviços, a CONTRATANTE pagará à CONTRATADA, mediante emissão de <strong>Nota Fiscal de Serviço (NFS-e)</strong>:</p><ul style="margin:6px 0 6px 18px;font-size:12.5px;line-height:1.6">';
+    if(d.fixo>0) remun += '<li>Valor fixo mensal de <strong>'+_brl(d.fixo)+'</strong> a título de serviço contratado;</li>';
+    if(d.comCel>0) remun += '<li>Comissão de <strong>'+_brl(d.comCel)+'</strong> por aparelho celular efetivamente vendido e faturado;</li>';
+    if(d.comPerc>0) remun += '<li>Comissão de <strong>'+d.comPerc+'%</strong> sobre o valor de acessórios e serviços correlatos vendidos;</li>';
+    remun += '</ul><p>O pagamento ocorrerá até o dia <strong>'+d.diaPag+'</strong> do mês subsequente à prestação, contra apresentação da NFS-e. A remuneração é vinculada a <strong>resultado/produção</strong>, e não a jornada ou horário.</p>';
+
+    // Ajustes financeiros legítimos
+    var ajustes = '<p>As partes ajustam os seguintes mecanismos de acerto financeiro, de natureza estritamente comercial:</p><ul style="margin:6px 0 6px 18px;font-size:12.5px;line-height:1.6">';
+    if(d.ajEstorno) ajustes += '<li><strong>Estorno de comissão:</strong> comissões pagas sobre vendas posteriormente <strong>canceladas, devolvidas (inclusive por arrependimento — art. 49 do CDC) ou inadimplidas</strong> (chargeback, financiamento negado por PayJoy, Odescred, M8, Parcelex, PayMobi ou similar) serão estornadas e compensadas na competência seguinte;</li>';
+    if(d.ajAdiant) ajustes += '<li><strong>Recuperação de adiantamento:</strong> eventuais valores adiantados pela CONTRATANTE à CONTRATADA por conta de comissões futuras serão compensados nas NFS-e/competências subsequentes, até a quitação integral;</li>';
+    if(d.ajMeta) ajustes += '<li><strong>Meta mínima de produtividade:</strong> fica estabelecida a meta de referência de <strong>'+(d.meta||0)+' aparelhos/mês</strong>. O não atingimento por 2 (duas) competências consecutivas faculta à CONTRATANTE revisar as condições comerciais ou rescindir este contrato, sem multa;</li>';
+    if(d.ajMulta) ajustes += '<li><strong>Multa compensatória:</strong> a rescisão imotivada e antecipada por qualquer das partes, sem o aviso previsto na Cláusula de vigência, sujeita a parte à multa proporcional equivalente a 1 (uma) competência de remuneração média;</li>';
+    ajustes += '</ul><p style="background:#F0FDF4;border-left:3px solid #059669;padding:6px 10px;font-size:11.5px;margin-top:6px"><strong>Importante:</strong> não há desconto por falta, atraso, saída antecipada ou controle de jornada. A CONTRATADA organiza livremente seu tempo e método de trabalho.</p>';
+
+    var estilo = '<style>'
+      + '.pj-doc{font-family:"Roboto",Arial,sans-serif;color:#111;max-width:820px;margin:0 auto}'
+      + '.pj-doc h1{font-size:16px;text-align:center;margin:0 0 4px}'
+      + '.pj-doc .sub{text-align:center;font-size:12px;color:#555;margin-bottom:14px}'
+      + '.pj-doc .box{border:1px solid #999;border-radius:6px;padding:10px 12px;margin:8px 0;font-size:12.5px;line-height:1.6}'
+      + '.pj-doc .sign{margin-top:36px;display:flex;gap:40px;justify-content:space-between}'
+      + '.pj-doc .sign div{flex:1;text-align:center;border-top:1px solid #111;padding-top:6px;font-size:12px}'
+      + '</style>';
+
+    return estilo + '<div class="pj-doc">'
+      + '<h1>CONTRATO DE PRESTAÇÃO DE SERVIÇOS</h1>'
+      + '<div class="sub">Nº '+_esc(numero)+' · Emitido em '+_fmtData(_hoje())+'</div>'
+      + '<div class="box"><strong>CONTRATANTE:</strong> '+_esc(d.e_razao||emp.nomeRazao||'')+', inscrita no CNPJ sob nº '+_esc(d.e_cnpj||emp.cnpj||'')+', com sede em '+_esc(d.e_end||'')+', '+_esc(comarca)+'/'+_esc(uf)+'.<br><br>'
+      + '<strong>CONTRATADA (PRESTADORA PJ):</strong> '+_esc(d.p_razao||'')+', inscrita no CNPJ sob nº '+_esc(d.p_cnpj||'')+', com sede em '+_esc(d.p_end||'—')+', neste ato representada por '+_esc(d.p_nome||'')+', CPF '+_esc(d.p_cpf||'')+', e-mail '+_esc(d.p_email||'—')+', telefone '+_esc(d.p_tel||'—')+'.</div>'
+      + clausula('DO OBJETO', '<p>A CONTRATADA prestará à CONTRATANTE, de forma autônoma e sem subordinação, os seguintes serviços: '+_esc(d.objeto||'')+'.</p><p>A CONTRATADA atua como empresa independente, assumindo os riscos de sua atividade econômica.</p>')
+      + clausula('DA AUTONOMIA E NÃO SUBORDINAÇÃO', '<p>A CONTRATADA organiza <strong>livremente</strong> seus horários, métodos e local de trabalho, não estando sujeita a controle de jornada, registro de ponto, cumprimento de horário fixo, ordens diretas de subordinação hierárquica ou poder disciplinar da CONTRATANTE. Fica assegurada à CONTRATADA a possibilidade de <strong>fazer-se substituir</strong> por preposto tecnicamente habilitado, afastando a pessoalidade.</p>')
+      + clausula('DO QUE É PERMITIDO E VEDADO', '<p><strong>É permitido:</strong> definir a própria agenda; prestar serviços a outros clientes (ausência de exclusividade, salvo pactuação comercial específica); emitir NFS-e; contratar auxiliares por sua conta.</p><p><strong>É vedado</strong> à CONTRATANTE, sob pena de descaracterização deste contrato: exigir horário fixo, aplicar advertências/suspensões, descontar valores por falta/atraso/saída, subordinar a CONTRATADA a chefia direta, ou tratá-la como empregada.</p>')
+      + clausula('DA REMUNERAÇÃO E FATURAMENTO', remun)
+      + clausula('DOS AJUSTES FINANCEIROS', ajustes)
+      + clausula('DAS OBRIGAÇÕES TRIBUTÁRIAS E PREVIDENCIÁRIAS', '<p>Correm por conta exclusiva da CONTRATADA todos os tributos incidentes sobre sua atividade (ISS, IRPJ, CSLL, PIS, COFINS, contribuição previdenciária patronal e do responsável), bem como o recolhimento como contribuinte individual/pró-labore. A CONTRATANTE não recolhe FGTS, 13º, férias ou verbas trabalhistas, por inexistir vínculo empregatício.</p>')
+      + clausula('DA VIGÊNCIA E RESCISÃO', '<p>O presente contrato vigora por '+vig+'. Qualquer das partes poderá rescindi-lo mediante aviso prévio escrito de 30 (trinta) dias. A rescisão por descumprimento é imediata.</p>')
+      + clausula('DA CONFIDENCIALIDADE E LGPD', '<p>A CONTRATADA obriga-se a manter sigilo sobre dados de clientes, preços, estoque e informações comerciais, tratando dados pessoais em conformidade com a Lei 13.709/2018 (LGPD), exclusivamente para a finalidade contratada.</p>')
+      + clausula('DA NATUREZA CIVIL DO CONTRATO', '<p>As partes declaram que a presente relação é de natureza <strong>civil/comercial</strong> (Lei 6.019/74, arts. 4º-A a 5º-D, e Código Civil), inexistindo os elementos do art. 3º da CLT (pessoalidade, subordinação, habitualidade e onerosidade como empregado). Eventual reconhecimento de vínculo dependeria de prova da presença simultânea desses elementos, que as partes expressamente afastam.</p>')
+      + (d.obs ? clausula('DISPOSIÇÕES ADICIONAIS', '<p>'+_esc(d.obs)+'</p>') : '')
+      + clausula('DO FORO', '<p>Fica eleito o foro da Comarca de '+_esc(comarca)+'/'+_esc(uf)+' para dirimir controvérsias oriundas deste contrato.</p>')
+      + '<p style="margin-top:14px;font-size:12.5px">'+_esc(comarca)+'/'+_esc(uf)+', '+_fmtData(d.dataInicio)+'.</p>'
+      + '<div class="sign"><div>'+_esc(d.e_razao||emp.nomeRazao||'')+'<br><small>CONTRATANTE</small></div><div>'+_esc(d.p_razao||'')+'<br><small>CONTRATADA (PJ)</small></div></div>'
+      + '</div>';
+  }
+
+  function _romano(n){ var m=['','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV']; return m[n]||String(n); }
+
+  // Pré-visualizar (não salva)
+  window.pjPrevisualizar = function(){
+    var d=_coletar();
+    if(!d.p_razao || !d.p_cnpj){ _toast('Preencha ao menos a razão social e o CNPJ da PJ.','err'); return; }
+    var num='PJ-PRÉVIA';
+    if(typeof printHtml==='function') printHtml('<div class="doc-page">'+_gerarContratoHTML(d,num)+'</div>','Contrato PJ (prévia) — '+(d.p_nome||''));
+  };
+
+  // Salvar + gerar PDF
+  window.pjSalvarEGerar = async function(){
+    var d=_coletar();
+    if(!d.p_razao || !d.p_cnpj){ _toast('Preencha ao menos a razão social e o CNPJ da PJ.','err'); return; }
+    if(!d.p_nome){ _toast('Informe o nome do responsável pela PJ.','err'); return; }
+
+    var numero = _proximoNumero();
+    var htmlDoc = _gerarContratoHTML(d, numero);
+    var hash = await _sha256(numero + '|' + d.p_cnpj + '|' + d.dataInicio + '|' + htmlDoc.length);
+
+    var contrato = {
+      id:_uid(), tipo:'PJ', numero:numero,
+      prestadorNome:d.p_nome, prestadorRazao:d.p_razao, prestadorCnpj:d.p_cnpj,
+      prestadorCpf:d.p_cpf, prestadorEmail:d.p_email, prestadorTel:d.p_tel,
+      dataInicio:d.dataInicio, dados:d, html:htmlDoc, hash:hash,
+      assinado:false, criadoEm:new Date().toISOString(), criadoPor:'RH'
+    };
+
+    if(!Array.isArray(APP.contratos)) APP.contratos=[];
+    APP.contratos.push(contrato);
+    if(typeof save==='function') save('contratos');
+    try{ if(typeof auditLog==='function') auditLog('Emitiu contrato PJ '+numero, d.p_razao, 'contratos_pj'); }catch(e){}
+
+    closeModal();
+    _toast('✅ Contrato '+numero+' salvo!','ok',4000);
+    if(typeof printHtml==='function') printHtml('<div class="doc-page">'+htmlDoc+'</div>','Contrato PJ '+numero+' — '+(d.p_nome||''));
+    if(typeof navigate==='function') navigate('contratos_pj');
+  };
+
+  // Reimprimir contrato salvo
+  window.pjImprimir = function(id){
+    var c=(APP.contratos||[]).find(function(x){ return x.id===id; });
+    if(!c){ _toast('Contrato não encontrado.','err'); return; }
+    var html = c.html || _gerarContratoHTML(c.dados||{}, c.numero);
+
+    // Se já foi assinado digitalmente, anexa o comprovante de assinatura
+    if(c.assinado){
+      html += ''
+        + '<div style="margin-top:26px;border:1.5px solid #059669;border-radius:8px;padding:14px;font-family:Roboto,Arial,sans-serif">'
+        +   '<div style="font-weight:700;font-size:13px;color:#065F46;margin-bottom:8px">✅ ASSINATURA ELETRÔNICA REGISTRADA</div>'
+        +   (c.assinaturaImg ? '<div style="text-align:center;margin:8px 0"><img src="'+c.assinaturaImg+'" style="max-height:90px"></div>' : '')
+        +   '<table style="width:100%;font-size:11.5px;border-collapse:collapse">'
+        +     '<tr><td style="padding:3px 0;color:#555;width:150px">Assinado por</td><td style="padding:3px 0">'+_esc(c.assinaturaNome||c.prestadorNome||'')+'</td></tr>'
+        +     '<tr><td style="padding:3px 0;color:#555">CPF</td><td style="padding:3px 0">'+_esc(c.assinaturaCpf||'')+'</td></tr>'
+        +     '<tr><td style="padding:3px 0;color:#555">Data e hora</td><td style="padding:3px 0">'+(c.assinaturaEm?new Date(c.assinaturaEm).toLocaleString('pt-BR'):'—')+'</td></tr>'
+        +   '</table>'
+        +   '<div style="margin-top:8px;font-family:monospace;font-size:9.5px;word-break:break-all;background:#F0FDF4;padding:7px;border-radius:5px"><strong>Hash SHA-256:</strong> '+_esc(c.assinaturaHash||'')+'</div>'
+        +   '<div style="font-size:10px;color:#555;margin-top:6px">Assinatura eletrônica nos termos da Lei 14.063/2020 e da MP 2.200-2/2001.</div>'
+        + '</div>';
+    }
+
+    if(typeof printHtml==='function') printHtml('<div class="doc-page">'+html+'</div>','Contrato PJ '+c.numero+' — '+(c.prestadorNome||''));
+  };
+
+  // Excluir
+  window.pjExcluir = function(id){
+    var c=(APP.contratos||[]).find(function(x){ return x.id===id; });
+    if(!c) return;
+    if(!confirm('Excluir o contrato '+c.numero+' de '+(c.prestadorNome||'')+'?')) return;
+    APP.contratos = APP.contratos.filter(function(x){ return x.id!==id; });
+    if(typeof save==='function') save('contratos');
+    _toast('Contrato excluído.','ok');
+    if(typeof navigate==='function') navigate('contratos_pj');
+  };
+
+  // ── LINK DE ASSINATURA DIGITAL ────────────────────────────────────────────
+  // Cria token em contratopj_sign_tokens e monta link + WhatsApp.
+  window.pjGerarLink = async function(id){
+    var c=(APP.contratos||[]).find(function(x){ return x.id===id; });
+    if(!c){ _toast('Contrato não encontrado.','err'); return; }
+    if(typeof FBASE==='undefined' || !FBASE){ _toast('Firebase não conectado — necessário para o link de assinatura.','err',5000); return; }
+
+    openModal('🔗 Gerando link...', '<div style="text-align:center;padding:32px"><div style="font-size:34px">⏳</div><div style="font-size:14px;color:#64748B;margin-top:8px">Gerando link seguro de assinatura...</div></div>', 420);
+
+    try{
+      var token = 'pjsig_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9);
+      var expiresAt = new Date(Date.now()+7*24*3600*1000).toISOString(); // 7 dias
+      await FBASE.collection('contratopj_sign_tokens').doc(token).set({
+        contratoId:id, numero:c.numero||'', prestadorNome:c.prestadorNome||'',
+        prestadorCnpj:c.prestadorCnpj||'', hash:c.hash||'', html:c.html||'',
+        ativo:true, usado:false, criadoEm:new Date().toISOString(), expiresAt:expiresAt, criadoPor:'RH'
+      });
+
+      var signUrl = SIGN_BASE + '?tk=' + token;
+      var nomeCurto = (c.prestadorNome||'Prestador').split(' ')[0];
+      var waMsg = encodeURIComponent(
+        'Olá '+nomeCurto+'! 👋\n\nSegue o Contrato de Prestação de Serviços PJ nº '+(c.numero||'')+' para sua leitura e assinatura digital.\n\n🔗 Clique para ler e assinar (sem senha):\n'+signUrl+'\n\n⏰ Link válido por 7 dias.'
+      );
+      var tel=(c.prestadorTel||'').replace(/\D/g,'');
+      var waLink = tel ? ('https://wa.me/55'+tel+'?text='+waMsg) : ('https://web.whatsapp.com/send?text='+waMsg);
+
+      c.linkToken=token; c.linkGeradoEm=new Date().toISOString();
+      if(typeof save==='function') save('contratos');
+
+      closeModal();
+      openModal('🔗 Link de Assinatura — '+nomeCurto, ''
+        + '<div style="display:flex;flex-direction:column;gap:14px">'
+        + '<div style="background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px">✅</div><div style="font-weight:800;color:#065F46;font-size:14px;margin-top:4px">Link gerado!</div><div style="font-size:12px;color:#047857;margin-top:2px">'+_esc(c.prestadorNome||'')+' pode assinar sem senha.</div></div>'
+        + '<div style="background:#F8FAFC;border:1.5px solid #E2E8F0;border-radius:10px;padding:14px"><div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;margin-bottom:8px">🔗 Link direto</div><div style="display:flex;gap:8px;align-items:center"><input type="text" value="'+signUrl+'" readonly id="_pj_link" style="font-size:11px;background:#fff;border:1.5px solid #E2E8F0;border-radius:8px;padding:8px 10px;flex:1;font-family:monospace"><button class="btn btn-sm btn-ghost" style="white-space:nowrap" onclick="navigator.clipboard.writeText(\''+signUrl+'\').then(()=>{this.textContent=\'✔ Copiado\';setTimeout(()=>this.textContent=\'📋 Copiar\',2000)}).catch(()=>{document.getElementById(\'_pj_link\').select();document.execCommand(\'copy\')})">📋 Copiar</button></div></div>'
+        + '<a href="'+waLink+'" target="_blank" class="btn btn-green" style="text-decoration:none;text-align:center">📱 Enviar por WhatsApp</a>'
+        + '<div style="font-size:11px;color:#94A3B8;text-align:center">O documento (nº, hash SHA-256 e HTML) já está publicado no servidor. A página de assinatura registrará data/hora, IP e hash.</div>'
+        + '</div>', 480);
+    }catch(e){
+      closeModal();
+      _toast('Erro ao gerar link: '+(e.message||e),'err',5000);
+    }
+  };
+
+  // ── SINCRONIZA ASSINATURAS ────────────────────────────────────────────────
+  // Lê a coleção contratopj_assinaturas (gravada pela página assinar_contrato_pj.html)
+  // e marca os contratos como assinados no RH.
+  window.pjVerificarAssinaturas = async function(){
+    if(typeof FBASE==='undefined' || !FBASE){ _toast('Firebase não conectado.','err'); return; }
+    _toast('🔄 Verificando assinaturas...','ok',1800);
+    try{
+      var snap = await FBASE.collection('contratopj_assinaturas').get();
+      var novos = 0;
+      snap.forEach(function(doc){
+        var a = doc.data() || {};
+        var c = (APP.contratos||[]).find(function(x){
+          return x.tipo==='PJ' && (x.id===a.contratoId || x.numero===a.numero);
+        });
+        if(c && !c.assinado){
+          c.assinado = true;
+          c.assinaturaEm = (a.assinatura&&a.assinatura.dataHora) || a.registradoEm || new Date().toISOString();
+          c.assinaturaNome = (a.assinatura&&a.assinatura.nome) || '';
+          c.assinaturaCpf = (a.assinatura&&a.assinatura.cpf) || '';
+          c.assinaturaHash = (a.assinatura&&a.assinatura.hash) || '';
+          c.assinaturaImg = (a.assinatura&&a.assinatura.imagem) || '';
+          novos++;
+        }
+      });
+      if(novos>0){
+        if(typeof save==='function') save('contratos');
+        _toast('✅ '+novos+' contrato(s) atualizados como assinados!','ok',4000);
+        if(typeof navigate==='function') navigate('contratos_pj');
+      } else {
+        _toast('Nenhuma assinatura nova encontrada.','ok');
+      }
+    }catch(e){
+      _toast('Erro ao verificar: '+(e.message||e),'err',5000);
+    }
+  };
+
+  // Garante que ao carregar já haja um array
+  if(!Array.isArray(APP.contratos)) APP.contratos=[];
+})();
+
+console.log('[Atlas] Módulo Contratos PJ carregado ✅');
+</script>
+
+<!-- ═══ MÓDULO CONFORMIDADE & RISCO ═══ -->
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// MÓDULO: CONFORMIDADE & RISCO
+// ---------------------------------------------------------------------------
+// 1) rConformidade  — Alertas de conformidade trabalhista (férias, BH, experiência)
+// 2) rPJRisco       — Detector de contaminação de contratos PJ
+// 3) rBackup        — Backup automático + restauração pontual
+// 4) rFechamento    — Fechamento mensal guiado (checklist que trava a folha)
+// 5) rBHTestes      — Autoteste do motor de Banco de Horas
+// ═══════════════════════════════════════════════════════════════════════════
+(function(){
+  'use strict';
+
+  var DIA = 86400000;
+
+  function _esc(s){ return (typeof esc==='function') ? esc(s) : String(s==null?'':s); }
+  function _toast(m,t,d){ if(typeof toast==='function') toast(m,t||'ok',d||3200); }
+  function _hojeD(){ var d=new Date(); d.setHours(0,0,0,0); return d; }
+  function _d(iso){ if(!iso) return null; var x=new Date(String(iso).slice(0,10)+'T00:00:00'); return isNaN(x)?null:x; }
+  function _fmt(d){ if(!d) return '—'; try{ return d.toLocaleDateString('pt-BR'); }catch(e){ return '—'; } }
+  function _difDias(a,b){ return Math.floor((a-b)/DIA); }
+  function _addMeses(d,n){ var x=new Date(d.getTime()); x.setMonth(x.getMonth()+n); return x; }
+  function _zp(n){ return String(n).padStart(2,'0'); }
+  function _ativos(){ return (APP.employees||[]).filter(function(e){ return e && e.status!=='demitido'; }); }
+  function _ehPJ(e){
+    var t=String(e.tipoContrato||'').toUpperCase();
+    return t.indexOf('PJ')>=0 || t.indexOf('PRESTADOR')>=0 || t.indexOf('AUTONOMO')>=0 || t.indexOf('AUTÔNOMO')>=0;
+  }
+  function _minToH(m){
+    m=Math.round(m||0); var sg=m<0?'-':''; m=Math.abs(m);
+    return sg+Math.floor(m/60)+'h'+_zp(m%60);
+  }
+  var MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  // Cartão visual de alerta
+  function _card(sev, titulo, quem, detalhe, acao){
+    var C={critico:{bg:'#FEF2F2',bd:'#FECACA',tx:'#B91C1C',ic:'🔴'},
+           atencao:{bg:'#FFFBEB',bd:'#FDE68A',tx:'#92400E',ic:'🟡'},
+           info:{bg:'#EFF6FF',bd:'#BFDBFE',tx:'#1E40AF',ic:'🔵'}}[sev]||{bg:'#F8FAFC',bd:'#E2E8F0',tx:'#475569',ic:'⚪'};
+    return '<div style="background:'+C.bg+';border:1px solid '+C.bd+';border-left:4px solid '+C.tx+';border-radius:10px;padding:12px 14px;margin-bottom:9px">'
+      + '<div style="display:flex;gap:10px;align-items:flex-start">'
+      +   '<div style="font-size:15px;line-height:1.2">'+C.ic+'</div>'
+      +   '<div style="flex:1;min-width:0">'
+      +     '<div style="font-weight:800;font-size:13px;color:'+C.tx+'">'+_esc(titulo)+'</div>'
+      +     (quem?'<div style="font-size:12.5px;font-weight:600;margin-top:1px">'+_esc(quem)+'</div>':'')
+      +     '<div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">'+detalhe+'</div>'
+      +     (acao?'<div style="font-size:11.5px;color:'+C.tx+';margin-top:5px;font-weight:600">→ '+acao+'</div>':'')
+      +   '</div>'
+      + '</div></div>';
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // 1) ALERTAS DE CONFORMIDADE TRABALHISTA
+  // ═══════════════════════════════════════════════════════════════════════
+  function _scanConformidade(){
+    var hoje=_hojeD(), out=[];
+
+    _ativos().forEach(function(e){
+      var nome=e.nome||'(sem nome)';
+      var adm=_d(e.dataAdmissao);
+      var pj=_ehPJ(e);
+
+      // ── FÉRIAS: período aquisitivo x concessivo (CLT arts. 130, 134, 137) ──
+      if(adm && !pj){
+        var feriasEmp=(APP.ferias||[]).filter(function(f){
+          return f && f.empId===e.id && f.status!=='cancelada';
+        });
+        // Percorre cada período aquisitivo completo
+        var n=1;
+        while(true){
+          var fimAquis=_addMeses(adm,12*n);
+          if(fimAquis>hoje) break;                 // período ainda não completou
+          var limite=_addMeses(fimAquis,12);       // prazo concessivo (+12 meses)
+          // Houve gozo de férias iniciado dentro da janela concessiva?
+          var gozou=feriasEmp.some(function(f){
+            var ini=_d(f.inicio); return ini && ini>=fimAquis && ini<=_addMeses(limite,2);
+          });
+          if(!gozou){
+            var faltam=_difDias(limite,hoje);
+            if(faltam<0){
+              out.push({sev:'critico',ordem:0,html:_card('critico',
+                'Férias vencidas — pagamento em DOBRO', nome,
+                'Período aquisitivo encerrado em <strong>'+_fmt(fimAquis)+'</strong>. O prazo para conceder venceu em <strong>'+_fmt(limite)+'</strong> (há '+Math.abs(faltam)+' dias).',
+                'Art. 137 da CLT: férias concedidas fora do prazo devem ser pagas em dobro. Programe imediatamente.')});
+            } else if(faltam<=90){
+              out.push({sev:'atencao',ordem:1,html:_card('atencao',
+                'Férias vencendo em '+faltam+' dias', nome,
+                'Período aquisitivo fechado em <strong>'+_fmt(fimAquis)+'</strong>. Precisa ser gozado até <strong>'+_fmt(limite)+'</strong>.',
+                'Programe as férias agora para evitar o pagamento em dobro.')});
+            }
+          }
+          n++;
+          if(n>12) break; // trava de segurança
+        }
+      }
+
+      // ── CONTRATO DE EXPERIÊNCIA (CLT art. 445 §único — máx. 90 dias) ──
+      if(adm && !pj){
+        var dias=_difDias(hoje,adm);
+        var ex=e.experiencia||{};
+        if(dias>=0 && dias<=100){
+          var prorrogou=!!(ex.prorrogacao||ex.dataProrrogacao);
+          if(dias>=38 && dias<=47 && !prorrogou){
+            out.push({sev:'atencao',ordem:1,html:_card('atencao',
+              'Experiência: decidir prorrogação', nome,
+              'Está no <strong>'+dias+'º dia</strong> de contrato. O primeiro período (45 dias) encerra em <strong>'+_fmt(new Date(adm.getTime()+45*DIA))+'</strong>.',
+              'Prorrogue por escrito antes do 45º dia — só é permitida UMA prorrogação.')});
+          }
+          if(dias>=80 && dias<=90){
+            out.push({sev:'critico',ordem:0,html:_card('critico',
+              'Experiência encerra em '+(90-dias)+' dias', nome,
+              'O contrato de experiência atinge o limite legal de 90 dias em <strong>'+_fmt(new Date(adm.getTime()+90*DIA))+'</strong>.',
+              'Decida entre efetivar ou encerrar. Passando de 90 dias vira contrato por prazo INDETERMINADO automaticamente.')});
+          }
+          if(dias>90 && dias<=100 && (ex.dias30||ex.dias45||prorrogou)){
+            out.push({sev:'info',ordem:2,html:_card('info',
+              'Contrato virou indeterminado', nome,
+              'Passaram-se '+dias+' dias desde a admissão. O contrato de experiência expirou e converteu-se em prazo indeterminado.',
+              'Atualize o cadastro para refletir a efetivação.')});
+          }
+        }
+      }
+
+      // ── BANCO DE HORAS: prazo de compensação (CLT art. 59 §5º) ──
+      var lanc=(APP.bancohoras&&APP.bancohoras[e.id])||[];
+      if(Array.isArray(lanc) && lanc.length){
+        var saldo=lanc.reduce(function(s,l){
+          var m=parseFloat(l.minutos||0); return s+(l.tipo==='debito'?-m:m);
+        },0);
+        if(saldo>60){
+          // crédito não compensado mais antigo
+          var maisAntigo=null;
+          lanc.forEach(function(l){
+            if(l.tipo!=='debito' && l.data){ var dd=_d(l.data); if(dd&&(!maisAntigo||dd<maisAntigo)) maisAntigo=dd; }
+          });
+          if(maisAntigo){
+            var meses=_difDias(hoje,maisAntigo)/30;
+            if(meses>=6){
+              out.push({sev:'critico',ordem:0,html:_card('critico',
+                'Banco de horas fora do prazo de compensação', nome,
+                'Saldo positivo de <strong>'+_minToH(saldo)+'</strong> com créditos desde <strong>'+_fmt(maisAntigo)+'</strong> ('+Math.floor(meses)+' meses).',
+                'Acordo individual permite compensar em até 6 meses (art. 59 §5º). Vencido, vira hora extra a pagar com adicional.')});
+            } else if(meses>=5){
+              out.push({sev:'atencao',ordem:1,html:_card('atencao',
+                'Banco de horas perto do limite', nome,
+                'Saldo de <strong>'+_minToH(saldo)+'</strong>, crédito mais antigo de <strong>'+_fmt(maisAntigo)+'</strong>.',
+                'Restam menos de 30 dias para compensar antes de virar hora extra paga.')});
+            }
+          }
+        }
+        if(saldo<-600){
+          out.push({sev:'info',ordem:2,html:_card('info',
+            'Saldo negativo elevado no banco de horas', nome,
+            'Devendo <strong>'+_minToH(saldo)+'</strong>.',
+            'Verifique se há débitos indevidos ou se cabe compensação/desconto acordado.')});
+        }
+      }
+
+      // ── DADOS CADASTRAIS CRÍTICOS ──
+      if(!pj && e.status==='ativo'){
+        var falta=[];
+        if(!(e.cpf||'').trim()) falta.push('CPF');
+        if(!e.dataAdmissao) falta.push('data de admissão');
+        if(!parseFloat(e.salario||0)) falta.push('salário');
+        if(falta.length){
+          out.push({sev:'atencao',ordem:1,html:_card('atencao',
+            'Cadastro incompleto', nome,
+            'Faltando: <strong>'+falta.join(', ')+'</strong>.',
+            'Sem esses dados a folha, o eSocial e os documentos legais saem errados.')});
+        }
+      }
+    });
+
+    out.sort(function(a,b){ return a.ordem-b.ordem; });
+    return out;
+  }
+
+  window.rConformidade = function(){
+    var al=_scanConformidade();
+    var nc=al.filter(function(x){return x.sev==='critico';}).length;
+    var na=al.filter(function(x){return x.sev==='atencao';}).length;
+    var ni=al.filter(function(x){return x.sev==='info';}).length;
+
+    function kpi(v,l,cor,bg){
+      return '<div style="flex:1;min-width:110px;background:'+bg+';border-radius:12px;padding:14px;text-align:center">'
+        + '<div style="font-size:26px;font-weight:900;color:'+cor+'">'+v+'</div>'
+        + '<div style="font-size:11.5px;color:'+cor+';font-weight:700">'+l+'</div></div>';
+    }
+
+    return ''
+    + '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
+    +   kpi(nc,'Críticos','#B91C1C','#FEF2F2')
+    +   kpi(na,'Atenção','#92400E','#FFFBEB')
+    +   kpi(ni,'Informativos','#1E40AF','#EFF6FF')
+    + '</div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">'
+    +   '<div style="font-size:15px;font-weight:700">⚖️ Alertas de conformidade</div>'
+    +   '<button class="btn btn-sm btn-ghost" onclick="navigate(\'conformidade\')">🔄 Reavaliar</button>'
+    + '</div>'
+    + (al.length
+        ? '<div>'+al.map(function(x){return x.html;}).join('')+'</div>'
+        : '<div class="card" style="text-align:center;padding:40px"><div style="font-size:42px">✅</div><div style="font-weight:800;margin-top:8px">Nenhuma pendência encontrada</div><div style="font-size:13px;color:var(--mt);margin-top:4px">Férias, banco de horas e contratos de experiência estão dentro dos prazos.</div></div>')
+    + '<div style="font-size:11px;color:var(--mt);margin-top:14px;line-height:1.5">Verificações baseadas na CLT (arts. 130, 134, 137, 445 e 59 §5º). Esta tela é um apoio operacional e não substitui a orientação do seu contador ou advogado.</div>';
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // 2) DETECTOR DE CONTAMINAÇÃO PJ
+  // ═══════════════════════════════════════════════════════════════════════
+  function _scanPJ(){
+    var res=[];
+    _ativos().filter(_ehPJ).forEach(function(e){
+      var achados=[], risco=0;
+
+      // Registro de ponto
+      var temPonto=false, qtdPonto=0;
+      Object.keys(APP.pontos||{}).forEach(function(k){
+        if(k.indexOf(e.id+'_')===0){
+          var m=APP.pontos[k]||{};
+          Object.keys(m).forEach(function(dia){
+            var r=m[dia]||{};
+            if(r.entrada||r.saida) qtdPonto++;
+          });
+        }
+      });
+      if(qtdPonto>0){ temPonto=true; risco+=35;
+        achados.push({p:'Registro de ponto',d:qtdPonto+' dia(s) com batidas registradas',w:'Controle de jornada é o indício mais forte de subordinação. Um PJ não bate ponto.'}); }
+
+      // Advertências
+      var advs=(APP.advertencias||[]).filter(function(a){ return a && a.empId===e.id; });
+      if(advs.length){ risco+=30;
+        achados.push({p:'Poder disciplinar',d:advs.length+' advertência(s)/suspensão(ões) aplicada(s)',w:'Aplicar sanção disciplinar é exercício de poder de empregador — descaracteriza o PJ.'}); }
+
+      // Banco de horas
+      var bh=(APP.bancohoras&&APP.bancohoras[e.id])||[];
+      if(Array.isArray(bh)&&bh.length){ risco+=25;
+        achados.push({p:'Banco de horas',d:bh.length+' lançamento(s)',w:'Banco de horas pressupõe jornada controlada, incompatível com prestação autônoma.'}); }
+
+      // Férias
+      var fer=(APP.ferias||[]).filter(function(f){ return f && f.empId===e.id; });
+      if(fer.length){ risco+=20;
+        achados.push({p:'Férias registradas',d:fer.length+' período(s)',w:'Férias são direito de empregado CLT. PJ tira folga sem registro de férias.'}); }
+
+      // Jornada cadastrada
+      if(e.horarioEntrada||e.horarioSaida){ risco+=10;
+        achados.push({p:'Jornada fixa cadastrada',d:'Entrada '+(e.horarioEntrada||'—')+' / Saída '+(e.horarioSaida||'—'),w:'Horário fixo definido pela contratante sugere subordinação. Remova se não for necessário.'}); }
+
+      // Holerite / salário fixo
+      var temSal=false;
+      Object.keys(APP.salarios||{}).forEach(function(k){ if(k.indexOf(e.id+'_')===0) temSal=true; });
+      if(temSal){ risco+=15;
+        achados.push({p:'Folha de pagamento',d:'Possui lançamentos em Salários/Holerite',w:'PJ recebe contra nota fiscal, não por holerite. Verifique como o pagamento é documentado.'}); }
+
+      // Contrato PJ assinado?
+      var cnpjLimpo=String(e.cnpj||'').replace(/\D/g,'');
+      var contrato=(APP.contratos||[]).find(function(c){
+        return c && c.tipo==='PJ' && (String(c.prestadorCnpj||'').replace(/\D/g,'')===cnpjLimpo && cnpjLimpo)
+          || (c && c.tipo==='PJ' && String(c.prestadorCpf||'').replace(/\D/g,'')===String(e.cpf||'').replace(/\D/g,'') && e.cpf);
+      });
+      if(!contrato){ risco+=20;
+        achados.push({p:'Sem contrato PJ',d:'Nenhum contrato de prestação de serviços localizado',w:'Sem contrato escrito, a defesa da contratação PJ fica muito frágil. Emita em Contratos PJ.'}); }
+      else if(!contrato.assinado){ risco+=10;
+        achados.push({p:'Contrato não assinado',d:'Contrato '+(contrato.numero||'')+' ainda pendente de assinatura',w:'Colete a assinatura digital para dar validade ao documento.'}); }
+
+      if(!cnpjLimpo){ risco+=15;
+        achados.push({p:'Sem CNPJ cadastrado',d:'O campo CNPJ está vazio',w:'Um prestador PJ precisa ter CNPJ ativo e emitir NFS-e.'}); }
+
+      res.push({emp:e, achados:achados, risco:Math.min(100,risco), contrato:contrato});
+    });
+    return res.sort(function(a,b){ return b.risco-a.risco; });
+  }
+
+  window.rPJRisco = function(){
+    var lista=_scanPJ();
+    if(!lista.length){
+      return '<div class="card" style="text-align:center;padding:40px">'
+        + '<div style="font-size:42px">👤</div>'
+        + '<div style="font-weight:800;margin-top:8px">Nenhum colaborador PJ cadastrado</div>'
+        + '<div style="font-size:13px;color:var(--mt);margin-top:6px">Marque o campo <strong>Tipo de Contrato</strong> como "PJ" no cadastro para que ele seja monitorado aqui.</div></div>';
+    }
+
+    var html='<div class="card" style="margin-bottom:14px;border-left:4px solid #1E3A5F">'
+      + '<div style="font-weight:800;font-size:14px;margin-bottom:4px">🛡️ Por que este painel existe</div>'
+      + '<div style="font-size:12.5px;color:#475569;line-height:1.55">Um contrato PJ bem escrito não protege nada se a rotina do dia a dia contradiz o papel. Este detector cruza cada colaborador PJ com ponto, advertências, banco de horas, férias e folha — e mostra o que um juiz usaria como prova de vínculo empregatício.</div>'
+      + '</div>';
+
+    lista.forEach(function(r){
+      var cor = r.risco>=60?'#B91C1C' : r.risco>=30?'#D97706' : '#059669';
+      var bg  = r.risco>=60?'#FEF2F2' : r.risco>=30?'#FFFBEB' : '#F0FDF4';
+      var rot = r.risco>=60?'RISCO ALTO' : r.risco>=30?'RISCO MODERADO' : 'RISCO BAIXO';
+
+      html += '<div class="card" style="margin-bottom:12px;padding:0;overflow:hidden">'
+        + '<div style="background:'+bg+';padding:13px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">'
+        +   '<div><div style="font-weight:800;font-size:14px">'+_esc(r.emp.nome||'')+'</div>'
+        +     '<div style="font-size:12px;color:#64748B">'+_esc(r.emp.cargo||'—')+(r.emp.cnpj?' · CNPJ '+_esc(r.emp.cnpj):'')+'</div></div>'
+        +   '<div style="text-align:right"><div style="font-size:22px;font-weight:900;color:'+cor+'">'+r.risco+'<span style="font-size:12px">/100</span></div>'
+        +     '<div style="font-size:10.5px;font-weight:800;color:'+cor+'">'+rot+'</div></div>'
+        + '</div>'
+        + '<div style="padding:14px 16px">';
+
+      if(!r.achados.length){
+        html += '<div style="font-size:13px;color:#059669;font-weight:600">✅ Nenhum indício de vínculo encontrado. A contratação está coerente com o modelo PJ.</div>';
+      } else {
+        html += r.achados.map(function(a){
+          return '<div style="border-left:3px solid '+cor+';padding:7px 0 7px 11px;margin-bottom:9px">'
+            + '<div style="font-weight:700;font-size:12.5px">'+_esc(a.p)+'</div>'
+            + '<div style="font-size:12px;color:#475569;margin-top:1px">'+_esc(a.d)+'</div>'
+            + '<div style="font-size:11.5px;color:'+cor+';margin-top:3px;line-height:1.45">'+_esc(a.w)+'</div>'
+            + '</div>';
+        }).join('');
+      }
+
+      html += '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px">'
+        + (r.contrato?'<button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8" onclick="pjImprimir(\''+r.contrato.id+'\')">📄 Ver contrato</button>':'<button class="btn btn-sm" style="background:#F0FDF4;color:#059669" onclick="navigate(\'contratos_pj\')">➕ Emitir contrato PJ</button>')
+        + '</div>';
+
+      html += '</div></div>';
+    });
+
+    return html;
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // 3) BACKUP & RESTAURAÇÃO
+  // ═══════════════════════════════════════════════════════════════════════
+  var BK_KEYS=['employees','candidates','pontos','financeiro','atestados','admissoes','demissoes',
+    'salarios','holRascunho','metaDiaria','faltaPagar','advertencias','ferias','avaliacoes',
+    'comunicados','bancohoras','contratos','comprovantes','lancamentos_bh','bhSolicitacoes',
+    'portalSolicitacoes','ocorrenciasContratados','agendaEventos','adiantamentos'];
+  var BK_LS='atlas_backups_v1';
+
+  function _snapshot(){
+    var d={_meta:{versao:1,geradoEm:new Date().toISOString(),origem:'Atlas RH'}};
+    BK_KEYS.forEach(function(k){ if(APP[k]!==undefined) d[k]=APP[k]; });
+    return d;
+  }
+  function _contar(obj){
+    var t={};
+    BK_KEYS.forEach(function(k){
+      var v=obj[k];
+      if(v===undefined) return;
+      t[k]=Array.isArray(v)?v.length:(v&&typeof v==='object'?Object.keys(v).length:0);
+    });
+    return t;
+  }
+  function _lerHist(){ try{ return JSON.parse(localStorage.getItem(BK_LS)||'[]'); }catch(e){ return []; } }
+  function _gravarHist(h){ try{ localStorage.setItem(BK_LS,JSON.stringify(h)); return true; }catch(e){ return false; } }
+
+  function _tamanho(str){
+    var kb=str.length/1024;
+    return kb>1024 ? (kb/1024).toFixed(2)+' MB' : kb.toFixed(0)+' KB';
+  }
+
+  // Cria snapshot local (mantém os 5 mais recentes)
+  window.bkCriarLocal = function(silencioso){
+    try{
+      var snap=_snapshot();
+      var json=JSON.stringify(snap);
+      var hist=_lerHist();
+      hist.unshift({ts:new Date().toISOString(), tamanho:json.length, contagem:_contar(snap), dados:json});
+      // Mantém no máximo 5, e vai cortando se estourar a cota
+      hist=hist.slice(0,5);
+      while(hist.length>1 && !_gravarHist(hist)) hist=hist.slice(0,hist.length-1);
+      if(hist.length===1 && !_gravarHist(hist)){
+        if(!silencioso) _toast('Espaço local insuficiente para o backup. Use o download.','err',5000);
+        return false;
+      }
+      if(!silencioso) _toast('✅ Backup criado ('+_tamanho(json)+')','ok');
+      return true;
+    }catch(e){
+      if(!silencioso) _toast('Erro ao criar backup: '+(e.message||e),'err',5000);
+      return false;
+    }
+  };
+
+  // Download em arquivo .json
+  window.bkBaixar = function(idx){
+    try{
+      var json, nome;
+      if(idx===undefined||idx===null){
+        json=JSON.stringify(_snapshot(),null,1);
+        nome='atlas-backup-'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.json';
+      } else {
+        var h=_lerHist()[idx];
+        if(!h){ _toast('Backup não encontrado.','err'); return; }
+        json=h.dados;
+        nome='atlas-backup-'+String(h.ts).slice(0,19).replace(/[:T]/g,'-')+'.json';
+      }
+      var blob=new Blob([json],{type:'application/json'});
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a');
+      a.href=url; a.download=nome;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); },60000);
+      _toast('📥 Download iniciado.','ok');
+    }catch(e){ _toast('Erro ao baixar: '+(e.message||e),'err',5000); }
+  };
+
+  window.bkExcluir = function(idx){
+    var h=_lerHist();
+    if(!h[idx]) return;
+    if(!confirm('Excluir este ponto de restauração?')) return;
+    h.splice(idx,1); _gravarHist(h);
+    _toast('Backup removido.','ok');
+    if(typeof navigate==='function') navigate('backup');
+  };
+
+  // Restauração — exige confirmação digitada
+  function _aplicar(obj){
+    var aplicados=0;
+    BK_KEYS.forEach(function(k){
+      if(obj[k]===undefined) return;
+      APP[k]=obj[k];
+      if(typeof save==='function') save(k);
+      aplicados++;
+    });
+    return aplicados;
+  }
+
+  window.bkRestaurar = function(idx){
+    var h=_lerHist()[idx];
+    if(!h){ _toast('Backup não encontrado.','err'); return; }
+    var c=h.contagem||{};
+    var resumo=Object.keys(c).filter(function(k){return c[k];}).slice(0,10)
+      .map(function(k){ return '<div class="info" style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:#64748B">'+k+'</span><span style="font-weight:700">'+c[k]+'</span></div>'; }).join('');
+
+    openModal('⚠️ Restaurar backup de '+new Date(h.ts).toLocaleString('pt-BR'), ''
+      + '<div style="background:#FEF2F2;border:1.5px solid #FECACA;border-radius:10px;padding:13px;margin-bottom:13px;font-size:12.5px;color:#B91C1C;line-height:1.55">'
+      +   '<strong>Isto substitui os dados atuais.</strong> Tudo que foi alterado depois de '+new Date(h.ts).toLocaleString('pt-BR')+' será perdido. Recomendo baixar um backup do estado atual antes de continuar.'
+      + '</div>'
+      + '<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:12px;margin-bottom:13px">'
+      +   '<div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;margin-bottom:6px">Conteúdo do backup</div>'+resumo
+      + '</div>'
+      + '<div class="fld"><label>Digite <strong>RESTAURAR</strong> para confirmar</label><input id="bk-conf" placeholder="RESTAURAR" autocomplete="off"></div>'
+      + '<div class="mft">'
+      +   '<button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>'
+      +   '<button class="btn btn-sm btn-ghost" onclick="bkBaixar()">📥 Baixar estado atual</button>'
+      +   '<button class="btn" style="background:#DC2626;color:#fff" onclick="bkConfirmarRestauro('+idx+')">Restaurar agora</button>'
+      + '</div>', 520);
+  };
+
+  window.bkConfirmarRestauro = function(idx){
+    var el=document.getElementById('bk-conf');
+    if(!el || String(el.value||'').trim().toUpperCase()!=='RESTAURAR'){
+      _toast('Digite RESTAURAR para confirmar.','err'); return;
+    }
+    var h=_lerHist()[idx];
+    if(!h){ _toast('Backup não encontrado.','err'); return; }
+    try{
+      var obj=JSON.parse(h.dados);
+      var n=_aplicar(obj);
+      closeModal();
+      _toast('✅ '+n+' conjuntos de dados restaurados.','ok',5000);
+      try{ if(typeof auditLog==='function') auditLog('Restaurou backup', new Date(h.ts).toLocaleString('pt-BR'), 'backup'); }catch(e){}
+      setTimeout(function(){ if(typeof navigate==='function') navigate('dashboard'); },700);
+    }catch(e){ _toast('Erro ao restaurar: '+(e.message||e),'err',6000); }
+  };
+
+  // Importar arquivo .json
+  window.bkImportarArquivo = function(input){
+    var f=input && input.files && input.files[0];
+    if(!f) return;
+    var rd=new FileReader();
+    rd.onload=function(){
+      try{
+        var obj=JSON.parse(rd.result);
+        var c=_contar(obj);
+        var resumo=Object.keys(c).filter(function(k){return c[k];}).slice(0,10)
+          .map(function(k){ return '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span style="color:#64748B">'+k+'</span><span style="font-weight:700">'+c[k]+'</span></div>'; }).join('');
+        window.__bkImport=obj;
+        openModal('📤 Importar backup', ''
+          + '<div style="background:#FFFBEB;border:1.5px solid #FDE68A;border-radius:10px;padding:12px;margin-bottom:12px;font-size:12.5px;color:#92400E;line-height:1.5">'
+          +   'Arquivo: <strong>'+_esc(f.name)+'</strong><br>Gerado em: <strong>'+((obj._meta&&obj._meta.geradoEm)?new Date(obj._meta.geradoEm).toLocaleString('pt-BR'):'desconhecido')+'</strong>'
+          + '</div>'
+          + '<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:12px;margin-bottom:12px">'+resumo+'</div>'
+          + '<div class="fld"><label>Digite <strong>RESTAURAR</strong> para confirmar</label><input id="bk-conf2" placeholder="RESTAURAR" autocomplete="off"></div>'
+          + '<div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>'
+          + '<button class="btn" style="background:#DC2626;color:#fff" onclick="bkAplicarImport()">Restaurar deste arquivo</button></div>', 520);
+      }catch(e){ _toast('Arquivo inválido ou corrompido.','err',5000); }
+    };
+    rd.readAsText(f);
+    input.value='';
+  };
+
+  window.bkAplicarImport = function(){
+    var el=document.getElementById('bk-conf2');
+    if(!el || String(el.value||'').trim().toUpperCase()!=='RESTAURAR'){ _toast('Digite RESTAURAR para confirmar.','err'); return; }
+    var obj=window.__bkImport;
+    if(!obj){ _toast('Nada para importar.','err'); return; }
+    bkCriarLocal(true); // salva o estado atual antes
+    var n=_aplicar(obj);
+    closeModal();
+    _toast('✅ '+n+' conjuntos restaurados do arquivo.','ok',5000);
+    try{ if(typeof auditLog==='function') auditLog('Restaurou backup de arquivo','import','backup'); }catch(e){}
+    setTimeout(function(){ if(typeof navigate==='function') navigate('dashboard'); },700);
+  };
+
+  window.rBackup = function(){
+    var hist=_lerHist();
+    var atual=JSON.stringify(_snapshot());
+    var cAtual=_contar(_snapshot());
+    var totRegs=Object.keys(cAtual).reduce(function(s,k){ return s+(cAtual[k]||0); },0);
+    var ultimo=hist[0]?new Date(hist[0].ts):null;
+    var horas=ultimo?Math.floor((Date.now()-ultimo.getTime())/3600000):null;
+
+    var linhas=hist.map(function(h,i){
+      var c=h.contagem||{};
+      var reg=Object.keys(c).reduce(function(s,k){ return s+(c[k]||0); },0);
+      return '<tr>'
+        + '<td style="font-size:12.5px;font-weight:600">'+new Date(h.ts).toLocaleString('pt-BR')+'</td>'
+        + '<td style="font-size:12px">'+reg+' registros</td>'
+        + '<td style="font-size:12px">'+_tamanho(String(h.dados||''))+'</td>'
+        + '<td><div style="display:flex;gap:5px;flex-wrap:wrap">'
+        +   '<button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8" onclick="bkBaixar('+i+')">📥</button>'
+        +   '<button class="btn btn-sm" style="background:#FFFBEB;color:#92400E" onclick="bkRestaurar('+i+')">↩️ Restaurar</button>'
+        +   '<button class="btn btn-sm btn-icon-red" style="padding:4px 8px" onclick="bkExcluir('+i+')">🗑</button>'
+        + '</div></td></tr>';
+    }).join('');
+
+    return ''
+    + '<div class="card" style="margin-bottom:14px;border-left:4px solid '+(horas===null||horas>24?'#D97706':'#059669')+'">'
+    +   '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+    +     '<div><div style="font-weight:800;font-size:14px">'+(horas===null?'⚠️ Nenhum backup ainda':(horas>24?'⚠️ Último backup há '+horas+'h':'✅ Backup em dia'))+'</div>'
+    +       '<div style="font-size:12.5px;color:#64748B;margin-top:2px">'+(ultimo?('Último: '+ultimo.toLocaleString('pt-BR')):'Crie o primeiro ponto de restauração agora.')+'</div></div>'
+    +     '<div style="display:flex;gap:7px;flex-wrap:wrap">'
+    +       '<button class="btn btn-blue" onclick="bkCriarLocal()">💾 Criar backup</button>'
+    +       '<button class="btn btn-ghost" onclick="bkBaixar()">📥 Baixar .json</button>'
+    +     '</div>'
+    +   '</div>'
+    + '</div>'
+
+    + '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
+    +   '<div style="flex:1;min-width:120px;background:#F8FAFC;border-radius:12px;padding:14px;text-align:center"><div style="font-size:24px;font-weight:900">'+totRegs+'</div><div style="font-size:11.5px;color:#64748B;font-weight:700">Registros ativos</div></div>'
+    +   '<div style="flex:1;min-width:120px;background:#F8FAFC;border-radius:12px;padding:14px;text-align:center"><div style="font-size:24px;font-weight:900">'+_tamanho(atual)+'</div><div style="font-size:11.5px;color:#64748B;font-weight:700">Tamanho atual</div></div>'
+    +   '<div style="flex:1;min-width:120px;background:#F8FAFC;border-radius:12px;padding:14px;text-align:center"><div style="font-size:24px;font-weight:900">'+hist.length+'/5</div><div style="font-size:11.5px;color:#64748B;font-weight:700">Pontos salvos</div></div>'
+    + '</div>'
+
+    + '<div class="card" style="margin-bottom:14px">'
+    +   '<div style="font-weight:700;font-size:14px;margin-bottom:8px">📤 Restaurar de um arquivo</div>'
+    +   '<div style="font-size:12.5px;color:#475569;margin-bottom:10px;line-height:1.5">Se você tem um arquivo <code>.json</code> baixado antes, pode voltar o sistema para aquele estado.</div>'
+    +   '<input type="file" accept="application/json,.json" onchange="bkImportarArquivo(this)" style="font-size:13px">'
+    + '</div>'
+
+    + '<div style="font-size:15px;font-weight:700;margin-bottom:10px">🕘 Pontos de restauração</div>'
+    + (hist.length
+        ? '<div class="card" style="padding:0;overflow-x:auto"><table style="margin:0"><thead><tr><th>Data</th><th>Conteúdo</th><th>Tamanho</th><th>Ações</th></tr></thead><tbody>'+linhas+'</tbody></table></div>'
+        : '<div class="card" style="text-align:center;padding:32px;color:var(--mt)"><div style="font-size:36px">🗂️</div><div style="font-weight:700;margin-top:8px">Nenhum ponto de restauração</div><div style="font-size:13px;margin-top:4px">Clique em <strong>Criar backup</strong> acima.</div></div>')
+    + '<div style="font-size:11px;color:var(--mt);margin-top:14px;line-height:1.5">Os backups ficam no armazenamento local deste navegador (máximo 5, o mais antigo é descartado). Para segurança real contra perda do dispositivo, baixe o <code>.json</code> periodicamente e guarde fora do computador. Um backup automático é criado ao abrir o sistema, no máximo uma vez por dia.</div>';
+  };
+
+  // Backup automático diário (dispara 6s após o carregamento)
+  function _autoBackup(){
+    try{
+      var hist=_lerHist();
+      var ultimo=hist[0]?new Date(hist[0].ts).getTime():0;
+      if(Date.now()-ultimo < 20*3600000) return;   // menos de 20h → não repete
+      if(!(APP.employees||[]).length) return;      // dados ainda não carregaram
+      if(bkCriarLocal(true)) console.log('[Atlas] Backup automático criado ✅');
+    }catch(e){ console.warn('[autoBackup]',e); }
+  }
+  setTimeout(_autoBackup, 6000);
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // 4) FECHAMENTO MENSAL GUIADO
+  // ═══════════════════════════════════════════════════════════════════════
+  var FEC_ANO=new Date().getFullYear(), FEC_MES=new Date().getMonth();
+
+  window.fecMudarMes = function(){
+    var v=document.getElementById('fec-mes');
+    if(v){ var p=String(v.value||'').split('-'); FEC_ANO=parseInt(p[0],10); FEC_MES=parseInt(p[1],10)-1; }
+    if(typeof navigate==='function') navigate('fechamento');
+  };
+
+  function _checarFechamento(ano,mes){
+    var itens=[], ativos=_ativos().filter(function(e){ return e.status==='ativo' && !_ehPJ(e); });
+    var ultimoDia=new Date(ano,mes+1,0).getDate();
+    var hoje=_hojeD();
+
+    // 1) Jornadas em aberto (número ímpar de batidas / sem saída)
+    var abertos=[];
+    ativos.forEach(function(e){
+      var pm=(APP.pontos||{})[e.id+'_'+ano+'_'+mes]||{};
+      Object.keys(pm).forEach(function(dia){
+        var r=pm[dia]||{};
+        var st=String(r.status||'normal').toLowerCase();
+        if(['falta','folga','atestado','ferias'].indexOf(st)>=0) return;
+        if(r.entrada && !r.saida) abertos.push((e.nome||'').split(' ')[0]+' (dia '+dia+')');
+      });
+    });
+    itens.push({
+      ok: abertos.length===0, bloqueia:true,
+      titulo:'Jornadas em aberto',
+      desc: abertos.length? abertos.length+' registro(s) com entrada sem saída: '+abertos.slice(0,6).join(', ')+(abertos.length>6?' +'+(abertos.length-6):'') : 'Todas as batidas do mês estão completas.',
+      acao:'ponto'
+    });
+
+    // 2) Dias úteis sem nenhum registro (falta não classificada)
+    var semReg=[];
+    ativos.forEach(function(e){
+      var pm=(APP.pontos||{})[e.id+'_'+ano+'_'+mes]||{};
+      var qtd=0;
+      for(var d=1; d<=ultimoDia; d++){
+        var dt=new Date(ano,mes,d);
+        if(dt>hoje) break;
+        if(dt.getDay()===0) continue; // domingo
+        var r=pm[d]||pm[String(d)]||null;
+        if(!r || (!r.entrada && !r.status)) qtd++;
+      }
+      if(qtd>3) semReg.push((e.nome||'').split(' ')[0]+' ('+qtd+'d)');
+    });
+    itens.push({
+      ok: semReg.length===0, bloqueia:false,
+      titulo:'Dias sem registro nem justificativa',
+      desc: semReg.length? semReg.join(', ')+' — classifique como falta, atestado ou folga.' : 'Nenhum funcionário com muitos dias em branco.',
+      acao:'ponto'
+    });
+
+    // 3) Solicitações de banco de horas pendentes
+    var pend=(APP.bhSolicitacoes||[]).filter(function(s){ return s && (s.status==='pendente'||!s.status); });
+    itens.push({
+      ok: pend.length===0, bloqueia:true,
+      titulo:'Solicitações de banco de horas pendentes',
+      desc: pend.length? pend.length+' solicitação(ões) aguardando aprovação do RH.' : 'Nenhuma solicitação em aberto.',
+      acao:'solicitacoes_portal'
+    });
+
+    // 4) Banco de horas sincronizado
+    var temBH=Object.keys(APP.bancohoras||{}).length>0;
+    itens.push({
+      ok:true, bloqueia:false, manual:true,
+      titulo:'Banco de horas recalculado',
+      desc: temBH? 'Rode a sincronização para garantir que o saldo do RH e o do portal estejam iguais antes de gerar a folha.' : 'Nenhum lançamento de banco de horas neste período.',
+      acao:'bancohoras'
+    });
+
+    // 5) Adiantamentos do mês
+    var adis=(APP.adiantamentos||[]).filter(function(a){
+      if(!a||!a.data) return false;
+      var dd=_d(a.data); return dd && dd.getFullYear()===ano && dd.getMonth()===mes;
+    });
+    itens.push({
+      ok:true, bloqueia:false, manual:true,
+      titulo:'Adiantamentos e vales conferidos',
+      desc: adis.length? adis.length+' lançamento(s) no mês — confirme se todos devem ser descontados na folha.' : 'Nenhum adiantamento lançado neste mês.',
+      acao:'adiantamentos'
+    });
+
+    // 6) Funcionários sem salário cadastrado
+    var semSal=ativos.filter(function(e){ return !parseFloat(e.salario||0); });
+    itens.push({
+      ok: semSal.length===0, bloqueia:true,
+      titulo:'Salários cadastrados',
+      desc: semSal.length? semSal.map(function(e){return (e.nome||'').split(' ')[0];}).join(', ')+' sem salário definido.' : 'Todos os ativos têm salário cadastrado.',
+      acao:'funcionarios'
+    });
+
+    // 7) Conformidade crítica
+    var crit=_scanConformidade().filter(function(a){ return a.sev==='critico'; });
+    itens.push({
+      ok: crit.length===0, bloqueia:false,
+      titulo:'Alertas críticos de conformidade',
+      desc: crit.length? crit.length+' pendência(s) crítica(s) — férias vencidas ou banco de horas fora do prazo.' : 'Nenhum alerta crítico em aberto.',
+      acao:'conformidade'
+    });
+
+    return itens;
+  }
+
+  window.rFechamento = function(){
+    var itens=_checarFechamento(FEC_ANO,FEC_MES);
+    var bloqueios=itens.filter(function(i){ return i.bloqueia && !i.ok; });
+    var pendentes=itens.filter(function(i){ return !i.ok; });
+    var liberado=bloqueios.length===0;
+
+    var opts='';
+    var base=new Date();
+    for(var i=0;i<14;i++){
+      var d=new Date(base.getFullYear(),base.getMonth()-i,1);
+      var val=d.getFullYear()+'-'+_zp(d.getMonth()+1);
+      var sel=(d.getFullYear()===FEC_ANO&&d.getMonth()===FEC_MES)?' selected':'';
+      opts+='<option value="'+val+'"'+sel+'>'+MESES[d.getMonth()]+'/'+d.getFullYear()+'</option>';
+    }
+
+    var lista=itens.map(function(it){
+      var ic = it.ok ? (it.manual?'🔸':'✅') : (it.bloqueia?'⛔':'⚠️');
+      var cor= it.ok ? (it.manual?'#D97706':'#059669') : (it.bloqueia?'#B91C1C':'#D97706');
+      var bg = it.ok ? (it.manual?'#FFFBEB':'#F0FDF4') : (it.bloqueia?'#FEF2F2':'#FFFBEB');
+      return '<div style="background:'+bg+';border:1px solid '+cor+'33;border-radius:10px;padding:12px 14px;margin-bottom:9px">'
+        + '<div style="display:flex;gap:10px;align-items:flex-start">'
+        +   '<div style="font-size:15px">'+ic+'</div>'
+        +   '<div style="flex:1;min-width:0">'
+        +     '<div style="font-weight:800;font-size:13px;color:'+cor+'">'+_esc(it.titulo)+(it.bloqueia&&!it.ok?' <span style="font-size:10px;background:'+cor+';color:#fff;padding:1px 7px;border-radius:10px;vertical-align:middle">BLOQUEIA</span>':'')+'</div>'
+        +     '<div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">'+_esc(it.desc)+'</div>'
+        +   '</div>'
+        +   (it.acao?'<button class="btn btn-sm btn-ghost" style="white-space:nowrap" onclick="navigate(\''+it.acao+'\')">Abrir →</button>':'')
+        + '</div></div>';
+    }).join('');
+
+    return ''
+    + '<div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">'
+    +   '<label style="font-size:13px;font-weight:600">Competência:</label>'
+    +   '<select id="fec-mes" onchange="fecMudarMes()" style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px">'+opts+'</select>'
+    + '</div>'
+
+    + '<div class="card" style="margin-bottom:14px;border-left:5px solid '+(liberado?'#059669':'#B91C1C')+';background:'+(liberado?'#F0FDF4':'#FEF2F2')+'">'
+    +   '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">'
+    +     '<div style="font-size:32px">'+(liberado?'✅':'⛔')+'</div>'
+    +     '<div style="flex:1;min-width:200px">'
+    +       '<div style="font-weight:900;font-size:16px;color:'+(liberado?'#065F46':'#B91C1C')+'">'+(liberado?'Liberado para fechar a folha':'Fechamento bloqueado')+'</div>'
+    +       '<div style="font-size:12.5px;color:'+(liberado?'#047857':'#991B1B')+';margin-top:2px">'
+    +         (liberado
+            ? (pendentes.length? pendentes.length+' item(ns) de atenção — vale revisar, mas não impedem o fechamento.' : 'Todos os pontos verificados estão em ordem.')
+            : bloqueios.length+' item(ns) precisam ser resolvidos antes de gerar a folha de '+MESES[FEC_MES]+'.')
+    +       '</div>'
+    +     '</div>'
+    +     (liberado?'<button class="btn btn-green" onclick="navigate(\'holerite\')">Ir para a folha →</button>':'')
+    +   '</div>'
+    + '</div>'
+
+    + '<div style="font-size:15px;font-weight:700;margin-bottom:10px">📋 Checklist de '+MESES[FEC_MES]+'/'+FEC_ANO+'</div>'
+    + lista
+    + '<div style="font-size:11px;color:var(--mt);margin-top:12px;line-height:1.5">⛔ bloqueia o fechamento · ⚠️ recomenda revisão · 🔸 confirmação manual sua · ✅ verificado automaticamente</div>';
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // 5) AUTOTESTE DO BANCO DE HORAS
+  // ═══════════════════════════════════════════════════════════════════════
+  // Injeta registros sintéticos em APP.pontos sob um ID de teste, roda o motor
+  // REAL de cálculo e compara com o resultado esperado. Os dados de teste são
+  // sempre removidos no final (try/finally) e nunca são salvos no Firebase.
+  var TEST_ID='__autoteste_bh__';
+
+  function _empTeste(){
+    return { id:TEST_ID, nome:'Funcionário de Teste', status:'ativo',
+      horarioEntrada:'08:00', horarioAlmoco:'12:00', horarioVoltaAlmoco:'13:00',
+      horarioCafe:'15:00', horarioVoltaCafe:'15:30', horarioSaida:'17:30' };
+    // Jornada esperada: 09:30 de amplitude − 01:30 de pausa = 8h00 (480 min)
+  }
+
+  function _casos(){
+    return [
+      { nome:'Dia normal completo',
+        desc:'Bateu os 4 horários certinhos. Não pode gerar crédito nem débito.',
+        reg:{entrada:'08:00',saida_almoco:'12:00',volta_almoco:'13:00',saida:'17:30'},
+        esp:{cred:0,deb:0} },
+      { nome:'Hora extra de 1h',
+        desc:'Saiu 1h depois do previsto. Deve creditar 60 minutos.',
+        reg:{entrada:'08:00',saida_almoco:'12:00',volta_almoco:'13:00',saida:'18:30'},
+        esp:{cred:60,deb:0} },
+      { nome:'Saída antecipada de 1h',
+        desc:'Saiu 1h antes. Deve debitar 60 minutos.',
+        reg:{entrada:'08:00',saida_almoco:'12:00',volta_almoco:'13:00',saida:'16:30'},
+        esp:{cred:0,deb:60} },
+      { nome:'Atraso de 5 min (tolerância)',
+        desc:'Entrou às 08:05. A tolerância de 10 min não pode gerar débito.',
+        reg:{entrada:'08:05',saida_almoco:'12:00',volta_almoco:'13:00',saida:'17:30'},
+        esp:{cred:0,deb:0} },
+      { nome:'Compensação aprovada pelo RH',
+        desc:'Saiu 1h antes COM compensação aprovada. O débito já foi lançado manualmente na aprovação — o automático deve ser suprimido para não descontar em dobro.',
+        reg:{entrada:'08:00',saida_almoco:'12:00',volta_almoco:'13:00',saida:'16:30',compensacao:{solId:'teste123',tipo:'saida_antecipada'}},
+        esp:{cred:0,deb:0} },
+      { nome:'Falta registrada',
+        desc:'Dia marcado como falta. Não entra no banco de horas.',
+        reg:{status:'falta'},
+        esp:{cred:0,deb:0} },
+      { nome:'Folga aprovada',
+        desc:'Dia marcado como folga. Não pode gerar débito.',
+        reg:{status:'folga'},
+        esp:{cred:0,deb:0} },
+      { nome:'Batida ímpar (sem saída)',
+        desc:'Entrou e esqueceu de bater a saída. Dia inválido — não pode gerar débito de jornada inteira.',
+        reg:{entrada:'08:00'},
+        esp:{cred:0,deb:0} },
+      { nome:'Almoço estendido (2h)',
+        desc:'Pausa real de 2h contra 1h30 previstos. O excedente de 30 min deve virar débito.',
+        reg:{entrada:'08:00',saida_almoco:'12:00',volta_almoco:'14:00',saida:'17:30'},
+        esp:{cred:0,deb:30} }
+    ];
+  }
+
+  window.bhRodarTestes = function(){
+    if(typeof window._bhCalcMesPonto!=='function'){
+      _toast('Motor de cálculo não disponível nesta versão.','err',5000); return;
+    }
+    var emp=_empTeste();
+    // Mês anterior — garante que todos os dias já passaram (o motor ignora datas futuras)
+    var hj=new Date();
+    var ref=new Date(hj.getFullYear(), hj.getMonth()-1, 1);
+    var ano=ref.getFullYear(), mes=ref.getMonth();
+    var chave=TEST_ID+'_'+ano+'_'+mes;
+    var casos=_casos();
+    var resultados=[];
+
+    var backupEmp=APP.employees;
+    try{
+      // Adiciona o funcionário de teste temporariamente
+      APP.employees=(APP.employees||[]).concat([emp]);
+
+      casos.forEach(function(c,i){
+        var dia=i+2; // dia 2 em diante (evita dia 1 e finais de mês)
+        APP.pontos[chave]={};
+        APP.pontos[chave][dia]=c.reg;
+        var r={credMin:0,debMin:0};
+        try{ r=window._bhCalcMesPonto(emp,ano,mes)||r; }catch(e){ r={credMin:-1,debMin:-1,erro:e.message}; }
+        var okC=Math.abs((r.credMin||0)-c.esp.cred)<=2;
+        var okD=Math.abs((r.debMin||0)-c.esp.deb)<=2;
+        resultados.push({caso:c, obtido:r, ok:(okC&&okD)});
+      });
+    } finally {
+      // Limpeza garantida — nunca deixa lixo nem chama save()
+      try{ delete APP.pontos[chave]; }catch(e){}
+      APP.employees=backupEmp;
+    }
+
+    var passou=resultados.filter(function(r){return r.ok;}).length;
+    window.__bhTestRes={resultados:resultados,passou:passou,total:resultados.length,em:new Date().toISOString()};
+    _toast(passou===resultados.length?('✅ '+passou+'/'+resultados.length+' testes passaram'):('⚠️ '+(resultados.length-passou)+' teste(s) falharam'), passou===resultados.length?'ok':'err', 4000);
+    if(typeof navigate==='function') navigate('bh_testes');
+  };
+
+  window.rBHTestes = function(){
+    var R=window.__bhTestRes;
+
+    var head=''
+    + '<div class="card" style="margin-bottom:14px;border-left:4px solid #1E3A5F">'
+    +   '<div style="font-weight:800;font-size:14px;margin-bottom:4px">🧪 Para que serve</div>'
+    +   '<div style="font-size:12.5px;color:#475569;line-height:1.55">O cálculo do banco de horas já teve bugs difíceis de perceber — como o desconto em dobro quando o RH aprovava uma compensação. Estes testes rodam o motor de cálculo <strong>real</strong> contra situações conhecidas e mostram na hora se alguma alteração quebrou algo. Rode sempre que mexer na jornada ou no cálculo.</div>'
+    +   '<div style="font-size:11.5px;color:#64748B;margin-top:8px">Os dados de teste são temporários, isolados sob um ID próprio e removidos ao final. Nada é gravado no Firebase.</div>'
+    + '</div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">'
+    +   '<div style="font-size:15px;font-weight:700">Resultados</div>'
+    +   '<button class="btn btn-blue" onclick="bhRodarTestes()">▶️ Rodar testes</button>'
+    + '</div>';
+
+    if(!R){
+      return head + '<div class="card" style="text-align:center;padding:40px;color:var(--mt)">'
+        + '<div style="font-size:40px">🧪</div><div style="font-weight:700;margin-top:8px">Nenhum teste executado ainda</div>'
+        + '<div style="font-size:13px;margin-top:4px">Clique em <strong>Rodar testes</strong> para validar o cálculo.</div></div>';
+    }
+
+    var pct=Math.round(R.passou/R.total*100);
+    var cor=R.passou===R.total?'#059669':'#B91C1C';
+    var linhas=R.resultados.map(function(r){
+      var ic=r.ok?'✅':'❌';
+      var bg=r.ok?'#F0FDF4':'#FEF2F2';
+      var bd=r.ok?'#BBF7D0':'#FECACA';
+      return '<div style="background:'+bg+';border:1px solid '+bd+';border-radius:10px;padding:12px 14px;margin-bottom:9px">'
+        + '<div style="display:flex;gap:9px;align-items:flex-start">'
+        +   '<div style="font-size:14px">'+ic+'</div>'
+        +   '<div style="flex:1;min-width:0">'
+        +     '<div style="font-weight:800;font-size:13px">'+_esc(r.caso.nome)+'</div>'
+        +     '<div style="font-size:12px;color:#475569;margin-top:2px;line-height:1.5">'+_esc(r.caso.desc)+'</div>'
+        +     '<div style="font-size:11.5px;margin-top:6px;font-family:monospace;color:#334155">'
+        +       'esperado: +'+r.caso.esp.cred+'min / −'+r.caso.esp.deb+'min &nbsp;·&nbsp; '
+        +       'obtido: +'+(r.obtido.credMin||0)+'min / −'+(r.obtido.debMin||0)+'min'
+        +     '</div>'
+        +   '</div>'
+        + '</div></div>';
+    }).join('');
+
+    return head
+    + '<div class="card" style="margin-bottom:14px;text-align:center;border-left:5px solid '+cor+'">'
+    +   '<div style="font-size:34px;font-weight:900;color:'+cor+'">'+R.passou+'/'+R.total+'</div>'
+    +   '<div style="font-size:13px;font-weight:700;color:'+cor+'">'+pct+'% dos testes passaram</div>'
+    +   '<div style="font-size:11.5px;color:#64748B;margin-top:4px">Executado em '+new Date(R.em).toLocaleString('pt-BR')+'</div>'
+    + '</div>'
+    + linhas;
+  };
+
+})();
+
+console.log('[Atlas] Módulo Conformidade & Risco carregado ✅');
+</script>
+
+<!-- ═══ MÓDULO CONSULTOR CLT ═══ -->
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// MÓDULO: CONSULTOR CLT — Autoajuda do RH em legislação trabalhista
+// ---------------------------------------------------------------------------
+// Combina duas coisas:
+//   1) BASE LEGAL LOCAL — resumos com artigo/lei de referência, que funcionam
+//      offline e sem consumir IA. É a fonte da verdade do módulo.
+//   2) IA ANCORADA — antes de perguntar ao modelo, o sistema busca na base
+//      local os tópicos relacionados e injeta no prompt. O modelo é instruído
+//      a responder a partir desse material e a admitir quando não souber.
+//      Isso reduz muito a chance de a IA inventar artigo de lei.
+//
+// ⚠️ Nada aqui substitui advogado ou contador. É apoio operacional.
+// ═══════════════════════════════════════════════════════════════════════════
+(function(){
+  'use strict';
+
+  function _esc(s){ return (typeof esc==='function') ? esc(s) : String(s==null?'':s); }
+  function _toast(m,t,d){ if(typeof toast==='function') toast(m,t||'ok',d||3200); }
+
+  // ── BASE LEGAL ───────────────────────────────────────────────────────────
+  var BASE = [
+    { id:'jornada', cat:'Jornada', tit:'Jornada de trabalho e horas extras',
+      ref:'CF art. 7º XIII e XVI · CLT arts. 58 e 59',
+      res:'A jornada padrão é de 8 horas diárias e 44 semanais. A hora extra é limitada a 2 horas por dia e tem adicional mínimo de 50% sobre a hora normal.',
+      pts:['Limite: 8h/dia e 44h/semana.',
+           'Extra: no máximo 2h por dia, com adicional de no mínimo 50%.',
+           'Tolerância: até 5 minutos por marcação e 10 minutos no total do dia não contam como extra (CLT art. 58 §1º).',
+           'Trabalho em domingo/feriado sem folga compensatória costuma ser pago em dobro.'],
+      tags:'jornada hora extra horario 44 horas adicional 50% tolerancia atraso' },
+
+    { id:'intervalos', cat:'Jornada', tit:'Intervalos: almoço e entre jornadas',
+      ref:'CLT arts. 66 e 71',
+      res:'Jornada acima de 6 horas exige intervalo de no mínimo 1 hora e no máximo 2 horas. Entre 4 e 6 horas, o intervalo é de 15 minutos. Entre uma jornada e outra são necessárias 11 horas de descanso.',
+      pts:['Mais de 6h trabalhadas: intervalo de 1h a 2h.',
+           'Entre 4h e 6h: intervalo de 15 minutos.',
+           'Intervalo não concedido: paga-se apenas o período suprimido, com adicional de 50%, de natureza indenizatória (CLT art. 71 §4º).',
+           'Interjornada: mínimo de 11 horas entre o fim de um dia e o início do outro.'],
+      tags:'intervalo almoco descanso 11 horas interjornada intrajornada' },
+
+    { id:'bancohoras', cat:'Jornada', tit:'Banco de horas',
+      ref:'CLT art. 59 §§2º, 5º e 6º',
+      res:'Permite compensar horas extras com folgas em vez de pagá-las. O prazo de compensação depende de como foi pactuado.',
+      pts:['Acordo individual escrito: compensação em até 6 meses.',
+           'Acordo ou convenção coletiva: compensação em até 12 meses.',
+           'Compensação no mesmo mês pode ser feita por acordo tácito.',
+           'Horas não compensadas dentro do prazo viram hora extra, com adicional, na rescisão ou no vencimento.',
+           'Na rescisão, o saldo positivo é pago como extra; o negativo em geral não é descontado sem previsão em acordo.'],
+      tags:'banco de horas compensacao folga saldo 6 meses 12 meses' },
+
+    { id:'ponto', cat:'Jornada', tit:'Registro de ponto e Portaria 671/2021',
+      ref:'CLT art. 74 §2º · Portaria MTP 671/2021',
+      res:'Empresas com mais de 20 empregados são obrigadas a registrar a jornada. O registro eletrônico segue as regras da Portaria 671/2021.',
+      pts:['Obrigatório para estabelecimentos com mais de 20 empregados.',
+           'Modalidades: REP-C (convencional), REP-A (alternativo, por acordo coletivo) e REP-P (programa/software).',
+           'O REP-P exige comprovante de registro ao trabalhador e geração do AFD.',
+           'O empregado deve conseguir obter seus registros; a marcação não pode ser alterada sem rastro.',
+           'Marcação britânica (horários idênticos todo dia) é indício de fraude e costuma ser invalidada em juízo.'],
+      tags:'ponto eletronico registro portaria 671 rep afd nsr biometrico' },
+
+    { id:'ferias', cat:'Férias', tit:'Férias: período aquisitivo e concessivo',
+      ref:'CLT arts. 129 a 145',
+      res:'A cada 12 meses trabalhados o empregado adquire 30 dias de férias, que devem ser concedidos nos 12 meses seguintes.',
+      pts:['Período aquisitivo: 12 meses de trabalho. Período concessivo: os 12 meses seguintes.',
+           'Conceder fora do prazo obriga a pagar em dobro (art. 137).',
+           'Remuneração: salário + 1/3 constitucional, pago até 2 dias antes do início (art. 145).',
+           'Fracionamento: até 3 períodos, um deles com no mínimo 14 dias e os demais com no mínimo 5 dias cada.',
+           'Abono pecuniário: o empregado pode vender até 1/3 das férias (10 dias).',
+           'Não pode iniciar 2 dias antes de feriado ou no dia de repouso semanal.'],
+      tags:'ferias periodo aquisitivo concessivo dobro terco abono fracionamento' },
+
+    { id:'ferias_faltas', cat:'Férias', tit:'Faltas que reduzem as férias',
+      ref:'CLT art. 130',
+      res:'Faltas injustificadas no período aquisitivo reduzem a quantidade de dias de férias.',
+      pts:['Até 5 faltas: 30 dias de férias.',
+           'De 6 a 14 faltas: 24 dias.',
+           'De 15 a 23 faltas: 18 dias.',
+           'De 24 a 32 faltas: 12 dias.',
+           'Mais de 32 faltas: perde o direito às férias daquele período.'],
+      tags:'ferias faltas reducao dias proporcional' },
+
+    { id:'decimo', cat:'Remuneração', tit:'13º salário',
+      ref:'Lei 4.090/1962 · Lei 4.749/1965',
+      res:'Gratificação natalina equivalente a 1/12 da remuneração por mês trabalhado, paga em duas parcelas.',
+      pts:['1ª parcela: entre 1º de fevereiro e 30 de novembro (50%, sem descontos).',
+           '2ª parcela: até 20 de dezembro, com desconto de INSS e IRRF sobre o total.',
+           'Conta-se como mês integral a fração igual ou superior a 15 dias trabalhados.',
+           'Médias de comissões e horas extras integram a base de cálculo.'],
+      tags:'13 decimo terceiro gratificacao natalina parcela dezembro' },
+
+    { id:'comissoes', cat:'Remuneração', tit:'Comissões de vendedores',
+      ref:'Lei 3.207/1957 · Súmula 27 do TST',
+      res:'O vendedor comissionado tem regras próprias. A comissão é devida quando a venda se concretiza, e há reflexo obrigatório no descanso semanal remunerado.',
+      pts:['A remuneração nunca pode ficar abaixo do salário mínimo, mesmo em mês fraco de vendas.',
+           'DSR sobre comissões é devido (Súmula 27 do TST) — precisa aparecer destacado no holerite.',
+           'Comissão de venda cancelada ou com pagamento não realizado pelo cliente pode ser estornada.',
+           'Insolvência do comprador permite estorno; inadimplência simples depende do que foi pactuado.',
+           'As comissões integram a base de férias, 13º, FGTS e aviso prévio (pela média).'],
+      tags:'comissao vendedor dsr estorno venda cancelada media salario minimo' },
+
+    { id:'descontos', cat:'Remuneração', tit:'O que pode ser descontado do salário',
+      ref:'CLT art. 462 · Lei 7.418/1985 · Súmula 342 do TST',
+      res:'O desconto salarial é restrito. Fora das hipóteses legais, só é válido com autorização e sem vício de consentimento.',
+      pts:['Permitidos: INSS, IRRF, vale-transporte (até 6% do salário base), pensão, adiantamento e faltas.',
+           'Dano causado pelo empregado: só se houver dolo, ou culpa com previsão em contrato.',
+           'Descontos de convênios, farmácia e plano de saúde exigem autorização prévia por escrito.',
+           'Não é permitido descontar prejuízo de caixa ou quebra sem previsão contratual e culpa comprovada.'],
+      tags:'desconto salario vale transporte dano avaria autorizacao 6%' },
+
+    { id:'faltas', cat:'Frequência', tit:'Faltas, atrasos e atestados',
+      ref:'CLT art. 473 · Lei 605/1949 art. 6º',
+      res:'Falta justificada por atestado médico é abonada. Falta injustificada permite desconto do dia e do DSR da semana.',
+      pts:['Atestado médico válido abona o dia e mantém o descanso semanal remunerado.',
+           'Falta injustificada: desconta o dia e também o DSR daquela semana.',
+           'Faltas legais abonadas incluem falecimento de familiar (2 dias), casamento (3 dias), doação de sangue (1 dia/ano) e alistamento eleitoral.',
+           'Atraso habitual pode gerar advertência, mas o desconto é proporcional ao tempo.'],
+      tags:'falta atraso atestado abono dsr justificada injustificada' },
+
+    { id:'experiencia', cat:'Contratação', tit:'Contrato de experiência',
+      ref:'CLT art. 445 parágrafo único e art. 451',
+      res:'Contrato por prazo determinado de no máximo 90 dias, admitida uma única prorrogação dentro desse limite.',
+      pts:['Prazo máximo total: 90 dias.',
+           'Só é permitida UMA prorrogação (ex.: 45 + 45 ou 30 + 60).',
+           'Passando de 90 dias ou havendo segunda prorrogação, o contrato vira indeterminado automaticamente.',
+           'Rescisão antecipada pelo empregador gera indenização de metade dos dias restantes (art. 479).',
+           'Deve ser registrado por escrito e anotado na CTPS.'],
+      tags:'experiencia 90 dias prorrogacao prazo determinado efetivacao' },
+
+    { id:'avisoprevio', cat:'Rescisão', tit:'Aviso prévio',
+      ref:'CLT arts. 487 a 491 · Lei 12.506/2011',
+      res:'Prazo mínimo de 30 dias, acrescido de 3 dias por ano completo de serviço, limitado a 90 dias no total.',
+      pts:['Base: 30 dias + 3 dias por ano trabalhado, teto de 90 dias.',
+           'O acréscimo por tempo de serviço só beneficia o empregado, não o empregador.',
+           'Aviso trabalhado: redução de 2h por dia ou 7 dias corridos ao final, à escolha do empregado.',
+           'Aviso indenizado: pago integralmente e o tempo conta para todos os efeitos.',
+           'Pedido de demissão sem cumprir o aviso permite desconto do valor correspondente.'],
+      tags:'aviso previo 30 dias indenizado trabalhado demissao' },
+
+    { id:'rescisao', cat:'Rescisão', tit:'Rescisão: prazos e verbas',
+      ref:'CLT arts. 477 e 484-A',
+      res:'O acerto deve ser pago em até 10 dias corridos do fim do contrato, independentemente da modalidade.',
+      pts:['Prazo de pagamento: 10 dias corridos. Atraso gera multa de um salário (art. 477 §8º).',
+           'Sem justa causa: saldo, aviso, férias + 1/3, 13º proporcional, FGTS + multa de 40% e seguro-desemprego.',
+           'Pedido de demissão: sem multa de 40%, sem saque do FGTS e sem seguro-desemprego.',
+           'Acordo (art. 484-A): metade do aviso, multa de 20% do FGTS, saque de 80% e sem seguro-desemprego.',
+           'Justa causa: apenas saldo de salário e férias vencidas + 1/3.',
+           'A homologação em sindicato deixou de ser obrigatória após a Reforma de 2017.'],
+      tags:'rescisao acerto 10 dias multa 40% fgts acordo 484-A justa causa' },
+
+    { id:'justacausa', cat:'Rescisão', tit:'Justa causa',
+      ref:'CLT art. 482',
+      res:'Só cabe nas hipóteses previstas em lei e exige prova, proporcionalidade e imediatidade.',
+      pts:['Hipóteses incluem improbidade, desídia, insubordinação, abandono de emprego e embriaguez em serviço.',
+           'Abandono de emprego: entendimento consolidado é de 30 dias de ausência injustificada.',
+           'Exige imediatidade — punir muito tempo depois configura perdão tácito.',
+           'Não pode haver dupla punição pelo mesmo fato.',
+           'Recomenda-se gradação: advertência, suspensão e só então a justa causa (salvo falta grave).'],
+      tags:'justa causa 482 desidia abandono insubordinacao demissao' },
+
+    { id:'disciplina', cat:'Disciplina', tit:'Advertência e suspensão',
+      ref:'CLT arts. 474 e 482',
+      res:'São medidas disciplinares do empregador. A suspensão não pode passar de 30 dias.',
+      pts:['Suspensão superior a 30 dias configura rescisão injusta do contrato.',
+           'Dias de suspensão não são remunerados.',
+           'A punição deve ser proporcional à falta e aplicada logo após o fato.',
+           'Convém documentar por escrito, com ciência do empregado e testemunhas em caso de recusa.',
+           'Não existe número mínimo legal de advertências antes da justa causa, mas a gradação fortalece a defesa.'],
+      tags:'advertencia suspensao disciplinar punicao 30 dias' },
+
+    { id:'gestante', cat:'Estabilidades', tit:'Gestante e licença-maternidade',
+      ref:'ADCT art. 10 II "b" · CLT art. 392 · Lei 11.770/2008',
+      res:'A gestante tem estabilidade desde a confirmação da gravidez até 5 meses após o parto.',
+      pts:['Estabilidade: da confirmação da gravidez até 5 meses após o parto.',
+           'Vale mesmo que a gravidez seja descoberta depois da demissão — o desconhecimento não afasta o direito.',
+           'Licença-maternidade: 120 dias, prorrogáveis para 180 no Programa Empresa Cidadã.',
+           'Licença-paternidade: 5 dias, ou 20 dias com Empresa Cidadã.',
+           'Durante a estabilidade, a dispensa sem justa causa é nula e gera reintegração ou indenização.'],
+      tags:'gestante gravida estabilidade maternidade paternidade licenca 120 dias' },
+
+    { id:'estabilidades', cat:'Estabilidades', tit:'Outras estabilidades',
+      ref:'Lei 8.213/1991 art. 118 · CLT art. 165',
+      res:'Além da gestante, há estabilidade para acidentados, cipeiros e dirigentes sindicais.',
+      pts:['Acidente de trabalho com afastamento pelo INSS: 12 meses de estabilidade após o retorno.',
+           'Membro eleito da CIPA: do registro da candidatura até 1 ano após o fim do mandato.',
+           'Dirigente sindical: do registro da candidatura até 1 ano após o mandato.',
+           'A dispensa durante a estabilidade só é possível por justa causa ou motivo técnico comprovado.'],
+      tags:'estabilidade acidente cipa sindical 12 meses reintegracao' },
+
+    { id:'insalubridade', cat:'Saúde e Segurança', tit:'Insalubridade, periculosidade e ASO',
+      ref:'CLT arts. 189 a 197 · NR-7 e NR-15/16',
+      res:'Adicionais dependem de laudo técnico. Exames ocupacionais são obrigatórios independentemente do porte.',
+      pts:['Insalubridade: 10%, 20% ou 40% do salário mínimo, conforme o grau apurado em laudo.',
+           'Periculosidade: 30% do salário base. Os dois adicionais não se acumulam — escolhe-se o mais favorável.',
+           'ASO admissional é obrigatório antes do início das atividades.',
+           'ASO periódico: normalmente anual, ou bienal conforme risco e idade.',
+           'ASO demissional é exigido, salvo exame recente dentro do prazo previsto na NR-7.'],
+      tags:'insalubridade periculosidade aso exame admissional periodico demissional nr7' },
+
+    { id:'encargos', cat:'Encargos', tit:'FGTS, INSS e IRRF',
+      ref:'Lei 8.036/1990 · Lei 8.212/1991',
+      res:'FGTS é depósito mensal do empregador. INSS e IRRF são descontados do empregado em tabelas progressivas.',
+      pts:['FGTS: 8% sobre a remuneração, depositado até o dia 20 do mês seguinte.',
+           'FGTS incide também sobre 13º, horas extras, comissões e aviso prévio indenizado.',
+           'INSS do empregado: alíquotas progressivas por faixa, descontadas em folha.',
+           'IRRF: tabela progressiva com deduções por dependente e pela contribuição previdenciária.',
+           'Multa rescisória: 40% do saldo do FGTS na dispensa sem justa causa, 20% no acordo.'],
+      tags:'fgts inss irrf 8% deposito aliquota tabela progressiva encargos' },
+
+    { id:'vt', cat:'Benefícios', tit:'Vale-transporte e vale-refeição',
+      ref:'Lei 7.418/1985 · Lei 6.321/1976',
+      res:'O vale-transporte é obrigatório quando solicitado. O vale-refeição depende de acordo ou convenção coletiva.',
+      pts:['Vale-transporte: desconto de até 6% do salário base; o que exceder é custeado pela empresa.',
+           'Depende de solicitação e declaração do empregado sobre o trajeto.',
+           'Não tem natureza salarial e não integra o cálculo de outras verbas.',
+           'Vale-refeição/alimentação: obrigatoriedade e valor vêm da convenção coletiva da categoria.',
+           'Pagar vale-transporte em dinheiro pode ser questionado e gerar integração ao salário.'],
+      tags:'vale transporte refeicao alimentacao 6% beneficio pat' },
+
+    { id:'pj', cat:'Contratação', tit:'Contratação PJ e pejotização',
+      ref:'CLT arts. 3º e 9º · Lei 6.019/1974 arts. 4º-A a 5º-D',
+      res:'Contratar PJ é lícito, mas o vínculo é reconhecido se estiverem presentes os quatro elementos do art. 3º da CLT.',
+      pts:['Elementos que caracterizam vínculo: pessoalidade, habitualidade, onerosidade e subordinação.',
+           'Terceirização é permitida inclusive na atividade-fim desde a Reforma de 2017.',
+           'Ex-empregado só pode ser contratado como PJ após 18 meses da demissão (quarentena da Lei 6.019).',
+           'Controle de jornada, desconto por falta/atraso e advertência ao PJ são as provas mais fortes de fraude.',
+           'O tema está sob análise do STF (Tema 1389), que definirá critérios e o ônus da prova.',
+           'Reconhecido o vínculo, a empresa paga todas as verbas retroativas, FGTS e contribuições previdenciárias.'],
+      tags:'pj pejotizacao vinculo subordinacao terceirizacao autonomo prestador stf' },
+
+    { id:'domingos', cat:'Jornada', tit:'Trabalho aos domingos e feriados no comércio',
+      ref:'Lei 605/1949 · Lei 10.101/2000 art. 6º',
+      res:'O comércio pode funcionar aos domingos, mas as condições dependem fortemente da convenção coletiva da categoria.',
+      pts:['O descanso semanal remunerado é de 24 horas consecutivas, preferencialmente aos domingos.',
+           'A escala de folgas deve garantir folga coincidente com o domingo com alguma periodicidade — verifique a CCT.',
+           'Trabalho em feriado sem compensação é remunerado em dobro.',
+           'As regras específicas do comércio mudaram diversas vezes: sempre confirme na convenção coletiva vigente da sua categoria e município.'],
+      tags:'domingo feriado comercio escala folga dsr convencao coletiva' },
+
+    { id:'esocial', cat:'Obrigações', tit:'eSocial e obrigações acessórias',
+      ref:'Decreto 8.373/2014',
+      res:'O eSocial unifica o envio das informações trabalhistas, previdenciárias e fiscais.',
+      pts:['Admissão deve ser enviada até o dia anterior ao início do trabalho.',
+           'Desligamento: prazo de 10 dias corridos.',
+           'Afastamentos acima de 15 dias e alterações contratuais têm prazos próprios.',
+           'Atraso ou omissão gera multa e inconsistência na apuração do FGTS Digital.',
+           'A folha mensal deve ser fechada dentro do prazo para permitir a guia unificada.'],
+      tags:'esocial obrigacoes admissao desligamento prazo multa fgts digital' }
+  ];
+
+  var CATS = (function(){ var s=[]; BASE.forEach(function(t){ if(s.indexOf(t.cat)<0) s.push(t.cat); }); return s.sort(); })();
+
+  var CLT = { busca:'', cat:'', aberto:{}, hist:[], pensando:false };
+
+  // ── Busca simples por relevância ─────────────────────────────────────────
+  function _normal(s){
+    return String(s||'').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  }
+  function _relevantes(pergunta, limite){
+    var q=_normal(pergunta);
+    var termos=q.split(/[^a-z0-9]+/).filter(function(t){ return t.length>2; });
+    if(!termos.length) return [];
+    var pont=BASE.map(function(t){
+      var texto=_normal(t.tit+' '+t.tags+' '+t.res+' '+t.pts.join(' ')+' '+t.ref);
+      var p=0;
+      termos.forEach(function(termo){
+        if(texto.indexOf(termo)>=0) p+=1;
+        if(_normal(t.tit+' '+t.tags).indexOf(termo)>=0) p+=2; // título e tags pesam mais
+      });
+      return {t:t,p:p};
+    }).filter(function(x){ return x.p>0; });
+    pont.sort(function(a,b){ return b.p-a.p; });
+    return pont.slice(0,limite||4).map(function(x){ return x.t; });
+  }
+
+  function _topicoTexto(t){
+    return '### '+t.tit+'\n(Base legal: '+t.ref+')\n'+t.res+'\n- '+t.pts.join('\n- ');
+  }
+
+  // ── Perguntar à IA ───────────────────────────────────────────────────────
+  window.cltPerguntar = async function(textoFixo){
+    var inp=document.getElementById('clt-pergunta');
+    var pergunta = textoFixo || (inp ? String(inp.value||'').trim() : '');
+    if(!pergunta){ _toast('Escreva sua dúvida.','err'); return; }
+    if(CLT.pensando) return;
+    if(inp) inp.value='';
+
+    CLT.hist.push({quem:'user', txt:pergunta});
+    CLT.pensando=true;
+    _renderChat();
+
+    var achados=_relevantes(pergunta, 4);
+    var contexto = achados.length
+      ? achados.map(_topicoTexto).join('\n\n')
+      : '(Nenhum tópico correspondente encontrado na base local.)';
+
+    var nAtivos=((APP.employees||[]).filter(function(e){return e&&e.status==='ativo';})).length;
+
+    var sys = 'Você é um consultor de legislação trabalhista brasileira que atende a equipe de RH de uma varejista de celulares e acessórios com lojas no Paraná. '
+      + 'Responda SEMPRE em português do Brasil, de forma direta e prática, como quem explica para alguém que precisa resolver a situação hoje.\n\n'
+      + 'REGRAS OBRIGATÓRIAS:\n'
+      + '1. Baseie a resposta PRINCIPALMENTE na BASE LEGAL fornecida abaixo. Ela foi curada e é confiável.\n'
+      + '2. Cite o artigo ou a lei sempre que afirmar uma regra (ex.: "CLT art. 71").\n'
+      + '3. Se a BASE LEGAL não cobrir a pergunta, diga claramente que aquele ponto não está na base e responda com cautela, sinalizando que precisa de confirmação.\n'
+      + '4. NUNCA invente número de artigo, súmula ou prazo. Se não tiver certeza do número, descreva a regra sem citar o número.\n'
+      + '5. Quando o tema depender de convenção coletiva, diga isso explicitamente.\n'
+      + '6. Em situações de risco (justa causa, estabilidade, rescisão complexa, reconhecimento de vínculo), recomende validar com advogado antes de agir.\n'
+      + '7. Seja conciso: no máximo 6 parágrafos curtos ou uma lista objetiva. Use **negrito** apenas no essencial.\n\n'
+      + 'CONTEXTO DA EMPRESA: ' + nAtivos + ' funcionários ativos cadastrados. Vendedores trabalham com comissão por aparelho vendido.\n\n'
+      + 'BASE LEGAL:\n' + contexto;
+
+    var resposta='';
+    try{
+      if(typeof chatAICall!=='function') throw new Error('Módulo de IA indisponível.');
+      resposta = await chatAICall(sys, pergunta);
+    }catch(e){
+      resposta = '⚠️ Não consegui falar com a IA agora ('+(e.message||e)+').\n\n'
+        + (achados.length
+            ? 'Mas encontrei estes tópicos na base legal local que devem ajudar:\n\n'
+              + achados.map(function(t){ return '**'+t.tit+'** — '+t.ref+'\n'+t.res; }).join('\n\n')
+            : 'Também não encontrei nada na base local sobre isso. Tente reformular com outras palavras.');
+    }
+
+    CLT.pensando=false;
+    CLT.hist.push({quem:'ia', txt:resposta, fontes:achados.map(function(t){ return {id:t.id,tit:t.tit,ref:t.ref}; })});
+    _renderChat();
+  };
+
+  function _md(s){
+    return _esc(s)
+      .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
+      .replace(/^### (.+)$/gm,'<strong>$1</strong>')
+      .replace(/^- (.+)$/gm,'• $1')
+      .replace(/\n/g,'<br>');
+  }
+
+  function _renderChat(){
+    var box=document.getElementById('clt-chat');
+    if(!box) return;
+    box.innerHTML = CLT.hist.map(function(m){
+      if(m.quem==='user'){
+        return '<div style="display:flex;justify-content:flex-end;margin-bottom:10px">'
+          + '<div style="background:#1E3A5F;color:#fff;border-radius:14px 14px 3px 14px;padding:10px 13px;max-width:82%;font-size:13px;line-height:1.5">'+_esc(m.txt)+'</div></div>';
+      }
+      var fontes = (m.fontes&&m.fontes.length)
+        ? '<div style="margin-top:9px;padding-top:8px;border-top:1px solid #E2E8F0">'
+          + '<div style="font-size:10.5px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">📚 Consultado na base</div>'
+          + m.fontes.map(function(f){
+              return '<button onclick="cltAbrirTopico(\''+f.id+'\')" style="background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;border-radius:14px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;margin:0 4px 4px 0">'+_esc(f.tit)+'</button>';
+            }).join('')
+          + '</div>'
+        : '';
+      return '<div style="display:flex;justify-content:flex-start;margin-bottom:10px">'
+        + '<div style="background:#fff;border:1px solid #E2E8F0;border-radius:14px 14px 14px 3px;padding:11px 13px;max-width:88%;font-size:13px;line-height:1.55">'
+        + _md(m.txt) + fontes + '</div></div>';
+    }).join('')
+    + (CLT.pensando
+        ? '<div style="display:flex;justify-content:flex-start"><div style="background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:11px 15px;font-size:13px;color:#64748B">⚖️ consultando a legislação…</div></div>'
+        : '');
+    box.scrollTop = box.scrollHeight;
+  }
+
+  window.cltEnter = function(ev){ if(ev && ev.key==='Enter' && !ev.shiftKey){ ev.preventDefault(); cltPerguntar(); } };
+
+  window.cltLimpar = function(){ CLT.hist=[]; _renderChat(); };
+
+  window.cltAbrirTopico = function(id){
+    var t=BASE.find(function(x){ return x.id===id; });
+    if(!t) return;
+    openModal('⚖️ '+t.tit, ''
+      + '<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:9px;padding:9px 12px;margin-bottom:12px;font-size:12px;color:#1E40AF;font-weight:600">'+_esc(t.ref)+'</div>'
+      + '<div style="font-size:13.5px;line-height:1.6;margin-bottom:12px">'+_esc(t.res)+'</div>'
+      + '<ul style="margin:0 0 4px 18px;font-size:13px;line-height:1.75">'+t.pts.map(function(p){ return '<li>'+_esc(p)+'</li>'; }).join('')+'</ul>'
+      + '<div style="font-size:11px;color:#94A3B8;margin-top:14px;line-height:1.5">Resumo de apoio operacional. Para decisões com impacto financeiro ou risco de processo, confirme com seu advogado ou contador.</div>'
+      , 560);
+  };
+
+  window.cltBuscar = function(v){
+    CLT.busca=v||'';
+    var lista=document.getElementById('clt-lista');
+    if(lista) lista.innerHTML=_htmlLista();
+  };
+  window.cltFiltrarCat = function(c){
+    CLT.cat = (CLT.cat===c) ? '' : c;
+    if(typeof navigate==='function') navigate('consultor_clt');
+  };
+  window.cltToggle = function(id){
+    CLT.aberto[id]=!CLT.aberto[id];
+    var lista=document.getElementById('clt-lista');
+    if(lista) lista.innerHTML=_htmlLista();
+  };
+
+  function _htmlLista(){
+    var q=_normal(CLT.busca);
+    var itens=BASE.filter(function(t){
+      if(CLT.cat && t.cat!==CLT.cat) return false;
+      if(!q) return true;
+      return _normal(t.tit+' '+t.tags+' '+t.res+' '+t.pts.join(' ')+' '+t.ref).indexOf(q)>=0;
+    });
+    if(!itens.length){
+      return '<div class="card" style="text-align:center;padding:32px;color:var(--mt)">'
+        + '<div style="font-size:34px">🔍</div><div style="font-weight:700;margin-top:8px">Nada encontrado</div>'
+        + '<div style="font-size:13px;margin-top:4px">Tente outra palavra, ou pergunte à IA acima — ela busca de forma mais flexível.</div></div>';
+    }
+    return itens.map(function(t){
+      var ab=!!CLT.aberto[t.id];
+      return '<div class="card" style="margin-bottom:9px;padding:0;overflow:hidden">'
+        + '<div onclick="cltToggle(\''+t.id+'\')" style="padding:13px 15px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px">'
+        +   '<div style="flex:1;min-width:0">'
+        +     '<div style="font-weight:700;font-size:13.5px">'+_esc(t.tit)+'</div>'
+        +     '<div style="font-size:11.5px;color:#64748B;margin-top:2px">'+_esc(t.ref)+'</div>'
+        +   '</div>'
+        +   '<div style="font-size:13px;color:#94A3B8">'+(ab?'▲':'▼')+'</div>'
+        + '</div>'
+        + (ab
+            ? '<div style="padding:0 15px 14px;border-top:1px solid #F1F5F9">'
+              + '<div style="font-size:13px;line-height:1.6;margin:11px 0">'+_esc(t.res)+'</div>'
+              + '<ul style="margin:0 0 0 18px;font-size:12.5px;line-height:1.7;color:#334155">'+t.pts.map(function(p){ return '<li>'+_esc(p)+'</li>'; }).join('')+'</ul>'
+              + '<button class="btn btn-sm btn-ghost" style="margin-top:10px" onclick="cltPerguntar(\'Explique na prática: '+_esc(t.tit).replace(/'/g,'')+'\')">🤖 Perguntar à IA sobre isso</button>'
+              + '</div>'
+            : '')
+        + '</div>';
+    }).join('');
+  }
+
+  var SUGESTOES = [
+    'Funcionário faltou 3 dias sem avisar. O que posso fazer?',
+    'Como calculo o DSR sobre as comissões dos vendedores?',
+    'Posso descontar do vendedor a comissão de uma venda cancelada?',
+    'As férias de um funcionário venceram. E agora?',
+    'Quantas advertências antes da justa causa?',
+    'Meu vendedor PJ bate ponto. Isso é problema?'
+  ];
+
+  // ── RENDER ───────────────────────────────────────────────────────────────
+  window.rConsultorCLT = function(){
+    setTimeout(_renderChat, 60);
+
+    return ''
+    + '<div class="card" style="margin-bottom:14px;border-left:4px solid #C9A84C;background:#FFFBEB">'
+    +   '<div style="display:flex;gap:11px;align-items:flex-start">'
+    +     '<div style="font-size:20px">⚖️</div>'
+    +     '<div style="flex:1">'
+    +       '<div style="font-weight:800;font-size:13.5px;color:#92400E;margin-bottom:3px">Apoio operacional, não parecer jurídico</div>'
+    +       '<div style="font-size:12.5px;color:#78350F;line-height:1.55">As respostas se apoiam numa base de leis curada e citam o artigo de referência. Ainda assim, cada caso tem particularidades e a convenção coletiva da sua categoria pode mudar as regras. Antes de demitir por justa causa, negar estabilidade ou fechar acordo de rescisão, confirme com seu advogado.</div>'
+    +     '</div>'
+    +   '</div>'
+    + '</div>'
+
+    // ── Chat com IA ──
+    + '<div class="card" style="margin-bottom:16px">'
+    +   '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">'
+    +     '<div style="font-weight:800;font-size:14.5px">🤖 Tire sua dúvida</div>'
+    +     (CLT.hist.length?'<button class="btn btn-sm btn-ghost" onclick="cltLimpar()">🧹 Limpar conversa</button>':'')
+    +   '</div>'
+    +   '<div id="clt-chat" style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:13px;min-height:120px;max-height:44vh;overflow-y:auto;margin-bottom:11px">'
+    +     (CLT.hist.length?'':'<div style="text-align:center;color:#94A3B8;font-size:13px;padding:24px 8px">Pergunte como você falaria com um colega.<br>Ex.: <em>"posso descontar o dia de quem chegou 2h atrasado?"</em></div>')
+    +   '</div>'
+    +   '<div style="display:flex;gap:8px;align-items:flex-end">'
+    +     '<textarea id="clt-pergunta" rows="2" onkeydown="cltEnter(event)" placeholder="Escreva sua dúvida trabalhista..." style="flex:1;padding:10px 13px;border:1.5px solid #E2E8F0;border-radius:10px;font-size:13.5px;font-family:inherit;resize:none"></textarea>'
+    +     '<button class="btn btn-blue" style="white-space:nowrap;padding:11px 18px" onclick="cltPerguntar()">Perguntar</button>'
+    +   '</div>'
+    +   '<div style="margin-top:11px">'
+    +     '<div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Dúvidas comuns</div>'
+    +     SUGESTOES.map(function(s){
+            return '<button onclick="cltPerguntar(\''+s.replace(/'/g,'\\\'')+'\')" style="background:#F1F5F9;border:1px solid #E2E8F0;border-radius:16px;padding:5px 12px;font-size:11.5px;cursor:pointer;margin:0 5px 5px 0;color:#334155">'+_esc(s)+'</button>';
+          }).join('')
+    +   '</div>'
+    + '</div>'
+
+    // ── Base legal navegável ──
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:11px;flex-wrap:wrap;gap:8px">'
+    +   '<div style="font-size:15px;font-weight:700">📚 Base legal <span style="font-size:12px;color:var(--mt);font-weight:500">('+BASE.length+' temas)</span></div>'
+    +   '<input placeholder="🔍 Buscar (ex: férias, aviso, comissão)" value="'+_esc(CLT.busca)+'" oninput="cltBuscar(this.value)" style="padding:8px 13px;border:1px solid var(--border);border-radius:9px;font-size:13px;min-width:230px">'
+    + '</div>'
+    + '<div style="margin-bottom:12px">'
+    +   CATS.map(function(c){
+          var on=CLT.cat===c;
+          return '<button onclick="cltFiltrarCat(\''+c+'\')" style="background:'+(on?'#1E3A5F':'#F1F5F9')+';color:'+(on?'#fff':'#475569')+';border:1px solid '+(on?'#1E3A5F':'#E2E8F0')+';border-radius:16px;padding:5px 13px;font-size:11.5px;font-weight:600;cursor:pointer;margin:0 5px 5px 0">'+_esc(c)+'</button>';
+        }).join('')
+    + '</div>'
+    + '<div id="clt-lista">'+_htmlLista()+'</div>'
+
+    + '<div style="font-size:11px;color:var(--mt);margin-top:16px;line-height:1.55">A IA responde ancorada nesta base e é instruída a não inventar números de artigo. Ainda assim, confira citações antes de usar em documento oficial. Legislação consultada: CLT, Constituição Federal art. 7º, Lei 605/1949, Lei 3.207/1957, Lei 4.090/1962, Lei 6.019/1974, Lei 7.418/1985, Lei 8.036/1991, Lei 8.213/1991, Lei 12.506/2011, Lei 13.467/2017 e Portaria MTP 671/2021.</div>';
+  };
+
+})();
+
+console.log('[Atlas] Módulo Consultor CLT carregado ✅');
 </script>
 
 </body>
