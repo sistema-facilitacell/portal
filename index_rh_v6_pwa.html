@@ -48848,7 +48848,10 @@ console.log('[Atlas] Módulo de Gestão de Feriados carregado ✅');
       html += ''
         + '<div style="margin-top:26px;border:1.5px solid #059669;border-radius:8px;padding:14px;font-family:Roboto,Arial,sans-serif">'
         +   '<div style="font-weight:700;font-size:13px;color:#065F46;margin-bottom:8px">✅ ASSINATURA ELETRÔNICA REGISTRADA</div>'
-        +   (c.assinaturaImg ? '<div style="text-align:center;margin:8px 0"><img src="'+c.assinaturaImg+'" style="max-height:90px"></div>' : '')
+        +   '<div style="display:flex;gap:14px;align-items:center;justify-content:center;margin:8px 0;flex-wrap:wrap">'
+        +     (c.assinaturaImg ? '<div style="text-align:center"><img src="'+c.assinaturaImg+'" style="max-height:80px"><div style="font-size:9.5px;color:#555;margin-top:2px">Assinatura</div></div>' : '')
+        +     (c.assinaturaSelfie ? '<div style="text-align:center"><img src="'+c.assinaturaSelfie+'" style="height:80px;width:80px;object-fit:cover;border-radius:6px;border:1px solid #999"><div style="font-size:9.5px;color:#555;margin-top:2px">Foto no ato</div></div>' : '')
+        +   '</div>'
         +   '<table style="width:100%;font-size:11.5px;border-collapse:collapse">'
         +     '<tr><td style="padding:3px 0;color:#555;width:150px">Assinado por</td><td style="padding:3px 0">'+_esc(c.assinaturaNome||c.prestadorNome||'')+'</td></tr>'
         +     '<tr><td style="padding:3px 0;color:#555">CPF</td><td style="padding:3px 0">'+_esc(c.assinaturaCpf||'')+'</td></tr>'
@@ -48937,6 +48940,7 @@ console.log('[Atlas] Módulo de Gestão de Feriados carregado ✅');
           c.assinaturaCpf = (a.assinatura&&a.assinatura.cpf) || '';
           c.assinaturaHash = (a.assinatura&&a.assinatura.hash) || '';
           c.assinaturaImg = (a.assinatura&&a.assinatura.imagem) || '';
+          c.assinaturaSelfie = (a.assinatura&&a.assinatura.selfie) || '';
           novos++;
         }
       });
