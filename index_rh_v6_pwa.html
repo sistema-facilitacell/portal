@@ -9536,7 +9536,7 @@ td,th{font-size:15px!important;}
 .sc-val{font-size:28px!important;}
 </style></head><body>
   <div class="header no-print">
-    <div><div class="logo">FACILITA <span>CELL</span></div><div style="font-size:11px;color:#999;margin-top:2px">Emissão de Contratos Admissionais</div></div>
+    <div><div class="logo">${(typeof EMPRESA_CFG!=='undefined' && EMPRESA_CFG.nomeRazao) ? EMPRESA_CFG.nomeRazao : 'ATLAS RH'}</div><div style="font-size:11px;color:#999;margin-top:2px">Emissão de Contratos Admissionais</div></div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-print" onclick="window.print()">🖨️ Imprimir Todos</button>
       <button class="btn btn-wpp" onclick="enviarContratoWpp()">📱 Enviar Resumo WhatsApp</button>
