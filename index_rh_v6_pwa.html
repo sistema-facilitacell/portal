@@ -29485,12 +29485,14 @@ function openContratosWizard(empId){
   if(empId){
     abrirModalDadosContrato(empId, Object.keys(DOC_NAMES_MAP), function(dadosConfirmados){
       CONT_WIZARD = { step:2, empId:empId, dados:dadosConfirmados, docs:Object.keys(DOC_NAMES_MAP), aiAnalise:null, id:uid() };
+      window.CONT_WIZARD = CONT_WIZARD;
       renderWizardModal();
       document.getElementById('modalContrato').style.display='flex';
     });
     return;
   }
   CONT_WIZARD = { step:1, empId:'', dados:{}, docs:Object.keys(DOC_NAMES_MAP), aiAnalise:null, id:uid() };
+  window.CONT_WIZARD = CONT_WIZARD;
   renderWizardModal();
   document.getElementById('modalContrato').style.display='flex';
 }
@@ -30150,7 +30152,7 @@ if(id==='doc_contrato') return `<div class="doc-wrap">${H()}
 
   <div class="doc-section-title">Cláusula 6ª — Das Férias Anuais e 13º Salário</div>
   <div class="doc-clause">6.1. Após cada período aquisitivo de 12 (doze) meses, o(a) EMPREGADO(A) fará jus a 30 (trinta) dias de férias remuneradas, acrescidas de 1/3 constitucional, nos termos dos Art. 129 a 153 da CLT e Art. 7º, XVII da CF/88.</div>
-  <div class="doc-clause">6.2. As férias poderão, a pedido do(a) empregado(a), ser fracionadas em até 3 (três) períodos — nenhum inferior a 14 dias —, conforme Art. 134, §1º da CLT (alterado pela Lei nº 13.467/2017).</div>
+  <div class="doc-clause">6.2. As férias poderão, a pedido do(a) empregado(a), ser fracionadas em até 3 (três) períodos, sendo que <b>um deles não poderá ser inferior a 14 (quatorze) dias corridos</b> e os demais não poderão ser inferiores a <b>5 (cinco) dias corridos</b> cada, conforme Art. 134, §1º da CLT (redação da Lei nº 13.467/2017).</div>
   <div class="doc-clause">6.3. O(A) EMPREGADO(A) terá direito ao 13º salário proporcional aos meses trabalhados no ano, pago em 2 (duas) parcelas: a 1ª até 30/11 e a 2ª até 20/12, conforme Lei nº 4.090/1962 e Art. 7º, VIII da CF/88.</div>
 
   <div class="doc-section-title">Cláusula 7ª — Do FGTS e Previdência Social</div>
@@ -30188,7 +30190,7 @@ if(id==='doc_contrato') return `<div class="doc-wrap">${H()}
   <div class="doc-clause">14.2. É vedado: fotografar ou gravar o ambiente de trabalho sem autorização; divulgar informações da empresa em redes sociais pessoais; realizar transações comerciais próprias durante o horário de trabalho.</div>
 
   <div class="doc-section-title">Cláusula 15ª — Do Banco de Horas</div>
-  <div class="doc-clause">15.1. ${get('f_banco_horas')==='sim'?'Fica instituído o Banco de Horas, nos termos do Art. 59, §5º da CLT e da Cláusula coletiva vigente, com prazo de compensação de até 12 (doze) meses. As horas positivas não compensadas ao final do período serão pagas como horas extras.':'O Banco de Horas não será adotado neste contrato, sendo as horas extras remuneradas conforme Cláusula 4ª.'}</div>
+  <div class="doc-clause">15.1. ${get('f_banco_horas')==='sim'?'Fica instituído o Banco de Horas mediante o presente acordo individual escrito, com prazo de compensação de até <b>6 (seis) meses</b>, nos termos do Art. 59, §5º da CLT. Havendo acordo ou convenção coletiva que autorize prazo maior, este poderá ser estendido a até 12 (doze) meses (Art. 59, §2º). As horas positivas não compensadas ao final do período serão pagas como horas extras, com o adicional devido.':'O Banco de Horas não será adotado neste contrato, sendo as horas extras remuneradas conforme Cláusula 4ª.'}</div>
 
   <div class="doc-section-title">Cláusula 16ª — Das Penalidades Disciplinares</div>
   <div class="doc-clause">16.1. O descumprimento das obrigações contratuais e legais ensejará, observada a gradação e a proporcionalidade: (a) advertência verbal; (b) advertência escrita; (c) suspensão disciplinar de 1 a 30 dias, com desconto em folha (Art. 474, CLT); (d) rescisão por justa causa (Art. 482, CLT).</div>
@@ -30269,7 +30271,7 @@ if(id==='doc_ficha') return `<div class="doc-wrap">${H()}
     <tr><td>Cargo / Função</td><td><b>${get('f_cargo')}</b></td></tr>
     <tr><td>CBO</td><td>${get('f_cbo')||'______'}</td></tr>
     <tr><td>Salário Inicial</td><td>R$ ${get('f_salario')}</td></tr>
-    <tr><td>Tipo de Contrato</td><td>${get('f_tipo_contrato')==='experiencia'?'Contrato de Experiência (90 dias — Art. 443 CLT)':'Prazo Indeterminado'}</td></tr>
+    <tr><td>Tipo de Contrato</td><td>${get('f_tipo_contrato')==='experiencia'?'Contrato de Experiência — 30 + 30 + 30 dias (máx. 90 — Art. 445 CLT)':'Prazo Indeterminado'}</td></tr>
     <tr><td>Jornada / Horário</td><td>${get('f_jornada')} — ${get('f_horario')}</td></tr>
     <tr><td>Vale-Transporte</td><td>${get('f_vt')==='sim'?'Sim — Solicitado':'Não solicitado'}</td></tr>
     <tr><td>Banco de Horas</td><td>${get('f_banco_horas')==='sim'?'Sim':'Não'}</td></tr>
@@ -30401,7 +30403,7 @@ if(id==='doc_equipamentos') return `<div class="doc-wrap">${H()}
 if(id==='doc_banco') return `<div class="doc-wrap">${H()}
   <div class="doc-title">Acordo de Compensação de Jornada</div>
   <div class="doc-subtitle">Banco de Horas — Art. 59, §5º e §6º da CLT (Redação dada pela Lei 13.467/2017)</div>
-  <div class="doc-alert">⚖️ Este instrumento tem eficácia normativa conforme Art. 59, §5º da CLT, dispensando acordo coletivo para compensação de até 6 meses.</div>
+  <div class="doc-alert">⚖️ Acordo individual escrito de banco de horas, válido para compensação em até <b>6 (seis) meses</b> (Art. 59, §5º da CLT). Prazo superior, de até 12 meses, exige acordo ou convenção coletiva (Art. 59, §2º).</div>
   <div class="doc-section-title">Identificação</div>
   <div class="doc-clause"><b>Empresa:</b> ${get('e_nome')} — CNPJ: ${get('e_cnpj')}<br><b>Empregado(a):</b> ${get('f_nome')} — CPF: ${get('f_cpf')} — Cargo: ${get('f_cargo')}</div>
   <div class="doc-section-title">1. Objeto e Prazo de Compensação</div>
@@ -30739,7 +30741,7 @@ function printHtml(htmlContent, title){
     '<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&family=Cinzel:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">' +
     '<style>' +
       '*{box-sizing:border-box;margin:0;padding:0}' +
-      'body{background:#f0f0f0;font-family:"Roboto",sans-serif;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+      'body{background:#f0f0f0;font-family:"Source Sans 3","Segoe UI",Arial,sans-serif;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
       '#toolbar{position:fixed;top:0;left:0;right:0;background:#1E3A5F;padding:10px 20px;display:flex;align-items:center;gap:10px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,.3)}' +
       '#toolbar span{color:#fff;font-family:"Roboto",sans-serif;font-size:15px;font-weight:700;flex:1}' +
       '#toolbar small{color:rgba(255,255,255,.6);font-family:"Roboto",sans-serif;font-size:12px}' +
@@ -30747,19 +30749,16 @@ function printHtml(htmlContent, title){
       '#btn-print{background:#059669;color:#fff}' +
       '#btn-close{background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.35)!important;border:none}' +
       '#content-wrap{margin-top:60px;padding:30px 40px;max-width:880px;margin-left:auto;margin-right:auto}' +
-      '@media print{#toolbar{display:none!important}body{background:#fff}#content-wrap{margin-top:0!important;padding:0!important;max-width:none!important}@page{margin:1.5cm 2cm;size:A4}}' +
+      '@media print{#toolbar{display:none!important}body{background:#fff}#content-wrap{margin-top:0!important;padding:0!important;max-width:none!important}@page{margin:14mm 13mm;size:A4}}' +
       '.doc-page{background:#fff;padding:28px;margin-bottom:28px;box-shadow:0 2px 8px rgba(0,0,0,.1);border-radius:4px}' +
-      '@media print{.doc-page{box-shadow:none!important;margin:0!important;padding:0!important}}' +
-      'table{width:100%;border-collapse:collapse}td,th{border:1px solid #999;padding:6px 10px}' +
-      'body,#app,#main-content{font-size:16px!important;font-weight:500!important;}' +
-      '.ni{font-size:15px!important;font-weight:500!important;}' +
-      'td,th{font-size:15px!important;}' +
-      '.sc-lbl{font-size:13px!important;}' +
-      '.sc-val{font-size:28px!important;}' +
+      // Cada documento começa em página nova na impressão
+      '@media print{.doc-page{box-shadow:none!important;margin:0!important;padding:0!important;page-break-after:always;break-after:page}.doc-page:last-child{page-break-after:auto;break-after:auto}}' +
+      // NÃO redefinir fonte/tabelas aqui: o DOC_CSS de cada documento já cuida disso.
+      // Regras com !important vazadas do painel deformavam a tipografia dos contratos.
     '</style></head><body>' +
     '<div id="toolbar">' +
       '<span>' + title + '</span>' +
-      '<small>Clique em Imprimir ou use Ctrl+P</small>' +
+      '<small>Ao imprimir, desmarque "Cabeçalhos e rodapés" para tirar a data e o endereço das páginas</small>' +
       '<button id="btn-print" onclick="window.print()">&#128424; Imprimir / Salvar PDF</button>' +
       '<button id="btn-close" onclick="window.close()">✕ Fechar</button>' +
     '</div>' +
@@ -30868,6 +30867,7 @@ function reimprimir(id){
   if(!docs.length){ toast('Nenhum documento salvo neste contrato.','err'); return; }
   abrirModalDadosContrato(c.empId, docs, function(dadosConfirmados){
     CONT_WIZARD = { step:4, empId:c.empId, dados:dadosConfirmados, docs:docs, aiAnalise:c.aiAnalise||null, id:c.id };
+    window.CONT_WIZARD = CONT_WIZARD;
     var nomeFunc = dadosConfirmados.f_nome || c.empNome || 'Funcionário';
     var docsHtml = docs.map(function(docId){
       return '<div class="doc-page">'+((typeof genDocWiz==='function')?genDocWiz(docId):'')+'</div>';
@@ -30895,6 +30895,7 @@ function reimprimir(id){
 
   // Configura CONT_WIZARD com dados completos
   CONT_WIZARD = { step:4, empId:c.empId, dados:dadosContrato, docs:docs, aiAnalise:c.aiAnalise||null, id:c.id };
+  window.CONT_WIZARD = CONT_WIZARD;
   closeModal();
 
   // Gera o HTML de todos os documentos
@@ -32714,8 +32715,11 @@ function confirmarGerarContrato(){
   var empId = window._contratoEmpId;
   var docs = window._contratoDocsParaGerar || Object.keys(DOC_NAMES_MAP);
 
-  // Configura CONT_WIZARD com os dados confirmados
-  window.CONT_WIZARD = {
+  // BUG FIX: CONT_WIZARD é declarado com `let`, portanto NÃO é propriedade de window.
+  // Gravar apenas em window.CONT_WIZARD criava um segundo objeto, e mapDadosWizard()
+  // lia dados vazios — por isso os documentos saíam com todos os campos em branco.
+  // Agora atualizamos a variável real E o espelho em window.
+  CONT_WIZARD = {
     step: 4,
     empId: empId,
     dados: d,
@@ -32723,6 +32727,7 @@ function confirmarGerarContrato(){
     aiAnalise: null,
     id: (typeof uid==='function') ? uid() : Date.now().toString(36)
   };
+  window.CONT_WIZARD = CONT_WIZARD;
 
   // Salva no Firebase
   var obj = {
