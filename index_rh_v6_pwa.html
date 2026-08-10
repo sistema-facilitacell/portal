@@ -29343,7 +29343,7 @@ const DOC_NAMES_MAP = {
   doc_cameras:         {label:'Termo Aditivo — Câmeras de Segurança', icon:'📷', obrig:false},
   doc_equipamentos:    {label:'Termo de Responsabilidade — Equipamentos', icon:'🔧', obrig:false},
   doc_banco:           {label:'Política de Banco de Horas',     icon:'⏱', obrig:false},
-  doc_premios:         {label:'Programa de Premiações Meritocráticas', icon:'🏆', obrig:false},
+  doc_premios:         {label:'Regulamento de Comissões e Conduta', icon:'🏆', obrig:false},
   doc_confidencialidade:{label:'Termo de Confidencialidade (NDA)', icon:'🔒', obrig:false},
   doc_lgpd:            {label:'Termo de Proteção de Dados (LGPD)', icon:'🛡', obrig:true},
   doc_treinamento:     {label:'Termo de Treinamento Pós-Admissão', icon:'📚', obrig:false},
@@ -30692,7 +30692,7 @@ if(id==='doc_recibo_docs') return `<div class="doc-wrap">${H()}
     <tr><td>Termo de Confidencialidade (NDA)</td><td style="text-align:center">( ) Sim &nbsp; ( ) Não</td></tr>
     <tr><td>Termo LGPD / Proteção de Dados</td><td style="text-align:center">( ) Sim &nbsp; ( ) Não</td></tr>
     <tr><td>Acordo de Banco de Horas</td><td style="text-align:center">( ) Sim &nbsp; ( ) Não</td></tr>
-    <tr><td>Regulamento de Premiações Meritocráticas</td><td style="text-align:center">( ) Sim &nbsp; ( ) Não</td></tr>
+    <tr><td>Regulamento de Comissões e Conduta</td><td style="text-align:center">( ) Sim &nbsp; ( ) Não</td></tr>
     <tr><td>Termo Aditivo — Câmeras de Segurança</td><td style="text-align:center">( ) Sim &nbsp; ( ) Não</td></tr>
     <tr><td>Termo de Responsabilidade por Equipamentos</td><td style="text-align:center">( ) Sim &nbsp; ( ) Não</td></tr>
     <tr><td>Termo de Responsabilidade por EPIs</td><td style="text-align:center">( ) Sim &nbsp; ( ) Não</td></tr>
@@ -32596,12 +32596,17 @@ function abrirModalDadosContrato(empId, docsParaGerar, onConfirm){
         ${mCampo('Representante Legal','e_representante',d.e_representante||'')}
       </div>
 
-      <!-- SELETOR DE DOCUMENTOS -->
+      <!-- PACOTE COMPLETO — SEM SELEÇÃO -->
       <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#1E3A5F;margin-bottom:8px;padding-bottom:4px;border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
-        📄 Documentos a Gerar
+        📄 Documentos que serão gerados
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
-        ${Object.entries(DOC_NAMES_MAP||{}).map(([k,v])=>'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:#F8FAFC"><input type="checkbox" id="mcd_'+k+'" '+'checked'+' style="accent-color:#2563EB"> <span>'+v.icon+' '+v.label+'</span></label>').join('')}
+      <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:9px;padding:11px 13px;margin-bottom:10px">
+        <div style="font-size:12.5px;color:#065F46;font-weight:700;margin-bottom:6px">
+          ✅ Pacote admissional completo — ${Object.keys(DOC_NAMES_MAP||{}).length} documentos
+        </div>
+        <div style="font-size:11.5px;color:#047857;line-height:1.7">
+          ${Object.entries(DOC_NAMES_MAP||{}).map(([k,v])=>v.icon+' '+v.label).join(' &nbsp;·&nbsp; ')}
+        </div>
       </div>
     </div>
 
@@ -32651,13 +32656,9 @@ function getDadosDoModal(){
     var el = document.getElementById('mc_'+k);
     if(el) d[k] = el.value || '';
   });
-  // Lê documentos selecionados (se checkboxes existirem)
+  // Sempre gera o pacote admissional COMPLETO — não há mais seleção manual
   if(typeof DOC_NAMES_MAP !== 'undefined'){
-    var selectedDocs = Object.keys(DOC_NAMES_MAP).filter(function(k){
-      var el = document.getElementById('mcd_'+k);
-      return el && el.checked;
-    });
-    if(selectedDocs.length > 0) window._contratoDocsParaGerar = selectedDocs;
+    window._contratoDocsParaGerar = Object.keys(DOC_NAMES_MAP);
   }
   return d;
 }
