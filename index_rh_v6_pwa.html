@@ -30119,24 +30119,30 @@ if(id==='doc_contrato') return `<div class="doc-wrap">${H()}
 
   <div class="doc-section-title">Cláusula 2ª — Do Local e Período de Trabalho</div>
   <div class="doc-clause">2.1. O(A) EMPREGADO(A) desempenhará suas atividades no estabelecimento localizado em <b>${get('e_endereco')}</b>, ${get('e_cidade')}/${get('e_uf')}, podendo ser deslocado(a) a outros pontos de atendimento da empresa.</div>
-  <div class="doc-clause">2.2. Data de admissão: <b class="doc-orange">${admissaoFmt()}</b>. ${get('f_tipo_contrato')==='experiencia'?'O período de experiência é de 90 (noventa) dias, podendo ser prorrogado uma única vez pelo mesmo prazo, conforme Art. 445, parágrafo único, CLT. Após o período, o contrato converte-se automaticamente em prazo indeterminado.':'O presente contrato é celebrado por prazo indeterminado, nos termos do Art. 443 da CLT.'}</div>
+  <div class="doc-clause">2.2. Data de admissão: <b class="doc-orange">${admissaoFmt()}</b>. ${get('f_tipo_contrato')==='experiencia'?'O presente é um <b>Contrato de Experiência</b> com prazo inicial de <b>30 (trinta) dias</b>, prorrogável por igual período de <b>30 (trinta) dias</b> e, sucessivamente, por mais <b>30 (trinta) dias</b>, totalizando no máximo <b>90 (noventa) dias</b>, respeitado o limite legal e admitidas as prorrogações dentro desse teto (Art. 445, parágrafo único, e Art. 451 da CLT). Cada prorrogação fica condicionada à aprovação do desempenho no período anterior. Decorrido o prazo total sem manifestação em contrário, o contrato converte-se automaticamente em prazo indeterminado.':'O presente contrato é celebrado por prazo indeterminado, nos termos do Art. 443 da CLT.'}</div>
 
-  <div class="doc-section-title">Cláusula 3ª — Da Remuneração e Benefícios</div>
-  <div class="doc-clause">3.1. O(A) EMPREGADOR(A) pagará ao(à) EMPREGADO(A) o salário base mensal de <b class="doc-orange">R$ ${get('f_salario')}</b>, pago até o 5º dia útil do mês subsequente, via depósito bancário ou dinheiro, conforme Art. 459 e 464 da CLT.</div>
-  <div class="doc-clause">3.2. O salário não será inferior ao Salário Mínimo Nacional vigente, conforme Art. 7º, IV da CF/88 e Art. 76 da CLT.</div>
-  <div class="doc-clause">3.3. Vale-transporte: ${get('f_vt')==='sim'?'<b>CONCEDIDO</b>, com desconto de até 6% do salário base, conforme Lei nº 7.418/1985 e Decreto nº 95.247/1987.':'<b>NÃO SOLICITADO</b> pelo(a) empregado(a).'}</div>
-  <div class="doc-clause">3.4. Os demais benefícios eventualmente concedidos (alimentação, saúde, etc.) serão regulados por aditivo contratual específico e não integram o salário, salvo disposição legal expressa.</div>
+  <div class="doc-section-title">Cláusula 3ª — Da Remuneração, Comissões e Prêmios</div>
+  <div class="doc-clause">3.1. O(A) EMPREGADOR(A) pagará ao(à) EMPREGADO(A) o salário base mensal de <b class="doc-orange">R$ ${get('f_salario')}</b>, pago até o 5º (quinto) dia útil do mês subsequente, mediante depósito bancário ou outro meio idôneo, com recibo, nos termos dos Arts. 459 e 464 da CLT.</div>
+  <div class="doc-clause">3.2. O salário jamais será inferior ao Salário Mínimo Nacional vigente (Art. 7º, IV da CF/88 e Art. 76 da CLT), garantindo-se que a soma de salário base e parcelas variáveis respeite o piso legal e o piso da categoria fixado em convenção coletiva.</div>
+  <div class="doc-clause">3.3. <b>Comissão por venda:</b> o(a) EMPREGADO(A) fará jus a comissão de <b class="doc-orange">R$ 15,00 (quinze reais) por aparelho celular</b> efetivamente vendido e faturado, apurada com base nas vendas registradas no sistema da empresa.</div>
+  <div class="doc-clause">3.4. <b>Prêmio de produtividade por meta diária:</b> ao atingir a meta de <b>3 (três) aparelhos vendidos e faturados no mesmo dia</b>, o(a) EMPREGADO(A) fará jus a um prêmio de <b class="doc-orange">R$ 100,00 (cem reais)</b> por essa meta diária, pago por transferência (PIX). Não atingida a meta de 3 aparelhos no dia, não haverá o prêmio referente àquela data. O prêmio incide por cada bloco completo de 3 aparelhos no dia.</div>
+  <div class="doc-clause">3.5. <b>Da natureza das parcelas variáveis (transparência legal):</b> as comissões (Cláusula 3.3) e os prêmios por meta (Cláusula 3.4), <b>quando pagos com habitualidade</b>, possuem natureza salarial e integram a remuneração para todos os efeitos legais — incidindo sobre férias acrescidas de 1/3, 13º salário, FGTS, aviso prévio e verbas rescisórias, bem como gerando o reflexo do Repouso Semanal Remunerado (RSR/DSR) sobre comissões, na forma da Súmula 27 do TST e da Lei nº 3.207/1957. As partes reconhecem expressamente esta natureza, afastando qualquer interpretação de que tais parcelas seriam meras liberalidades.</div>
+  <div class="doc-clause">3.6. <b>Estorno de comissão:</b> as comissões referentes a vendas posteriormente <b>canceladas, devolvidas (Art. 49 do CDC) ou não pagas pelo cliente</b> (inadimplência de financiamento, chargeback ou insolvência do comprador, na forma do Art. 7º da Lei nº 3.207/1957) poderão ser estornadas e compensadas na competência seguinte, garantida a informação ao(à) empregado(a).</div>
+  <div class="doc-clause">3.7. Vale-transporte: ${get('f_vt')==='sim'?'<b>CONCEDIDO</b>, com desconto de até 6% do salário base (Lei nº 7.418/1985 e Decreto nº 95.247/1987).':'<b>NÃO SOLICITADO</b> pelo(a) empregado(a).'}</div>
+  <div class="doc-clause">3.8. Os demais benefícios eventualmente concedidos serão regulados por aditivo específico e observarão a legislação e a convenção coletiva aplicável.</div>
 
   <div class="doc-section-title">Cláusula 4ª — Da Jornada de Trabalho</div>
-  <div class="doc-clause">4.1. A jornada regular de trabalho será de <b>${get('f_jornada')}</b>, distribuída de segunda-feira a sábado, observado o horário <b>${get('f_horario')}</b>, nos termos dos Art. 58 e 59 da CLT e Art. 7º, XIII e XIV da CF/88.</div>
-  <div class="doc-clause">4.2. O intervalo para refeição e descanso será de no mínimo 1 (uma) hora e no máximo 2 (duas) horas, conforme Art. 71 da CLT.</div>
-  <div class="doc-clause">4.3. A prestação de horas extras fica limitada a 2 (duas) horas diárias, mediante prévio acordo, acrescidas de 50% (trabalho em dias comuns) ou 100% (domingos/feriados) sobre o valor da hora normal, conforme Art. 59 e 7º, XVI da CF/88. Alternativamente, poderá ser adotado Banco de Horas nos termos da Cláusula 15ª.</div>
-  <div class="doc-clause">4.4. O ponto eletrônico/biométrico deverá ser registrado em todos os horários de entrada, saída e intervalo. Faltas injustificadas ao registro sujeitarão o(a) empregado(a) às penalidades disciplinares cabíveis.</div>
+  <div class="doc-clause">4.1. A jornada de trabalho observará o horário das <b>09h00 às 17h50</b>, de <b>segunda-feira a sábado</b>, sendo o <b>domingo</b> o dia de repouso semanal remunerado (Art. 7º, XV da CF/88 e Lei nº 605/1949) e os <b>feriados</b> considerados dias de folga, ressalvada convocação excepcional com a devida compensação ou pagamento em dobro (Art. 9º da Lei nº 605/1949).</div>
+  <div class="doc-clause">4.2. <b>Dos intervalos:</b> (a) intervalo para <b>refeição e descanso de 1 (uma) hora</b>, não computado na jornada, nos termos do Art. 71 da CLT; (b) intervalo para <b>café/lanche de 30 (trinta) minutos no período da tarde</b>. Ficando o(a) EMPREGADO(A) à disposição do(a) EMPREGADOR(A) durante o intervalo do café, <b>este será remunerado e computado como tempo de serviço</b> (Art. 4º da CLT), integrando a jornada para todos os efeitos.</div>
+  <div class="doc-clause">4.3. Considerando a presença das 09h00 às 17h50 (8h50), deduzido o intervalo de refeição de 1 hora, resulta jornada efetiva de <b>7 (sete) horas e 50 (cinquenta) minutos diários</b>, totalizando <b>44 (quarenta e quatro) horas semanais</b>, respeitados os limites do Art. 7º, XIII da CF/88 e do Art. 58 da CLT.</div>
+  <div class="doc-clause">4.4. A prestação de horas extras fica limitada a 2 (duas) horas diárias, mediante prévio acordo, acrescidas de 50% (dias comuns) ou 100% (domingos/feriados) sobre o valor da hora normal (Art. 59 e Art. 7º, XVI da CF/88). Alternativamente, poderá ser adotado Banco de Horas nos termos da Cláusula 15ª.</div>
+  <div class="doc-clause">4.5. <b>Do registro de ponto:</b> o(a) EMPREGADO(A) deverá registrar o ponto eletrônico/biométrico em <b>todas</b> as marcações de entrada, saída de refeição, retorno, intervalo de café e saída (Art. 74, §2º da CLT e Portaria MTP nº 671/2021). <b>A ausência injustificada de registro de qualquer marcação sujeita o(a) empregado(a) a advertência disciplinar</b> e, em caso de reincidência, às penalidades progressivas da Cláusula 16ª, por descumprimento de obrigação contratual.</div>
 
-  <div class="doc-section-title">Cláusula 5ª — Dos Descontos Legais e Autorizados</div>
+  <div class="doc-section-title">Cláusula 5ª — Dos Descontos Legais e dos Adiantamentos Salariais</div>
   <div class="doc-clause">5.1. O(A) EMPREGADO(A) autoriza os seguintes descontos legais: INSS (conforme tabela progressiva vigente — EC 103/2019), IRRF (conforme legislação tributária), vale-transporte (se concedido), adiantamentos e demais previstos em lei.</div>
-  <div class="doc-clause">5.2. Eventuais adiantamentos ou empréstimos concedidos pela empresa poderão ser descontados em folha, respeitado o limite de 30% da remuneração mensal, conforme Art. 462 da CLT.</div>
-  <div class="doc-clause">5.3. São vedados descontos não previstos em lei ou neste contrato, salvo autorização escrita do(a) empregado(a) e desde que não causem ônus manifestamente abusivo.</div>
+  <div class="doc-clause">5.2. <b>Dos adiantamentos ("vales"):</b> todo e qualquer valor adiantado ao(à) EMPREGADO(A) ao longo do mês — a título de vale, adiantamento salarial, adiantamento em espécie, Pix ou qualquer outra modalidade, solicitado e aprovado pelo sistema da empresa — <b class="doc-orange">será integralmente descontado do salário e/ou das comissões devidas no fechamento da folha do respectivo mês de competência</b>, nos termos do Art. 462 da CLT, sendo o valor líquido calculado como: salário-base + comissões e prêmios do período − adiantamentos concedidos no mês − demais descontos legais e autorizados.</div>
+  <div class="doc-clause">5.3. Os descontos de adiantamentos observarão o limite máximo de 30% (trinta por cento) da remuneração mensal do(a) EMPREGADO(A), ressalvadas situações excepcionais expressamente autorizadas por escrito pelo(a) próprio(a) empregado(a), e ficam registrados no extrato do Portal do Colaborador, garantindo total transparência do valor a descontar antes do fechamento da folha.</div>
+  <div class="doc-clause">5.4. São vedados descontos não previstos em lei ou neste contrato, salvo autorização escrita do(a) empregado(a) e desde que não causem ônus manifestamente abusivo.</div>
 
   <div class="doc-section-title">Cláusula 6ª — Das Férias Anuais e 13º Salário</div>
   <div class="doc-clause">6.1. Após cada período aquisitivo de 12 (doze) meses, o(a) EMPREGADO(A) fará jus a 30 (trinta) dias de férias remuneradas, acrescidas de 1/3 constitucional, nos termos dos Art. 129 a 153 da CLT e Art. 7º, XVII da CF/88.</div>
@@ -30149,7 +30155,13 @@ if(id==='doc_contrato') return `<div class="doc-wrap">${H()}
 
   <div class="doc-section-title">Cláusula 8ª — Das Atribuições e Conduta Profissional</div>
   <div class="doc-clause">8.1. O(A) EMPREGADO(A) se compromete a: (a) executar as atividades com diligência, qualidade e pontualidade; (b) tratar clientes, colegas e superiores com respeito; (c) zelar pelos equipamentos e bens da empresa; (d) comunicar imediatamente quaisquer irregularidades ao superior.</div>
-  <div class="doc-clause">8.2. É vedado ao(à) EMPREGADO(A), sob pena de rescisão por justa causa (Art. 482 da CLT): (a) abandono de emprego; (b) incontinência de conduta; (c) ato de improbidade; (d) desídia no desempenho das funções; (e) violação de segredo da empresa; (f) embriaguez no serviço; (g) prática de jogos de azar.</div>
+  <div class="doc-clause">8.2. <b>Das atividades correlatas de asseio e organização:</b> integram as atribuições do cargo, além das tarefas de venda e atendimento, a <b>manutenção da limpeza, higiene e organização do estabelecimento</b>, incluindo a área de vendas, o balcão, os banheiros e demais dependências de uso comum, mantendo o ambiente livre de lixo, sujeira e desordem. Tais tarefas são compatíveis com a função e inerentes ao funcionamento do comércio varejista, nos termos do Art. 456, parágrafo único, da CLT, não configurando desvio de função.</div>
+  <div class="doc-clause">8.3. <b>Da pontualidade e assiduidade:</b> o(a) EMPREGADO(A) obriga-se a cumprir rigorosamente os horários de entrada, saída e intervalos definidos em sua escala, sendo os atrasos, saídas antecipadas e faltas não justificados passíveis de desconto salarial proporcional e de medida disciplinar, na forma da Cláusula 16ª.</div>
+  <div class="doc-clause">8.4. <b>Do atendimento ao cliente:</b> o(a) EMPREGADO(A) deverá prestar atendimento cordial, respeitoso e atencioso a todo cliente, independentemente da situação, sendo vedado qualquer tratamento grosseiro, sarcástico ou desrespeitoso, presencialmente ou por telefone, WhatsApp e redes sociais da empresa.</div>
+  <div class="doc-clause">8.5. <b>Da conduta entre colegas — fofocas e boatos:</b> é vedado ao(à) EMPREGADO(A) disseminar fofocas, boatos, comentários depreciativos ou informações não confirmadas sobre colegas, clientes ou a empresa, inclusive em grupos de WhatsApp ou redes sociais, quando associados à empresa ou a colegas de trabalho, devendo eventuais divergências ser resolvidas de forma respeitosa, preferencialmente com apoio da gestão/RH.</div>
+  <div class="doc-clause">8.6. <b>Do uso de celular pessoal no ambiente de trabalho:</b> o uso de celular particular para fins pessoais (redes sociais, aplicativos de mensagem, jogos, ligações particulares) é permitido apenas em momentos de pausa/intervalo, sendo vedado durante o atendimento ao cliente. O celular deverá permanecer em modo silencioso e fora do balcão de atendimento durante o expediente; o uso excessivo e reiterado, quando prejudicar a produtividade, será tratado como falta disciplinar.</div>
+  <div class="doc-clause">8.7. <b>Da conformidade com o processo seletivo:</b> o(a) EMPREGADO(A) declara que todas as condições ora pactuadas — jornada, remuneração, comissões, prêmios, atribuições e deveres — foram previamente apresentadas, discutidas e aceitas durante a entrevista de emprego e o processo de admissão, com as quais concorda integralmente, ratificando-as por este instrumento.</div>
+  <div class="doc-clause">8.8. É vedado ao(à) EMPREGADO(A), sob pena de rescisão por justa causa (Art. 482 da CLT): (a) abandono de emprego; (b) incontinência de conduta ou mau procedimento; (c) ato de improbidade; (d) desídia no desempenho das funções; (e) violação de segredo da empresa; (f) embriaguez habitual ou em serviço; (g) prática de jogos de azar; (h) falsificação ou fraude no registro de ponto; (i) prática de assédio moral ou sexual contra colegas, subordinados, superiores ou clientes, na forma da Cláusula 19ª.</div>
 
   <div class="doc-section-title">Cláusula 9ª — Do Sigilo e Confidencialidade</div>
   <div class="doc-clause">9.1. O(A) EMPREGADO(A) obriga-se a manter sigilo absoluto sobre dados de clientes, fornecedores, estratégias comerciais, precificações, sistemas internos e demais informações confidenciais, durante a vigência e por 24 (vinte e quatro) meses após o encerramento do contrato.</div>
@@ -30179,26 +30191,35 @@ if(id==='doc_contrato') return `<div class="doc-wrap">${H()}
   <div class="doc-clause">15.1. ${get('f_banco_horas')==='sim'?'Fica instituído o Banco de Horas, nos termos do Art. 59, §5º da CLT e da Cláusula coletiva vigente, com prazo de compensação de até 12 (doze) meses. As horas positivas não compensadas ao final do período serão pagas como horas extras.':'O Banco de Horas não será adotado neste contrato, sendo as horas extras remuneradas conforme Cláusula 4ª.'}</div>
 
   <div class="doc-section-title">Cláusula 16ª — Das Penalidades Disciplinares</div>
-  <div class="doc-clause">16.1. O descumprimento das obrigações contratuais e legais pelo(a) EMPREGADO(A) ensejará, conforme a gravidade: (a) advertência verbal; (b) advertência escrita; (c) suspensão disciplinar de 1 a 30 dias, com desconto em folha (Art. 474, CLT); (d) rescisão por justa causa (Art. 482, CLT).</div>
+  <div class="doc-clause">16.1. O descumprimento das obrigações contratuais e legais ensejará, observada a gradação e a proporcionalidade: (a) advertência verbal; (b) advertência escrita; (c) suspensão disciplinar de 1 a 30 dias, com desconto em folha (Art. 474, CLT); (d) rescisão por justa causa (Art. 482, CLT).</div>
+  <div class="doc-clause">16.2. <b>Constituem falta disciplinar sujeita a advertência</b>, entre outras: (a) deixar de registrar qualquer marcação de ponto sem justificativa; (b) atrasos e faltas reiterados; (c) descuido com a limpeza e organização do estabelecimento; (d) atendimento descortês, grosseiro ou desrespeitoso a clientes; (e) uso excessivo de celular pessoal durante o expediente; (f) disseminação de fofocas, boatos ou comentários depreciativos sobre colegas, clientes ou a empresa; (g) descumprimento das normas internas. A reincidência autoriza a aplicação da penalidade imediatamente superior.</div>
+  <div class="doc-clause">16.3. A aplicação de penalidade observará a imediatidade, a ausência de dupla punição pelo mesmo fato e o direito do(a) empregado(a) de registrar sua ciência ou discordância.</div>
 
   <div class="doc-section-title">Cláusula 17ª — Da Não Concorrência</div>
-  <div class="doc-clause">17.1. Pelo prazo de 12 (doze) meses após o encerramento deste contrato, o(a) EMPREGADO(A) compromete-se a não trabalhar em empresas concorrentes diretas (comércio e assistência técnica de celulares) na mesma cidade, salvo autorização escrita do(a) EMPREGADOR(A).</div>
+  <div class="doc-clause">17.1. Durante a vigência do contrato, é vedado ao(à) EMPREGADO(A) concorrer com a empregadora ou atuar em benefício de concorrentes diretos, sob pena de justa causa (Art. 482, "c" e "g", CLT).</div>
 
   <div class="doc-section-title">Cláusula 18ª — Da Rescisão Contratual</div>
-  <div class="doc-clause">18.1. O contrato poderá ser rescindido por qualquer das partes, observados: (a) aviso prévio de 30 dias, proporcional ao tempo de serviço (Art. 487 e 488, CLT); (b) pagamento das verbas rescisórias devidas no prazo legal de 10 dias corridos (Art. 477, §6º, CLT).</div>
-  <div class="doc-clause">18.2. Na rescisão sem justa causa pelo(a) EMPREGADOR(A), o(a) EMPREGADO(A) terá direito à multa de 40% sobre o saldo do FGTS (Art. 18, §1º, Lei nº 8.036/1990), além das verbas rescisórias legais.</div>
-  <div class="doc-clause">18.3. Na rescisão durante o período de experiência, aplica-se indenização equivalente a 50% dos salários a que o(a) empregado(a) faria jus até o término do contrato, nos termos do Art. 479 da CLT.</div>
+  <div class="doc-clause">18.1. O contrato poderá ser rescindido por qualquer das partes, observados: (a) aviso prévio de 30 dias, acrescido de 3 dias por ano trabalhado, limitado a 90 dias (Art. 487 e 488, CLT, e Lei nº 12.506/2011); (b) pagamento das verbas rescisórias no prazo de 10 dias corridos (Art. 477, §6º, CLT).</div>
+  <div class="doc-clause">18.2. Na rescisão sem justa causa pela EMPREGADORA, o(a) EMPREGADO(A) terá direito à multa de 40% sobre o saldo do FGTS (Art. 18, §1º, Lei nº 8.036/1990), além das verbas legais.</div>
+  <div class="doc-clause">18.3. Na rescisão antecipada do contrato de experiência, aplica-se o disposto nos Arts. 479 e 480 da CLT.</div>
 
-  <div class="doc-section-title">Cláusula 19ª — Do Assédio Moral e Sexual</div>
-  <div class="doc-clause">19.1. É expressamente vedada qualquer prática de assédio moral (humilhação sistemática, constrangimento, exposição a situações vexatórias) ou sexual no ambiente de trabalho, constituindo falta grave passível de justa causa para o assediador, nos termos da Lei nº 9.029/1995 e alterações.</div>
+  <div class="doc-section-title">Cláusula 19ª — Do Assédio Moral e Sexual e da Igualdade</div>
+  <div class="doc-clause">19.1. A empresa adota <b>tolerância zero</b> a qualquer prática de assédio moral ou sexual, discriminação ou constrangimento no ambiente de trabalho, praticada por qualquer colaborador, independentemente do cargo hierárquico, nos termos da Lei nº 9.029/1995 e da Lei nº 14.457/2022 (canal de denúncias da CIPA), constituindo falta grave.</div>
+  <div class="doc-clause">19.2. Considera-se <b>assédio moral</b> toda conduta abusiva e repetitiva que exponha o(a) EMPREGADO(A) a situações humilhantes, vexatórias ou de constrangimento reiterado, capaz de prejudicar sua dignidade ou condições de trabalho; e <b>assédio sexual</b> toda conduta de natureza sexual não consentida, incluindo insinuações, propostas, contato físico indesejado ou uso de posição hierárquica para obter favores de natureza sexual.</div>
+  <div class="doc-clause">19.3. Toda denúncia será apurada com sigilo e imparcialidade, sendo vedada qualquer retaliação contra quem denunciar de boa-fé. A empresa compromete-se a manter ambiente de trabalho seguro e a apurar as denúncias recebidas.</div>
 
-  <div class="doc-section-title">Cláusula 20ª — Da Mediação e Foro</div>
-  <div class="doc-clause">20.1. As partes comprometem-se a buscar solução extrajudicial para eventuais conflitos, podendo utilizar a Comissão de Conciliação Prévia ou mediação privada, nos termos dos Art. 625-A a 625-H da CLT.</div>
-  <div class="doc-clause">20.2. Não havendo acordo, fica eleito o foro da Vara do Trabalho da Comarca de <b>${get('e_comarca')}</b>/${get('e_uf')}, com renúncia expressa a qualquer outro, por mais privilegiado que seja.</div>
+  <div class="doc-section-title">Cláusula 20ª — Do Reconhecimento das Condições e Boa-Fé</div>
+  <div class="doc-clause">20.1. As partes declaram que o presente contrato foi celebrado de boa-fé, com pleno conhecimento e aceitação recíproca de todas as cláusulas, que refletem fielmente o que foi tratado no processo seletivo, não havendo vício de consentimento (Arts. 113, 421 e 422 do Código Civil).</div>
+  <div class="doc-clause">20.2. O(A) EMPREGADO(A) declara que recebeu esclarecimentos sobre jornada, remuneração variável, atribuições e deveres, e que teve oportunidade de sanar dúvidas antes da assinatura.</div>
 
-  <div class="doc-section-title">Cláusula 21ª — Disposições Finais</div>
-  <div class="doc-clause">21.1. Este contrato é celebrado em 2 (duas) vias de igual teor, sendo uma entregue ao(à) EMPREGADO(A) no ato da assinatura, conforme Art. 29, §1º da CLT.</div>
-  <div class="doc-clause">21.2. O(A) EMPREGADO(A) declara ter lido, compreendido e concordado com todas as cláusulas deste instrumento, recebido cópia do Regulamento Interno e do Código de Conduta da empresa.</div>
+  <div class="doc-section-title">Cláusula 21ª — Da Mediação e Foro</div>
+  <div class="doc-clause">21.1. As partes buscarão solução extrajudicial para conflitos, admitida a Comissão de Conciliação Prévia ou mediação (Arts. 625-A a 625-H da CLT).</div>
+  <div class="doc-clause">21.2. Não havendo acordo, fica eleito o foro da Vara do Trabalho da Comarca de <b>${get('e_comarca')}</b>/${get('e_uf')}, competente para dirimir controvérsias oriundas deste contrato.</div>
+
+  <div class="doc-section-title">Cláusula 22ª — Disposições Finais</div>
+  <div class="doc-clause">22.1. Este contrato é celebrado em 2 (duas) vias de igual teor, ou por meio eletrônico com assinatura digital de igual validade (Lei nº 14.063/2020 e MP nº 2.200-2/2001), entregando-se via ao(à) EMPREGADO(A) (Art. 29, §1º da CLT).</div>
+  <div class="doc-clause">22.2. O(A) EMPREGADO(A) declara ter lido, compreendido e concordado com todas as cláusulas, recebido cópia do Regulamento Interno e do Código de Conduta.</div>
+  <div class="doc-clause">22.3. A eventual nulidade de qualquer cláusula não invalidará as demais, que permanecerão em pleno vigor.</div>
   <div class="doc-clause"><b>Dados complementares:</b> Grau de instrução: ${get('f_instrucao')} | Sexo: ${get('f_sexo')} | Data de nascimento: ${get('f_nascimento')}</div>
   ${S()}
 </div>`;
@@ -30403,23 +30424,26 @@ if(id==='doc_banco') return `<div class="doc-wrap">${H()}
 </div>`;
 
 if(id==='doc_premios') return `<div class="doc-wrap">${H()}
-  <div class="doc-title">Regulamento de Premiações Meritocráticas</div>
-  <div class="doc-subtitle">Reconhecimento por Desempenho — Art. 457, §2º da CLT</div>
-  <div class="doc-alert">⚖️ As premiações previstas neste regulamento têm natureza indenizatória/mercantil e não integram o salário, nos termos do Art. 457, §2º da CLT (Redação dada pela Lei 13.467/2017).</div>
+  <div class="doc-title">Regulamento de Comissões e Premiações</div>
+  <div class="doc-subtitle">Política de Remuneração Variável e Reconhecimento por Desempenho</div>
+  <div class="doc-alert">⚖️ Este regulamento distingue as parcelas de natureza salarial (comissões e prêmios por meta habituais) das liberalidades eventuais, em conformidade com o Art. 457 da CLT, a Súmula 27 do TST e a Lei nº 3.207/1957, resguardando os direitos do(a) empregado(a) e a segurança jurídica da empresa.</div>
   <div class="doc-section-title">1. Objetivo</div>
-  <div class="doc-clause">1.1. Valorizar, reconhecer e reter talentos mediante premiações por desempenho excepcional, cumprimento de metas, qualidade no atendimento e comprometimento com os valores da empresa.</div>
-  <div class="doc-section-title">2. Critérios de Elegibilidade</div>
-  <div class="doc-clause">São elegíveis todos os colaboradores ativos, em efetivo exercício, que: (a) tenham cumprido o período de experiência; (b) não possuam advertências vigentes; (c) atendam aos critérios de metas definidos periodicamente pela gestão.</div>
-  <div class="doc-section-title">3. Modalidades de Premiação</div>
-  <div class="doc-clause">3.1. <b>Bônus por meta:</b> percentual sobre as vendas realizadas acima do target mensal, conforme política de comissões vigente.</div>
-  <div class="doc-clause">3.2. <b>Prêmio assiduidade:</b> concedido ao empregado sem faltas injustificadas no trimestre.</div>
-  <div class="doc-clause">3.3. <b>Reconhecimento especial:</b> premiação por indicação de clientes, resolução de problemas complexos ou destaque no atendimento.</div>
-  <div class="doc-section-title">4. Natureza Jurídica — Art. 457, §2º, CLT</div>
-  <div class="doc-clause">4.1. As premiações <b>NÃO integram o salário</b> para fins de cálculo de FGTS, INSS, férias, 13º salário ou verbas rescisórias, sendo de natureza eventual e não habitual.</div>
-  <div class="doc-clause">4.2. A empresa reserva-se o direito de revisar, suspender ou encerrar o programa a qualquer momento, mediante comunicação prévia de 30 dias, sem que isso configure alteração prejudicial ao contrato.</div>
+  <div class="doc-clause">1.1. Estabelecer, de forma transparente, as regras de remuneração variável — comissões e prêmios por meta — e das premiações eventuais de reconhecimento, valorizando o desempenho e o comprometimento.</div>
+  <div class="doc-section-title">2. Comissão por Venda</div>
+  <div class="doc-clause">2.1. Comissão de <b>R$ 15,00 (quinze reais) por aparelho celular</b> efetivamente vendido e faturado, apurada pelo sistema da empresa.</div>
+  <div class="doc-clause">2.2. Sobre as comissões incide o reflexo do <b>Repouso Semanal Remunerado (RSR/DSR)</b>, destacado no holerite, na forma da Súmula 27 do TST e da Lei nº 3.207/1957.</div>
+  <div class="doc-clause">2.3. Comissões de vendas canceladas, devolvidas ou inadimplidas poderão ser estornadas na competência seguinte, com informação ao(à) empregado(a).</div>
+  <div class="doc-section-title">3. Prêmio por Meta Diária</div>
+  <div class="doc-clause">3.1. Ao atingir a meta de <b>3 (três) aparelhos vendidos e faturados no mesmo dia</b>, o(a) empregado(a) fará jus a <b>R$ 100,00 (cem reais)</b> por meta cumprida, pagos por PIX. Não atingida a meta no dia, não há prêmio referente àquela data.</div>
+  <div class="doc-section-title">4. Natureza Jurídica das Parcelas</div>
+  <div class="doc-clause">4.1. <b>Comissões e prêmios por meta (Seções 2 e 3):</b> quando pagos com <b>habitualidade</b>, possuem <b>natureza salarial</b> e integram a remuneração para fins de férias + 1/3, 13º salário, FGTS, aviso prévio e verbas rescisórias. A empresa reconhece expressamente esta natureza.</div>
+  <div class="doc-clause">4.2. <b>Premiações eventuais de reconhecimento</b> (Seção 5), por serem esporádicas e desvinculadas de meta pré-fixada, têm natureza de <b>prêmio</b> e não integram o salário, nos termos do Art. 457, §2º da CLT.</div>
+  <div class="doc-section-title">5. Premiações Eventuais de Reconhecimento</div>
+  <div class="doc-clause">5.1. Reconhecimento esporádico por destaque no atendimento, resolução de problemas complexos ou indicação de clientes, concedido a critério da gestão, sem periodicidade fixa.</div>
+  <div class="doc-section-title">6. Disposições</div>
+  <div class="doc-clause">6.1. A empresa poderá revisar a política de premiações eventuais mediante comunicação prévia de 30 dias, preservados os valores já adquiridos e observado o Art. 468 da CLT (vedação à alteração lesiva).</div>
   <div class="doc-section-title">Termo de Ciência e Adesão</div>
-  <div class="doc-clause">Eu, <b>${get('f_nome')}</b>, CPF nº ${get('f_cpf')}, declaro ter recebido e compreendido este Regulamento.</div>
-  <div class="doc-clause">[ &nbsp;&nbsp; ] <b>ACEITO</b> participar do Programa &nbsp;&nbsp;&nbsp; [ &nbsp;&nbsp; ] <b>DECLINO</b> da participação</div>
+  <div class="doc-clause">Eu, <b>${get('f_nome')}</b>, CPF nº ${get('f_cpf')}, declaro ter recebido, lido e compreendido este Regulamento, ciente das regras de comissão, prêmio por meta e da natureza de cada parcela.</div>
   ${S()}
 </div>`;
 
@@ -30505,24 +30529,35 @@ if(id==='doc_conduta') return `<div class="doc-wrap">${H()}
   <div class="doc-clause"><b>Responsabilidade:</b> assumir as consequências de suas ações; zelar pela qualidade do trabalho e reputação da empresa.</div>
   <div class="doc-clause"><b>Lealdade:</b> agir no interesse da empresa; evitar conflitos de interesse; não concorrer com a empregadora durante a vigência do contrato.</div>
 
-  <div class="doc-section-title">2. Condutas Expressamente Vedadas</div>
+  <div class="doc-section-title">2. Da Pontualidade, Organização e Atendimento</div>
+  <div class="doc-clause"><b>Pontualidade e assiduidade:</b> cumprir rigorosamente os horários de entrada, saída e intervalos definidos na escala, registrando o ponto em todas as marcações; atrasos, saídas antecipadas e faltas não justificados são passíveis de desconto salarial proporcional e de medida disciplinar.</div>
+  <div class="doc-clause"><b>Organização e limpeza:</b> manter o posto de trabalho, estoque, vitrine e áreas comuns organizados e limpos, contribuindo para a boa imagem da empresa e para um ambiente seguro e agradável de trabalho.</div>
+  <div class="doc-clause"><b>Atendimento cordial:</b> tratar todo cliente com cordialidade, respeito e atenção, independentemente da situação, sendo vedado qualquer tratamento grosseiro, sarcástico ou desrespeitoso, presencialmente ou por telefone, WhatsApp e redes sociais da empresa.</div>
+
+  <div class="doc-section-title">3. Condutas Expressamente Vedadas</div>
   <div class="doc-clause">São vedados, sob pena das sanções disciplinares previstas no contrato:</div>
   <div class="doc-sub-clause">a) Atos de corrupção, suborno, desvio, fraude ou falsificação de documentos (Arts. 299, 317, 333 do CP);</div>
-  <div class="doc-sub-clause">b) Assédio moral ou sexual, bullying ou discriminação (Lei nº 9.799/1999; Lei nº 14.457/2022);</div>
+  <div class="doc-sub-clause">b) Assédio moral ou sexual, bullying ou discriminação (Lei nº 9.799/1999; Lei nº 14.457/2022) — tolerância zero, incluindo condutas abusivas e repetitivas que humilhem ou constranjam colegas, subordinados ou clientes, e qualquer conduta de natureza sexual não consentida;</div>
   <div class="doc-sub-clause">c) Divulgar informações da empresa em redes sociais ou a concorrentes;</div>
   <div class="doc-sub-clause">d) Aceitar presentes, vantagens ou benefícios de clientes ou fornecedores acima de R$ 100,00 sem comunicar a gestão;</div>
   <div class="doc-sub-clause">e) Apresentar-se ao trabalho sob efeito de álcool, drogas ou substâncias ilícitas;</div>
   <div class="doc-sub-clause">f) Realizar vendas, cobranças ou atividades comerciais pessoais durante o expediente ou utilizando recursos da empresa;</div>
-  <div class="doc-sub-clause">g) Falsificar registros de ponto, relatórios ou qualquer documento empresarial.</div>
+  <div class="doc-sub-clause">g) Falsificar registros de ponto, relatórios ou qualquer documento empresarial;</div>
+  <div class="doc-sub-clause">h) Disseminar fofocas, boatos ou comentários depreciativos sobre colegas, clientes ou a empresa, inclusive em grupos de WhatsApp ou redes sociais, quando associados à empresa ou a colegas de trabalho;</div>
+  <div class="doc-sub-clause">i) Uso excessivo e reiterado de celular pessoal durante o expediente, prejudicando a produtividade e o atendimento ao cliente — o celular deve permanecer em modo silencioso e fora do balcão de atendimento, sendo seu uso pessoal permitido apenas nas pausas/intervalos.</div>
 
-  <div class="doc-section-title">3. Uso dos Recursos Empresariais</div>
-  <div class="doc-clause">3.1. Equipamentos, sistemas, internet e e-mail corporativo são de uso exclusivamente profissional. O acesso a sites de conteúdo impróprio, redes sociais pessoais ou jogos durante o expediente é vedado e monitorável.</div>
+  <div class="doc-section-title">4. Dos Adiantamentos Salariais (Vales)</div>
+  <div class="doc-clause">4.1. Todo e qualquer valor adiantado ao(à) EMPREGADO(A) ao longo do mês — vale, adiantamento em espécie, Pix ou qualquer outra modalidade, solicitado e aprovado pelo sistema da empresa — <b>será integralmente descontado do salário e/ou das comissões devidas</b> no fechamento da folha do respectivo mês de competência, nos termos do Art. 462 da CLT.</div>
+  <div class="doc-clause">4.2. Os descontos observarão o limite máximo de 30% (trinta por cento) da remuneração mensal, ficando os valores registrados no extrato do Portal do Colaborador, garantindo transparência antes do fechamento da folha.</div>
 
-  <div class="doc-section-title">4. Canal de Denúncias</div>
-  <div class="doc-clause">4.1. Qualquer violação ao presente Código deverá ser comunicada ao setor de RH, garantindo-se o anonimato do(a) comunicante e vedada qualquer retaliação, nos termos da Lei nº 14.457/2022 (Programa Emprega + Mulheres).</div>
+  <div class="doc-section-title">5. Uso dos Recursos Empresariais</div>
+  <div class="doc-clause">5.1. Equipamentos, sistemas, internet e e-mail corporativo são de uso exclusivamente profissional. O acesso a sites de conteúdo impróprio, redes sociais pessoais ou jogos durante o expediente é vedado e monitorável.</div>
 
-  <div class="doc-section-title">5. Consequências do Descumprimento</div>
-  <div class="doc-clause">5.1. O descumprimento ensejará, conforme gravidade: advertência verbal, advertência escrita, suspensão (Art. 474, CLT) ou rescisão por justa causa (Art. 482, CLT), sem prejuízo das responsabilidades civis e criminais cabíveis.</div>
+  <div class="doc-section-title">6. Canal de Denúncias</div>
+  <div class="doc-clause">6.1. Qualquer violação ao presente Código — incluindo situações de assédio moral/sexual, discriminação, fofocas prejudiciais ou conflitos — deverá ser comunicada ao setor de RH, garantindo-se o anonimato do(a) comunicante e vedada qualquer retaliação, nos termos da Lei nº 14.457/2022 (Programa Emprega + Mulheres).</div>
+
+  <div class="doc-section-title">7. Consequências do Descumprimento</div>
+  <div class="doc-clause">7.1. O descumprimento ensejará, conforme gravidade: advertência verbal, advertência escrita, suspensão (Art. 474, CLT) ou rescisão por justa causa (Art. 482, CLT), sem prejuízo das responsabilidades civis e criminais cabíveis.</div>
 
   <div class="doc-section-title">Declaração de Ciência e Adesão</div>
   <div class="doc-clause">Eu, <b>${get('f_nome')}</b>, CPF nº ${get('f_cpf')}, declaro ter recebido, lido integralmente e compreendido este Código de Conduta, aderindo voluntariamente aos seus termos.</div>
@@ -51377,7 +51412,20 @@ console.log('[Atlas] Módulo Contrato Intermitente carregado ✅');
     var recs=(APP.recibosInt||[]).filter(function(r){ return r.periodoFim>=ini && r.periodoFim<=fim; });
     var convs=(APP.convocacoes||[]).filter(function(c){ return c.dataTrabalho>=ini && c.dataTrabalho<=fim; });
     var adms=(APP.employees||[]).filter(function(e){ return e.dataAdmissao && e.dataAdmissao>=ini && e.dataAdmissao<=fim; });
-    var dems=(APP.demissoes||[]).filter(function(d){ return d && d.data && d.data>=ini && d.data<=fim; });
+
+    // APP.demissoes é um OBJETO indexado por id do funcionário ({id: registro}),
+    // não um array — por isso precisa ser convertido antes de filtrar.
+    var demRaw=APP.demissoes||{};
+    var demLista=Array.isArray(demRaw) ? demRaw.slice() : Object.keys(demRaw).map(function(k){
+      var r=demRaw[k]||{};
+      if(!r.empId) r=Object.assign({}, r, {empId:k});
+      return r;
+    });
+    var dems=demLista.filter(function(d){
+      if(!d) return false;
+      var dt=d.data || d.dataDemissao || d.dataDesligamento || '';
+      return dt && dt>=ini && dt<=fim;
+    });
     return {ini:ini,fim:fim,recs:recs,convs:convs,adms:adms,dems:dems};
   }
 
@@ -51453,7 +51501,12 @@ console.log('[Atlas] Módulo Contrato Intermitente carregado ✅');
       + '<h3 style="font-size:13px;margin:18px 0 6px">3. Movimentações</h3>'
       + '<div style="font-size:12px;line-height:1.7">Admissões: <strong>'+D.adms.length+'</strong>'
       + (D.adms.length?' — '+D.adms.map(function(e){ return _esc(e.nome)+' ('+_fmtD(e.dataAdmissao)+')'; }).join('; '):'')
-      + '<br>Desligamentos: <strong>'+D.dems.length+'</strong></div>'
+      + '<br>Desligamentos: <strong>'+D.dems.length+'</strong>'
+      + (D.dems.length?' — '+D.dems.map(function(d){
+            var e=(APP.employees||[]).find(function(x){ return x.id===d.empId; });
+            return _esc((e&&e.nome)||d.empId||'—')+' ('+_fmtD(d.dataDemissao||d.data)+')';
+          }).join('; '):'')
+      + '</div>'
       + '<div style="font-size:10.5px;color:#666;margin-top:20px;line-height:1.5">Documento gerado pelo Atlas RH em '+new Date().toLocaleString('pt-BR')+'. Os valores de INSS e demais retenções devem ser apurados pela contabilidade conforme as tabelas vigentes.</div>'
       + '</div>';
     if(typeof printHtml==='function') printHtml('<div class="doc-page">'+html+'</div>','Pacote contador '+MESES[PC_MES]+'-'+PC_ANO);
