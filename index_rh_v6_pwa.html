@@ -29940,8 +29940,23 @@ function mapDadosWizard(){
   };
 }
 
+function _fmtCPF(v){
+  var s=String(v||'').replace(/\D/g,'');
+  return s.length===11 ? s.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4') : String(v||'');
+}
+function _fmtCNPJ(v){
+  var s=String(v||'').replace(/\D/g,'');
+  return s.length===14 ? s.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,'$1.$2.$3/$4-$5') : String(v||'');
+}
 function get(id, fallback){
-  return __D[id] || fallback || '______________________';
+  var v = __D[id];
+  if(v){
+    // Formata documentos automaticamente, mesmo que digitados só com números
+    if(id==='f_cpf') return _fmtCPF(v);
+    if(id==='e_cnpj') return _fmtCNPJ(v);
+    return v;
+  }
+  return fallback || '______________________';
 }
 
 function docHeader() {
@@ -30049,7 +30064,9 @@ td,th{font-size:15px!important;}
 // ── HEADER PADRÃO ────────────────────────────────────────────────────────
 function H() {
   var _logo = (typeof EMPRESA_CFG!=='undefined' && EMPRESA_CFG.logo) ? EMPRESA_CFG.logo : '';
-  var _nome = get('e_nome', (typeof EMPRESA_CFG!=='undefined' ? EMPRESA_CFG.nomeRazao : '') || 'ATLAS');
+  // Marca fixa do sistema no cabeçalho dos documentos.
+  // Os dados da empresa contratante seguem no corpo do documento (EMPREGADOR).
+  var _nome = 'ATLAS RH';
   return DOC_CSS + `
   <div class="doc-header-banner">
     <div style="display:flex;align-items:center;gap:14px">
@@ -30102,7 +30119,7 @@ function S(extra) {
   </div>
   <div class="doc-footer">
     <span>${get('e_nome')||EMPRESA_CFG.nomeRazao} · CNPJ: ${get('e_cnpj')||EMPRESA_CFG.cnpj} · ${get('e_cidade')||EMPRESA_CFG.cidade}/${get('e_uf')||EMPRESA_CFG.uf}</span>
-    <span>Gerado em ${hoje()} · Sistema RH ${EMPRESA_CFG.nomeFantasia}</span>
+    <span>Gerado em ${hoje()} · Sistema RH Atlas</span>
   </div>`;
 }
 
