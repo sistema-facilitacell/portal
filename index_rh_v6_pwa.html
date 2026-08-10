@@ -30046,11 +30046,16 @@ td,th{font-size:15px!important;}
 
 // ── HEADER PADRÃO ────────────────────────────────────────────────────────
 function H() {
+  var _logo = (typeof EMPRESA_CFG!=='undefined' && EMPRESA_CFG.logo) ? EMPRESA_CFG.logo : '';
+  var _nome = get('e_nome', (typeof EMPRESA_CFG!=='undefined' ? EMPRESA_CFG.nomeRazao : '') || 'ATLAS');
   return DOC_CSS + `
   <div class="doc-header-banner">
-    <div>
-      <div class="doc-header-logo">FACILITA <span>CELL</span></div>
-      <div style="font-size:9pt;opacity:.7;margin-top:3px">CNPJ: ${get('e_cnpj')} · ${get('e_cidade')}/${get('e_uf')}</div>
+    <div style="display:flex;align-items:center;gap:14px">
+      ${_logo?`<img src="${_logo}" style="height:46px;width:46px;object-fit:contain;border-radius:8px;background:#fff;padding:3px">`:''}
+      <div>
+        <div class="doc-header-logo">${_nome}</div>
+        <div style="font-size:9pt;opacity:.7;margin-top:3px">CNPJ: ${get('e_cnpj')} · ${get('e_cidade')}/${get('e_uf')}</div>
+      </div>
     </div>
     <div class="doc-header-meta">
       Comércio e Assistência Técnica<br>
@@ -30138,11 +30143,10 @@ if(id==='doc_contrato') return `<div class="doc-wrap">${H()}
   <div class="doc-clause">4.4. A prestação de horas extras fica limitada a 2 (duas) horas diárias, mediante prévio acordo, acrescidas de 50% (dias comuns) ou 100% (domingos/feriados) sobre o valor da hora normal (Art. 59 e Art. 7º, XVI da CF/88). Alternativamente, poderá ser adotado Banco de Horas nos termos da Cláusula 15ª.</div>
   <div class="doc-clause">4.5. <b>Do registro de ponto:</b> o(a) EMPREGADO(A) deverá registrar o ponto eletrônico/biométrico em <b>todas</b> as marcações de entrada, saída de refeição, retorno, intervalo de café e saída (Art. 74, §2º da CLT e Portaria MTP nº 671/2021). <b>A ausência injustificada de registro de qualquer marcação sujeita o(a) empregado(a) a advertência disciplinar</b> e, em caso de reincidência, às penalidades progressivas da Cláusula 16ª, por descumprimento de obrigação contratual.</div>
 
-  <div class="doc-section-title">Cláusula 5ª — Dos Descontos Legais e dos Adiantamentos Salariais</div>
+  <div class="doc-section-title">Cláusula 5ª — Dos Descontos Legais e Autorizados</div>
   <div class="doc-clause">5.1. O(A) EMPREGADO(A) autoriza os seguintes descontos legais: INSS (conforme tabela progressiva vigente — EC 103/2019), IRRF (conforme legislação tributária), vale-transporte (se concedido), adiantamentos e demais previstos em lei.</div>
-  <div class="doc-clause">5.2. <b>Dos adiantamentos ("vales"):</b> todo e qualquer valor adiantado ao(à) EMPREGADO(A) ao longo do mês — a título de vale, adiantamento salarial, adiantamento em espécie, Pix ou qualquer outra modalidade, solicitado e aprovado pelo sistema da empresa — <b class="doc-orange">será integralmente descontado do salário e/ou das comissões devidas no fechamento da folha do respectivo mês de competência</b>, nos termos do Art. 462 da CLT, sendo o valor líquido calculado como: salário-base + comissões e prêmios do período − adiantamentos concedidos no mês − demais descontos legais e autorizados.</div>
-  <div class="doc-clause">5.3. Os descontos de adiantamentos observarão o limite máximo de 30% (trinta por cento) da remuneração mensal do(a) EMPREGADO(A), ressalvadas situações excepcionais expressamente autorizadas por escrito pelo(a) próprio(a) empregado(a), e ficam registrados no extrato do Portal do Colaborador, garantindo total transparência do valor a descontar antes do fechamento da folha.</div>
-  <div class="doc-clause">5.4. São vedados descontos não previstos em lei ou neste contrato, salvo autorização escrita do(a) empregado(a) e desde que não causem ônus manifestamente abusivo.</div>
+  <div class="doc-clause">5.2. Eventuais adiantamentos ou empréstimos concedidos pela empresa poderão ser descontados em folha, respeitado o limite de 30% da remuneração mensal, conforme Art. 462 da CLT.</div>
+  <div class="doc-clause">5.3. São vedados descontos não previstos em lei ou neste contrato, salvo autorização escrita do(a) empregado(a) e desde que não causem ônus manifestamente abusivo.</div>
 
   <div class="doc-section-title">Cláusula 6ª — Das Férias Anuais e 13º Salário</div>
   <div class="doc-clause">6.1. Após cada período aquisitivo de 12 (doze) meses, o(a) EMPREGADO(A) fará jus a 30 (trinta) dias de férias remuneradas, acrescidas de 1/3 constitucional, nos termos dos Art. 129 a 153 da CLT e Art. 7º, XVII da CF/88.</div>
@@ -30156,12 +30160,8 @@ if(id==='doc_contrato') return `<div class="doc-wrap">${H()}
   <div class="doc-section-title">Cláusula 8ª — Das Atribuições e Conduta Profissional</div>
   <div class="doc-clause">8.1. O(A) EMPREGADO(A) se compromete a: (a) executar as atividades com diligência, qualidade e pontualidade; (b) tratar clientes, colegas e superiores com respeito; (c) zelar pelos equipamentos e bens da empresa; (d) comunicar imediatamente quaisquer irregularidades ao superior.</div>
   <div class="doc-clause">8.2. <b>Das atividades correlatas de asseio e organização:</b> integram as atribuições do cargo, além das tarefas de venda e atendimento, a <b>manutenção da limpeza, higiene e organização do estabelecimento</b>, incluindo a área de vendas, o balcão, os banheiros e demais dependências de uso comum, mantendo o ambiente livre de lixo, sujeira e desordem. Tais tarefas são compatíveis com a função e inerentes ao funcionamento do comércio varejista, nos termos do Art. 456, parágrafo único, da CLT, não configurando desvio de função.</div>
-  <div class="doc-clause">8.3. <b>Da pontualidade e assiduidade:</b> o(a) EMPREGADO(A) obriga-se a cumprir rigorosamente os horários de entrada, saída e intervalos definidos em sua escala, sendo os atrasos, saídas antecipadas e faltas não justificados passíveis de desconto salarial proporcional e de medida disciplinar, na forma da Cláusula 16ª.</div>
-  <div class="doc-clause">8.4. <b>Do atendimento ao cliente:</b> o(a) EMPREGADO(A) deverá prestar atendimento cordial, respeitoso e atencioso a todo cliente, independentemente da situação, sendo vedado qualquer tratamento grosseiro, sarcástico ou desrespeitoso, presencialmente ou por telefone, WhatsApp e redes sociais da empresa.</div>
-  <div class="doc-clause">8.5. <b>Da conduta entre colegas — fofocas e boatos:</b> é vedado ao(à) EMPREGADO(A) disseminar fofocas, boatos, comentários depreciativos ou informações não confirmadas sobre colegas, clientes ou a empresa, inclusive em grupos de WhatsApp ou redes sociais, quando associados à empresa ou a colegas de trabalho, devendo eventuais divergências ser resolvidas de forma respeitosa, preferencialmente com apoio da gestão/RH.</div>
-  <div class="doc-clause">8.6. <b>Do uso de celular pessoal no ambiente de trabalho:</b> o uso de celular particular para fins pessoais (redes sociais, aplicativos de mensagem, jogos, ligações particulares) é permitido apenas em momentos de pausa/intervalo, sendo vedado durante o atendimento ao cliente. O celular deverá permanecer em modo silencioso e fora do balcão de atendimento durante o expediente; o uso excessivo e reiterado, quando prejudicar a produtividade, será tratado como falta disciplinar.</div>
-  <div class="doc-clause">8.7. <b>Da conformidade com o processo seletivo:</b> o(a) EMPREGADO(A) declara que todas as condições ora pactuadas — jornada, remuneração, comissões, prêmios, atribuições e deveres — foram previamente apresentadas, discutidas e aceitas durante a entrevista de emprego e o processo de admissão, com as quais concorda integralmente, ratificando-as por este instrumento.</div>
-  <div class="doc-clause">8.8. É vedado ao(à) EMPREGADO(A), sob pena de rescisão por justa causa (Art. 482 da CLT): (a) abandono de emprego; (b) incontinência de conduta ou mau procedimento; (c) ato de improbidade; (d) desídia no desempenho das funções; (e) violação de segredo da empresa; (f) embriaguez habitual ou em serviço; (g) prática de jogos de azar; (h) falsificação ou fraude no registro de ponto; (i) prática de assédio moral ou sexual contra colegas, subordinados, superiores ou clientes, na forma da Cláusula 19ª.</div>
+  <div class="doc-clause">8.3. <b>Da conformidade com o processo seletivo:</b> o(a) EMPREGADO(A) declara que todas as condições ora pactuadas — jornada, remuneração, comissões, prêmios, atribuições e deveres — foram previamente apresentadas, discutidas e aceitas durante a entrevista de emprego e o processo de admissão, com as quais concorda integralmente, ratificando-as por este instrumento.</div>
+  <div class="doc-clause">8.4. É vedado ao(à) EMPREGADO(A), sob pena de rescisão por justa causa (Art. 482 da CLT): (a) abandono de emprego; (b) incontinência de conduta ou mau procedimento; (c) ato de improbidade; (d) desídia no desempenho das funções; (e) violação de segredo da empresa; (f) embriaguez habitual ou em serviço; (g) prática de jogos de azar; (h) falsificação ou fraude no registro de ponto.</div>
 
   <div class="doc-section-title">Cláusula 9ª — Do Sigilo e Confidencialidade</div>
   <div class="doc-clause">9.1. O(A) EMPREGADO(A) obriga-se a manter sigilo absoluto sobre dados de clientes, fornecedores, estratégias comerciais, precificações, sistemas internos e demais informações confidenciais, durante a vigência e por 24 (vinte e quatro) meses após o encerramento do contrato.</div>
@@ -30192,7 +30192,7 @@ if(id==='doc_contrato') return `<div class="doc-wrap">${H()}
 
   <div class="doc-section-title">Cláusula 16ª — Das Penalidades Disciplinares</div>
   <div class="doc-clause">16.1. O descumprimento das obrigações contratuais e legais ensejará, observada a gradação e a proporcionalidade: (a) advertência verbal; (b) advertência escrita; (c) suspensão disciplinar de 1 a 30 dias, com desconto em folha (Art. 474, CLT); (d) rescisão por justa causa (Art. 482, CLT).</div>
-  <div class="doc-clause">16.2. <b>Constituem falta disciplinar sujeita a advertência</b>, entre outras: (a) deixar de registrar qualquer marcação de ponto sem justificativa; (b) atrasos e faltas reiterados; (c) descuido com a limpeza e organização do estabelecimento; (d) atendimento descortês, grosseiro ou desrespeitoso a clientes; (e) uso excessivo de celular pessoal durante o expediente; (f) disseminação de fofocas, boatos ou comentários depreciativos sobre colegas, clientes ou a empresa; (g) descumprimento das normas internas. A reincidência autoriza a aplicação da penalidade imediatamente superior.</div>
+  <div class="doc-clause">16.2. <b>Constituem falta disciplinar sujeita a advertência</b>, entre outras: (a) deixar de registrar qualquer marcação de ponto sem justificativa; (b) atrasos reiterados; (c) descuido com a limpeza e organização do estabelecimento; (d) descumprimento das normas internas. A reincidência autoriza a aplicação da penalidade imediatamente superior.</div>
   <div class="doc-clause">16.3. A aplicação de penalidade observará a imediatidade, a ausência de dupla punição pelo mesmo fato e o direito do(a) empregado(a) de registrar sua ciência ou discordância.</div>
 
   <div class="doc-section-title">Cláusula 17ª — Da Não Concorrência</div>
@@ -30204,9 +30204,7 @@ if(id==='doc_contrato') return `<div class="doc-wrap">${H()}
   <div class="doc-clause">18.3. Na rescisão antecipada do contrato de experiência, aplica-se o disposto nos Arts. 479 e 480 da CLT.</div>
 
   <div class="doc-section-title">Cláusula 19ª — Do Assédio Moral e Sexual e da Igualdade</div>
-  <div class="doc-clause">19.1. A empresa adota <b>tolerância zero</b> a qualquer prática de assédio moral ou sexual, discriminação ou constrangimento no ambiente de trabalho, praticada por qualquer colaborador, independentemente do cargo hierárquico, nos termos da Lei nº 9.029/1995 e da Lei nº 14.457/2022 (canal de denúncias da CIPA), constituindo falta grave.</div>
-  <div class="doc-clause">19.2. Considera-se <b>assédio moral</b> toda conduta abusiva e repetitiva que exponha o(a) EMPREGADO(A) a situações humilhantes, vexatórias ou de constrangimento reiterado, capaz de prejudicar sua dignidade ou condições de trabalho; e <b>assédio sexual</b> toda conduta de natureza sexual não consentida, incluindo insinuações, propostas, contato físico indesejado ou uso de posição hierárquica para obter favores de natureza sexual.</div>
-  <div class="doc-clause">19.3. Toda denúncia será apurada com sigilo e imparcialidade, sendo vedada qualquer retaliação contra quem denunciar de boa-fé. A empresa compromete-se a manter ambiente de trabalho seguro e a apurar as denúncias recebidas.</div>
+  <div class="doc-clause">19.1. É vedada qualquer prática de assédio moral ou sexual, discriminação ou constrangimento (Lei nº 9.029/1995 e Lei nº 14.457/2022 — canal de denúncias da CIPA), constituindo falta grave. A empresa compromete-se a manter ambiente de trabalho seguro e a apurar denúncias.</div>
 
   <div class="doc-section-title">Cláusula 20ª — Do Reconhecimento das Condições e Boa-Fé</div>
   <div class="doc-clause">20.1. As partes declaram que o presente contrato foi celebrado de boa-fé, com pleno conhecimento e aceitação recíproca de todas as cláusulas, que refletem fielmente o que foi tratado no processo seletivo, não havendo vício de consentimento (Arts. 113, 421 e 422 do Código Civil).</div>
@@ -30424,8 +30422,8 @@ if(id==='doc_banco') return `<div class="doc-wrap">${H()}
 </div>`;
 
 if(id==='doc_premios') return `<div class="doc-wrap">${H()}
-  <div class="doc-title">Regulamento de Comissões e Premiações</div>
-  <div class="doc-subtitle">Política de Remuneração Variável e Reconhecimento por Desempenho</div>
+  <div class="doc-title">Regulamento Interno de Comissões, Premiações e Conduta</div>
+  <div class="doc-subtitle">Política de Remuneração Variável, Deveres Funcionais e Normas de Convivência</div>
   <div class="doc-alert">⚖️ Este regulamento distingue as parcelas de natureza salarial (comissões e prêmios por meta habituais) das liberalidades eventuais, em conformidade com o Art. 457 da CLT, a Súmula 27 do TST e a Lei nº 3.207/1957, resguardando os direitos do(a) empregado(a) e a segurança jurídica da empresa.</div>
   <div class="doc-section-title">1. Objetivo</div>
   <div class="doc-clause">1.1. Estabelecer, de forma transparente, as regras de remuneração variável — comissões e prêmios por meta — e das premiações eventuais de reconhecimento, valorizando o desempenho e o comprometimento.</div>
@@ -30440,10 +30438,77 @@ if(id==='doc_premios') return `<div class="doc-wrap">${H()}
   <div class="doc-clause">4.2. <b>Premiações eventuais de reconhecimento</b> (Seção 5), por serem esporádicas e desvinculadas de meta pré-fixada, têm natureza de <b>prêmio</b> e não integram o salário, nos termos do Art. 457, §2º da CLT.</div>
   <div class="doc-section-title">5. Premiações Eventuais de Reconhecimento</div>
   <div class="doc-clause">5.1. Reconhecimento esporádico por destaque no atendimento, resolução de problemas complexos ou indicação de clientes, concedido a critério da gestão, sem periodicidade fixa.</div>
-  <div class="doc-section-title">6. Disposições</div>
-  <div class="doc-clause">6.1. A empresa poderá revisar a política de premiações eventuais mediante comunicação prévia de 30 dias, preservados os valores já adquiridos e observado o Art. 468 da CLT (vedação à alteração lesiva).</div>
+  <div class="doc-clause">5.2. A empresa poderá revisar a política de premiações eventuais mediante comunicação prévia de 30 dias, preservados os valores já adquiridos e observado o Art. 468 da CLT (vedação à alteração lesiva).</div>
+  <div class="doc-section-title">6. Dos Adiantamentos, Vales e Descontos</div>
+  <div class="doc-clause">6.1. <b>Adiantamentos e vales:</b> os valores adiantados ao(à) empregado(a) durante o mês, a pedido deste(a) e mediante recibo, serão integralmente <b>descontados na folha de pagamento da competência correspondente</b>, nos termos do Art. 462 da CLT.</div>
+  <div class="doc-clause">6.2. O desconto de adiantamentos, somado aos demais descontos autorizados, observará o limite de <b>30% (trinta por cento)</b> da remuneração mensal, salvo os descontos legais obrigatórios. Havendo saldo remanescente, este será compensado nas competências seguintes.</div>
+  <div class="doc-clause">6.3. São igualmente descontados os valores legais: <b>INSS</b> (tabela progressiva vigente), <b>IRRF</b>, vale-transporte quando concedido (até 6% do salário base), <b>faltas injustificadas</b> e o respectivo <b>Repouso Semanal Remunerado</b> da semana correspondente (Art. 6º da Lei nº 605/1949), bem como atrasos e saídas antecipadas proporcionais ao tempo não trabalhado.</div>
+  <div class="doc-clause">6.4. Todos os descontos serão discriminados no holerite, garantindo-se ao(à) empregado(a) o direito de conferir e questionar qualquer lançamento junto ao RH.</div>
+
+  <div class="doc-section-title">7. Da Pontualidade e Assiduidade</div>
+  <div class="doc-clause">7.1. O(A) empregado(a) deve cumprir rigorosamente o horário contratado, registrando o ponto em <b>todas</b> as marcações — entrada, saída para refeição, retorno, intervalo de café e saída final (Art. 74, §2º da CLT e Portaria MTP nº 671/2021).</div>
+  <div class="doc-clause">7.2. A ausência injustificada de registro de ponto sujeita o(a) empregado(a) a <b>advertência disciplinar</b> e, na reincidência, às penalidades progressivas previstas neste Regulamento.</div>
+  <div class="doc-clause">7.3. Atrasos habituais, saídas antecipadas sem autorização e faltas injustificadas caracterizam <b>desídia</b> (Art. 482, "e" da CLT) quando reiterados, além do desconto proporcional.</div>
+  <div class="doc-clause">7.4. A ausência deve ser comunicada ao superior imediato com a maior antecedência possível. Atestados médicos devem ser entregues em até <b>48 (quarenta e oito) horas</b> após a ausência.</div>
+
+  <div class="doc-section-title">8. Da Organização, Limpeza e Conservação do Ambiente</div>
+  <div class="doc-clause">8.1. Integram as atribuições do cargo, por serem inerentes ao funcionamento do comércio varejista e compatíveis com a função (Art. 456, parágrafo único, da CLT), as tarefas de <b>limpeza, higiene e organização</b> do estabelecimento, abrangendo a área de vendas, o balcão, as vitrines, o estoque, os <b>banheiros</b> e demais dependências de uso comum.</div>
+  <div class="doc-clause">8.2. O ambiente deve ser mantido <b>livre de lixo, sujeira, poeira e desordem</b> durante todo o expediente, com descarte adequado de resíduos e reposição organizada de mercadorias e materiais.</div>
+  <div class="doc-clause">8.3. É dever zelar pela conservação de equipamentos, mobiliário, mercadorias e bens da empresa, comunicando de imediato qualquer avaria, extravio ou irregularidade ao superior.</div>
+  <div class="doc-clause">8.4. Ao final da jornada, o(a) empregado(a) deve deixar seu posto de trabalho organizado e em condições adequadas para o turno seguinte.</div>
+
+  <div class="doc-section-title">9. Do Atendimento ao Cliente e da Cordialidade</div>
+  <div class="doc-clause">9.1. O atendimento deve ser prestado com <b>cordialidade, respeito, paciência e atenção</b>, independentemente do porte da compra, do perfil ou de qualquer característica pessoal do cliente.</div>
+  <div class="doc-clause">9.2. É vedado: tratar clientes com grosseria, ironia ou descaso; discutir de forma exaltada; recusar atendimento sem motivo legítimo; pressionar o cliente de modo abusivo; prometer condições, prazos ou garantias em desacordo com a política da empresa e com o Código de Defesa do Consumidor (Lei nº 8.078/1990).</div>
+  <div class="doc-clause">9.3. Informações sobre produtos, preços, garantias e financiamentos devem ser prestadas de forma <b>clara, verdadeira e completa</b>, sendo vedada a omissão de informação relevante ou a indução do consumidor a erro.</div>
+  <div class="doc-clause">9.4. Reclamações devem ser encaminhadas ao superior imediato, jamais sendo ignoradas ou tratadas com descaso.</div>
+
+  <div class="doc-section-title">10. Da Prevenção ao Assédio e à Discriminação</div>
+  <div class="doc-clause">10.1. É <b>expressamente vedada</b> qualquer prática de <b>assédio moral</b> — humilhação, constrangimento, exposição vexatória, isolamento deliberado, cobrança abusiva ou perseguição sistemática — praticada por qualquer pessoa, independentemente de cargo ou hierarquia.</div>
+  <div class="doc-clause">10.2. É <b>expressamente vedada</b> qualquer prática de <b>assédio sexual</b>, assim entendida a conduta de conotação sexual não desejada, insinuações, cantadas insistentes, contato físico indesejado ou condicionamento de vantagem a favorecimento sexual (Art. 216-A do Código Penal).</div>
+  <div class="doc-clause">10.3. É vedada qualquer forma de <b>discriminação</b> por raça, cor, etnia, gênero, orientação sexual, identidade de gênero, religião, idade, deficiência, estado civil, gravidez ou origem (Lei nº 9.029/1995 e Art. 3º, IV da CF/88).</div>
+  <div class="doc-clause">10.4. <b>Canal de denúncias:</b> em conformidade com a Lei nº 14.457/2022, a empresa mantém canal de recebimento de denúncias junto ao RH, garantindo-se <b>sigilo</b> ao denunciante, apuração dos fatos e <b>vedação absoluta a qualquer retaliação</b>.</div>
+  <div class="doc-clause">10.5. A prática de assédio ou discriminação constitui <b>falta grave</b>, passível de rescisão por justa causa (Art. 482 da CLT), sem prejuízo das responsabilidades civil e criminal.</div>
+
+  <div class="doc-section-title">11. Do Convívio Profissional e da Vedação a Fofocas</div>
+  <div class="doc-clause">11.1. O(A) empregado(a) deve manter convívio respeitoso e colaborativo com colegas, superiores e prestadores de serviço, contribuindo para um ambiente saudável e produtivo.</div>
+  <div class="doc-clause">11.2. É vedado <b>propagar boatos, fofocas, comentários maldosos, difamação ou calúnia</b> sobre colegas, superiores, clientes ou sobre a própria empresa, dentro ou fora do ambiente de trabalho, inclusive em grupos de mensagens e redes sociais.</div>
+  <div class="doc-clause">11.3. Tais condutas prejudicam o clima organizacional, podem configurar <b>mau procedimento</b> (Art. 482, "b" da CLT) e, conforme a gravidade, caracterizar assédio moral ou crime contra a honra (Arts. 138 a 140 do Código Penal).</div>
+  <div class="doc-clause">11.4. Divergências profissionais devem ser tratadas diretamente com o superior imediato ou com o RH, de forma respeitosa e reservada.</div>
+
+  <div class="doc-section-title">12. Do Uso de Celular Pessoal e de Recursos da Empresa</div>
+  <div class="doc-clause">12.1. O uso de <b>celular pessoal durante o expediente</b> deve restringir-se a situações de urgência e aos períodos de intervalo. É vedado o <b>uso excessivo</b> para redes sociais, mensagens pessoais, jogos, vídeos, streaming ou chamadas particulares durante a jornada.</div>
+  <div class="doc-clause">12.2. É <b>terminantemente vedado</b> utilizar o celular durante o atendimento ao cliente, ressalvado o uso de aplicativos e sistemas da empresa necessários à venda.</div>
+  <div class="doc-clause">12.3. Equipamentos, sistemas, internet e e-mail corporativos destinam-se a <b>uso exclusivamente profissional</b>, sendo vedado o acesso a conteúdo impróprio, a instalação de programas não autorizados e o uso para atividades particulares.</div>
+  <div class="doc-clause">12.4. É vedado fotografar ou filmar o ambiente de trabalho, mercadorias, documentos ou clientes sem autorização expressa, bem como divulgar informações da empresa em perfis pessoais.</div>
+  <div class="doc-clause">12.5. O uso excessivo e reiterado de celular pessoal, após advertência, pode caracterizar <b>desídia</b> (Art. 482, "e" da CLT).</div>
+
+  <div class="doc-section-title">13. Da Integridade nas Vendas e no Caixa</div>
+  <div class="doc-clause">13.1. É vedado: registrar vendas fictícias ou em nome de terceiros para obtenção indevida de comissão ou prêmio; apropriar-se de vendas de colegas; manipular metas, relatórios ou registros de ponto.</div>
+  <div class="doc-clause">13.2. É vedado realizar negócios particulares, vendas próprias ou cobranças pessoais durante o expediente ou com uso dos recursos da empresa.</div>
+  <div class="doc-clause">13.3. Valores em caixa, mercadorias e aparelhos em consignação são de responsabilidade do(a) empregado(a) durante seu turno, devendo divergências ser comunicadas imediatamente.</div>
+  <div class="doc-clause">13.4. A fraude ou apropriação indevida configura <b>ato de improbidade</b> (Art. 482, "a" da CLT), autorizando a rescisão por justa causa e a responsabilização criminal.</div>
+
+  <div class="doc-section-title">14. Da Apresentação Pessoal e Segurança</div>
+  <div class="doc-clause">14.1. O(A) empregado(a) deve apresentar-se ao trabalho com <b>higiene pessoal adequada</b> e vestuário compatível com o ambiente comercial, utilizando uniforme e crachá quando fornecidos.</div>
+  <div class="doc-clause">14.2. É vedado apresentar-se ao trabalho sob efeito de <b>álcool</b> ou de <b>substâncias ilícitas</b> (Art. 482, "f" da CLT), bem como consumi-los nas dependências da empresa.</div>
+  <div class="doc-clause">14.3. O(A) empregado(a) deve cumprir as normas de segurança, utilizar os EPIs fornecidos quando aplicável, participar dos treinamentos obrigatórios e comunicar acidentes de trabalho de imediato.</div>
+
+  <div class="doc-section-title">15. Do Sigilo e Proteção de Dados</div>
+  <div class="doc-clause">15.1. É dever manter <b>sigilo</b> sobre dados de clientes, preços, margens, fornecedores, estoque, sistemas e estratégias comerciais, durante o contrato e após seu término.</div>
+  <div class="doc-clause">15.2. Os dados pessoais de clientes devem ser tratados exclusivamente para a finalidade da venda e do pós-venda, em conformidade com a <b>LGPD (Lei nº 13.709/2018)</b>, sendo vedado copiá-los, compartilhá-los ou utilizá-los para fins particulares.</div>
+
+  <div class="doc-section-title">16. Das Penalidades Disciplinares</div>
+  <div class="doc-clause">16.1. O descumprimento deste Regulamento ensejará, observadas a <b>gradação</b>, a <b>proporcionalidade</b> e a <b>imediatidade</b>: (a) advertência verbal; (b) advertência escrita; (c) suspensão disciplinar de 1 a 30 dias, com desconto em folha (Art. 474 da CLT); (d) rescisão por justa causa (Art. 482 da CLT).</div>
+  <div class="doc-clause">16.2. Faltas graves — assédio, fraude, apropriação indevida, agressão, violação de sigilo — podem ensejar justa causa <b>independentemente de advertência prévia</b>.</div>
+  <div class="doc-clause">16.3. Não haverá dupla punição pelo mesmo fato, sendo assegurado ao(à) empregado(a) o direito de tomar ciência por escrito e de registrar sua discordância.</div>
+
+  <div class="doc-section-title">17. Dos Direitos Assegurados ao(à) Empregado(a)</div>
+  <div class="doc-clause">17.1. São assegurados: remuneração em dia; holerite discriminado; férias com 1/3; 13º salário; FGTS; repouso semanal remunerado; intervalos legais; ambiente seguro e livre de assédio; acesso aos próprios registros de ponto; e resposta do RH às dúvidas sobre valores e descontos.</div>
+  <div class="doc-clause">17.2. O(A) empregado(a) pode recorrer ao RH sempre que discordar de lançamento, desconto, apuração de comissão ou penalidade aplicada.</div>
+
   <div class="doc-section-title">Termo de Ciência e Adesão</div>
-  <div class="doc-clause">Eu, <b>${get('f_nome')}</b>, CPF nº ${get('f_cpf')}, declaro ter recebido, lido e compreendido este Regulamento, ciente das regras de comissão, prêmio por meta e da natureza de cada parcela.</div>
+  <div class="doc-clause">Eu, <b>${get('f_nome')}</b>, CPF nº ${get('f_cpf')}, declaro ter recebido, lido e compreendido integralmente este Regulamento, estando ciente das regras de comissão, prêmio por meta, descontos de adiantamentos, deveres de conduta e das penalidades aplicáveis, aderindo voluntariamente aos seus termos.</div>
   ${S()}
 </div>`;
 
@@ -30529,35 +30594,24 @@ if(id==='doc_conduta') return `<div class="doc-wrap">${H()}
   <div class="doc-clause"><b>Responsabilidade:</b> assumir as consequências de suas ações; zelar pela qualidade do trabalho e reputação da empresa.</div>
   <div class="doc-clause"><b>Lealdade:</b> agir no interesse da empresa; evitar conflitos de interesse; não concorrer com a empregadora durante a vigência do contrato.</div>
 
-  <div class="doc-section-title">2. Da Pontualidade, Organização e Atendimento</div>
-  <div class="doc-clause"><b>Pontualidade e assiduidade:</b> cumprir rigorosamente os horários de entrada, saída e intervalos definidos na escala, registrando o ponto em todas as marcações; atrasos, saídas antecipadas e faltas não justificados são passíveis de desconto salarial proporcional e de medida disciplinar.</div>
-  <div class="doc-clause"><b>Organização e limpeza:</b> manter o posto de trabalho, estoque, vitrine e áreas comuns organizados e limpos, contribuindo para a boa imagem da empresa e para um ambiente seguro e agradável de trabalho.</div>
-  <div class="doc-clause"><b>Atendimento cordial:</b> tratar todo cliente com cordialidade, respeito e atenção, independentemente da situação, sendo vedado qualquer tratamento grosseiro, sarcástico ou desrespeitoso, presencialmente ou por telefone, WhatsApp e redes sociais da empresa.</div>
-
-  <div class="doc-section-title">3. Condutas Expressamente Vedadas</div>
+  <div class="doc-section-title">2. Condutas Expressamente Vedadas</div>
   <div class="doc-clause">São vedados, sob pena das sanções disciplinares previstas no contrato:</div>
   <div class="doc-sub-clause">a) Atos de corrupção, suborno, desvio, fraude ou falsificação de documentos (Arts. 299, 317, 333 do CP);</div>
-  <div class="doc-sub-clause">b) Assédio moral ou sexual, bullying ou discriminação (Lei nº 9.799/1999; Lei nº 14.457/2022) — tolerância zero, incluindo condutas abusivas e repetitivas que humilhem ou constranjam colegas, subordinados ou clientes, e qualquer conduta de natureza sexual não consentida;</div>
+  <div class="doc-sub-clause">b) Assédio moral ou sexual, bullying ou discriminação (Lei nº 9.799/1999; Lei nº 14.457/2022);</div>
   <div class="doc-sub-clause">c) Divulgar informações da empresa em redes sociais ou a concorrentes;</div>
   <div class="doc-sub-clause">d) Aceitar presentes, vantagens ou benefícios de clientes ou fornecedores acima de R$ 100,00 sem comunicar a gestão;</div>
   <div class="doc-sub-clause">e) Apresentar-se ao trabalho sob efeito de álcool, drogas ou substâncias ilícitas;</div>
   <div class="doc-sub-clause">f) Realizar vendas, cobranças ou atividades comerciais pessoais durante o expediente ou utilizando recursos da empresa;</div>
-  <div class="doc-sub-clause">g) Falsificar registros de ponto, relatórios ou qualquer documento empresarial;</div>
-  <div class="doc-sub-clause">h) Disseminar fofocas, boatos ou comentários depreciativos sobre colegas, clientes ou a empresa, inclusive em grupos de WhatsApp ou redes sociais, quando associados à empresa ou a colegas de trabalho;</div>
-  <div class="doc-sub-clause">i) Uso excessivo e reiterado de celular pessoal durante o expediente, prejudicando a produtividade e o atendimento ao cliente — o celular deve permanecer em modo silencioso e fora do balcão de atendimento, sendo seu uso pessoal permitido apenas nas pausas/intervalos.</div>
+  <div class="doc-sub-clause">g) Falsificar registros de ponto, relatórios ou qualquer documento empresarial.</div>
 
-  <div class="doc-section-title">4. Dos Adiantamentos Salariais (Vales)</div>
-  <div class="doc-clause">4.1. Todo e qualquer valor adiantado ao(à) EMPREGADO(A) ao longo do mês — vale, adiantamento em espécie, Pix ou qualquer outra modalidade, solicitado e aprovado pelo sistema da empresa — <b>será integralmente descontado do salário e/ou das comissões devidas</b> no fechamento da folha do respectivo mês de competência, nos termos do Art. 462 da CLT.</div>
-  <div class="doc-clause">4.2. Os descontos observarão o limite máximo de 30% (trinta por cento) da remuneração mensal, ficando os valores registrados no extrato do Portal do Colaborador, garantindo transparência antes do fechamento da folha.</div>
+  <div class="doc-section-title">3. Uso dos Recursos Empresariais</div>
+  <div class="doc-clause">3.1. Equipamentos, sistemas, internet e e-mail corporativo são de uso exclusivamente profissional. O acesso a sites de conteúdo impróprio, redes sociais pessoais ou jogos durante o expediente é vedado e monitorável.</div>
 
-  <div class="doc-section-title">5. Uso dos Recursos Empresariais</div>
-  <div class="doc-clause">5.1. Equipamentos, sistemas, internet e e-mail corporativo são de uso exclusivamente profissional. O acesso a sites de conteúdo impróprio, redes sociais pessoais ou jogos durante o expediente é vedado e monitorável.</div>
+  <div class="doc-section-title">4. Canal de Denúncias</div>
+  <div class="doc-clause">4.1. Qualquer violação ao presente Código deverá ser comunicada ao setor de RH, garantindo-se o anonimato do(a) comunicante e vedada qualquer retaliação, nos termos da Lei nº 14.457/2022 (Programa Emprega + Mulheres).</div>
 
-  <div class="doc-section-title">6. Canal de Denúncias</div>
-  <div class="doc-clause">6.1. Qualquer violação ao presente Código — incluindo situações de assédio moral/sexual, discriminação, fofocas prejudiciais ou conflitos — deverá ser comunicada ao setor de RH, garantindo-se o anonimato do(a) comunicante e vedada qualquer retaliação, nos termos da Lei nº 14.457/2022 (Programa Emprega + Mulheres).</div>
-
-  <div class="doc-section-title">7. Consequências do Descumprimento</div>
-  <div class="doc-clause">7.1. O descumprimento ensejará, conforme gravidade: advertência verbal, advertência escrita, suspensão (Art. 474, CLT) ou rescisão por justa causa (Art. 482, CLT), sem prejuízo das responsabilidades civis e criminais cabíveis.</div>
+  <div class="doc-section-title">5. Consequências do Descumprimento</div>
+  <div class="doc-clause">5.1. O descumprimento ensejará, conforme gravidade: advertência verbal, advertência escrita, suspensão (Art. 474, CLT) ou rescisão por justa causa (Art. 482, CLT), sem prejuízo das responsabilidades civis e criminais cabíveis.</div>
 
   <div class="doc-section-title">Declaração de Ciência e Adesão</div>
   <div class="doc-clause">Eu, <b>${get('f_nome')}</b>, CPF nº ${get('f_cpf')}, declaro ter recebido, lido integralmente e compreendido este Código de Conduta, aderindo voluntariamente aos seus termos.</div>
