@@ -30021,58 +30021,50 @@ function genDoc(id) {
 // ── CSS PREMIUM dos documentos ──────────────────────────────────────────
 var DOC_CSS = `
   <style>
-  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
-  .doc-wrap { font-family:'Nunito',sans-serif'Source Sans 3', 'Roboto', sans-serif; font-size: 11.5pt; color: #111; line-height: 1.75; background: #fff; max-width: 820px; margin: 0 auto; padding: 40px 48px; }
-  .doc-header-banner { background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); color: #fff; padding: 20px 28px; border-radius: 4px 4px 0 0; margin-bottom: 0; display: flex; align-items: center; justify-content: space-between; }
-  .doc-header-logo { font-family:'Nunito',sans-serif'Roboto',sans-serif; font-size: 22pt; font-weight: 700; letter-spacing: -0.5px; }
-  .doc-header-logo span { color: #E8520A; }
-  .doc-header-meta { text-align: right; font-size: 9pt; opacity: 0.75; line-height: 1.6; }
-  .doc-header-bar { height: 4px; background: linear-gradient(90deg, #E8520A, #f47535, #E8520A); margin-bottom: 28px; }
-  .doc-title { font-family:'Nunito',sans-serif'Roboto',sans-serif; font-size: 17pt; font-weight: 700; text-align: center; text-transform: uppercase; letter-spacing: 1.5px; margin: 24px 0 6px; color: #1a1a1a; }
-  .doc-subtitle { text-align: center; font-size: 10pt; color: #666; font-style: italic; margin-bottom: 28px; }
-  .doc-alert { background: #FFF8EF; border-left: 4px solid #E8520A; padding: 10px 16px; font-size: 10pt; color: #7A3800; border-radius: 0 4px 4px 0; margin-bottom: 20px; }
-  .doc-section { margin: 20px 0 6px; }
-  .doc-section-title { font-family:'Nunito',sans-serif'Roboto',sans-serif; font-size: 11pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #1a1a1a; border-bottom: 2px solid #E8520A; padding-bottom: 4px; margin-bottom: 10px; }
-  .doc-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 10.5pt; }
-  .doc-table td { padding: 7px 11px; border: 1px solid #d5d5d5; vertical-align: top; }
-  .doc-table td:first-child { font-weight: 600; background: #f8f6f3; width: 37%; color: #333; }
-  .doc-clause { margin: 8px 0; font-size: 10.5pt; text-align: justify; line-height: 1.7; }
-  .doc-clause b { color: #1a1a1a; }
-  .doc-sub-clause { margin: 6px 0 6px 22px; font-size: 10.5pt; }
-  .doc-highlight { background: #FFF3EC; border: 1px solid #FACDA8; padding: 10px 14px; border-radius: 4px; margin: 12px 0; font-size: 10pt; }
-  .doc-sign { display: flex; gap: 40px; margin-top: 50px; page-break-inside: avoid; }
-  .doc-sign-block { flex: 1; text-align: center; }
-  .doc-sign-line { border-bottom: 1.5px solid #333; margin: 44px 0 8px; }
-  .doc-sign-name { font-weight: 700; font-size: 11pt; }
-  .doc-sign-role { font-size: 9.5pt; color: #555; }
-  .doc-city { margin-top: 36px; font-size: 10pt; font-style: italic; color: #555; }
-  .doc-footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; font-size: 8.5pt; color: #aaa; }
-  .doc-witness-area { margin-top: 28px; }
-  .doc-witness { display: flex; gap: 30px; margin-top: 16px; }
-  .doc-witness-block { flex: 1; }
-  .doc-witness-line { border-bottom: 1px solid #555; margin-top: 28px; margin-bottom: 6px; }
-  .doc-badge { display: inline-block; background: #1a1a1a; color: #fff; font-size: 8pt; padding: 2px 8px; border-radius: 3px; letter-spacing: 1px; text-transform: uppercase; margin-left: 8px; vertical-align: middle; }
-  .doc-orange { color: #E8520A; font-weight: 700; }
-  @media print { .doc-wrap { padding: 0; } .doc-header-banner { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .doc-section-title { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-  body,#app,#main-content{font-size:16px!important;font-weight:500!important;}
-.ni{font-size:15px!important;font-weight:500!important;}
-td,th{font-size:15px!important;}
-.sc-lbl{font-size:13px!important;}
-.sc-val{font-size:28px!important;}
+  @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
+  .doc-wrap { font-family:'Source Sans 3','Segoe UI',Arial,sans-serif; font-size:11.5pt; color:#111; line-height:1.75; background:#fff; max-width:820px; margin:0 auto; padding:0; }
+  .doc-header-banner { background:linear-gradient(135deg,#1a1a1a 0%,#2d2d2d 100%); color:#fff; padding:20px 28px; border-radius:4px 4px 0 0; margin-bottom:0; display:flex; align-items:center; justify-content:space-between; }
+  .doc-header-logo { font-size:22pt; font-weight:700; letter-spacing:-0.5px; }
+  .doc-header-logo span { color:#E8520A; }
+  .doc-header-meta { text-align:right; font-size:9pt; opacity:.75; line-height:1.6; }
+  .doc-header-bar { height:4px; background:linear-gradient(90deg,#E8520A,#f47535,#E8520A); margin-bottom:28px; }
+  .doc-title { font-size:17pt; font-weight:700; text-align:center; text-transform:uppercase; letter-spacing:1.5px; margin:24px 0 6px; color:#1a1a1a; }
+  .doc-subtitle { text-align:center; font-size:10pt; color:#666; font-style:italic; margin-bottom:28px; }
+  .doc-alert { background:#FFF8EF; border-left:4px solid #E8520A; padding:10px 16px; font-size:10pt; color:#7A3800; border-radius:0 4px 4px 0; margin-bottom:20px; }
+  .doc-section { margin:20px 0 6px; }
+  .doc-section-title { font-size:11pt; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:#1a1a1a; border-bottom:2px solid #E8520A; padding-bottom:4px; margin:20px 0 10px; }
+  .doc-table { width:100%; border-collapse:collapse; margin-bottom:16px; font-size:10.5pt; }
+  .doc-table td { padding:7px 11px; border:1px solid #d5d5d5; vertical-align:top; }
+  .doc-table td:first-child { font-weight:600; background:#f8f6f3; width:37%; color:#333; }
+  .doc-clause { margin:8px 0; font-size:10.5pt; text-align:justify; line-height:1.7; }
+  .doc-clause b { color:#1a1a1a; }
+  .doc-sub-clause { margin:6px 0 6px 22px; font-size:10.5pt; }
+  .doc-highlight { background:#FFF3EC; border:1px solid #FACDA8; padding:10px 14px; border-radius:4px; margin:12px 0; font-size:10pt; }
+  .doc-sign { display:flex; gap:40px; margin-top:50px; page-break-inside:avoid; }
+  .doc-sign-block { flex:1; text-align:center; }
+  .doc-sign-line { border-bottom:1.5px solid #333; margin:44px 0 8px; }
+  .doc-sign-name { font-weight:700; font-size:11pt; }
+  .doc-sign-role { font-size:9.5pt; color:#555; }
+  .doc-city { margin-top:36px; font-size:10pt; font-style:italic; color:#555; }
+  .doc-footer { margin-top:32px; padding-top:12px; border-top:1px solid #ddd; display:flex; justify-content:space-between; font-size:8.5pt; color:#aaa; }
+  .doc-witness-area { margin-top:28px; }
+  .doc-witness { display:flex; gap:30px; margin-top:16px; }
+  .doc-witness-block { flex:1; }
+  .doc-witness-line { border-bottom:1px solid #555; margin-top:28px; margin-bottom:6px; }
+  .doc-badge { display:inline-block; background:#1a1a1a; color:#fff; font-size:8pt; padding:2px 8px; border-radius:3px; letter-spacing:1px; text-transform:uppercase; margin-left:8px; vertical-align:middle; }
+  .doc-orange { color:#E8520A; font-weight:700; }
+  @media print { .doc-wrap { padding:0; } .doc-header-banner,.doc-section-title,.doc-header-bar { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
 </style>`;
 
 // ── HEADER PADRÃO ────────────────────────────────────────────────────────
 function H() {
   var _logo = (typeof EMPRESA_CFG!=='undefined' && EMPRESA_CFG.logo) ? EMPRESA_CFG.logo : '';
-  // Marca fixa do sistema no cabeçalho dos documentos.
-  // Os dados da empresa contratante seguem no corpo do documento (EMPREGADOR).
-  var _nome = 'ATLAS RH';
   return DOC_CSS + `
   <div class="doc-header-banner">
     <div style="display:flex;align-items:center;gap:14px">
       ${_logo?`<img src="${_logo}" style="height:46px;width:46px;object-fit:contain;border-radius:8px;background:#fff;padding:3px">`:''}
       <div>
-        <div class="doc-header-logo">${_nome}</div>
+        <div class="doc-header-logo">ATLAS <span>RH</span></div>
         <div style="font-size:9pt;opacity:.7;margin-top:3px">CNPJ: ${get('e_cnpj')} · ${get('e_cidade')}/${get('e_uf')}</div>
       </div>
     </div>
@@ -30119,7 +30111,7 @@ function S(extra) {
   </div>
   <div class="doc-footer">
     <span>${get('e_nome')||EMPRESA_CFG.nomeRazao} · CNPJ: ${get('e_cnpj')||EMPRESA_CFG.cnpj} · ${get('e_cidade')||EMPRESA_CFG.cidade}/${get('e_uf')||EMPRESA_CFG.uf}</span>
-    <span>Gerado em ${hoje()} · Sistema RH Atlas</span>
+    <span>Gerado em ${hoje()} · Sistema RH Atlas RH</span>
   </div>`;
 }
 
@@ -51612,6 +51604,306 @@ console.log('[Atlas] Módulo Contrato Intermitente carregado ✅');
 })();
 
 console.log('[Atlas] Módulo Operação Intermitente carregado ✅');
+</script>
+
+<script>
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📄 MÓDULO: MODELO DE CONTRATO CLT + REGIMENTO INTERNO PARA ASSINATURA
+// Adicionado por Atlas RH — contrato-modelo em Contratos & Docs e
+// regimento interno enviável ao portal do colaborador para assinatura.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Texto integral do Regimento Interno (para assinatura no portal) ─────────
+const ATLAS_REGIMENTO_TEXTO = "FACILITA CELL\nREGIMENTO INTERNO DE TRABALHO\nNormas de conduta, organização, limpeza, segurança e convivência no ambiente de trabalho\nDocumento base — CLT e legislação correlata\nVersão 1.0 · Agosto de 2026\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nSUMÁRIO\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCapítulo I  Disposições Preliminares\nCapítulo II  Jornada de Trabalho, Frequência e Faltas\nCapítulo III  Uniforme e Apresentação Pessoal\nCapítulo IV  Organização e Limpeza do Ambiente de Trabalho\nCapítulo V  Equipamentos, Ferramentas e Aparelhos de Clientes\nCapítulo VI  Segurança do Trabalho\nCapítulo VII  Uso de Celular, Internet, E-mail e Redes Sociais\nCapítulo VIII  Sigilo, Confidencialidade e Proteção de Dados\nCapítulo IX  Conduta Profissional, Ética e Conflito de Interesses\nCapítulo X  Assédio Moral\nCapítulo XI  Assédio Sexual\nCapítulo XII  Canal de Denúncias e Procedimento de Apuração\nCapítulo XIII  Álcool, Drogas e Saúde no Trabalho\nCapítulo XIV  Uso de Imagem e Consentimento\nCapítulo XV  Diversidade, Equidade e Inclusão\nCapítulo XVI  Férias\nCapítulo XVII  Licenças e Afastamentos\nCapítulo XVIII  Benefícios\nCapítulo XIX  Trabalho Remoto (Home Office)\nCapítulo XX  Uso de Veículos e Deslocamentos a Serviço\nCapítulo XXI  Avaliação de Desempenho e Desenvolvimento\nCapítulo XXII  Medidas Disciplinares\nCapítulo XXIII  Disposições Finais\nTermo de Ciência e Compromisso\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCAPÍTULO I — Disposições Preliminares\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nArt. 1º Objetivo\nEste Regimento Interno estabelece as normas de conduta, organização, disciplina, segurança e convivência aplicáveis a todos os colaboradores da Facilita Cell, em complemento à Consolidação das Leis do Trabalho (CLT), ao contrato individual de trabalho e às demais normas legais vigentes.\nArt. 2º Abrangência\nAplica-se a todos os empregados, estagiários, aprendizes e prestadores de serviço que atuem nas dependências da Facilita Cell, independentemente do cargo, função ou tipo de vínculo, sem prejuízo de condições específicas previstas em contrato.\nArt. 3º Natureza e vigência\nAs disposições aqui contidas integram as condições de trabalho e têm caráter obrigatório. Este Regimento pode ser revisado a qualquer tempo pela empresa, sendo as alterações comunicadas previamente aos colaboradores.\nArt. 4º Estrutura organizacional e comunicação interna\nA empresa manterá organograma e definição clara de lideranças e responsabilidades, comunicados a todos os colaboradores. Comunicados oficiais, mudanças de normas e avisos administrativos serão divulgados por meio de murais, grupos oficiais de comunicação ou e-mail corporativo, cabendo a cada colaborador acompanhá-los.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCAPÍTULO II — Jornada de Trabalho, Frequência e Faltas\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nArt. 5º Jornada e controle de ponto\nA jornada de trabalho observará o limite legal de 8 (oito) horas diárias e 44 (quarenta e quatro) horas semanais, ou o quantitativo definido em contrato individual ou acordo/convenção coletiva, sendo obrigatório o registro fiel da entrada, saída e intervalos por meio do sistema de ponto adotado pela empresa (art. 74 da CLT).\nArt. 6º Intervalos\nSerá observado o intervalo intrajornada mínimo previsto em lei para descanso e alimentação, bem como o intervalo interjornada mínimo de 11 (onze) horas entre uma jornada e outra, conforme arts. 66 e 71 da CLT.\nArt. 7º Horas extras e banco de horas\nA prestação de horas extras somente ocorrerá mediante prévia autorização da liderança, sendo remunerada com o adicional legal mínimo de 50% (cinquenta por cento) sobre a hora normal, ou compensada por meio de banco de horas, quando houver acordo individual ou coletivo nesse sentido, observado o prazo legal de compensação, nos termos do art. 59 da CLT.\nArt. 8º Trabalho aos domingos e feriados\nEm razão da natureza comercial da atividade, poderá haver escala de trabalho aos domingos e feriados, respeitando-se o repouso semanal remunerado, a folga compensatória e a autorização municipal aplicável ao comércio, nos termos da Lei nº 10.101/2000 e da legislação municipal correlata.\nArt. 9º Faltas e atrasos\nFaltas e atrasos devem ser comunicados à liderança com a maior antecedência possível e justificados formalmente em até 48 (quarenta e oito) horas, mediante atestado ou outro documento hábil, sob pena de serem considerados injustificados, com os reflexos previstos em lei. O art. 473 da CLT lista as hipóteses em que o colaborador pode se ausentar sem prejuízo do salário, como falecimento de familiar, casamento, doação de sangue e nascimento de filho.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCAPÍTULO III — Uniforme e Apresentação Pessoal\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nArt. 10º Uso do uniforme\nÉ obrigatório o uso do uniforme e do crachá de identificação fornecidos pela empresa durante todo o expediente, mantendo-os limpos e em bom estado de conservação.\nArt. 11º Apresentação e higiene pessoal\nTodo colaborador deve se apresentar ao trabalho com boa higiene pessoal e vestimenta adequada à função, preservando a imagem da empresa perante clientes e demais colaboradores.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCAPÍTULO IV — Organização e Limpeza do Ambiente de Trabalho\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nArt. 13º Limpeza da loja e das bancadas\nCada colaborador é responsável por manter limpa e organizada sua área de trabalho (balcão, bancada de manutenção, caixa e estoque), recolhendo peças, ferramentas e embalagens ao final de cada tarefa.\nArt. 14º Escala de limpeza\nSerá afixada escala de limpeza das áreas comuns (recepção, banheiro, copa/cozinha), com rodízio entre os colaboradores, cuja responsabilidade é de todos, independentemente de cargo.\nArt. 15º Descarte de resíduos e componentes eletrônicos\nBaterias, telas, placas e demais resíduos eletrônicos substituídos em manutenções devem ser descartados exclusivamente nos recipientes apropriados, nunca no lixo comum, observando a Política Nacional de Resíduos Sólidos (Lei nº 12.305/2010).\nArt. 16º Organização de ferramentas, peças e estoque\nFerramentas, peças e insumos devem ser guardados em seus devidos locais após o uso, com identificação e controle de estoque atualizado, evitando extravios, perdas e riscos de acidente por desorganização.\nArt. 17º Ambiente de trabalho seguro e agradável\nÉ vedado acumular objetos, embalagens ou lixo em corredores, saídas de emergência ou próximo a quadros elétricos, devendo o ambiente permanecer sempre em condições de uso seguro e apresentável ao público.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCAPÍTULO V — Equipamentos, Ferramentas e Aparelhos de Clientes\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nArt. 19º Zelo com bens da empresa\nOs equipamentos, ferramentas e sistemas fornecidos pela empresa são de uso exclusivamente profissional, devendo ser utilizados com zelo e devolvidos em bom estado ao término do vínculo ou quando solicitado.\nArt. 20º Aparelhos recebidos de clientes\nTodo aparelho recebido para manutenção deve ser conferido e registrado em checklist de entrada (estado físico, funcionamento, senha, quando informada), garantindo rastreabilidade e evitando divergências na devolução.\nArt. 21º Sigilo sobre dados de clientes (LGPD)\nÉ vedado o acesso, cópia, divulgação ou uso de fotos, mensagens, contatos ou quaisquer dados pessoais presentes em aparelhos de clientes, em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018). O acesso a dados só é permitido quando estritamente necessário à execução do serviço solicitado.\nArt. 22º Orçamento e garantia de serviços\nTodo serviço deve ser precedido de orçamento claro ao cliente, com prazo e valor definidos, e executado dentro dos padrões de qualidade da empresa. A garantia oferecida sobre peças e serviços deve ser informada por escrito ao cliente no ato da entrega, conforme o Código de Defesa do Consumidor (Lei nº 8.078/1990).\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCAPÍTULO VI — Segurança do Trabalho\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nArt. 25º Comunicação de acidentes\nTodo acidente de trabalho, ainda que sem afastamento, deve ser comunicado imediatamente à liderança, para as providências cabíveis, incluindo a emissão da Comunicação de Acidente de Trabalho (CAT), quando aplicável.\nArt. 26º Ergonomia e sinalização de segurança\nA empresa buscará adequar postos de trabalho, mobiliário e iluminação a condições ergonômicas adequadas, e manterá sinalização visível de saídas de emergência, quadros elétricos e áreas de risco, em observância à NR-17 (ergonomia) e à NR-26 (sinalização de segurança).\nArt. 27º Prevenção e combate a incêndio\nAs unidades devem manter extintores de incêndio dentro da validade, em local sinalizado e de fácil acesso, sendo vedado obstruí-los com mercadorias ou mobiliário, em atenção à NR-23.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCAPÍTULO VII — Uso de Celular, Internet, E-mail e Redes Sociais\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nArt. 28º Celular pessoal durante o expediente\nO uso do celular pessoal deve ser moderado durante o expediente, restrito a momentos de pausa ou situações de urgência, de modo a não prejudicar o atendimento ao cliente nem a produtividade.\nArt. 29º Redes sociais e imagem da empresa\nÉ vedado publicar, em nome próprio ou da empresa, conteúdos que exponham clientes, colegas ou a marca Facilita Cell de forma negativa, discriminatória ou que viole sigilo comercial ou dados pessoais.\nArt. 30º Uso de e-mail corporativo e sistemas internos\nO e-mail corporativo, sistemas de gestão e demais ferramentas fornecidas pela empresa destinam-se ao uso profissional, podendo a empresa monitorar seu uso para fins de segurança e continuidade do negócio, respeitados os limites da LGPD e mediante prévia ciência dos colaboradores.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCAPÍTULO VIII — Sigilo, Confidencialidade e Proteção de Dados\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nArt. 31º Sigilo comercial\nInformações sobre preços, fornecedores, margens, estratégias comerciais e demais dados internos da empresa são confidenciais e não podem ser divulgadas a terceiros, sob pena das medidas disciplinares cabíveis.\nArt. 32º Proteção de dados pessoais\nTodos os colaboradores que tiverem acesso a dados pessoais de clientes ou de outros colaboradores devem tratá-los com confidencialidade, utilizando-os apenas para as finalidades relacionadas ao trabalho, conforme a LGPD.\nArt. 33º Propriedade intelectual e confidencialidade pós-desligamento\nProcessos, planilhas, scripts de atendimento e demais materiais desenvolvidos durante o vínculo empregatício pertencem à empresa. O dever de sigilo sobre informações confidenciais permanece mesmo após o desligamento do colaborador, independentemente do motivo da saída.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCAPÍTULO IX — Conduta Profissional, Ética e Conflito de Interesses\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nArt. 34º Respeito mútuo\nAs relações entre colaboradores, lideranças e clientes devem pautar-se pelo respeito, cordialidade, ética e colaboração, sendo vedada qualquer forma de tratamento desrespeitoso, humilhante ou abusivo.\nArt. 35º Não discriminação\nÉ vedada qualquer forma de discriminação em razão de raça, cor, etnia, religião, sexo, orientação sexual, identidade de gênero, idade, deficiência, origem ou condição social, em conformidade com a Constituição Federal e a legislação antidiscriminatória.\nArt. 36º Conflito de interesses\nO colaborador deve comunicar à empresa qualquer situação que configure conflito de interesses, como vínculo com concorrentes ou fornecedores, evitando favorecimentos indevidos.\nArt. 37º Presentes, brindes e vantagens de terceiros\nÉ vedado ao colaborador solicitar ou aceitar, de clientes ou fornecedores, presentes, comissões ou vantagens pessoais que possam influenciar de forma indevida suas decisões profissionais, ressalvados brindes institucionais de valor simbólico.\nArt. 38º Nepotismo\nA contratação de familiares de colaboradores ou de sócios deve ser previamente informada à direção da empresa, evitando-se relações de subordinação direta entre parentes que possam comprometer a imparcialidade nas decisões.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCAPÍTULO X — Assédio Moral\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nArt. 39º Definição\nConsidera-se assédio moral a exposição do colaborador, de forma repetitiva e prolongada, a condutas abusivas, humilhantes ou constrangedoras, praticadas no exercício do trabalho, que atentem contra sua dignidade e causem dano à sua saúde física ou psicológica.\nArt. 40º Condutas caracterizadoras\nSão exemplos de condutas que podem caracterizar assédio moral, entre outras:\n   • humilhar, ridicularizar ou expor o colaborador a constrangimento na frente de terceiros;\n   • atribuir tarefas impossíveis ou metas inatingíveis com o objetivo de prejudicar ou desqualificar;\n   • isolar o colaborador do convívio com a equipe de forma proposital;\n   • fazer críticas de forma reiterada, com tom hostil, gritos ou ofensas pessoais;\n   • sobrecarregar ou esvaziar as funções do colaborador como forma de retaliação.\nArt. 41º Cobrança de metas e feedback legítimo\nA cobrança de resultados, o estabelecimento de metas comerciais razoáveis e o feedback construtivo sobre desempenho, quando feitos de forma respeitosa, individual e orientada à melhoria profissional, não configuram assédio moral, distinguindo-se claramente das condutas abusivas descritas no artigo anterior.\nArt. 42º Consequências\nCondutas caracterizadoras de assédio moral, quando confirmadas em apuração interna, sujeitam o responsável às medidas disciplinares previstas neste Regimento, incluindo a dispensa por justa causa (art. 482 da CLT), sem prejuízo das responsabilidades civil e criminal cabíveis.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCAPÍTULO XI — Assédio Sexual\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nArt. 43º Definição\nConsidera-se assédio sexual, nos termos do art. 216-A do Código Penal, constranger alguém com o intuito de obter vantagem ou favorecimento sexual, prevalecendo-se o agente de sua condição de superioridade hierárquica ou ascendência inerente ao exercício de emprego, cargo ou função. A Facilita Cell adota política de tolerância zero a qualquer conduta dessa natureza, inclusive entre colaboradores do mesmo nível hierárquico.\nArt. 44º Condutas caracterizadoras\nSão exemplos de condutas que podem caracterizar assédio sexual, entre outras:\n   • propostas, insinuações ou comentários de conotação sexual indesejados;\n   • contato físico não consentido, toques, abraços ou aproximações inadequadas;\n   • envio de mensagens, imagens ou conteúdos de cunho sexual sem consentimento;\n   • condicionar benefícios, promoções ou permanência no emprego a favores de natureza sexual;\n   • piadas, comentários ou apelidos de teor sexual que constranjam o colaborador.\nArt. 45º Dever de todos os colaboradores\nTodos os colaboradores, independentemente de cargo, têm o dever de zelar por um ambiente de trabalho livre de assédio, devendo reportar situações presenciadas ou sofridas por meio do canal de denúncias previsto neste Regimento, em atenção à Lei nº 14.457/2022 e à NR-1, que exigem da empresa a adoção de medidas de prevenção ao assédio e às violências no trabalho.\nArt. 46º Capacitação e prevenção\nA empresa promoverá, periodicamente, ações de orientação e capacitação sobre prevenção ao assédio moral e sexual, com o objetivo de disseminar esta política entre todos os colaboradores e reforçar os canais disponíveis para denúncia.\nArt. 47º Consequências\nComprovada a prática de assédio sexual em apuração interna, o responsável estará sujeito à dispensa por justa causa (art. 482, alíneas 'b' e 'j', da CLT), sem prejuízo da responsabilização civil e criminal perante as autoridades competentes.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCAPÍTULO XII — Canal de Denúncias e Procedimento de Apuração\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nArt. 48º Canal de denúncias\nA Facilita Cell disponibiliza canal de denúncias para relatos de assédio moral, assédio sexual, discriminação ou qualquer outra violação a este Regimento, que pode ser acessado de forma identificada ou anônima, por meio indicado pela empresa (ex.: e-mail dedicado, formulário ou contato direto com a liderança ou o RH).\nArt. 49º Sigilo e proibição de retaliação\nÉ garantido o sigilo da identidade do denunciante e das informações prestadas, sendo expressamente vedada qualquer forma de retaliação contra quem denunciar de boa-fé, testemunhar ou colaborar com a apuração dos fatos.\nArt. 50º Procedimento de apuração e prazos\nToda denúncia será registrada e apurada com celeridade, imparcialidade e confidencialidade, com prazo estimado de até 30 (trinta) dias corridos para conclusão, prorrogável em casos complexos. A empresa poderá adotar medidas cautelares durante a investigação, como afastamento temporário ou realocação, sem prejuízo da remuneração do colaborador, e comunicará o desfecho, no que couber, ao denunciante.\nArt. 51º Denúncias de má-fé\nDenúncias comprovadamente falsas, feitas de má-fé com o intuito de prejudicar terceiros, também estarão sujeitas às medidas disciplinares previstas neste Regimento.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCAPÍTULO XIII — Álcool, Drogas e Saúde no Trabalho\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nArt. 52º Proibição de uso e porte\nÉ terminantemente proibido o consumo, porte ou comercialização de bebidas alcoólicas e drogas ilícitas nas dependências da empresa, bem como o comparecimento ao trabalho sob efeito dessas substâncias, constituindo falta grave sujeita às medidas disciplinares previstas neste Regimento.\nArt. 53º Apoio ao colaborador\nA empresa poderá orientar e encaminhar, quando solicitado ou identificada a necessidade, colaboradores em situação de dependência química ou alcoólica a serviços de saúde e assistência disponíveis, tratando o tema com confidencialidade e sem caráter discriminatório.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCAPÍTULO XIV — Uso de Imagem e Consentimento\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nArt. 54º Uso de imagem para fins institucionais\nO uso de fotos ou vídeos do colaborador em materiais institucionais, redes sociais ou publicidade da empresa somente ocorrerá mediante consentimento prévio e específico, podendo o colaborador revogar sua autorização a qualquer tempo, conforme os arts. 7º e 18 da LGPD.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCAPÍTULO XV — Diversidade, Equidade e Inclusão\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nArt. 55º Compromisso com a diversidade\nA Facilita Cell valoriza um ambiente de trabalho diverso e inclusivo, sendo vedada qualquer prática discriminatória em processos seletivos, promoções, remuneração ou condições de trabalho, em observância à Lei nº 9.029/1995.\nArt. 56º Acessibilidade e inclusão de pessoas com deficiência\nA empresa buscará adequar, na medida do possível, seus ambientes e processos para promover a acessibilidade e a inclusão de pessoas com deficiência, respeitando as cotas legais de contratação quando aplicáveis (art. 93 da Lei nº 8.213/1991).\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCAPÍTULO XVI — Férias\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nArt. 57º Concessão de férias\nApós cada período aquisitivo de 12 (doze) meses de trabalho, o colaborador terá direito a férias remuneradas, com acréscimo de 1/3 (um terço) sobre a remuneração, conforme os arts. 129 a 133 da CLT, podendo ser fracionadas em até três períodos, mediante acordo, sendo um deles não inferior a 14 (catorze) dias corridos.\nArt. 58º Programação e comunicação de férias\nAs férias serão programadas pela liderança conforme as necessidades da operação, e comunicadas ao colaborador com antecedência mínima de 30 (trinta) dias, sendo formalizado o respectivo aviso de férias.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCAPÍTULO XVII — Licenças e Afastamentos\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nArt. 59º Licença-maternidade e licença-paternidade\nA colaboradora gestante terá direito à licença-maternidade de 120 (cento e vinte) dias, nos termos do art. 7º, XVIII, da Constituição Federal, e o colaborador terá direito à licença-paternidade, conforme o art. 10, §1º, do Ato das Disposições Constitucionais Transitórias, podendo ambas ser prorrogadas caso a empresa participe do Programa Empresa Cidadã.\nArt. 60º Afastamento por doença\nEm caso de doença ou acidente, o colaborador deve apresentar atestado médico à liderança o quanto antes, sendo os primeiros 15 (quinze) dias de afastamento custeados pela empresa e, a partir do 16º dia, pelo INSS, na forma do art. 60 da Lei nº 8.213/1991.\nArt. 61º Outras licenças legais\nSerão observadas as demais licenças previstas em lei ou em norma coletiva, como licença para doação de sangue, alistamento eleitoral, serviço militar, júri e comparecimento a juízo, conforme o art. 473 da CLT.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCAPÍTULO XVIII — Benefícios\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nArt. 62º Vale-transporte e alimentação\nSerá concedido vale-transporte, mediante solicitação do colaborador, nos termos da Lei nº 7.418/1985, bem como benefício de alimentação ou refeição, quando previsto em contrato, política interna ou convenção coletiva da categoria.\nArt. 63º Outros benefícios\nBenefícios adicionais eventualmente concedidos pela empresa, como plano de saúde, comissões ou premiações por desempenho, serão regidos por política específica, que poderá ser revista periodicamente conforme a realidade do negócio.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCAPÍTULO XIX — Trabalho Remoto (Home Office)\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nArt. 64º Elegibilidade e condições\nFunções administrativas ou de suporte que não exijam presença física na loja poderão, a critério da empresa, ser exercidas em regime de trabalho remoto, parcial ou integral, formalizado em aditivo contratual, conforme os arts. 75-A a 75-E da CLT, mantendo-se os mesmos direitos e deveres deste Regimento.\nArt. 65º Despesas e equipamentos\nAs condições sobre fornecimento de equipamentos, reembolso de despesas com internet e energia, quando aplicável, e a forma de comunicação e controle das atividades em trabalho remoto serão definidas em aditivo específico, conforme art. 75-D da CLT.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCAPÍTULO XXI — Avaliação de Desempenho e Desenvolvimento\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nArt. 68º Avaliação de desempenho\nA empresa poderá adotar avaliações periódicas de desempenho, com critérios objetivos e comunicados previamente, cujo resultado poderá subsidiar ações de desenvolvimento, promoção ou realinhamento de expectativas com o colaborador.\nArt. 69º Treinamento e capacitação\nSerão oferecidas, sempre que possível, ações de treinamento técnico e comportamental, incluindo orientações sobre atendimento ao cliente, uso de novos equipamentos e as políticas previstas neste Regimento.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCAPÍTULO XXII — Medidas Disciplinares\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nArt. 70º Gradação das penalidades\nO descumprimento das normas deste Regimento poderá resultar, conforme a gravidade e a reincidência, nas seguintes penalidades, aplicadas de forma gradual e proporcional:\n   • advertência verbal;\n   • advertência por escrito;\n   • suspensão disciplinar;\n   • dispensa por justa causa, nos termos do art. 482 da CLT.\nArt. 71º Faltas graves\nCondutas de natureza grave — como assédio moral, assédio sexual, discriminação, violência, furto, embriaguez em serviço ou violação de sigilo — poderão ensejar a aplicação direta de penalidade máxima, independentemente de advertências anteriores, conforme a gravidade do caso concreto.\nArt. 72º Direito de defesa\nAntes da aplicação de penalidade, será assegurado ao colaborador o direito de ser ouvido e de apresentar sua versão sobre os fatos, exceto em situações que exijam afastamento cautelar imediato.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCAPÍTULO XXIII — Disposições Finais\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nArt. 73º Casos omissos\nOs casos omissos neste Regimento serão resolvidos pela direção da empresa, com base na CLT, nas normas regulamentadoras aplicáveis e nos princípios gerais do Direito do Trabalho.\nArt. 74º Vigência e revisão periódica\nEste Regimento Interno entra em vigor na data de sua publicação, revogando disposições anteriores em sentido contrário, e será revisado periodicamente, no mínimo a cada 2 (dois) anos, para adequação a mudanças legais ou operacionais.\nArt. 75º Ciência do colaborador\nTodo colaborador deverá firmar Termo de Ciência confirmando que leu, compreendeu e se compromete a cumprir integralmente as disposições deste Regimento Interno.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nTERMO DE CIÊNCIA E COMPROMISSO\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nDeclaro, para os devidos fins, que recebi, li e compreendi integralmente o Regimento Interno de Trabalho da Facilita Cell, incluindo as disposições sobre jornada de trabalho, organização e limpeza do ambiente, segurança do trabalho, ética e conduta profissional, assédio moral, assédio sexual, diversidade e inclusão, férias, licenças e benefícios, comprometendo-me a cumprir fielmente todas as normas nele contidas, bem como a utilizar o canal de denúncias sempre que presenciar ou sofrer qualquer violação a este Regimento.";
+
+// ── Modelo de Contrato Individual de Trabalho (CLT) — com variáveis ─────────
+const ATLAS_CONTRATO_MODELO = "CONTRATO INDIVIDUAL DE TRABALHO\nContrato de Experiência — Art. 443, §2º, \"c\" da CLT\n\nEste instrumento é regido pela Consolidação das Leis do Trabalho (CLT), Lei nº 13.467/2017 e demais normas trabalhistas vigentes.\n\nIDENTIFICAÇÃO DAS PARTES\n\nEMPREGADOR(A): {EMPRESA}, inscrita no CNPJ nº {CNPJ}, estabelecida em {ENDERECO_EMPRESA}.\n\nEMPREGADO(A): {NOME}, {NACIONALIDADE}, {ESTADO_CIVIL}, portador(a) do CPF nº {CPF}, RG nº {RG}, PIS/NIT: {PIS}, CTPS: {CTPS}, residente em {ENDERECO_EMP}.\n\nCLÁUSULA 1ª — DO OBJETO E DA FUNÇÃO\n1.1. O presente contrato tem por objeto a prestação de serviços pelo(a) EMPREGADO(A) ao(à) EMPREGADOR(A), sob regime de subordinação, pessoalidade, habitualidade, exclusividade e onerosidade, nos termos do Art. 3º da CLT.\n1.2. O(A) EMPREGADO(A) exercerá a função de {CARGO} (CBO: {CBO}), podendo o(a) EMPREGADOR(A), mediante necessidade operacional, atribuir outras tarefas compatíveis com a condição pessoal do(a) trabalhador(a), nos termos do Art. 456, parágrafo único da CLT.\n\nCLÁUSULA 2ª — DO LOCAL E PERÍODO DE TRABALHO\n2.1. O(A) EMPREGADO(A) desempenhará suas atividades no estabelecimento localizado em {ENDERECO_EMPRESA}, podendo ser deslocado(a) a outros pontos de atendimento da empresa.\n2.2. Data de admissão: {ADMISSAO}. O presente é um Contrato de Experiência com prazo inicial de 30 (trinta) dias, prorrogável por igual período de 30 (trinta) dias e, sucessivamente, por mais 30 (trinta) dias, totalizando no máximo 90 (noventa) dias, respeitado o limite legal e admitidas as prorrogações dentro desse teto (Art. 445, parágrafo único, e Art. 451 da CLT). Cada prorrogação fica condicionada à aprovação do desempenho no período anterior. Decorrido o prazo total sem manifestação em contrário, o contrato converte-se automaticamente em prazo indeterminado.\n\nCLÁUSULA 3ª — DA REMUNERAÇÃO, COMISSÕES E PRÊMIOS\n3.1. O(A) EMPREGADOR(A) pagará ao(à) EMPREGADO(A) o salário base mensal de R$ {SALARIO}, pago até o 5º (quinto) dia útil do mês subsequente, mediante depósito bancário ou outro meio idôneo, com recibo, nos termos dos Arts. 459 e 464 da CLT.\n3.2. O salário jamais será inferior ao Salário Mínimo Nacional vigente (Art. 7º, IV da CF/88 e Art. 76 da CLT), garantindo-se que a soma de salário base e parcelas variáveis respeite o piso legal e o piso da categoria fixado em convenção coletiva.\n3.3. Comissão por venda: o(a) EMPREGADO(A) fará jus a comissão de R$ 15,00 (quinze reais) por aparelho celular efetivamente vendido e faturado, apurada com base nas vendas registradas no sistema da empresa.\n3.4. Prêmio de produtividade por meta diária: ao atingir a meta de 3 (três) aparelhos vendidos e faturados no mesmo dia, o(a) EMPREGADO(A) fará jus a um prêmio de R$ 100,00 (cem reais) por essa meta diária, pago por transferência (PIX). Não atingida a meta de 3 aparelhos no dia, não haverá o prêmio referente àquela data. O prêmio incide por cada bloco completo de 3 aparelhos no dia.\n3.5. Da natureza das parcelas variáveis (transparência legal): as comissões (Cláusula 3.3) e os prêmios por meta (Cláusula 3.4), quando pagos com habitualidade, possuem natureza salarial e integram a remuneração para todos os efeitos legais — incidindo sobre férias acrescidas de 1/3, 13º salário, FGTS, aviso prévio e verbas rescisórias, bem como gerando o reflexo do Repouso Semanal Remunerado (RSR/DSR) sobre comissões, na forma da Súmula 27 do TST e da Lei nº 3.207/1957. As partes reconhecem expressamente esta natureza, afastando qualquer interpretação de que tais parcelas seriam meras liberalidades.\n3.6. Estorno de comissão: as comissões referentes a vendas posteriormente canceladas, devolvidas (Art. 49 do CDC) ou não pagas pelo cliente (inadimplência de financiamento, chargeback ou insolvência do comprador, na forma do Art. 7º da Lei nº 3.207/1957) poderão ser estornadas e compensadas na competência seguinte, garantida a informação ao(à) empregado(a).\n3.7. Vale-transporte: conforme opção registrada pelo(a) empregado(a).\n3.8. Os demais benefícios eventualmente concedidos serão regulados por aditivo específico e observarão a legislação e a convenção coletiva aplicável.\n\nCLÁUSULA 4ª — DA JORNADA DE TRABALHO\n4.1. A jornada de trabalho observará o horário das 09h00 às 17h50, de segunda-feira a sábado, sendo o domingo o dia de repouso semanal remunerado (Art. 7º, XV da CF/88 e Lei nº 605/1949) e os feriados considerados dias de folga, ressalvada convocação excepcional com a devida compensação ou pagamento em dobro (Art. 9º da Lei nº 605/1949).\n4.2. Dos intervalos: (a) intervalo para refeição e descanso de 1 (uma) hora, não computado na jornada, nos termos do Art. 71 da CLT; (b) intervalo para café/lanche de 30 (trinta) minutos no período da tarde. Ficando o(a) EMPREGADO(A) à disposição do(a) EMPREGADOR(A) durante o intervalo do café, este será remunerado e computado como tempo de serviço (Art. 4º da CLT), integrando a jornada para todos os efeitos.\n4.3. Considerando a presença das 09h00 às 17h50 (8h50), deduzido o intervalo de refeição de 1 hora, resulta jornada efetiva de 7 (sete) horas e 50 (cinquenta) minutos diários, totalizando 44 (quarenta e quatro) horas semanais, respeitados os limites do Art. 7º, XIII da CF/88 e do Art. 58 da CLT.\n4.4. A prestação de horas extras fica limitada a 2 (duas) horas diárias, mediante prévio acordo, acrescidas de 50% (dias comuns) ou 100% (domingos/feriados) sobre o valor da hora normal (Art. 59 e Art. 7º, XVI da CF/88). Alternativamente, poderá ser adotado Banco de Horas nos termos da Cláusula 15ª.\n4.5. Do registro de ponto: o(a) EMPREGADO(A) deverá registrar o ponto eletrônico/biométrico em todas as marcações de entrada, saída de refeição, retorno, intervalo de café e saída (Art. 74, §2º da CLT e Portaria MTP nº 671/2021). A ausência injustificada de registro de qualquer marcação sujeita o(a) empregado(a) a advertência disciplinar e, em caso de reincidência, às penalidades progressivas da Cláusula 16ª, por descumprimento de obrigação contratual.\n\nCLÁUSULA 5ª — DOS DESCONTOS LEGAIS E AUTORIZADOS\n5.1. O(A) EMPREGADO(A) autoriza os seguintes descontos legais: INSS (conforme tabela progressiva vigente — EC 103/2019), IRRF (conforme legislação tributária), vale-transporte (se concedido), adiantamentos e demais previstos em lei.\n5.2. Eventuais adiantamentos ou empréstimos concedidos pela empresa poderão ser descontados em folha, respeitado o limite de 30% da remuneração mensal, conforme Art. 462 da CLT.\n5.3. São vedados descontos não previstos em lei ou neste contrato, salvo autorização escrita do(a) empregado(a) e desde que não causem ônus manifestamente abusivo.\n\nCLÁUSULA 6ª — DAS FÉRIAS ANUAIS E 13º SALÁRIO\n6.1. Após cada período aquisitivo de 12 (doze) meses, o(a) EMPREGADO(A) fará jus a 30 (trinta) dias de férias remuneradas, acrescidas de 1/3 constitucional, nos termos dos Art. 129 a 153 da CLT e Art. 7º, XVII da CF/88.\n6.2. As férias poderão, a pedido do(a) empregado(a), ser fracionadas em até 3 (três) períodos, sendo que um deles não poderá ser inferior a 14 (quatorze) dias corridos e os demais não poderão ser inferiores a 5 (cinco) dias corridos cada, conforme Art. 134, §1º da CLT (redação da Lei nº 13.467/2017).\n6.3. O(A) EMPREGADO(A) terá direito ao 13º salário proporcional aos meses trabalhados no ano, pago em 2 (duas) parcelas: a 1ª até 30/11 e a 2ª até 20/12, conforme Lei nº 4.090/1962 e Art. 7º, VIII da CF/88.\n\nCLÁUSULA 7ª — DO FGTS E PREVIDÊNCIA SOCIAL\n7.1. O(A) EMPREGADOR(A) recolherá mensalmente o FGTS no percentual de 8% (oito por cento) sobre a remuneração, depositado em conta vinculada ao(à) EMPREGADO(A), nos termos da Lei nº 8.036/1990 e Art. 7º, III da CF/88.\n7.2. O(A) EMPREGADO(A) contribuirá para o Regime Geral de Previdência Social — INSS conforme alíquotas progressivas estabelecidas na Emenda Constitucional nº 103/2019 e regulamentação vigente do MPS.\n\nCLÁUSULA 8ª — DAS ATRIBUIÇÕES E CONDUTA PROFISSIONAL\n8.1. O(A) EMPREGADO(A) se compromete a: (a) executar as atividades com diligência, qualidade e pontualidade; (b) tratar clientes, colegas e superiores com respeito; (c) zelar pelos equipamentos e bens da empresa; (d) comunicar imediatamente quaisquer irregularidades ao superior.\n8.2. Das atividades correlatas de asseio e organização: integram as atribuições do cargo, além das tarefas de venda e atendimento, a manutenção da limpeza, higiene e organização do estabelecimento, incluindo a área de vendas, o balcão, os banheiros e demais dependências de uso comum, mantendo o ambiente livre de lixo, sujeira e desordem. Tais tarefas são compatíveis com a função e inerentes ao funcionamento do comércio varejista, nos termos do Art. 456, parágrafo único, da CLT, não configurando desvio de função.\n8.3. Da conformidade com o processo seletivo: o(a) EMPREGADO(A) declara que todas as condições ora pactuadas — jornada, remuneração, comissões, prêmios, atribuições e deveres — foram previamente apresentadas, discutidas e aceitas durante a entrevista de emprego e o processo de admissão, com as quais concorda integralmente, ratificando-as por este instrumento.\n8.4. É vedado ao(à) EMPREGADO(A), sob pena de rescisão por justa causa (Art. 482 da CLT): (a) abandono de emprego; (b) incontinência de conduta ou mau procedimento; (c) ato de improbidade; (d) desídia no desempenho das funções; (e) violação de segredo da empresa; (f) embriaguez habitual ou em serviço; (g) prática de jogos de azar; (h) falsificação ou fraude no registro de ponto.\n\nCLÁUSULA 9ª — DO SIGILO E CONFIDENCIALIDADE\n9.1. O(A) EMPREGADO(A) obriga-se a manter sigilo absoluto sobre dados de clientes, fornecedores, estratégias comerciais, precificações, sistemas internos e demais informações confidenciais, durante a vigência e por 24 (vinte e quatro) meses após o encerramento do contrato.\n9.2. A violação do sigilo constitui ato lesivo aos interesses da empresa e ensejará rescisão por justa causa, além de responsabilidade civil e criminal nos termos dos Arts. 186 e 927 do Código Civil e do Art. 154-A do Código Penal (invasão de dispositivo informático).\n\nCLÁUSULA 10ª — PROTEÇÃO DE DADOS — LGPD\n10.1. Em conformidade com a Lei nº 13.709/2018 (Lei Geral de Proteção de Dados), o(a) EMPREGADO(A) autoriza o tratamento de seus dados pessoais e profissionais para fins exclusivamente trabalhistas e previdenciários, incluindo: registro em sistemas internos, envio a órgãos governamentais (eSocial, CAGED, RAIS), controle de ponto e folha de pagamento.\n10.2. Os dados serão tratados com segurança, confidencialidade e finalidade legítima, sendo vedado qualquer uso para fins distintos dos trabalhistas sem o consentimento expresso do(a) titular.\n\nCLÁUSULA 11ª — SAÚDE, SEGURANÇA E MEDICINA DO TRABALHO\n11.1. O(A) EMPREGADOR(A) cumprirá as Normas Regulamentadoras do MTE, especialmente: NR-1 (Disposições Gerais e Gerenciamento de Riscos), NR-5 (CIPA), NR-6 (EPI), NR-7 (PCMSO) e NR-9 (PGR).\n11.2. O(A) EMPREGADO(A) submeter-se-á aos exames médicos ocupacionais — admissional, periódico, de retorno ao trabalho e demissional — conforme Portaria MTE nº 3.214/1978 e NR-7, comparecendo na data e local determinados pelo(a) EMPREGADOR(A).\n11.3. O(A) EMPREGADO(A) obriga-se a: utilizar os EPIs fornecidos; participar de treinamentos de segurança; comunicar acidentes de trabalho imediatamente; não criar situações de risco para si ou para terceiros.\n\nCLÁUSULA 12ª — DOS ATESTADOS MÉDICOS\n12.1. Atestados de saúde deverão ser apresentados ao(à) EMPREGADOR(A) no prazo máximo de 48 (quarenta e oito) horas após a ausência, sob pena de não justificação da falta, conforme Art. 6º da Lei nº 605/1949.\n12.2. Afastamentos superiores a 15 dias consecutivos serão encaminhados ao INSS para avaliação de benefício previdenciário, nos termos do Art. 59 da Lei nº 8.213/1991.\n\nCLÁUSULA 13ª — DIREITO DE IMAGEM\n13.1. O(A) EMPREGADO(A) autoriza, de forma gratuita e durante a vigência deste contrato, o uso de sua imagem e voz em materiais institucionais, publicações em redes sociais corporativas e campanhas internas, exceto para fins distintos dos promocionais da empresa, nos termos do Art. 20 do Código Civil.\n\nCLÁUSULA 14ª — USO DE TECNOLOGIA E REDES SOCIAIS\n14.1. Os equipamentos, sistemas e acesso à internet fornecidos pela empresa são de uso exclusivamente profissional. O(A) EMPREGADO(A) não poderá utilizá-los para acesso a redes sociais pessoais, jogos online, streaming ou atividades não relacionadas ao trabalho durante o expediente.\n14.2. É vedado: fotografar ou gravar o ambiente de trabalho sem autorização; divulgar informações da empresa em redes sociais pessoais; realizar transações comerciais próprias durante o horário de trabalho.\n\nCLÁUSULA 15ª — DO BANCO DE HORAS\n15.1. Fica instituído o Banco de Horas mediante o presente acordo individual escrito, com prazo de compensação de até 6 (seis) meses, nos termos do Art. 59, §5º da CLT. Havendo acordo ou convenção coletiva que autorize prazo maior, este poderá ser estendido a até 12 (doze) meses (Art. 59, §2º). As horas positivas não compensadas ao final do período serão pagas como horas extras, com o adicional devido.\n\nCLÁUSULA 16ª — DAS PENALIDADES DISCIPLINARES\n16.1. O descumprimento das obrigações contratuais e legais ensejará, observada a gradação e a proporcionalidade: (a) advertência verbal; (b) advertência escrita; (c) suspensão disciplinar de 1 a 30 dias, com desconto em folha (Art. 474, CLT); (d) rescisão por justa causa (Art. 482, CLT).\n16.2. Constituem falta disciplinar sujeita a advertência, entre outras: (a) deixar de registrar qualquer marcação de ponto sem justificativa; (b) atrasos reiterados; (c) descuido com a limpeza e organização do estabelecimento; (d) descumprimento das normas internas. A reincidência autoriza a aplicação da penalidade imediatamente superior.\n16.3. A aplicação de penalidade observará a imediatidade, a ausência de dupla punição pelo mesmo fato e o direito do(a) empregado(a) de registrar sua ciência ou discordância.\n\nCLÁUSULA 17ª — DA NÃO CONCORRÊNCIA\n17.1. Durante a vigência do contrato, é vedado ao(à) EMPREGADO(A) concorrer com a empregadora ou atuar em benefício de concorrentes diretos, sob pena de justa causa (Art. 482, \"c\" e \"g\", CLT).\n\nCLÁUSULA 18ª — DA RESCISÃO CONTRATUAL\n18.1. O contrato poderá ser rescindido por qualquer das partes, observados: (a) aviso prévio de 30 dias, acrescido de 3 dias por ano trabalhado, limitado a 90 dias (Art. 487 e 488, CLT, e Lei nº 12.506/2011); (b) pagamento das verbas rescisórias no prazo de 10 dias corridos (Art. 477, §6º, CLT).\n18.2. Na rescisão sem justa causa pela EMPREGADORA, o(a) EMPREGADO(A) terá direito à multa de 40% sobre o saldo do FGTS (Art. 18, §1º, Lei nº 8.036/1990), além das verbas legais.\n18.3. Na rescisão antecipada do contrato de experiência, aplica-se o disposto nos Arts. 479 e 480 da CLT.\n\nCLÁUSULA 19ª — DO ASSÉDIO MORAL E SEXUAL E DA IGUALDADE\n19.1. É vedada qualquer prática de assédio moral ou sexual, discriminação ou constrangimento (Lei nº 9.029/1995 e Lei nº 14.457/2022 — canal de denúncias da CIPA), constituindo falta grave. A empresa compromete-se a manter ambiente de trabalho seguro e a apurar denúncias.\n\nCLÁUSULA 20ª — DO RECONHECIMENTO DAS CONDIÇÕES E BOA-FÉ\n20.1. As partes declaram que o presente contrato foi celebrado de boa-fé, com pleno conhecimento e aceitação recíproca de todas as cláusulas, que refletem fielmente o que foi tratado no processo seletivo, não havendo vício de consentimento (Arts. 113, 421 e 422 do Código Civil).\n20.2. O(A) EMPREGADO(A) declara que recebeu esclarecimentos sobre jornada, remuneração variável, atribuições e deveres, e que teve oportunidade de sanar dúvidas antes da assinatura.\n\nCLÁUSULA 21ª — DA MEDIAÇÃO E FORO\n21.1. As partes buscarão solução extrajudicial para conflitos, admitida a Comissão de Conciliação Prévia ou mediação (Arts. 625-A a 625-H da CLT).\n21.2. Não havendo acordo, fica eleito o foro da Vara do Trabalho da Comarca de {COMARCA}, competente para dirimir controvérsias oriundas deste contrato.\n\nCLÁUSULA 22ª — DISPOSIÇÕES FINAIS\n22.1. Este contrato é celebrado em 2 (duas) vias de igual teor, ou por meio eletrônico com assinatura digital de igual validade (Lei nº 14.063/2020 e MP nº 2.200-2/2001), entregando-se via ao(à) EMPREGADO(A) (Art. 29, §1º da CLT).\n22.2. O(A) EMPREGADO(A) declara ter lido, compreendido e concordado com todas as cláusulas, recebido cópia do Regulamento Interno e do Código de Conduta.\n22.3. A eventual nulidade de qualquer cláusula não invalidará as demais, que permanecerão em pleno vigor.\n\nLocal e data: {CIDADE}, {DATA}.\n\n_______________________________________\n{NOME}\nEMPREGADO(A) — CPF: {CPF}\n\n_______________________________________\n{EMPRESA}\nEMPREGADOR(A) — CNPJ: {CNPJ}\n\nTESTEMUNHAS:\nNome: ___________________________  CPF: ______________________\nNome: ___________________________  CPF: ______________________";
+
+// Preenche as variáveis do modelo de contrato com dados do funcionário/empresa
+function atlasPreencherContrato(emp){
+  emp = emp || {};
+  const cfg = (typeof EMPRESA_CFG!=='undefined' && EMPRESA_CFG) ? EMPRESA_CFG : {};
+  const fix = (typeof EMPRESA_FIXA!=='undefined' && EMPRESA_FIXA) ? EMPRESA_FIXA : {};
+  const empresaNome = cfg.nomeRazao || cfg.nome || fix.nome || 'ZOOM TECH';
+  const cnpj = cfg.cnpj || fix.cnpj || '20.705.429/0001-91';
+  const endEmpresa = cfg.endereco || fix.endereco || 'Av. República Argentina, 1968 — Maracanã, Foz do Iguaçu/PR';
+  const comarca = cfg.comarca || fix.comarca || 'Foz do Iguaçu/PR';
+  const cidade = cfg.cidade || fix.cidade || 'Foz do Iguaçu';
+  const endEmp = [emp.rua, emp.numero?('nº '+emp.numero):'', emp.complemento, emp.bairro, emp.cep?('CEP '+emp.cep):'', (emp.cidade||'Foz do Iguaçu')+'/'+(emp.uf||'PR')]
+                 .filter(Boolean).join(', ') || '________________';
+  const dataHoje = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+  const admissao = emp.dataAdmissao ? (function(d){try{return new Date(d+'T00:00:00').toLocaleDateString('pt-BR');}catch(e){return d;}})(emp.dataAdmissao) : '____/____/______';
+  const map = {
+    '{EMPRESA}': empresaNome,
+    '{CNPJ}': cnpj,
+    '{ENDERECO_EMPRESA}': endEmpresa,
+    '{COMARCA}': comarca,
+    '{CIDADE}': cidade,
+    '{DATA}': dataHoje,
+    '{NOME}': emp.nome || '________________',
+    '{CPF}': emp.cpf || '___.___.___-__',
+    '{RG}': emp.rg || '____________',
+    '{PIS}': emp.pis || '____________',
+    '{CTPS}': emp.ctps || '____________',
+    '{NACIONALIDADE}': emp.nacionalidade || 'Brasileiro(a)',
+    '{ESTADO_CIVIL}': emp.estadoCivil || 'Solteiro(a)',
+    '{ENDERECO_EMP}': endEmp,
+    '{CARGO}': emp.cargo || '________________',
+    '{CBO}': emp.cbo || '____-__',
+    '{ADMISSAO}': admissao,
+    '{SALARIO}': emp.salario ? parseFloat(emp.salario).toFixed(2).replace('.',',') : '________'
+  };
+  let txt = ATLAS_CONTRATO_MODELO;
+  Object.keys(map).forEach(k=>{ txt = txt.split(k).join(map[k]); });
+  return txt;
+}
+
+// ── 1. Registra o Modelo de Contrato como TEMPLATE padrão (Contratos & Docs) ──
+(function _seedContratoTemplate(){
+  try{
+    if(typeof _tplLoad!=='function'||typeof _tplSave!=='function') return;
+    const tpls = _tplLoad();
+    if(tpls.find(t=>t.id==='atlas_contrato_clt_modelo')) return; // já existe
+    tpls.unshift({
+      id:'atlas_contrato_clt_modelo',
+      nome:'Contrato Individual de Trabalho (CLT) — Modelo Zoom Tech',
+      tipo:'outro',
+      titulo:'CONTRATO INDIVIDUAL DE TRABALHO — Contrato de Experiência (Art. 443, §2º, "c" da CLT)',
+      corpo: ATLAS_CONTRATO_MODELO,
+      fixo:true,
+      createdAt:new Date().toISOString()
+    });
+    _tplSave(tpls);
+  }catch(e){ console.warn('[seed contrato tpl]', e); }
+})();
+
+// ── Visualizar / imprimir o modelo de contrato preenchido ────────────────────
+window.atlasVerModeloContrato = function(empId){
+  const emp = empId ? APP.employees.find(e=>e.id===empId) : null;
+  const txt = atlasPreencherContrato(emp||{});
+  const win = window.open('', '_blank');
+  if(!win){ toast('Permita pop-ups para visualizar o contrato.','warn'); return; }
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
+    <title>Contrato Individual de Trabalho${emp?(' — '+esc(emp.nome)):''}</title>
+    <style>
+      *{box-sizing:border-box} body{font-family:'Segoe UI',Arial,sans-serif;max-width:820px;margin:0 auto;padding:40px 48px;color:#1a1a1a;line-height:1.6;font-size:13.5px}
+      .hd{background:#0B1E35;color:#fff;padding:20px 26px;border-radius:10px;margin-bottom:26px;display:flex;justify-content:space-between;align-items:center}
+      .hd h1{margin:0;font-size:20px;letter-spacing:.5px} .hd .g{color:#C9A84C}
+      pre{white-space:pre-wrap;font-family:'Segoe UI',Arial,sans-serif;font-size:13.5px;line-height:1.65;margin:0}
+      @media print{.noprint{display:none}body{padding:16px}}
+      .noprint{position:fixed;top:14px;right:14px;display:flex;gap:8px}
+      .btn{background:#2563EB;color:#fff;border:none;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer}
+      .btn.g{background:#059669}
+    </style></head><body>
+    <div class="noprint">
+      <button class="btn" onclick="window.print()">🖨 Imprimir / PDF</button>
+      <button class="btn g" onclick="window.close()">✓ Fechar</button>
+    </div>
+    <div class="hd"><h1>ATLAS <span class="g">RH</span></h1><div style="text-align:right;font-size:11px">Comércio e Assistência Técnica<br>DOCUMENTO OFICIAL</div></div>
+    <pre>${esc(txt)}</pre>
+  </body></html>`);
+  win.document.close();
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── 2. ENVIO DO REGIMENTO INTERNO PARA ASSINATURA NO PORTAL ─────────────────
+// Segue o mesmo padrão das advertências: grava em hr/assinaturas (status
+// pendente) e notifica o colaborador. O colaborador assina em "Assinaturas".
+// ═══════════════════════════════════════════════════════════════════════════
+
+function _atlasRegimentoConteudo(nome){
+  return ATLAS_REGIMENTO_TEXTO +
+    '\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+    'DECLARAÇÃO DE CIÊNCIA E COMPROMISSO\n' +
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+    'Eu, ' + (nome||'colaborador(a)') + ', declaro que recebi, li e compreendi ' +
+    'integralmente o Regimento Interno de Trabalho da Facilita Cell / Zoom Tech, ' +
+    'comprometendo-me a cumprir fielmente todas as normas nele contidas. ' +
+    'Ao assinar, confirmo minha ciência e concordância com o presente Regimento (Art. 75).';
+}
+
+// Cria o documento de assinatura para UM colaborador (helper interno)
+async function _atlasCriarDocRegimento(empId){
+  const emp = APP.employees.find(e=>e.id===empId);
+  if(!emp) return null;
+  // Evita duplicar regimento pendente para o mesmo colaborador
+  const jaPend = (APP.assinaturas||[]).find(a=>a.empId===empId && a.tipo==='regimento_interno' && a.status==='pendente');
+  if(jaPend) return jaPend;
+  const doc = {
+    id: uid(),
+    empId, empNome: emp.nome||'',
+    tipo:'regimento_interno',
+    tipoLabel:'Regimento Interno de Trabalho',
+    titulo:'Regimento Interno de Trabalho — Ciência e Compromisso',
+    conteudo:_atlasRegimentoConteudo(emp.nome),
+    status:'pendente',
+    origem:'rh_regimento',
+    criadoEm:new Date().toISOString(),
+    criadoPor:'RH',
+    assinaturaData:null, assinaturaPNG:null, assinaturaHash:null, assinaturaIP:null, assinaturaGeo:null,
+    historicoStatus:[{status:'pendente',ts:new Date().toISOString(),por:'RH'}]
+  };
+  if(!APP.assinaturas) APP.assinaturas=[];
+  APP.assinaturas.push(doc);
+  return doc;
+}
+
+// Sincroniza APP.assinaturas com o Firestore (merge) e envia ao portal
+async function _atlasSyncAssinaturasFB(){
+  if(!FBASE) { _saveAssinaturas(); return; }
+  try{
+    // lê estado atual do Firestore para não sobrescrever assinaturas do portal
+    const snap = await FBASE.collection('hr').doc('assinaturas').get();
+    let all = [];
+    if(snap.exists){ try{ all = JSON.parse(snap.data().d||'[]'); }catch(e){ all=[]; } }
+    // merge por id
+    const byId = {}; all.forEach(a=>byId[a.id]=a);
+    (APP.assinaturas||[]).forEach(a=>{ byId[a.id]=Object.assign(byId[a.id]||{}, a); });
+    const merged = Object.values(byId);
+    await FBASE.collection('hr').doc('assinaturas').set({d:JSON.stringify(merged), ts:Date.now(), k:'assinaturas'});
+    APP.assinaturas = merged;
+  }catch(e){ console.warn('[regimento sync fb]', e); }
+  _saveAssinaturas();
+}
+
+// Envia o regimento para UM colaborador assinar no portal
+window.atlasEnviarRegimento = async function(empId){
+  const emp = APP.employees.find(e=>e.id===empId);
+  if(!emp){ toast('Colaborador não encontrado.','err'); return; }
+  const doc = await _atlasCriarDocRegimento(empId);
+  if(!doc){ toast('Não foi possível criar o documento.','err'); return; }
+  await _atlasSyncAssinaturasFB();
+  if(typeof pushNotificacaoPortal==='function'){
+    pushNotificacaoPortal(empId, '📖 Regimento Interno para assinar',
+      'O RH disponibilizou o Regimento Interno de Trabalho. Acesse o portal em "Assinaturas" para ler e assinar.',
+      'regimento');
+  }
+  try{ if(typeof auditLog==='function') auditLog('Enviou Regimento Interno para assinatura', emp.nome, 'assinaturas'); }catch(_){}
+  toast('✅ Regimento enviado para '+(emp.nome.split(' ')[0])+' assinar no portal!','ok',4000);
+  if(typeof navigate==='function') navigate('assinatura_digital');
+};
+
+// Envia o regimento para TODOS os colaboradores ativos (em lote)
+window.atlasEnviarRegimentoTodos = async function(){
+  const ativos = APP.employees.filter(e=>e.status==='ativo');
+  if(!ativos.length){ toast('Nenhum colaborador ativo cadastrado.','warn'); return; }
+  const jaTem = ativos.filter(e=>(APP.assinaturas||[]).some(a=>a.empId===e.id && a.tipo==='regimento_interno' && a.status==='pendente'));
+  const enviar = ativos.filter(e=>!jaTem.includes(e));
+  if(!enviar.length){ toast('Todos os colaboradores ativos já têm o regimento pendente de assinatura.','ok'); return; }
+  const ok = (typeof confirmDialog==='function')
+    ? await confirmDialog(`Enviar o Regimento Interno para ${enviar.length} colaborador(es) assinar no portal?`)
+    : confirm(`Enviar o Regimento Interno para ${enviar.length} colaborador(es)?`);
+  if(!ok) return;
+  let n=0;
+  for(const e of enviar){
+    const doc = await _atlasCriarDocRegimento(e.id);
+    if(doc) n++;
+  }
+  await _atlasSyncAssinaturasFB();
+  for(const e of enviar){
+    if(typeof pushNotificacaoPortal==='function'){
+      pushNotificacaoPortal(e.id, '📖 Regimento Interno para assinar',
+        'O RH disponibilizou o Regimento Interno de Trabalho. Acesse o portal em "Assinaturas" para ler e assinar.',
+        'regimento');
+    }
+  }
+  try{ if(typeof auditLog==='function') auditLog('Enviou Regimento Interno em lote', n+' colaborador(es)', 'assinaturas'); }catch(_){}
+  toast(`✅ Regimento enviado para ${n} colaborador(es) assinar no portal!`,'ok',4500);
+  if(typeof navigate==='function') navigate('assinatura_digital');
+};
+
+// Abre modal de seleção para enviar o regimento (individual ou todos)
+window.atlasModalRegimento = function(){
+  const ativos = APP.employees.filter(e=>e.status==='ativo');
+  const pendMap = {};
+  (APP.assinaturas||[]).forEach(a=>{ if(a.tipo==='regimento_interno'){ pendMap[a.empId]=a.status; } });
+  openModal('📖 Regimento Interno — Enviar para Assinatura', `
+    <div style="background:#EFF6FF;border-radius:9px;padding:12px 15px;font-size:13px;color:#1E40AF;margin-bottom:16px;display:flex;gap:9px;align-items:flex-start">
+      <span>ℹ️</span><span>O colaborador receberá o Regimento no portal (aba <b>Assinaturas</b>) e uma notificação. Ao assinar, confirma ciência e compromisso (Art. 75 do Regimento).</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <button class="btn btn-blue" onclick="closeModal();atlasEnviarRegimentoTodos()">📤 Enviar para TODOS os ativos</button>
+      <button class="btn btn-ghost" onclick="atlasVerRegimentoPreview()">👁 Pré-visualizar Regimento</button>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:var(--mt);text-transform:uppercase;margin-bottom:8px">Ou enviar individualmente:</div>
+    <div style="display:flex;flex-direction:column;gap:7px;max-height:340px;overflow-y:auto">
+      ${ativos.length===0 ? '<p style="color:var(--mt);font-size:13px;text-align:center;padding:20px">Nenhum colaborador ativo.</p>' :
+      ativos.map(e=>{
+        const st = pendMap[e.id];
+        const badge = st==='assinado' ? '<span style="background:#D1FAE5;color:#059669;padding:2px 9px;border-radius:11px;font-size:11px;font-weight:700">✅ Assinado</span>'
+                    : st==='pendente' ? '<span style="background:#FEF3C7;color:#92400E;padding:2px 9px;border-radius:11px;font-size:11px;font-weight:700">⏳ Pendente</span>'
+                    : st==='recusado' ? '<span style="background:#FEF2F2;color:#DC2626;padding:2px 9px;border-radius:11px;font-size:11px;font-weight:700">✗ Recusado</span>' : '';
+        return `<div style="display:flex;align-items:center;gap:11px;padding:9px 13px;background:#F8FAFC;border:1px solid var(--border);border-radius:9px">
+          ${av(e.nome, e.id, 34)}
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:13px">${esc(e.nome)}</div>
+            <div style="font-size:11.5px;color:var(--mt)">${esc(e.cargo||'')}</div>
+          </div>
+          ${badge}
+          <button class="btn btn-sm ${st==='pendente'?'btn-ghost':'btn-blue'}" onclick="closeModal();atlasEnviarRegimento('${e.id}')">${st==='pendente'?'↻ Reenviar':'📤 Enviar'}</button>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>
+  `, 620);
+};
+
+// Pré-visualiza o regimento em nova aba
+window.atlasVerRegimentoPreview = function(){
+  const win = window.open('', '_blank');
+  if(!win){ toast('Permita pop-ups para visualizar.','warn'); return; }
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
+    <title>Regimento Interno de Trabalho — Facilita Cell</title>
+    <style>*{box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;max-width:820px;margin:0 auto;padding:40px 48px;color:#1a1a1a;line-height:1.6;font-size:13.5px}
+    .hd{background:#0B1E35;color:#fff;padding:20px 26px;border-radius:10px;margin-bottom:26px}
+    .hd h1{margin:0;font-size:20px} .hd .g{color:#C9A84C}
+    pre{white-space:pre-wrap;font-family:'Segoe UI',Arial,sans-serif;font-size:13.5px;line-height:1.65;margin:0}
+    @media print{.noprint{display:none}body{padding:16px}}
+    .noprint{position:fixed;top:14px;right:14px;display:flex;gap:8px}
+    .btn{background:#2563EB;color:#fff;border:none;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer}.btn.g{background:#059669}</style></head><body>
+    <div class="noprint"><button class="btn" onclick="window.print()">🖨 Imprimir / PDF</button><button class="btn g" onclick="window.close()">✓ Fechar</button></div>
+    <div class="hd"><h1>ATLAS <span class="g">RH</span> · Regimento Interno</h1></div>
+    <pre>${esc(ATLAS_REGIMENTO_TEXTO)}</pre>
+  </body></html>`);
+  win.document.close();
+};
+
+// ── 3. Injeta botões nas telas (Assinatura Digital e Contratos & Docs) ───────
+(function _atlasInjectButtons(){
+  // 3a. Botão no módulo de Assinatura Digital
+  const _origAssin = window.rAssinaturaDigital;
+  if(typeof _origAssin==='function'){
+    window.rAssinaturaDigital = function(){
+      let html = _origAssin.apply(this, arguments);
+      const btn = `<button class="btn btn-sm" style="background:#0B1E35;color:#C9A84C;border:none;font-weight:700" onclick="atlasModalRegimento()">📖 Enviar Regimento p/ Assinar</button>`;
+      // Insere o botão ao lado de "Novo Documento" no hero
+      html = html.replace(
+        '<button class="btn btn-sm" style="background:#C9A84C;color:#0B1E35;border:none;font-weight:700" onclick="assinNovoDocumento()">',
+        btn + '\n      <button class="btn btn-sm" style="background:#C9A84C;color:#0B1E35;border:none;font-weight:700" onclick="assinNovoDocumento()">'
+      );
+      return html;
+    };
+  }
+  // 3b. Botão no módulo Contratos & Docs (ver modelo padrão)
+  const _origCont = window.rContratos || (typeof rContratos!=='undefined'?rContratos:null);
+  if(typeof _origCont==='function'){
+    window.rContratos = function(){
+      let html = _origCont.apply(this, arguments);
+      const btns = `<button class="btn btn-ghost btn-sm" onclick="atlasVerModeloContrato(null)" title="Ver o modelo padrão de contrato CLT">📄 Modelo de Contrato CLT</button>
+      <button class="btn btn-ghost btn-sm" onclick="atlasModalRegimento()" title="Enviar regimento interno para assinatura">📖 Regimento Interno</button>`;
+      // Insere ao lado do botão de "Análise IA em Lote"
+      html = html.replace(
+        '<button class="btn btn-ghost btn-sm" onclick="contratosAIBulk()" title="IA sugere contratos pendentes">\n        🤖 Análise IA em Lote\n      </button>',
+        '<button class="btn btn-ghost btn-sm" onclick="contratosAIBulk()" title="IA sugere contratos pendentes">\n        🤖 Análise IA em Lote\n      </button>\n      ' + btns
+      );
+      return html;
+    };
+  }
+})();
+// ═══════════════ FIM DO MÓDULO Regimento + Modelo de Contrato ═══════════════
+
+console.log('[Atlas] Módulo Regimento + Modelo de Contrato carregado ✅');
 </script>
 
 </body>
