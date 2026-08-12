@@ -30122,113 +30122,7 @@ if(id==='doc_contrato') return `<div class="doc-wrap">${H()}
   <div class="doc-title">Contrato Individual de Trabalho</div>
   <div class="doc-subtitle">${get('f_tipo_contrato')==='experiencia'?'Contrato de Experiência — Art. 443, §2º, "c" da CLT':'Contrato por Prazo Indeterminado — Art. 443, CLT'}</div>
   <div class="doc-alert">⚖️ Este instrumento é regido pela Consolidação das Leis do Trabalho (CLT), Lei nº 13.467/2017 e demais normas trabalhistas vigentes.</div>
-
-  <div class="doc-section-title">Identificação das Partes</div>
-  <table class="doc-table">
-    <tr><td>EMPREGADOR(A)</td><td><b>${get('e_nome')}</b>, inscrita no CNPJ nº ${get('e_cnpj')}, estabelecida em ${get('e_endereco')}, ${get('e_cidade')}/${get('e_uf')}</td></tr>
-    <tr><td>EMPREGADO(A)</td><td><b>${get('f_nome')}</b>, ${get('f_nacionalidade')}, ${get('f_estadocivil')}, portador(a) do CPF nº ${get('f_cpf')}, RG nº ${get('f_rg')} — ${get('f_rg_orgao')}, PIS/NIT: ${get('f_pis')}, CTPS: ${get('f_ctps')}, residente em ${enderecoFuncionario()}</td></tr>
-  </table>
-
-  <div class="doc-section-title">Cláusula 1ª — Do Objeto e da Função</div>
-  <div class="doc-clause">1.1. O presente contrato tem por objeto a prestação de serviços pelo(a) EMPREGADO(A) ao(à) EMPREGADOR(A), sob regime de subordinação, pessoalidade, habitualidade, exclusividade e onerosidade, nos termos do Art. 3º da CLT.</div>
-  <div class="doc-clause">1.2. O(A) EMPREGADO(A) exercerá a função de <b class="doc-orange">${get('f_cargo')}</b> (CBO: ${get('f_cbo')||'____'}), podendo o(a) EMPREGADOR(A), mediante necessidade operacional, atribuir outras tarefas compatíveis com a condição pessoal do(a) trabalhador(a), nos termos do Art. 456, parágrafo único da CLT.</div>
-
-  <div class="doc-section-title">Cláusula 2ª — Do Local e Período de Trabalho</div>
-  <div class="doc-clause">2.1. O(A) EMPREGADO(A) desempenhará suas atividades no estabelecimento localizado em <b>${get('e_endereco')}</b>, ${get('e_cidade')}/${get('e_uf')}, podendo ser deslocado(a) a outros pontos de atendimento da empresa.</div>
-  <div class="doc-clause">2.2. Data de admissão: <b class="doc-orange">${admissaoFmt()}</b>. ${get('f_tipo_contrato')==='experiencia'?'O presente é um <b>Contrato de Experiência</b> com prazo inicial de <b>30 (trinta) dias</b>, prorrogável por igual período de <b>30 (trinta) dias</b> e, sucessivamente, por mais <b>30 (trinta) dias</b>, totalizando no máximo <b>90 (noventa) dias</b>, respeitado o limite legal e admitidas as prorrogações dentro desse teto (Art. 445, parágrafo único, e Art. 451 da CLT). Cada prorrogação fica condicionada à aprovação do desempenho no período anterior. Decorrido o prazo total sem manifestação em contrário, o contrato converte-se automaticamente em prazo indeterminado.':'O presente contrato é celebrado por prazo indeterminado, nos termos do Art. 443 da CLT.'}</div>
-
-  <div class="doc-section-title">Cláusula 3ª — Da Remuneração, Comissões e Prêmios</div>
-  <div class="doc-clause">3.1. O(A) EMPREGADOR(A) pagará ao(à) EMPREGADO(A) o salário base mensal de <b class="doc-orange">R$ ${get('f_salario')}</b>, pago até o 5º (quinto) dia útil do mês subsequente, mediante depósito bancário ou outro meio idôneo, com recibo, nos termos dos Arts. 459 e 464 da CLT.</div>
-  <div class="doc-clause">3.2. O salário jamais será inferior ao Salário Mínimo Nacional vigente (Art. 7º, IV da CF/88 e Art. 76 da CLT), garantindo-se que a soma de salário base e parcelas variáveis respeite o piso legal e o piso da categoria fixado em convenção coletiva.</div>
-  <div class="doc-clause">3.3. <b>Comissão por venda:</b> o(a) EMPREGADO(A) fará jus a comissão de <b class="doc-orange">R$ 15,00 (quinze reais) por aparelho celular</b> efetivamente vendido e faturado, apurada com base nas vendas registradas no sistema da empresa.</div>
-  <div class="doc-clause">3.4. <b>Prêmio de produtividade por meta diária:</b> ao atingir a meta de <b>3 (três) aparelhos vendidos e faturados no mesmo dia</b>, o(a) EMPREGADO(A) fará jus a um prêmio de <b class="doc-orange">R$ 100,00 (cem reais)</b> por essa meta diária, pago por transferência (PIX). Não atingida a meta de 3 aparelhos no dia, não haverá o prêmio referente àquela data. O prêmio incide por cada bloco completo de 3 aparelhos no dia.</div>
-  <div class="doc-clause">3.5. <b>Da natureza das parcelas variáveis (transparência legal):</b> as comissões (Cláusula 3.3) e os prêmios por meta (Cláusula 3.4), <b>quando pagos com habitualidade</b>, possuem natureza salarial e integram a remuneração para todos os efeitos legais — incidindo sobre férias acrescidas de 1/3, 13º salário, FGTS, aviso prévio e verbas rescisórias, bem como gerando o reflexo do Repouso Semanal Remunerado (RSR/DSR) sobre comissões, na forma da Súmula 27 do TST e da Lei nº 3.207/1957. As partes reconhecem expressamente esta natureza, afastando qualquer interpretação de que tais parcelas seriam meras liberalidades.</div>
-  <div class="doc-clause">3.6. <b>Estorno de comissão:</b> as comissões referentes a vendas posteriormente <b>canceladas, devolvidas (Art. 49 do CDC) ou não pagas pelo cliente</b> (inadimplência de financiamento, chargeback ou insolvência do comprador, na forma do Art. 7º da Lei nº 3.207/1957) poderão ser estornadas e compensadas na competência seguinte, garantida a informação ao(à) empregado(a).</div>
-  <div class="doc-clause">3.7. Vale-transporte: ${get('f_vt')==='sim'?'<b>CONCEDIDO</b>, com desconto de até 6% do salário base (Lei nº 7.418/1985 e Decreto nº 95.247/1987).':'<b>NÃO SOLICITADO</b> pelo(a) empregado(a).'}</div>
-  <div class="doc-clause">3.8. Os demais benefícios eventualmente concedidos serão regulados por aditivo específico e observarão a legislação e a convenção coletiva aplicável.</div>
-
-  <div class="doc-section-title">Cláusula 4ª — Da Jornada de Trabalho</div>
-  <div class="doc-clause">4.1. A jornada de trabalho observará o horário das <b>09h00 às 17h50</b>, de <b>segunda-feira a sábado</b>, sendo o <b>domingo</b> o dia de repouso semanal remunerado (Art. 7º, XV da CF/88 e Lei nº 605/1949) e os <b>feriados</b> considerados dias de folga, ressalvada convocação excepcional com a devida compensação ou pagamento em dobro (Art. 9º da Lei nº 605/1949).</div>
-  <div class="doc-clause">4.2. <b>Dos intervalos:</b> (a) intervalo para <b>refeição e descanso de 1 (uma) hora</b>, não computado na jornada, nos termos do Art. 71 da CLT; (b) intervalo para <b>café/lanche de 30 (trinta) minutos no período da tarde</b>. Ficando o(a) EMPREGADO(A) à disposição do(a) EMPREGADOR(A) durante o intervalo do café, <b>este será remunerado e computado como tempo de serviço</b> (Art. 4º da CLT), integrando a jornada para todos os efeitos.</div>
-  <div class="doc-clause">4.3. Considerando a presença das 09h00 às 17h50 (8h50), deduzido o intervalo de refeição de 1 hora, resulta jornada efetiva de <b>7 (sete) horas e 50 (cinquenta) minutos diários</b>, totalizando <b>44 (quarenta e quatro) horas semanais</b>, respeitados os limites do Art. 7º, XIII da CF/88 e do Art. 58 da CLT.</div>
-  <div class="doc-clause">4.4. A prestação de horas extras fica limitada a 2 (duas) horas diárias, mediante prévio acordo, acrescidas de 50% (dias comuns) ou 100% (domingos/feriados) sobre o valor da hora normal (Art. 59 e Art. 7º, XVI da CF/88). Alternativamente, poderá ser adotado Banco de Horas nos termos da Cláusula 15ª.</div>
-  <div class="doc-clause">4.5. <b>Do registro de ponto:</b> o(a) EMPREGADO(A) deverá registrar o ponto eletrônico/biométrico em <b>todas</b> as marcações de entrada, saída de refeição, retorno, intervalo de café e saída (Art. 74, §2º da CLT e Portaria MTP nº 671/2021). <b>A ausência injustificada de registro de qualquer marcação sujeita o(a) empregado(a) a advertência disciplinar</b> e, em caso de reincidência, às penalidades progressivas da Cláusula 16ª, por descumprimento de obrigação contratual.</div>
-
-  <div class="doc-section-title">Cláusula 5ª — Dos Descontos Legais e Autorizados</div>
-  <div class="doc-clause">5.1. O(A) EMPREGADO(A) autoriza os seguintes descontos legais: INSS (conforme tabela progressiva vigente — EC 103/2019), IRRF (conforme legislação tributária), vale-transporte (se concedido), adiantamentos e demais previstos em lei.</div>
-  <div class="doc-clause">5.2. Eventuais adiantamentos ou empréstimos concedidos pela empresa poderão ser descontados em folha, respeitado o limite de 30% da remuneração mensal, conforme Art. 462 da CLT.</div>
-  <div class="doc-clause">5.3. São vedados descontos não previstos em lei ou neste contrato, salvo autorização escrita do(a) empregado(a) e desde que não causem ônus manifestamente abusivo.</div>
-
-  <div class="doc-section-title">Cláusula 6ª — Das Férias Anuais e 13º Salário</div>
-  <div class="doc-clause">6.1. Após cada período aquisitivo de 12 (doze) meses, o(a) EMPREGADO(A) fará jus a 30 (trinta) dias de férias remuneradas, acrescidas de 1/3 constitucional, nos termos dos Art. 129 a 153 da CLT e Art. 7º, XVII da CF/88.</div>
-  <div class="doc-clause">6.2. As férias poderão, a pedido do(a) empregado(a), ser fracionadas em até 3 (três) períodos, sendo que <b>um deles não poderá ser inferior a 14 (quatorze) dias corridos</b> e os demais não poderão ser inferiores a <b>5 (cinco) dias corridos</b> cada, conforme Art. 134, §1º da CLT (redação da Lei nº 13.467/2017).</div>
-  <div class="doc-clause">6.3. O(A) EMPREGADO(A) terá direito ao 13º salário proporcional aos meses trabalhados no ano, pago em 2 (duas) parcelas: a 1ª até 30/11 e a 2ª até 20/12, conforme Lei nº 4.090/1962 e Art. 7º, VIII da CF/88.</div>
-
-  <div class="doc-section-title">Cláusula 7ª — Do FGTS e Previdência Social</div>
-  <div class="doc-clause">7.1. O(A) EMPREGADOR(A) recolherá mensalmente o FGTS no percentual de 8% (oito por cento) sobre a remuneração, depositado em conta vinculada ao(à) EMPREGADO(A), nos termos da Lei nº 8.036/1990 e Art. 7º, III da CF/88.</div>
-  <div class="doc-clause">7.2. O(A) EMPREGADO(A) contribuirá para o Regime Geral de Previdência Social — INSS conforme alíquotas progressivas estabelecidas na Emenda Constitucional nº 103/2019 e regulamentação vigente do MPS.</div>
-
-  <div class="doc-section-title">Cláusula 8ª — Das Atribuições e Conduta Profissional</div>
-  <div class="doc-clause">8.1. O(A) EMPREGADO(A) se compromete a: (a) executar as atividades com diligência, qualidade e pontualidade; (b) tratar clientes, colegas e superiores com respeito; (c) zelar pelos equipamentos e bens da empresa; (d) comunicar imediatamente quaisquer irregularidades ao superior.</div>
-  <div class="doc-clause">8.2. <b>Das atividades correlatas de asseio e organização:</b> integram as atribuições do cargo, além das tarefas de venda e atendimento, a <b>manutenção da limpeza, higiene e organização do estabelecimento</b>, incluindo a área de vendas, o balcão, os banheiros e demais dependências de uso comum, mantendo o ambiente livre de lixo, sujeira e desordem. Tais tarefas são compatíveis com a função e inerentes ao funcionamento do comércio varejista, nos termos do Art. 456, parágrafo único, da CLT, não configurando desvio de função.</div>
-  <div class="doc-clause">8.3. <b>Da conformidade com o processo seletivo:</b> o(a) EMPREGADO(A) declara que todas as condições ora pactuadas — jornada, remuneração, comissões, prêmios, atribuições e deveres — foram previamente apresentadas, discutidas e aceitas durante a entrevista de emprego e o processo de admissão, com as quais concorda integralmente, ratificando-as por este instrumento.</div>
-  <div class="doc-clause">8.4. É vedado ao(à) EMPREGADO(A), sob pena de rescisão por justa causa (Art. 482 da CLT): (a) abandono de emprego; (b) incontinência de conduta ou mau procedimento; (c) ato de improbidade; (d) desídia no desempenho das funções; (e) violação de segredo da empresa; (f) embriaguez habitual ou em serviço; (g) prática de jogos de azar; (h) falsificação ou fraude no registro de ponto.</div>
-
-  <div class="doc-section-title">Cláusula 9ª — Do Sigilo e Confidencialidade</div>
-  <div class="doc-clause">9.1. O(A) EMPREGADO(A) obriga-se a manter sigilo absoluto sobre dados de clientes, fornecedores, estratégias comerciais, precificações, sistemas internos e demais informações confidenciais, durante a vigência e por 24 (vinte e quatro) meses após o encerramento do contrato.</div>
-  <div class="doc-clause">9.2. A violação do sigilo constitui ato lesivo aos interesses da empresa e ensejará rescisão por justa causa, além de responsabilidade civil e criminal nos termos dos Arts. 186 e 927 do Código Civil e do Art. 154-A do Código Penal (invasão de dispositivo informático).</div>
-
-  <div class="doc-section-title">Cláusula 10ª — Proteção de Dados — LGPD</div>
-  <div class="doc-clause">10.1. Em conformidade com a Lei nº 13.709/2018 (Lei Geral de Proteção de Dados), o(a) EMPREGADO(A) autoriza o tratamento de seus dados pessoais e profissionais para fins exclusivamente trabalhistas e previdenciários, incluindo: registro em sistemas internos, envio a órgãos governamentais (eSocial, CAGED, RAIS), controle de ponto e folha de pagamento.</div>
-  <div class="doc-clause">10.2. Os dados serão tratados com segurança, confidencialidade e finalidade legítima, sendo vedado qualquer uso para fins distintos dos trabalhistas sem o consentimento expresso do(a) titular.</div>
-
-  <div class="doc-section-title">Cláusula 11ª — Saúde, Segurança e Medicina do Trabalho</div>
-  <div class="doc-clause">11.1. O(A) EMPREGADOR(A) cumprirá as Normas Regulamentadoras do MTE, especialmente: NR-1 (Disposições Gerais e Gerenciamento de Riscos), NR-5 (CIPA), NR-6 (EPI), NR-7 (PCMSO) e NR-9 (PGR).</div>
-  <div class="doc-clause">11.2. O(A) EMPREGADO(A) submeter-se-á aos exames médicos ocupacionais — admissional, periódico, de retorno ao trabalho e demissional — conforme Portaria MTE nº 3.214/1978 e NR-7, comparecendo na data e local determinados pelo(a) EMPREGADOR(A).</div>
-  <div class="doc-clause">11.3. O(A) EMPREGADO(A) obriga-se a: utilizar os EPIs fornecidos; participar de treinamentos de segurança; comunicar acidentes de trabalho imediatamente; não criar situações de risco para si ou para terceiros.</div>
-
-  <div class="doc-section-title">Cláusula 12ª — Dos Atestados Médicos</div>
-  <div class="doc-clause">12.1. Atestados de saúde deverão ser apresentados ao(à) EMPREGADOR(A) no prazo máximo de 48 (quarenta e oito) horas após a ausência, sob pena de não justificação da falta, conforme Art. 6º da Lei nº 605/1949.</div>
-  <div class="doc-clause">12.2. Afastamentos superiores a 15 dias consecutivos serão encaminhados ao INSS para avaliação de benefício previdenciário, nos termos do Art. 59 da Lei nº 8.213/1991.</div>
-
-  <div class="doc-section-title">Cláusula 13ª — Direito de Imagem</div>
-  <div class="doc-clause">13.1. O(A) EMPREGADO(A) autoriza, de forma gratuita e durante a vigência deste contrato, o uso de sua imagem e voz em materiais institucionais, publicações em redes sociais corporativas e campanhas internas, exceto para fins distintos dos promocionais da empresa, nos termos do Art. 20 do Código Civil.</div>
-
-  <div class="doc-section-title">Cláusula 14ª — Uso de Tecnologia e Redes Sociais</div>
-  <div class="doc-clause">14.1. Os equipamentos, sistemas e acesso à internet fornecidos pela empresa são de uso exclusivamente profissional. O(A) EMPREGADO(A) não poderá utilizá-los para acesso a redes sociais pessoais, jogos online, streaming ou atividades não relacionadas ao trabalho durante o expediente.</div>
-  <div class="doc-clause">14.2. É vedado: fotografar ou gravar o ambiente de trabalho sem autorização; divulgar informações da empresa em redes sociais pessoais; realizar transações comerciais próprias durante o horário de trabalho.</div>
-
-  <div class="doc-section-title">Cláusula 15ª — Do Banco de Horas</div>
-  <div class="doc-clause">15.1. ${get('f_banco_horas')==='sim'?'Fica instituído o Banco de Horas mediante o presente acordo individual escrito, com prazo de compensação de até <b>6 (seis) meses</b>, nos termos do Art. 59, §5º da CLT. Havendo acordo ou convenção coletiva que autorize prazo maior, este poderá ser estendido a até 12 (doze) meses (Art. 59, §2º). As horas positivas não compensadas ao final do período serão pagas como horas extras, com o adicional devido.':'O Banco de Horas não será adotado neste contrato, sendo as horas extras remuneradas conforme Cláusula 4ª.'}</div>
-
-  <div class="doc-section-title">Cláusula 16ª — Das Penalidades Disciplinares</div>
-  <div class="doc-clause">16.1. O descumprimento das obrigações contratuais e legais ensejará, observada a gradação e a proporcionalidade: (a) advertência verbal; (b) advertência escrita; (c) suspensão disciplinar de 1 a 30 dias, com desconto em folha (Art. 474, CLT); (d) rescisão por justa causa (Art. 482, CLT).</div>
-  <div class="doc-clause">16.2. <b>Constituem falta disciplinar sujeita a advertência</b>, entre outras: (a) deixar de registrar qualquer marcação de ponto sem justificativa; (b) atrasos reiterados; (c) descuido com a limpeza e organização do estabelecimento; (d) descumprimento das normas internas. A reincidência autoriza a aplicação da penalidade imediatamente superior.</div>
-  <div class="doc-clause">16.3. A aplicação de penalidade observará a imediatidade, a ausência de dupla punição pelo mesmo fato e o direito do(a) empregado(a) de registrar sua ciência ou discordância.</div>
-
-  <div class="doc-section-title">Cláusula 17ª — Da Não Concorrência</div>
-  <div class="doc-clause">17.1. Durante a vigência do contrato, é vedado ao(à) EMPREGADO(A) concorrer com a empregadora ou atuar em benefício de concorrentes diretos, sob pena de justa causa (Art. 482, "c" e "g", CLT).</div>
-
-  <div class="doc-section-title">Cláusula 18ª — Da Rescisão Contratual</div>
-  <div class="doc-clause">18.1. O contrato poderá ser rescindido por qualquer das partes, observados: (a) aviso prévio de 30 dias, acrescido de 3 dias por ano trabalhado, limitado a 90 dias (Art. 487 e 488, CLT, e Lei nº 12.506/2011); (b) pagamento das verbas rescisórias no prazo de 10 dias corridos (Art. 477, §6º, CLT).</div>
-  <div class="doc-clause">18.2. Na rescisão sem justa causa pela EMPREGADORA, o(a) EMPREGADO(A) terá direito à multa de 40% sobre o saldo do FGTS (Art. 18, §1º, Lei nº 8.036/1990), além das verbas legais.</div>
-  <div class="doc-clause">18.3. Na rescisão antecipada do contrato de experiência, aplica-se o disposto nos Arts. 479 e 480 da CLT.</div>
-
-  <div class="doc-section-title">Cláusula 19ª — Do Assédio Moral e Sexual e da Igualdade</div>
-  <div class="doc-clause">19.1. É vedada qualquer prática de assédio moral ou sexual, discriminação ou constrangimento (Lei nº 9.029/1995 e Lei nº 14.457/2022 — canal de denúncias da CIPA), constituindo falta grave. A empresa compromete-se a manter ambiente de trabalho seguro e a apurar denúncias.</div>
-
-  <div class="doc-section-title">Cláusula 20ª — Do Reconhecimento das Condições e Boa-Fé</div>
-  <div class="doc-clause">20.1. As partes declaram que o presente contrato foi celebrado de boa-fé, com pleno conhecimento e aceitação recíproca de todas as cláusulas, que refletem fielmente o que foi tratado no processo seletivo, não havendo vício de consentimento (Arts. 113, 421 e 422 do Código Civil).</div>
-  <div class="doc-clause">20.2. O(A) EMPREGADO(A) declara que recebeu esclarecimentos sobre jornada, remuneração variável, atribuições e deveres, e que teve oportunidade de sanar dúvidas antes da assinatura.</div>
-
-  <div class="doc-section-title">Cláusula 21ª — Da Mediação e Foro</div>
-  <div class="doc-clause">21.1. As partes buscarão solução extrajudicial para conflitos, admitida a Comissão de Conciliação Prévia ou mediação (Arts. 625-A a 625-H da CLT).</div>
-  <div class="doc-clause">21.2. Não havendo acordo, fica eleito o foro da Vara do Trabalho da Comarca de <b>${get('e_comarca')}</b>/${get('e_uf')}, competente para dirimir controvérsias oriundas deste contrato.</div>
-
-  <div class="doc-section-title">Cláusula 22ª — Disposições Finais</div>
-  <div class="doc-clause">22.1. Este contrato é celebrado em 2 (duas) vias de igual teor, ou por meio eletrônico com assinatura digital de igual validade (Lei nº 14.063/2020 e MP nº 2.200-2/2001), entregando-se via ao(à) EMPREGADO(A) (Art. 29, §1º da CLT).</div>
-  <div class="doc-clause">22.2. O(A) EMPREGADO(A) declara ter lido, compreendido e concordado com todas as cláusulas, recebido cópia do Regulamento Interno e do Código de Conduta.</div>
-  <div class="doc-clause">22.3. A eventual nulidade de qualquer cláusula não invalidará as demais, que permanecerão em pleno vigor.</div>
+  <div class="doc-clause" style="white-space:pre-wrap">${(typeof _atlasContratoWizardTexto==='function') ? _atlasContratoWizardTexto() : 'Modelo de contrato indisponível.'}</div>
   <div class="doc-clause"><b>Dados complementares:</b> Grau de instrução: ${get('f_instrucao')} | Sexo: ${get('f_sexo')} | Data de nascimento: ${get('f_nascimento')}</div>
   ${S()}
 </div>`;
@@ -51976,33 +51870,170 @@ window.atlasVerModeloContratoAutonomo = function(empId){
 })();
 
 // 2) Limpa os contratos antigos e regrava os 2 modelos corretos
-(function _atlasReseedContratos(){
+(function _atlasPurgeContratosTpl(){
+  // Os modelos agora vivem em Contratos & Docs (seção própria).
+  // Remove os cards antigos de contrato do módulo "Templates de Documentos".
   try{
     if(typeof _tplLoad!=='function' || typeof _tplSave!=='function') return;
-    let tpls = _tplLoad().filter(t =>
+    const antes = _tplLoad();
+    const depois = antes.filter(t =>
       t.id!=='atlas_contrato_clt_modelo' &&
       t.id!=='atlas_contrato_autonomo_modelo' &&
+      t.tipo!=='contrato' &&
       !(t.nome && /contrato individual de trabalho|presta[cç][aã]o de servi[cç]os aut/i.test(t.nome))
     );
-    tpls.unshift({
-      id:'atlas_contrato_autonomo_modelo',
-      nome:'Contrato de Prestação de Serviços Autônomos (PF sem CNPJ)',
-      tipo:'contrato',
-      titulo:'CONTRATO DE PRESTAÇÃO DE SERVIÇOS AUTÔNOMOS — Código Civil, arts. 593-609',
-      corpo: ATLAS_CONTRATO_AUTONOMO,
-      fixo:true, createdAt:new Date().toISOString()
-    });
-    tpls.unshift({
-      id:'atlas_contrato_clt_modelo',
-      nome:'Contrato Individual de Trabalho (CLT) — Modelo Zoom Tech',
-      tipo:'contrato',
-      titulo:'CONTRATO INDIVIDUAL DE TRABALHO — Contrato de Experiência (Art. 443, §2º, "c" da CLT)',
-      corpo: ATLAS_CONTRATO_MODELO,
-      fixo:true, createdAt:new Date().toISOString()
-    });
-    _tplSave(tpls);
-  }catch(e){ console.warn('[reseed contratos]',e); }
+    if(depois.length !== antes.length) _tplSave(depois);
+  }catch(e){ console.warn('[purge contratos tpl]', e); }
 })();
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ASSINATURA DE CONTRATOS — envio ao Portal + link seguro (token)
+// ═══════════════════════════════════════════════════════════════════════════
+
+const ATLAS_CT_META = {
+  clt: {
+    tipo:'contrato_clt',
+    tipoLabel:'Contrato Individual de Trabalho (CLT)',
+    titulo:'Contrato Individual de Trabalho — Assinatura',
+    icone:'📑'
+  },
+  autonomo: {
+    tipo:'contrato_autonomo',
+    tipoLabel:'Contrato de Prestação de Serviços Autônomos',
+    titulo:'Contrato de Prestação de Serviços Autônomos — Assinatura',
+    icone:'📝'
+  }
+};
+
+function _atlasContratoConteudo(emp, kind){
+  const txt = (kind==='autonomo')
+    ? atlasPreencherContratoAutonomo(emp||{})
+    : atlasPreencherContrato(emp||{});
+  const papel = (kind==='autonomo') ? 'CONTRATADO(A)' : 'EMPREGADO(A)';
+  return txt +
+    '\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+    'DECLARAÇÃO DE ACEITE E ASSINATURA ELETRÔNICA\n' +
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+    'Eu, ' + ((emp&&emp.nome)||'________________') + ', na qualidade de ' + papel + ', ' +
+    'declaro que li e compreendi integralmente todas as cláusulas do presente contrato, ' +
+    'com as quais concordo livremente. Ao assinar eletronicamente, reconheço a validade ' +
+    'jurídica desta assinatura nos termos da MP nº 2.200-2/2001 e da Lei nº 14.063/2020.';
+}
+
+// Cria o documento de assinatura do contrato para UM colaborador
+async function _atlasCriarDocContrato(empId, kind){
+  const emp = APP.employees.find(e=>e.id===empId);
+  if(!emp) return null;
+  const meta = ATLAS_CT_META[kind] || ATLAS_CT_META.clt;
+  const jaPend = (APP.assinaturas||[]).find(a=>a.empId===empId && a.tipo===meta.tipo && a.status==='pendente');
+  if(jaPend) return jaPend;
+  const doc = {
+    id: uid(),
+    empId, empNome: emp.nome||'',
+    tipo: meta.tipo,
+    tipoLabel: meta.tipoLabel,
+    titulo: meta.titulo,
+    conteudo: _atlasContratoConteudo(emp, kind),
+    status:'pendente',
+    origem:'rh_contrato',
+    criadoEm:new Date().toISOString(),
+    criadoPor:'RH',
+    assinaturaData:null, assinaturaPNG:null, assinaturaHash:null, assinaturaIP:null, assinaturaGeo:null,
+    historicoStatus:[{status:'pendente',ts:new Date().toISOString(),por:'RH'}]
+  };
+  if(!APP.assinaturas) APP.assinaturas=[];
+  APP.assinaturas.push(doc);
+  return doc;
+}
+
+// Envia o contrato para o colaborador assinar no portal
+window.atlasEnviarContrato = async function(empId, kind){
+  const emp = APP.employees.find(e=>e.id===empId);
+  if(!emp){ toast('Selecione um colaborador.','warn'); return null; }
+  const meta = ATLAS_CT_META[kind] || ATLAS_CT_META.clt;
+  const doc = await _atlasCriarDocContrato(empId, kind);
+  if(!doc){ toast('Não foi possível criar o documento.','err'); return null; }
+  await _atlasSyncAssinaturasFB();
+  if(typeof pushNotificacaoPortal==='function'){
+    pushNotificacaoPortal(empId, meta.icone+' '+meta.tipoLabel+' para assinar',
+      'O RH disponibilizou seu contrato. Acesse o portal em "Assinaturas" para ler e assinar.',
+      'contrato');
+  }
+  try{ if(typeof auditLog==='function') auditLog('Enviou '+meta.tipoLabel+' para assinatura', emp.nome, 'assinaturas'); }catch(_){}
+  toast('✅ Contrato enviado para '+String(emp.nome).split(' ')[0]+' assinar no portal!','ok',4000);
+  return doc;
+};
+
+// Envia + gera LINK SEGURO com token (48h) e mostra modal para copiar/WhatsApp
+window.atlasLinkContrato = async function(empId, kind){
+  const emp = APP.employees.find(e=>e.id===empId);
+  if(!emp){ toast('Selecione um colaborador.','warn'); return; }
+  if(typeof FBASE==='undefined' || !FBASE){
+    toast('Conecte o Firebase para gerar links seguros.','err'); return;
+  }
+  const meta = ATLAS_CT_META[kind] || ATLAS_CT_META.clt;
+  openModal('🔐 Gerando link de assinatura...', `<div style="text-align:center;padding:32px">
+    <div style="font-size:36px;margin-bottom:12px">⏳</div><div>Preparando contrato e token seguro...</div></div>`, 480);
+
+  const doc = await atlasEnviarContrato(empId, kind);
+  if(!doc){ closeModal(); return; }
+
+  const result = await gerarTokenPortal(empId);
+  if(!result){ closeModal(); return; }
+  const url = PORTAL_URL + '?tk=' + result.token;
+  const expStr = result.expira.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  const msg = encodeURIComponent(
+    'Olá '+String(emp.nome).split(' ')[0]+'! Seu '+meta.tipoLabel+' está disponível para assinatura digital.\n\n'+
+    'Acesse o link seguro abaixo e vá em "Assinaturas":\n'+url+'\n\nO link expira em '+expStr+'.'
+  );
+  const tel = (emp.telefone||'').replace(/\D/g,'');
+  const wa = tel ? ('https://wa.me/55'+tel+'?text='+msg) : ('https://web.whatsapp.com/send?text='+msg);
+
+  openModal(meta.icone+' Link de assinatura — '+esc(emp.nome), `
+    <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;color:#065F46">
+      ✅ Contrato enviado ao portal e disponível em <b>Assinaturas</b>. O link abaixo dá acesso direto, sem login.
+    </div>
+    <div class="fld">
+      <label>Link seguro (expira em ${expStr})</label>
+      <input type="text" id="atlas-ct-link" value="${url}" readonly
+        style="width:100%;font-size:12px;padding:10px;border:1px solid var(--border);border-radius:8px;background:#F8FAFC">
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+      <button class="btn btn-blue btn-sm" onclick="atlasCopiarLinkContrato()">📋 Copiar link</button>
+      <a class="btn btn-green btn-sm" href="${wa}" target="_blank" style="text-decoration:none">💬 Enviar no WhatsApp</a>
+      <a class="btn btn-ghost btn-sm" href="${url}" target="_blank" style="text-decoration:none">🔗 Abrir portal</a>
+    </div>
+    <div class="mft"><button class="btn btn-ghost" onclick="closeModal();navigate('assinatura_digital')">Ver em Assinaturas</button></div>
+  `, 620);
+};
+
+window.atlasCopiarLinkContrato = function(){
+  const el = document.getElementById('atlas-ct-link');
+  if(!el) return;
+  el.select();
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(el.value).then(
+      ()=>toast('Link copiado!'),
+      ()=>toast('Selecione e copie manualmente.','warn')
+    );
+  } else { try{ document.execCommand('copy'); toast('Link copiado!'); }catch(e){ toast('Copie manualmente.','warn'); } }
+};
+
+// Handlers do modal (leem o colaborador selecionado)
+window.atlasEnviarContratoSel = async function(kind){
+  const empId = _atlasEmpSel();
+  if(!empId){ toast('Escolha um colaborador para enviar o contrato.','warn'); return; }
+  closeModal();
+  await atlasEnviarContrato(empId, kind);
+  if(typeof navigate==='function') navigate('assinatura_digital');
+};
+
+window.atlasLinkContratoSel = async function(kind){
+  const empId = _atlasEmpSel();
+  if(!empId){ toast('Escolha um colaborador para gerar o link.','warn'); return; }
+  await atlasLinkContrato(empId, kind);
+};
 
 // 3) MODAL de modelos de contrato
 window.atlasModalContratos = function(only){
@@ -52014,16 +52045,24 @@ window.atlasModalContratos = function(only){
     <div style="border:1px solid var(--border);border-left:4px solid #0B1E35;border-radius:10px;padding:14px;background:#fff">
       <div style="font-weight:800;font-size:15px;margin-bottom:4px">📑 Contrato Individual de Trabalho (CLT)</div>
       <div style="font-size:12px;color:var(--mt);margin-bottom:10px">Contrato de experiência com 22 cláusulas — jornada, comissões, prêmios, banco de horas, FGTS, LGPD. Base: CLT / Lei 13.467/2017.</div>
-      <button class="btn btn-blue btn-sm" onclick="atlasGerarContratoSel('clt')">👁 Gerar / Imprimir</button>
-      <button class="btn btn-ghost btn-sm" onclick="atlasCopiarContrato('clt')">📋 Copiar texto</button>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-blue btn-sm" onclick="atlasGerarContratoSel('clt')">👁 Gerar / Imprimir</button>
+        <button class="btn btn-sm" style="background:#0B1E35;color:#C9A84C;border:none;font-weight:700" onclick="atlasEnviarContratoSel('clt')">✍️ Enviar p/ assinar</button>
+        <button class="btn btn-green btn-sm" onclick="atlasLinkContratoSel('clt')">🔗 Gerar link</button>
+        <button class="btn btn-ghost btn-sm" onclick="atlasCopiarContrato('clt')">📋 Copiar</button>
+      </div>
     </div>`;
 
   const cardAUT = `
     <div style="border:1px solid var(--border);border-left:4px solid #C9A84C;border-radius:10px;padding:14px;background:#fff">
       <div style="font-weight:800;font-size:15px;margin-bottom:4px">📝 Prestação de Serviços Autônomos (sem CNPJ)</div>
       <div style="font-size:12px;color:var(--mt);margin-bottom:10px">Pessoa física autônoma, sem vínculo empregatício. INSS contribuinte individual (11%), RPA, ISS. Base: Código Civil, arts. 593-609.</div>
-      <button class="btn btn-blue btn-sm" onclick="atlasGerarContratoSel('autonomo')">👁 Gerar / Imprimir</button>
-      <button class="btn btn-ghost btn-sm" onclick="atlasCopiarContrato('autonomo')">📋 Copiar texto</button>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-blue btn-sm" onclick="atlasGerarContratoSel('autonomo')">👁 Gerar / Imprimir</button>
+        <button class="btn btn-sm" style="background:#0B1E35;color:#C9A84C;border:none;font-weight:700" onclick="atlasEnviarContratoSel('autonomo')">✍️ Enviar p/ assinar</button>
+        <button class="btn btn-green btn-sm" onclick="atlasLinkContratoSel('autonomo')">🔗 Gerar link</button>
+        <button class="btn btn-ghost btn-sm" onclick="atlasCopiarContrato('autonomo')">📋 Copiar</button>
+      </div>
     </div>`;
 
   let cards = cardCLT + cardAUT;
@@ -52034,7 +52073,7 @@ window.atlasModalContratos = function(only){
     <div class="fld">
       <label>Colaborador (opcional — preenche os dados automaticamente)</label>
       <select id="atlas-ct-emp">
-        <option value="">— Deixar em branco para preencher à mão —</option>
+        <option value="">— Deixar em branco (só imprimir) —</option>
         ${opts}
       </select>
     </div>
@@ -52044,7 +52083,8 @@ window.atlasModalContratos = function(only){
 };
 
 window._atlasEmpSel = function(){
-  const sel = document.getElementById('atlas-ct-emp');
+  // Prioriza o select do modal (quando aberto); senão usa o da seção inline
+  const sel = document.getElementById('atlas-ct-emp') || document.getElementById('atlas-ct-emp-inline');
   return (sel && sel.value) ? sel.value : null;
 };
 
@@ -52087,13 +52127,67 @@ window.atlasCopiarContrato = function(kind){
   };
 })();
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Contrato do WIZARD DE ADMISSÃO usa o MODELO NOVO (substitui o texto antigo)
+// ═══════════════════════════════════════════════════════════════════════════
+window._atlasContratoWizardTexto = function(){
+  try{
+    var g = (typeof get==='function') ? get : function(){ return '______________________'; };
+    var endEmpresa = [g('e_endereco'), (g('e_cidade')+'/'+g('e_uf'))].filter(Boolean).join(', ');
+    var rgFull = g('f_rg') + (g('f_rg_orgao') ? (' — '+g('f_rg_orgao')) : '');
+    var endFunc = (typeof enderecoFuncionario==='function') ? enderecoFuncionario() : g('f_endereco');
+    var adm = (typeof admissaoFmt==='function') ? admissaoFmt() : g('f_admissao');
+    var dataHoje = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+
+    var map = {
+      '{EMPRESA}': g('e_nome'),
+      '{CNPJ}': g('e_cnpj'),
+      '{ENDERECO_EMPRESA}': endEmpresa,
+      '{COMARCA}': g('e_cidade')+'/'+g('e_uf'),
+      '{CIDADE}': g('e_cidade'),
+      '{DATA}': dataHoje,
+      '{NOME}': g('f_nome'),
+      '{CPF}': g('f_cpf'),
+      '{RG}': rgFull,
+      '{PIS}': g('f_pis'),
+      '{CTPS}': g('f_ctps'),
+      '{NACIONALIDADE}': g('f_nacionalidade'),
+      '{ESTADO_CIVIL}': g('f_estadocivil'),
+      '{ENDERECO_EMP}': endFunc,
+      '{CARGO}': g('f_cargo'),
+      '{CBO}': g('f_cbo'),
+      '{ADMISSAO}': adm,
+      '{SALARIO}': g('f_salario')
+    };
+
+    var txt = ATLAS_CONTRATO_MODELO;
+    Object.keys(map).forEach(function(k){ txt = txt.split(k).join(map[k]); });
+
+    // Remove o cabeçalho do modelo (já exibido pelo doc-title/subtitle/alert)
+    var corte = txt.indexOf('IDENTIFICAÇÃO DAS PARTES');
+    if(corte > -1) txt = txt.substring(corte);
+
+    // Remove o bloco de assinaturas do modelo (o wizard usa o S() nativo)
+    var fim = txt.indexOf('Local e data:');
+    if(fim > -1) txt = txt.substring(0, fim).trim();
+
+    // Escapa HTML para renderizar como texto
+    return txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }catch(e){
+    console.warn('[contrato wizard]', e);
+    return 'Erro ao gerar o modelo de contrato.';
+  }
+};
+
 (function _atlasInjectButtons(){
   // 3a. Botão no módulo de Assinatura Digital
   const _origAssin = window.rAssinaturaDigital;
   if(typeof _origAssin==='function'){
     window.rAssinaturaDigital = function(){
       let html = _origAssin.apply(this, arguments);
-      const btn = `<button class="btn btn-sm" style="background:#0B1E35;color:#C9A84C;border:none;font-weight:700" onclick="atlasModalRegimento()">📖 Enviar Regimento p/ Assinar</button>`;
+      const btn = `<button class="btn btn-sm" style="background:#0B1E35;color:#C9A84C;border:none;font-weight:700" onclick="atlasModalContratos()">📑 Enviar Contrato p/ Assinar</button>
+      <button class="btn btn-sm" style="background:#0B1E35;color:#C9A84C;border:none;font-weight:700" onclick="atlasModalRegimento()">📖 Enviar Regimento p/ Assinar</button>`;
       // Insere o botão ao lado de "Novo Documento" no hero
       html = html.replace(
         '<button class="btn btn-sm" style="background:#C9A84C;color:#0B1E35;border:none;font-weight:700" onclick="assinNovoDocumento()">',
@@ -52102,21 +52196,85 @@ window.atlasCopiarContrato = function(kind){
       return html;
     };
   }
-  // 3b. Botão no módulo Contratos & Docs (ver modelo padrão)
+  // 3b. Seção "Modelos de Contrato" dentro de Contratos & Docs
   const _origCont = window.rContratos || (typeof rContratos!=='undefined'?rContratos:null);
   if(typeof _origCont==='function'){
     window.rContratos = function(){
       let html = _origCont.apply(this, arguments);
-      const btns = `<button class="btn btn-ghost btn-sm" onclick="atlasModalContratos()" title="Modelos de contrato (CLT e Autônomo)">📑 Modelos de Contrato</button>
-      <button class="btn btn-ghost btn-sm" onclick="atlasModalRegimento()" title="Enviar regimento interno para assinatura">📖 Regimento Interno</button>`;
-      // Insere ao lado do botão de "Análise IA em Lote"
+
+      // Botão do Regimento ao lado da Análise IA
+      const btnReg = `<button class="btn btn-ghost btn-sm" onclick="atlasModalRegimento()" title="Enviar regimento interno para assinatura">📖 Regimento Interno</button>`;
       html = html.replace(
         '<button class="btn btn-ghost btn-sm" onclick="contratosAIBulk()" title="IA sugere contratos pendentes">\n        🤖 Análise IA em Lote\n      </button>',
-        '<button class="btn btn-ghost btn-sm" onclick="contratosAIBulk()" title="IA sugere contratos pendentes">\n        🤖 Análise IA em Lote\n      </button>\n      ' + btns
+        '<button class="btn btn-ghost btn-sm" onclick="contratosAIBulk()" title="IA sugere contratos pendentes">\n        🤖 Análise IA em Lote\n      </button>\n      ' + btnReg
       );
+
+      // Seção dos modelos, inserida antes da lista de funcionários
+      try{
+        html = html.replace('<!-- LISTA DE FUNCIONÁRIOS COM STATUS DE CONTRATOS -->',
+          _atlasSecaoModelos() + '\n  <!-- LISTA DE FUNCIONÁRIOS COM STATUS DE CONTRATOS -->');
+      }catch(e){ console.warn('[secao modelos]', e); }
+
       return html;
     };
   }
+
+  // Monta o HTML da seção de modelos de contrato
+  window._atlasSecaoModelos = function(){
+    const emps = ((typeof APP!=='undefined' && APP.employees) ? APP.employees : [])
+      .filter(e=>e.status==='ativo')
+      .slice().sort((a,b)=> String(a.nome||'').localeCompare(String(b.nome||'')));
+    const opts = emps.map(e=>`<option value="${e.id}">${esc(e.nome||'(sem nome)')}${e.cargo?(' — '+esc(e.cargo)):''}</option>`).join('');
+
+    const modelo = (kind, cor, icone, titulo, subtitulo, desc, tags) => `
+      <div style="background:#fff;border:1px solid var(--border);border-top:3px solid ${cor};border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <div style="width:38px;height:38px;border-radius:10px;background:${cor}14;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0">${icone}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:800;font-size:14.5px;color:var(--tx);line-height:1.3">${titulo}</div>
+            <div style="font-size:11.5px;color:var(--mt);margin-top:2px">${subtitulo}</div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--mt);line-height:1.55">${desc}</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          ${tags.map(t=>`<span style="background:${cor}12;color:${cor};padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:700">${t}</span>`).join('')}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto;padding-top:8px;border-top:1px dashed var(--border)">
+          <button class="btn btn-blue btn-sm" onclick="atlasGerarContratoSel('${kind}')">👁 Gerar / Imprimir</button>
+          <button class="btn btn-sm" style="background:#0B1E35;color:#C9A84C;border:none;font-weight:700" onclick="atlasEnviarContratoSel('${kind}')">✍️ Enviar p/ assinar</button>
+          <button class="btn btn-green btn-sm" onclick="atlasLinkContratoSel('${kind}')">🔗 Gerar link</button>
+          <button class="btn btn-ghost btn-sm" onclick="atlasCopiarContrato('${kind}')">📋 Copiar</button>
+        </div>
+      </div>`;
+
+    return `
+  <div class="card" style="margin-bottom:20px;padding:0;overflow:hidden">
+    <div style="background:linear-gradient(135deg,#0B1E35 0%,#152F4D 100%);padding:16px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div>
+        <div style="color:#fff;font-weight:800;font-size:15.5px;letter-spacing:.3px">📑 Modelos de Contrato</div>
+        <div style="color:#C9A84C;font-size:11.5px;margin-top:3px">Gere, imprima ou envie para assinatura digital no portal do colaborador</div>
+      </div>
+      <div style="min-width:260px;flex:1;max-width:380px">
+        <select id="atlas-ct-emp-inline" style="width:100%;padding:9px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.10);color:#fff;font-size:13px;font-weight:600">
+          <option value="" style="color:#1a1a1a">— Selecione o colaborador —</option>
+          ${opts}
+        </select>
+      </div>
+    </div>
+    <div style="padding:18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;background:#F8FAFC">
+      ${modelo('clt','#2563EB','📑','Contrato Individual de Trabalho','Regime CLT — vínculo empregatício',
+        'Contrato de experiência com 22 cláusulas: jornada, comissões, prêmios por meta, banco de horas, FGTS, férias, sigilo e LGPD.',
+        ['CLT','Lei 13.467/2017','Art. 443 §2º'])}
+      ${modelo('autonomo','#C9A84C','📝','Prestação de Serviços Autônomos','Pessoa física sem CNPJ — sem vínculo',
+        'Prestação autônoma sem subordinação: INSS contribuinte individual (11%), RPA, ISS e ausência expressa de vínculo empregatício.',
+        ['Código Civil','Arts. 593-609','Lei 8.212/91'])}
+    </div>
+    <div style="padding:10px 18px;background:#FEF9EC;border-top:1px solid #FDE68A;font-size:11.5px;color:#92400E">
+      💡 Selecione o colaborador acima para preencher os dados automaticamente. Sem seleção, o contrato sai em branco para preenchimento manual.
+    </div>
+  </div>
+`;
+  };
 })();
 // ═══════════════ FIM DO MÓDULO Regimento + Modelo de Contrato ═══════════════
 
