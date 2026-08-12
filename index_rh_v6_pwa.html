@@ -9386,23 +9386,29 @@ async function gerarHTMLContratos(emp){
   </div><div class="doc-witness"><div class="doc-witness-block"><div class="doc-witness-line"></div><div style="font-size:10pt">Testemunha 1: ________________________ CPF: ______________</div></div><div class="doc-witness-block"><div class="doc-witness-line"></div><div style="font-size:10pt">Testemunha 2: ________________________ CPF: ______________</div></div></div>
   <div class="doc-city">Foz do Iguaçu, ${admissaoFmt}.</div>`;}
 
-  const contratoCLT=`<div class="doc">${docHeader()}<div class="doc-title">Contrato Individual de Trabalho</div>
-    <div class="doc-subtitle2">Regime CLT — Contrato por Prazo Indeterminado</div>
-    <div class="doc-section-title">I — Das Partes</div>
-    <table class="doc-table"><tr><td>Empregadora</td><td>${EMPRESA_CFG.nomeRazao} · CNPJ: ${EMPRESA_CFG.cnpj}</td></tr>
-    <tr><td>Empregado(a)</td><td>${nome}</td></tr><tr><td>CPF</td><td>${cpf}</td></tr>
-    <tr><td>Cargo</td><td>${cargo}</td></tr><tr><td>Data de Admissão</td><td>${admissaoFmt}</td></tr>
-    <tr><td>Salário Base</td><td>R$ ${salFmt} mensais</td></tr>
-    <tr><td>Carga Horária</td><td>44 horas semanais — CLT Art. 58</td></tr>
-    <tr><td>Local de Trabalho</td><td>Foz do Iguaçu — PR</td></tr></table>
-    <div class="doc-section-title">II — Do Objeto</div>
-    <div class="doc-clause">O(A) EMPREGADO(A) é contratado(a) para exercer as funções inerentes ao cargo de <b>${cargo}</b>, subordinando-se às normas internas da empresa e às disposições da CLT.</div>
-    <div class="doc-section-title">III — Da Remuneração</div>
-    <div class="doc-clause">O(A) EMPREGADO(A) receberá salário mensal de <b>R$ ${salFmt}</b>, acrescido de comissões e bônus conforme política interna vigente, pagos até o 5º dia útil do mês subsequente ao trabalhado.</div>
-    <div class="doc-section-title">IV — Das Obrigações</div>
-    <div class="doc-clause">O(A) EMPREGADO(A) obriga-se a cumprir as normas internas, manter sigilo sobre informações confidenciais e zelar pelo patrimônio da empresa. A EMPREGADORA obriga-se a fornecer ambiente de trabalho seguro e a cumprir todas as obrigações trabalhistas previstas na legislação vigente.</div>
-    <div class="doc-section-title">V — Da Vigência</div>
-    <div class="doc-clause">O presente contrato é celebrado por prazo indeterminado, podendo ser rescindido por qualquer das partes, com aviso prévio de 30 dias, nos termos do art. 487 da CLT.</div>
+  // Contrato completo — usa o modelo oficial (CLT ou Autônomo, conforme escolha)
+  const _ctModelo = (typeof _atlasCtWizKind==='function') ? _atlasCtWizKind() : 'clt';
+  const _ctTexto = (function(){
+    try{
+      if(_ctModelo==='autonomo' && typeof atlasPreencherContratoAutonomo==='function')
+        return atlasPreencherContratoAutonomo(emp);
+      if(typeof atlasPreencherContrato==='function')
+        return atlasPreencherContrato(emp);
+    }catch(e){ console.warn('[contrato admissao]', e); }
+    return 'Modelo de contrato indisponível.';
+  })();
+  // Remove cabeçalho e assinaturas do texto (o layout já tem os seus)
+  const _ctCorpo = (function(t){
+    const ini = t.indexOf('IDENTIFICAÇÃO DAS PARTES');
+    if(ini > -1) t = t.substring(ini);
+    const fim = t.indexOf('Local e data:');
+    if(fim > -1) t = t.substring(0, fim).trim();
+    return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  })(_ctTexto);
+
+  const contratoCLT=`<div class="doc">${docHeader()}<div class="doc-title">${_ctModelo==='autonomo'?'Contrato de Prestação de Serviços Autônomos':'Contrato Individual de Trabalho'}</div>
+    <div class="doc-subtitle2">${_ctModelo==='autonomo'?'Profissional Autônomo — Código Civil, arts. 593 a 609':'Regime CLT — Lei nº 13.467/2017'}</div>
+    <div class="doc-clause" style="white-space:pre-wrap;text-align:justify">${_ctCorpo}</div>
     ${signBlock()}</div>`;
 
   const fichaRegistro=`<div style="page-break-before:always"></div><div class="doc">${docHeader()}<div class="doc-title">Ficha de Registro de Empregado</div>
@@ -9682,12 +9688,53 @@ const TIPOS_RESCISAO = {
     seguroDesemprego: false
   },
   fim_experiencia: {
-    label: 'Término do contrato de experiência',
+    label: 'Término do contrato de experiência (no prazo final)',
     aviso: 'nenhum',
     decimo: true,
     feriasVenc: true,
     feriasProp: true,
     multaFgts: 0,
+    saqueFgts: true,
+    seguroDesemprego: false
+  },
+  // Reprovado na experiência ANTES do prazo final: o empregador rompe o
+  // contrato determinado e indeniza metade dos salários do período que
+  // faltava (CLT art. 479). A multa de 40% do FGTS é devida, pois trata-se
+  // de rompimento imotivado por iniciativa do empregador.
+  exp_antecipada_empregador: {
+    label: 'Experiência — dispensa ANTES do prazo (art. 479)',
+    aviso: 'nenhum',
+    decimo: true,
+    feriasVenc: true,
+    feriasProp: true,
+    multaFgts: 0.40,
+    saqueFgts: true,
+    seguroDesemprego: false,
+    indeniza479: true
+  },
+  // O empregado é quem sai antes do fim: indeniza o empregador em até
+  // metade do que receberia no período restante (CLT art. 480).
+  exp_antecipada_empregado: {
+    label: 'Experiência — pedido do empregado ANTES do prazo (art. 480)',
+    aviso: 'nenhum',
+    decimo: true,
+    feriasVenc: true,
+    feriasProp: true,
+    multaFgts: 0,
+    saqueFgts: false,
+    seguroDesemprego: false,
+    indeniza480: true
+  },
+  // Contrato de experiência com cláusula assecuratória do direito recíproco
+  // de rescisão antecipada (CLT art. 481): aplicam-se as regras do contrato
+  // por prazo indeterminado — aviso prévio e multa de 40%.
+  exp_clausula_481: {
+    label: 'Experiência com cláusula assecuratória (art. 481)',
+    aviso: 'indenizado',
+    decimo: true,
+    feriasVenc: true,
+    feriasProp: true,
+    multaFgts: 0.40,
     saqueFgts: true,
     seguroDesemprego: false
   }
@@ -9817,6 +9864,30 @@ function calcularRescisao(opts){
   } else if(tipo.aviso==='descontado' && !avisoCumprido){
     const vDesc=+(diario*30).toFixed(2);
     descontos.push({desc:'Aviso prévio não cumprido (30 dias)', valor:vDesc});
+  }
+
+  // 2b) Rescisão ANTECIPADA do contrato de experiência (arts. 479 e 480).
+  // A base é o número de dias que faltavam entre o desligamento e o termo
+  // final previsto no contrato. Sem a data de término não há como calcular,
+  // então a verba é sinalizada em vez de sair silenciosamente zerada.
+  let diasRestantes=0, vInden479=0;
+  if(tipo.indeniza479 || tipo.indeniza480){
+    const fimStr=opts.fimContrato||'';
+    const fim=fimStr?new Date(fimStr+'T00:00:00'):null;
+    if(fim && !isNaN(fim) && fim>resc){
+      diasRestantes=Math.round((fim-resc)/86400000);
+      vInden479=+((diario*diasRestantes)/2).toFixed(2);
+    }
+    if(tipo.indeniza479){
+      if(vInden479>0){
+        verbas.push({desc:`Indenização art. 479 — metade dos ${diasRestantes} dia(s) restantes`, valor:vInden479, tributavel:false, rubrica:'479'});
+      } else {
+        verbas.push({desc:'Indenização art. 479 — informe o término previsto do contrato', valor:0, tributavel:false, rubrica:'479'});
+      }
+    }
+    if(tipo.indeniza480 && vInden479>0){
+      descontos.push({desc:`Indenização ao empregador art. 480 — metade dos ${diasRestantes} dia(s) restantes`, valor:vInden479});
+    }
   }
 
   // 3) 13º proporcional. No aviso indenizado, o tempo do aviso integra o
@@ -9962,10 +10033,17 @@ function abrirCalcRescisao(empIdPre){
     <div class="fld"><label>Colaborador</label>
       <select id="rsc-emp">${ativos.map(e=>`<option value="${e.id}" ${e.id===empIdPre?'selected':''}>${esc(e.nome)}</option>`).join('')}</select>
     </div>
-    <div class="fld"><label>Tipo de rescisão</label><select id="rsc-tipo">${opts}</select></div>
+    <div class="fld"><label>Tipo de rescisão</label><select id="rsc-tipo" onchange="rscToggleFimExp();executarCalcRescisao()">${opts}</select></div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <div class="fld" style="flex:1;min-width:150px"><label>Data do desligamento</label><input type="date" id="rsc-data" value="${hoje}"></div>
       <div class="fld" style="flex:1;min-width:150px"><label>Saldo do FGTS (opcional)</label><input type="number" id="rsc-fgts" placeholder="deixe vazio p/ estimar" step="0.01"></div>
+    </div>
+    <div class="fld" id="rsc-fim-wrap" style="display:none">
+      <label>Término previsto do contrato de experiência</label>
+      <input type="date" id="rsc-fim" onchange="executarCalcRescisao()">
+      <div style="font-size:11px;color:#64748B;margin-top:4px;line-height:1.5">
+        Data final que consta no contrato (30, 45, 60 ou 90 dias da admissão). É a base da indenização dos arts. 479 e 480.
+      </div>
     </div>
     <div class="fld" style="display:flex;align-items:center;gap:8px">
       <input type="checkbox" id="rsc-aviso" style="width:auto;margin:0">
@@ -9976,7 +10054,25 @@ function abrirCalcRescisao(empIdPre){
       <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
       <button class="btn btn-blue" onclick="executarCalcRescisao()">🧮 Calcular</button>
     </div>`,640);
-  setTimeout(()=>{ try{ executarCalcRescisao(); }catch(_){ } },80);
+  setTimeout(()=>{ try{ rscToggleFimExp(); executarCalcRescisao(); }catch(_){ } },80);
+}
+
+function rscToggleFimExp(){
+  const t=document.getElementById('rsc-tipo')?.value||'';
+  const wrap=document.getElementById('rsc-fim-wrap');
+  if(!wrap) return;
+  const precisa=(t==='exp_antecipada_empregador'||t==='exp_antecipada_empregado');
+  wrap.style.display=precisa?'':'none';
+  // Sugere 90 dias a partir da admissão (teto legal do art. 445, § único)
+  const inp=document.getElementById('rsc-fim');
+  if(precisa && inp && !inp.value){
+    const eid=document.getElementById('rsc-emp')?.value;
+    const emp=(APP.employees||[]).find(e=>e.id===eid);
+    if(emp&&emp.dataAdmissao){
+      const d=new Date(emp.dataAdmissao+'T00:00:00');
+      if(!isNaN(d)){ d.setDate(d.getDate()+90); inp.value=d.toISOString().slice(0,10); }
+    }
+  }
 }
 
 function executarCalcRescisao(){
@@ -9988,10 +10084,11 @@ function executarCalcRescisao(){
   const data=document.getElementById('rsc-data')?.value;
   const fgts=document.getElementById('rsc-fgts')?.value;
   const avisoCumprido=document.getElementById('rsc-aviso')?.checked;
+  const fimContrato=document.getElementById('rsc-fim')?.value||'';
   if(!data){ out.innerHTML='<div style="color:#DC2626;font-size:13px">Informe a data do desligamento.</div>'; return; }
 
   let r;
-  try{ r=calcularRescisao({emp,tipo,dataRescisao:data,salario:emp.salario,saldoFgts:fgts,avisoCumprido}); }
+  try{ r=calcularRescisao({emp,tipo,dataRescisao:data,salario:emp.salario,saldoFgts:fgts,avisoCumprido,fimContrato}); }
   catch(e){ out.innerHTML='<div style="color:#DC2626;font-size:13px">Erro no cálculo: '+esc(e.message)+'</div>'; return; }
   window._ultimaRescisao=r;
 
@@ -30119,9 +30216,9 @@ function S(extra) {
 // 1. CONTRATO INDIVIDUAL DE TRABALHO
 // ═══════════════════════════════════════════════════════════════════════
 if(id==='doc_contrato') return `<div class="doc-wrap">${H()}
-  <div class="doc-title">Contrato Individual de Trabalho</div>
-  <div class="doc-subtitle">${get('f_tipo_contrato')==='experiencia'?'Contrato de Experiência — Art. 443, §2º, "c" da CLT':'Contrato por Prazo Indeterminado — Art. 443, CLT'}</div>
-  <div class="doc-alert">⚖️ Este instrumento é regido pela Consolidação das Leis do Trabalho (CLT), Lei nº 13.467/2017 e demais normas trabalhistas vigentes.</div>
+  <div class="doc-title">${(typeof _atlasCtWizTitulo==='function')?_atlasCtWizTitulo():'Contrato Individual de Trabalho'}</div>
+  <div class="doc-subtitle">${(typeof _atlasCtWizSub==='function')?_atlasCtWizSub():''}</div>
+  <div class="doc-alert">${(typeof _atlasCtWizAlerta==='function')?_atlasCtWizAlerta():''}</div>
   <div class="doc-clause" style="white-space:pre-wrap">${(typeof _atlasContratoWizardTexto==='function') ? _atlasContratoWizardTexto() : 'Modelo de contrato indisponível.'}</div>
   <div class="doc-clause"><b>Dados complementares:</b> Grau de instrução: ${get('f_instrucao')} | Sexo: ${get('f_sexo')} | Data de nascimento: ${get('f_nascimento')}</div>
   ${S()}
@@ -32500,18 +32597,51 @@ function abrirModalDadosContrato(empId, docsParaGerar, onConfirm){
         ${mCampo('Representante Legal','e_representante',d.e_representante||'')}
       </div>
 
-      <!-- PACOTE COMPLETO — SEM SELEÇÃO -->
+      <!-- MODELO DO CONTRATO -->
       <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#1E3A5F;margin-bottom:8px;padding-bottom:4px;border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
+        📑 Modelo do contrato
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+        <div id="mdl_clt" onclick="atlasSetModeloModal('clt')" style="cursor:pointer;border:2px solid #2563EB;background:#EFF6FF;border-radius:9px;padding:11px 13px;display:flex;gap:9px;align-items:flex-start">
+          <div id="mdl_clt_dot" style="width:15px;height:15px;border-radius:50%;border:2px solid #2563EB;background:#2563EB;flex-shrink:0;margin-top:2px;box-shadow:inset 0 0 0 3px #fff"></div>
+          <div>
+            <div style="font-size:12.5px;font-weight:800;color:#1D4ED8">Contrato CLT</div>
+            <div style="font-size:10.5px;color:#64748B;line-height:1.45">Vínculo empregatício · 22 cláusulas · Art. 443 §2º</div>
+          </div>
+        </div>
+        <div id="mdl_aut" onclick="atlasSetModeloModal('autonomo')" style="cursor:pointer;border:2px solid var(--border);background:#fff;border-radius:9px;padding:11px 13px;display:flex;gap:9px;align-items:flex-start">
+          <div id="mdl_aut_dot" style="width:15px;height:15px;border-radius:50%;border:2px solid #CBD5E1;background:#fff;flex-shrink:0;margin-top:2px"></div>
+          <div>
+            <div style="font-size:12.5px;font-weight:800;color:#92400E">Autônomo (sem CNPJ)</div>
+            <div style="font-size:10.5px;color:#64748B;line-height:1.45">Sem vínculo · Código Civil, arts. 593-609</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DOCUMENTOS DO PACOTE -->
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#1E3A5F;margin-bottom:10px;padding-bottom:4px;border-top:1px solid var(--border);padding-top:12px">
         📄 Documentos que serão gerados
+        <span style="float:right;background:#0B1E35;color:#C9A84C;font-size:10px;padding:2px 9px;border-radius:20px;letter-spacing:0">${Object.keys(DOC_NAMES_MAP||{}).length} documentos</span>
       </div>
-      <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:9px;padding:11px 13px;margin-bottom:10px">
-        <div style="font-size:12.5px;color:#065F46;font-weight:700;margin-bottom:6px">
-          ✅ Pacote admissional completo — ${Object.keys(DOC_NAMES_MAP||{}).length} documentos
-        </div>
-        <div style="font-size:11.5px;color:#047857;line-height:1.7">
-          ${Object.entries(DOC_NAMES_MAP||{}).map(([k,v])=>v.icon+' '+v.label).join(' &nbsp;·&nbsp; ')}
-        </div>
-      </div>
+      ${(typeof ATLAS_DOC_GRUPOS!=='undefined' ? ATLAS_DOC_GRUPOS : []).map(function(gr){
+        var itens = gr.ids.filter(function(id){ return DOC_NAMES_MAP[id]; });
+        if(!itens.length) return '';
+        return '<div style="margin-bottom:11px">'
+          + '<div style="font-size:10.5px;font-weight:800;color:'+gr.cor+';text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;display:flex;align-items:center;gap:6px">'
+          +   '<span style="width:6px;height:6px;border-radius:50%;background:'+gr.cor+';display:inline-block"></span>'
+          +   gr.icone+' '+gr.nome+' <span style="color:#94A3B8;font-weight:700">('+itens.length+')</span>'
+          + '</div>'
+          + '<div style="background:'+gr.cor+'0D;border:1px solid '+gr.cor+'33;border-radius:9px;padding:9px;display:grid;grid-template-columns:1fr 1fr;gap:6px">'
+          +   itens.map(function(id){
+                var v = DOC_NAMES_MAP[id];
+                return '<div style="display:flex;align-items:center;gap:7px;padding:6px 9px;background:#fff;border:1px solid var(--border);border-radius:7px;font-size:11.5px;color:#334155">'
+                  + '<span style="color:#059669;font-weight:800">✓</span>'
+                  + '<span style="flex:1;line-height:1.35">'+v.icon+' '+v.label+'</span>'
+                  + (v.obrig?'<span style="background:#FEE2E2;color:#DC2626;font-size:9px;padding:1px 6px;border-radius:9px;font-weight:800">CLT</span>':'')
+                  + '</div>';
+              }).join('')
+          + '</div></div>';
+      }).join('')}
     </div>
 
     <!-- RODAPÉ -->
@@ -52090,6 +52220,10 @@ window._atlasEmpSel = function(){
 
 window.atlasGerarContratoSel = function(kind){
   const empId = _atlasEmpSel();
+  if(!empId){
+    const segue = confirm('Nenhum colaborador selecionado.\n\nO contrato sairá EM BRANCO (só com os dados da empresa), para preencher à mão.\n\nDeseja continuar assim?');
+    if(!segue){ toast('Selecione o colaborador no topo da seção.','warn'); return; }
+  }
   closeModal();
   if(kind==='autonomo') atlasVerModeloContratoAutonomo(empId);
   else atlasVerModeloContrato(empId);
@@ -52161,7 +52295,7 @@ window._atlasContratoWizardTexto = function(){
       '{SALARIO}': g('f_salario')
     };
 
-    var txt = ATLAS_CONTRATO_MODELO;
+    var txt = (_atlasCtWizKind()==='autonomo') ? ATLAS_CONTRATO_AUTONOMO : ATLAS_CONTRATO_MODELO;
     Object.keys(map).forEach(function(k){ txt = txt.split(k).join(map[k]); });
 
     // Remove o cabeçalho do modelo (já exibido pelo doc-title/subtitle/alert)
@@ -52178,6 +52312,287 @@ window._atlasContratoWizardTexto = function(){
     console.warn('[contrato wizard]', e);
     return 'Erro ao gerar o modelo de contrato.';
   }
+};
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  PREENCHIMENTO INTELIGENTE — puxa dados do cadastro + ficha do wizard
+//  (o cadastro básico não tem PIS/CTPS/endereço; esses ficam em APP.contratos)
+// ═══════════════════════════════════════════════════════════════════════════
+function _atlasDadosDoWizard(empId){
+  try{
+    if(!empId) return {};
+    const cts = (APP.contratos||[]).filter(c=>c.empId===empId && c.dados);
+    if(!cts.length) return {};
+    cts.sort((a,b)=> String(b.criadoEm||b.dataGeracao||'').localeCompare(String(a.criadoEm||a.dataGeracao||'')));
+    return cts[0].dados || {};
+  }catch(e){ return {}; }
+}
+
+function _atlasMapContrato(emp){
+  emp = emp || {};
+  const d = _atlasDadosDoWizard(emp.id);
+  const V = (...args) => {
+    for(const a of args){ if(a!==undefined && a!==null && String(a).trim()!=='') return String(a).trim(); }
+    return '';
+  };
+  const BR = '________________';
+
+  const cfg = (typeof EMPRESA_CFG!=='undefined' && EMPRESA_CFG) ? EMPRESA_CFG : {};
+  const fix = (typeof EMPRESA_FIXA!=='undefined' && EMPRESA_FIXA) ? EMPRESA_FIXA : {};
+  const empresaNome = V(cfg.nomeRazao, cfg.nome, d.e_nome, fix.nome, 'ZOOM TECH');
+  const cnpj        = V(cfg.cnpj, d.e_cnpj, fix.cnpj, '__.___.___/____-__');
+  const endEmpresa  = V(cfg.endereco, d.e_endereco, fix.endereco, BR);
+  const cidade      = V(cfg.cidade, d.e_cidade, fix.cidade, 'Foz do Iguaçu');
+  const uf          = V(cfg.uf, d.e_uf, fix.uf, 'PR');
+  const comarca     = V(cfg.comarca, fix.comarca, cidade + '/' + uf);
+
+  // Endereço do colaborador: cadastro → ficha do wizard
+  const rua   = V(emp.rua, d.f_rua), num = V(emp.numero, d.f_numero),
+        compl = V(emp.complemento, d.f_complemento), bairro = V(emp.bairro, d.f_bairro),
+        cep   = V(emp.cep, d.f_cep),
+        cidF  = V(emp.cidade, d.f_cidade, 'Foz do Iguaçu'),
+        ufF   = V(emp.uf, d.f_uf, 'PR');
+  const endEmp = [rua, num?('nº '+num):'', compl, bairro, cep?('CEP '+cep):'', cidF+'/'+ufF]
+                 .filter(Boolean).join(', ') || BR;
+
+  const rgFull = V(emp.rg, d.f_rg, BR) +
+                 (V(emp.rgOrgao, d.f_rg_orgao) ? (' — ' + V(emp.rgOrgao, d.f_rg_orgao)) : '');
+
+  const admISO = V(emp.dataAdmissao, d.f_admissao);
+  let admissao = '____/____/______';
+  if(admISO){
+    try{ admissao = /^\d{4}-\d{2}-\d{2}$/.test(admISO)
+      ? new Date(admISO+'T00:00:00').toLocaleDateString('pt-BR') : admISO; }catch(e){ admissao = admISO; }
+  }
+
+  let salario = V(d.f_salario);
+  if(!salario && emp.salario){
+    try{ salario = parseFloat(emp.salario).toFixed(2).replace('.',','); }catch(e){ salario = String(emp.salario); }
+  }
+
+  return {
+    '{EMPRESA}': empresaNome,
+    '{CNPJ}': cnpj,
+    '{ENDERECO_EMPRESA}': endEmpresa,
+    '{COMARCA}': comarca,
+    '{CIDADE}': cidade,
+    '{DATA}': new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'}),
+    '{NOME}': V(emp.nome, d.f_nome, BR),
+    '{CPF}': V(emp.cpf, d.f_cpf, '___.___.___-__'),
+    '{RG}': rgFull,
+    '{PIS}': V(emp.pis, d.f_pis, '____________'),
+    '{CTPS}': V(emp.ctps, d.f_ctps, '____________'),
+    '{NACIONALIDADE}': V(emp.nacionalidade, d.f_nacionalidade, 'Brasileiro(a)'),
+    '{ESTADO_CIVIL}': V(emp.estadoCivil, d.f_estadocivil, 'Solteiro(a)'),
+    '{ENDERECO_EMP}': endEmp,
+    '{CARGO}': V(emp.cargo, d.f_cargo, BR),
+    '{CBO}': V(emp.cbo, d.f_cbo, '____-__'),
+    '{ADMISSAO}': admissao,
+    '{SALARIO}': salario || '________'
+  };
+}
+
+// Sobrescreve os preenchedores para usarem o mapa completo
+window.atlasPreencherContrato = function(emp){
+  const map = _atlasMapContrato(emp);
+  let txt = ATLAS_CONTRATO_MODELO;
+  Object.keys(map).forEach(k=>{ txt = txt.split(k).join(map[k]); });
+  return txt;
+};
+window.atlasPreencherContratoAutonomo = function(emp){
+  const map = _atlasMapContrato(emp);
+  let txt = ATLAS_CONTRATO_AUTONOMO;
+  Object.keys(map).forEach(k=>{ txt = txt.split(k).join(map[k]); });
+  return txt;
+};
+
+// ── REMOVE o contrato antigo da Assinatura Digital (modelo curto de 45 dias) ──
+(function _atlasSubstituirTemplatePadrao(){
+  const _orig = window._templatePadrao || (typeof _templatePadrao!=='undefined'?_templatePadrao:null);
+  window._templatePadrao = function(tipo, emp){
+    if(tipo==='contrato_experiencia'){
+      return atlasPreencherContrato(emp||{});
+    }
+    if(typeof _orig==='function') return _orig.apply(this, arguments);
+    return '';
+  };
+})();
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  WIZARD DE ADMISSÃO — tipo de contrato (CLT / Autônomo) + Step 2 organizado
+// ═══════════════════════════════════════════════════════════════════════════
+function _atlasCtWizKind(){
+  try{
+    if(window.CONT_WIZARD && CONT_WIZARD.tipoContrato) return CONT_WIZARD.tipoContrato;
+    if(window._atlasModalModelo) return window._atlasModalModelo;
+    return 'clt';
+  }catch(e){ return 'clt'; }
+}
+window._atlasCtWizTitulo = function(){
+  return _atlasCtWizKind()==='autonomo'
+    ? 'Contrato de Prestação de Serviços Autônomos'
+    : 'Contrato Individual de Trabalho';
+};
+window._atlasCtWizSub = function(){
+  if(_atlasCtWizKind()==='autonomo') return 'Profissional Autônomo — Pessoa Física sem CNPJ';
+  try{
+    return (typeof get==='function' && get('f_tipo_contrato')==='indeterminado')
+      ? 'Contrato por Prazo Indeterminado — Art. 443, CLT'
+      : 'Contrato de Experiência — Art. 443, §2º, "c" da CLT';
+  }catch(e){ return 'Contrato de Experiência — Art. 443, §2º, "c" da CLT'; }
+};
+window._atlasCtWizAlerta = function(){
+  return _atlasCtWizKind()==='autonomo'
+    ? '⚖️ Regido pelo Código Civil (Lei nº 10.406/2002, Arts. 593 a 609). NÃO gera vínculo empregatício, não se aplicando a CLT.'
+    : '⚖️ Este instrumento é regido pela Consolidação das Leis do Trabalho (CLT), Lei nº 13.467/2017 e demais normas trabalhistas vigentes.';
+};
+
+window.atlasSetTipoContrato = function(kind){
+  if(!window.CONT_WIZARD) return;
+  CONT_WIZARD.tipoContrato = kind;
+  // Documentos exclusivos da CLT não fazem sentido no contrato autônomo
+  const soCLT = ['doc_banco','doc_epi','doc_premios','doc_treinamento'];
+  if(kind==='autonomo'){
+    CONT_WIZARD.docs = CONT_WIZARD.docs.filter(d=>!soCLT.includes(d));
+  }
+  renderWizardModal();
+};
+
+window.atlasWizDocsAcao = function(acao){
+  const w = window.CONT_WIZARD; if(!w) return;
+  const todos = Object.keys(DOC_NAMES_MAP);
+  if(acao==='todos')  w.docs = todos.slice();
+  if(acao==='mini')   w.docs = todos.filter(id=>DOC_NAMES_MAP[id].obrig);
+  if(acao==='limpar') w.docs = todos.filter(id=>DOC_NAMES_MAP[id].obrig);
+  renderWizardModal();
+};
+
+// ── Step 2 reformulado: categorias, ações rápidas e tipo de contrato ───────
+const ATLAS_DOC_GRUPOS = [
+  { nome:'Obrigatórios por lei', cor:'#DC2626', icone:'⚖️',
+    desc:'Exigidos pela CLT e pela LGPD — não devem ser desmarcados.',
+    ids:['doc_contrato','doc_ficha','doc_declaracao','doc_lgpd'] },
+  { nome:'Termos de responsabilidade', cor:'#2563EB', icone:'🔒',
+    desc:'Protegem o patrimônio e as informações da empresa.',
+    ids:['doc_equipamentos','doc_epi','doc_confidencialidade','doc_recibo_docs'] },
+  { nome:'Políticas e regulamentos', cor:'#059669', icone:'📚',
+    desc:'Regras internas que o colaborador declara conhecer.',
+    ids:['doc_banco','doc_premios','doc_conduta','doc_treinamento'] },
+  { nome:'Declarações e aditivos', cor:'#D97706', icone:'📝',
+    desc:'Complementos conforme a realidade da operação.',
+    ids:['doc_cameras','doc_acumulacao'] }
+];
+
+window.wizardStep2 = function(w){
+  const kind = _atlasCtWizKind();
+  const soCLT = ['doc_banco','doc_epi','doc_premios','doc_treinamento'];
+
+  const cardTipo = (k, titulo, sub, cor) => {
+    const on = kind===k;
+    return `<div onclick="atlasSetTipoContrato('${k}')" style="flex:1;min-width:200px;cursor:pointer;border:2px solid ${on?cor:'var(--border)'};background:${on?cor+'0F':'#fff'};border-radius:10px;padding:12px 14px;display:flex;gap:10px;align-items:center;transition:all .15s">
+      <div style="width:18px;height:18px;border-radius:50%;border:2px solid ${on?cor:'#CBD5E1'};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        ${on?`<div style="width:9px;height:9px;border-radius:50%;background:${cor}"></div>`:''}
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:${on?cor:'var(--tx)'}">${titulo}</div>
+        <div style="font-size:11px;color:var(--mt);margin-top:1px">${sub}</div>
+      </div>
+    </div>`;
+  };
+
+  const item = (id) => {
+    const info = DOC_NAMES_MAP[id]; if(!info) return '';
+    const sel = w.docs.includes(id);
+    const bloqueado = (kind==='autonomo' && soCLT.includes(id));
+    if(bloqueado){
+      return `<div style="border:1.5px dashed var(--border);background:#F8FAFC;border-radius:9px;padding:10px 12px;display:flex;align-items:center;gap:10px;opacity:.5">
+        <span style="font-size:14px">${info.icon}</span>
+        <div style="font-size:12.5px;color:var(--mt);text-decoration:line-through">${info.label}</div>
+        <span style="margin-left:auto;font-size:10px;background:#E2E8F0;color:#64748B;padding:1px 7px;border-radius:10px;font-weight:700">só CLT</span>
+      </div>`;
+    }
+    return `<div onclick="toggleWizDoc('${id}')" style="border:1.5px solid ${sel?'#2563EB':'var(--border)'};background:${sel?'#EFF6FF':'#fff'};border-radius:9px;padding:10px 12px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:all .15s">
+      <input type="checkbox" ${sel?'checked':''} onclick="event.stopPropagation();toggleWizDoc('${id}')" style="accent-color:#2563EB;flex-shrink:0">
+      <span style="font-size:14px">${info.icon}</span>
+      <div style="font-size:12.5px;font-weight:600;line-height:1.35">${info.label}</div>
+      ${info.obrig?'<span style="margin-left:auto;background:#FEE2E2;color:#DC2626;font-size:9.5px;padding:1px 7px;border-radius:10px;font-weight:800;flex-shrink:0">OBRIG.</span>':''}
+    </div>`;
+  };
+
+  const grupos = ATLAS_DOC_GRUPOS.map(g=>{
+    const visiveis = g.ids.filter(id=>DOC_NAMES_MAP[id]);
+    if(!visiveis.length) return '';
+    const marcados = visiveis.filter(id=>w.docs.includes(id)).length;
+    return `
+    <div style="border:1px solid var(--border);border-radius:11px;overflow:hidden;margin-bottom:12px">
+      <div style="background:${g.cor}0D;border-left:3px solid ${g.cor};padding:9px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div>
+          <div style="font-size:12.5px;font-weight:800;color:${g.cor}">${g.icone} ${g.nome}</div>
+          <div style="font-size:11px;color:var(--mt);margin-top:1px">${g.desc}</div>
+        </div>
+        <span style="font-size:11px;font-weight:700;color:${g.cor};white-space:nowrap">${marcados}/${visiveis.length}</span>
+      </div>
+      <div style="padding:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:8px;background:#fff">
+        ${visiveis.map(item).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
+  const avisoAut = (kind==='autonomo')
+    ? `<div style="background:#FEF9EC;border:1px solid #FDE68A;border-radius:9px;padding:10px 13px;margin-bottom:14px;font-size:11.5px;color:#92400E;line-height:1.5">
+         ⚠️ <b>Atenção:</b> no contrato autônomo não há vínculo empregatício. Documentos que pressupõem subordinação (banco de horas, EPIs, comissões, treinamento) foram desativados para não descaracterizar a autonomia.
+       </div>` : '';
+
+  return `
+  <div style="background:#F8FAFC;border:1px solid var(--border);border-radius:11px;padding:13px 15px;margin-bottom:16px">
+    <div style="font-size:11px;font-weight:800;color:var(--mt);text-transform:uppercase;letter-spacing:.4px;margin-bottom:9px">1 · Tipo de contrato</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      ${cardTipo('clt','📑 Contrato CLT','Vínculo empregatício — 22 cláusulas','#2563EB')}
+      ${cardTipo('autonomo','📝 Prestação de Serviços','Autônomo PF sem CNPJ — sem vínculo','#C9A84C')}
+    </div>
+  </div>
+
+  ${avisoAut}
+
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:11px;flex-wrap:wrap">
+    <div style="font-size:11px;font-weight:800;color:var(--mt);text-transform:uppercase;letter-spacing:.4px">2 · Documentos do pacote</div>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="atlasWizDocsAcao('todos')">Marcar todos</button>
+      <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="atlasWizDocsAcao('mini')">Só obrigatórios</button>
+    </div>
+  </div>
+
+  ${grupos}
+
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border);flex-wrap:wrap">
+    <div style="font-size:12.5px;color:var(--mt)">
+      <b style="color:var(--tx)">${w.docs.length}</b> documento(s) selecionado(s) ·
+      <span style="color:${kind==='autonomo'?'#C9A84C':'#2563EB'};font-weight:700">${kind==='autonomo'?'Autônomo':'CLT'}</span>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-ghost" onclick="wizardBack()">← Voltar</button>
+      <button class="btn btn-blue" onclick="wizardNext()">Próximo: Análise IA →</button>
+    </div>
+  </div>`;
+};
+
+
+// ── Seletor de modelo no modal "Gerar" (abrirModalDadosContrato) ───────────
+window._atlasModalModelo = 'clt';
+window.atlasSetModeloModal = function(kind){
+  try{
+    window._atlasModalModelo = kind;
+    if(window.CONT_WIZARD) CONT_WIZARD.tipoContrato = kind;
+    const on  = (el,cor,bg)=>{ if(el){ el.style.borderColor=cor; el.style.background=bg; } };
+    const dot = (el,cor,ativo)=>{ if(el){ el.style.borderColor=cor; el.style.background=ativo?cor:'#fff';
+                                          el.style.boxShadow=ativo?'inset 0 0 0 3px #fff':'none'; } };
+    on(document.getElementById('mdl_clt'), kind==='clt'?'#2563EB':'var(--border)', kind==='clt'?'#EFF6FF':'#fff');
+    on(document.getElementById('mdl_aut'), kind==='autonomo'?'#C9A84C':'var(--border)', kind==='autonomo'?'#FFFBEB':'#fff');
+    dot(document.getElementById('mdl_clt_dot'), kind==='clt'?'#2563EB':'#CBD5E1', kind==='clt');
+    dot(document.getElementById('mdl_aut_dot'), kind==='autonomo'?'#C9A84C':'#CBD5E1', kind==='autonomo');
+  }catch(e){ console.warn('[modelo modal]', e); }
 };
 
 (function _atlasInjectButtons(){
