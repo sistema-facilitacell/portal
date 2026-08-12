@@ -51870,6 +51870,223 @@ window.atlasVerRegimentoPreview = function(){
 };
 
 // ── 3. Injeta botões nas telas (Assinatura Digital e Contratos & Docs) ───────
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  MÓDULO: Contrato de Prestação de Serviços AUTÔNOMOS (PF sem CNPJ)
+//  Base legal: Código Civil arts. 593-609, Lei 8.212/91, Lei 10.666/03
+// ═══════════════════════════════════════════════════════════════════════════
+const ATLAS_CONTRATO_AUTONOMO = "CONTRATO DE PRESTAÇÃO DE SERVIÇOS AUTÔNOMOS\nProfissional Autônomo — Pessoa Física sem CNPJ\n\nEste instrumento é regido pelo Código Civil (Lei nº 10.406/2002, Arts. 593 a 609 — Prestação de Serviço), pela Lei nº 8.212/1991 (Custeio da Seguridade Social) e demais normas aplicáveis ao trabalhador autônomo, NÃO se regendo pela Consolidação das Leis do Trabalho (CLT), por inexistir vínculo empregatício entre as partes.\n\nIDENTIFICAÇÃO DAS PARTES\n\nCONTRATANTE: {EMPRESA}, inscrita no CNPJ nº {CNPJ}, estabelecida em {ENDERECO_EMPRESA}, doravante denominada simplesmente CONTRATANTE.\n\nCONTRATADO(A) (PRESTADOR AUTÔNOMO): {NOME}, {NACIONALIDADE}, {ESTADO_CIVIL}, portador(a) do CPF nº {CPF}, RG nº {RG}, inscrito(a) no INSS/PIS-NIT sob o nº {PIS}, residente em {ENDERECO_EMP}, doravante denominado(a) simplesmente CONTRATADO(A), profissional autônomo(a), pessoa física, que atua por conta própria e sem inscrição em CNPJ.\n\nCLÁUSULA 1ª — DO OBJETO\n1.1. O presente contrato tem por objeto a prestação de serviços de {CARGO} pelo(a) CONTRATADO(A) à CONTRATANTE, em caráter autônomo, eventual e sem subordinação, na forma dos Arts. 593 e seguintes do Código Civil.\n1.2. Os serviços serão prestados com autonomia técnica e operacional, cabendo ao(à) CONTRATADO(A) definir o modo de execução, as ferramentas e os métodos, obrigando-se apenas quanto ao resultado contratado e aos prazos ajustados.\n1.3. O objeto poderá ser detalhado em Ordem de Serviço, proposta ou anexo específico, que integrará este contrato para todos os fins.\n\nCLÁUSULA 2ª — DA AUSÊNCIA DE VÍNCULO EMPREGATÍCIO\n2.1. As partes declaram, expressamente, que o presente contrato NÃO gera vínculo empregatício, por não estarem presentes os elementos caracterizadores da relação de emprego previstos no Art. 3º da CLT, quais sejam: pessoalidade, subordinação jurídica, habitualidade e onerosidade salarial.\n2.2. O(A) CONTRATADO(A) reconhece que: (a) não está sujeito(a) a controle de jornada, registro de ponto ou horário fixo determinado pela CONTRATANTE; (b) presta serviços sem exclusividade, podendo atender outros tomadores; (c) não se submete a poder diretivo, disciplinar ou hierárquico da CONTRATANTE; (d) assume os riscos de sua própria atividade.\n2.3. Por inexistir vínculo empregatício, NÃO são devidas ao(à) CONTRATADO(A) as verbas de natureza trabalhista, tais como: 13º salário, férias acrescidas de 1/3, FGTS, aviso prévio, horas extras, adicional noturno, vale-transporte, repouso semanal remunerado ou verbas rescisórias.\n2.4. A eventual reiteração de contratações não descaracteriza a autonomia, desde que mantidas as condições de independência ora pactuadas.\n\nCLÁUSULA 3ª — DA REMUNERAÇÃO E DA FORMA DE PAGAMENTO\n3.1. Pelos serviços prestados, a CONTRATANTE pagará ao(à) CONTRATADO(A) o valor de R$ {SALARIO}, na forma ajustada entre as partes (por serviço executado, por período ou por entrega), mediante transferência bancária ou PIX.\n3.2. O pagamento será formalizado por RPA — Recibo de Pagamento a Autônomo, documento hábil a comprovar a prestação e o recolhimento dos tributos incidentes.\n3.3. O valor contratado é bruto, sujeitando-se às retenções legais previstas na Cláusula 4ª. Não há garantia de piso, reajuste automático ou continuidade, salvo novo ajuste expresso entre as partes.\n3.4. Não haverá pagamento por serviços não executados ou não aceitos, tampouco remuneração por tempo à disposição, dada a natureza autônoma da prestação.\n\nCLÁUSULA 4ª — DOS TRIBUTOS E DA PREVIDÊNCIA SOCIAL\n4.1. INSS (Contribuinte Individual): sobre a remuneração paga, a CONTRATANTE reterá e recolherá a contribuição previdenciária do(a) CONTRATADO(A) à alíquota de 11% (onze por cento), limitada ao teto do salário de contribuição, na condição de contribuinte individual, nos termos do Art. 4º da Lei nº 10.666/2003 e do Art. 216 do Decreto nº 3.048/1999. A CONTRATANTE recolherá, ainda, a contribuição patronal de 20% (vinte por cento) sobre a remuneração, quando devida (Art. 22, III, da Lei nº 8.212/1991).\n4.2. IRRF: sobre o valor pago será retido o Imposto de Renda na Fonte, conforme a tabela progressiva vigente, quando aplicável, recolhido pela CONTRATANTE.\n4.3. ISS: o Imposto Sobre Serviços de Qualquer Natureza, quando devido pela prestação, observará a legislação do Município competente, podendo ser retido na fonte pela CONTRATANTE conforme a legislação municipal aplicável.\n4.4. O(A) CONTRATADO(A) é responsável pelo cumprimento de suas demais obrigações fiscais e previdenciárias decorrentes de sua atividade autônoma, inclusive eventual complementação de contribuição previdenciária.\n4.5. A CONTRATANTE fornecerá ao(à) CONTRATADO(A) o comprovante das retenções e recolhimentos efetuados, para fins de comprovação junto aos órgãos competentes.\n\nCLÁUSULA 5ª — DO PRAZO E DA VIGÊNCIA\n5.1. O presente contrato vigorará a partir de {ADMISSAO}, por prazo {determinado/indeterminado conforme ajuste}, podendo ser encerrado a qualquer tempo por qualquer das partes, mediante comunicação prévia de 5 (cinco) dias, sem que isso gere qualquer indenização de natureza trabalhista.\n5.2. A prestação poderá ser eventual, por demanda ou por projeto, não gerando expectativa de continuidade além do objeto contratado.\n\nCLÁUSULA 6ª — DAS OBRIGAÇÕES DO(A) CONTRATADO(A)\n6.1. Executar os serviços com zelo, qualidade técnica e dentro dos prazos ajustados.\n6.2. Responsabilizar-se pela correção de defeitos ou vícios nos serviços prestados, na forma dos Arts. 441 e seguintes e 606 do Código Civil.\n6.3. Arcar com os custos de suas próprias ferramentas, deslocamentos e insumos, salvo ajuste diverso e expresso.\n6.4. Manter sigilo sobre informações a que tiver acesso, na forma da Cláusula 8ª.\n6.5. Não se apresentar como empregado(a), preposto(a) ou representante da CONTRATANTE perante terceiros, salvo autorização expressa e por escrito.\n\nCLÁUSULA 7ª — DAS OBRIGAÇÕES DA CONTRATANTE\n7.1. Efetuar o pagamento na forma e prazo ajustados.\n7.2. Proceder às retenções e recolhimentos tributários que lhe competem (Cláusula 4ª) e fornecer os respectivos comprovantes.\n7.3. Fornecer ao(à) CONTRATADO(A) as informações e o acesso necessários à execução do objeto, sem que isso configure subordinação.\n\nCLÁUSULA 8ª — DO SIGILO E CONFIDENCIALIDADE\n8.1. O(A) CONTRATADO(A) obriga-se a manter sigilo absoluto sobre dados de clientes, fornecedores, estratégias comerciais, precificações e demais informações confidenciais a que tiver acesso, durante a vigência e por 24 (vinte e quatro) meses após o término deste contrato.\n8.2. A violação do dever de sigilo enseja responsabilidade civil por perdas e danos, nos termos dos Arts. 186, 187 e 927 do Código Civil, sem prejuízo da responsabilidade penal cabível.\n\nCLÁUSULA 9ª — PROTEÇÃO DE DADOS — LGPD\n9.1. Em conformidade com a Lei nº 13.709/2018 (LGPD), o(a) CONTRATADO(A) autoriza o tratamento de seus dados pessoais estritamente para as finalidades de execução, pagamento e cumprimento de obrigações legais e fiscais deste contrato.\n9.2. Ambas as partes obrigam-se a tratar os dados a que tiverem acesso com segurança, confidencialidade e finalidade legítima, vedado o uso para fins diversos dos contratados.\n\nCLÁUSULA 10ª — DA RESPONSABILIDADE CIVIL\n10.1. O(A) CONTRATADO(A) responde por eventuais danos causados à CONTRATANTE ou a terceiros no exercício da prestação, decorrentes de dolo ou culpa, na forma dos Arts. 186 e 927 do Código Civil.\n10.2. Por atuar com autonomia e por conta própria, o(a) CONTRATADO(A) é o(a) único(a) responsável por encargos, acidentes ou obrigações relativos à sua atividade, não havendo responsabilidade trabalhista ou solidária da CONTRATANTE a esse título.\n\nCLÁUSULA 11ª — DIREITO DE IMAGEM\n11.1. Quando pertinente ao objeto, o(a) CONTRATADO(A) autoriza, de forma gratuita e durante a vigência, o uso de sua imagem e voz em materiais estritamente vinculados ao serviço prestado, vedado o uso para outros fins sem autorização, nos termos do Art. 20 do Código Civil.\n\nCLÁUSULA 12ª — DA RESCISÃO\n12.1. O contrato poderá ser rescindido: (a) por acordo entre as partes; (b) por iniciativa de qualquer parte, mediante aviso de 5 (cinco) dias; (c) de pleno direito, em caso de descumprimento de obrigação essencial, independentemente de aviso.\n12.2. A rescisão não gera direito a verbas rescisórias de natureza trabalhista, limitando-se ao pagamento dos serviços efetivamente prestados até a data do encerramento.\n12.3. O inadimplemento de obrigações contratuais sujeita a parte infratora à reparação por perdas e danos, na forma dos Arts. 389 e seguintes do Código Civil.\n\nCLÁUSULA 13ª — DAS DISPOSIÇÕES GERAIS\n13.1. Este contrato representa o acordo integral entre as partes, substituindo entendimentos anteriores sobre o objeto.\n13.2. A tolerância quanto ao descumprimento de qualquer cláusula não implica novação ou renúncia.\n13.3. A eventual nulidade de qualquer cláusula não invalidará as demais.\n13.4. Alterações somente terão validade se formalizadas por escrito e assinadas por ambas as partes.\n\nCLÁUSULA 14ª — DA ASSINATURA ELETRÔNICA E DO FORO\n14.1. Este contrato é celebrado em 2 (duas) vias de igual teor, ou por meio eletrônico com assinatura digital de igual validade jurídica (MP nº 2.200-2/2001 e Lei nº 14.063/2020).\n14.2. Fica eleito o foro da Comarca de {COMARCA} para dirimir controvérsias oriundas deste contrato, com renúncia a qualquer outro, por mais privilegiado que seja. Por não haver relação de emprego, a competência é da Justiça Comum (Cível), e não da Justiça do Trabalho.\n\nLocal e data: {CIDADE}, {DATA}.\n\n\n_______________________________________\n{NOME}\nCONTRATADO(A) — PRESTADOR(A) AUTÔNOMO(A) — CPF: {CPF}\n\n\n_______________________________________\n{EMPRESA}\nCONTRATANTE — CNPJ: {CNPJ}\n\n\nTESTEMUNHAS:\nNome: ___________________________  CPF: ______________________\nNome: ___________________________  CPF: ______________________\n";
+
+function atlasPreencherContratoAutonomo(emp){
+  emp = emp || {};
+  const cfg = (typeof EMPRESA_CFG!=='undefined' && EMPRESA_CFG) ? EMPRESA_CFG : {};
+  const fix = (typeof EMPRESA_FIXA!=='undefined' && EMPRESA_FIXA) ? EMPRESA_FIXA : {};
+  const empresaNome = cfg.nomeRazao || cfg.nome || fix.nome || 'ZOOM TECH';
+  const cnpj = cfg.cnpj || fix.cnpj || '20.705.429/0001-91';
+  const endEmpresa = cfg.endereco || fix.endereco || 'Av. República Argentina, 1968 — Maracanã, Foz do Iguaçu/PR';
+  const comarca = cfg.comarca || fix.comarca || 'Foz do Iguaçu/PR';
+  const cidade = cfg.cidade || fix.cidade || 'Foz do Iguaçu';
+  const endEmp = [emp.rua, emp.numero?('nº '+emp.numero):'', emp.complemento, emp.bairro, emp.cep?('CEP '+emp.cep):'', (emp.cidade||'Foz do Iguaçu')+'/'+(emp.uf||'PR')]
+                 .filter(Boolean).join(', ') || '________________';
+  const dataHoje = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+  const admissao = emp.dataAdmissao ? (function(d){try{return new Date(d+'T00:00:00').toLocaleDateString('pt-BR');}catch(e){return d;}})(emp.dataAdmissao) : '____/____/______';
+  const map = {
+    '{EMPRESA}': empresaNome,
+    '{CNPJ}': cnpj,
+    '{ENDERECO_EMPRESA}': endEmpresa,
+    '{COMARCA}': comarca,
+    '{CIDADE}': cidade,
+    '{DATA}': dataHoje,
+    '{NOME}': emp.nome || '________________',
+    '{CPF}': emp.cpf || '___.___.___-__',
+    '{RG}': emp.rg || '____________',
+    '{PIS}': emp.pis || '____________',
+    '{NACIONALIDADE}': emp.nacionalidade || 'Brasileiro(a)',
+    '{ESTADO_CIVIL}': emp.estadoCivil || 'Solteiro(a)',
+    '{ENDERECO_EMP}': endEmp,
+    '{CARGO}': emp.cargo || '________________',
+    '{ADMISSAO}': admissao,
+    '{SALARIO}': emp.salario ? parseFloat(emp.salario).toFixed(2).replace('.',',') : '________'
+  };
+  let txt = ATLAS_CONTRATO_AUTONOMO;
+  Object.keys(map).forEach(k=>{ txt = txt.split(k).join(map[k]); });
+  return txt;
+}
+
+// ── Registra o Modelo AUTÔNOMO como TEMPLATE padrão (Contratos & Docs) ──
+(function _seedContratoAutonomoTemplate(){
+  try{
+    if(typeof _tplLoad!=='function'||typeof _tplSave!=='function') return;
+    const tpls = _tplLoad();
+    if(tpls.find(t=>t.id==='atlas_contrato_autonomo_modelo')) return;
+    tpls.unshift({
+      id:'atlas_contrato_autonomo_modelo',
+      nome:'Contrato de Prestação de Serviços Autônomos (PF sem CNPJ) — Modelo Zoom Tech',
+      tipo:'outro',
+      titulo:'CONTRATO DE PRESTAÇÃO DE SERVIÇOS AUTÔNOMOS — Profissional Autônomo (Código Civil, arts. 593-609)',
+      corpo: ATLAS_CONTRATO_AUTONOMO,
+      fixo:true,
+      createdAt:new Date().toISOString()
+    });
+    _tplSave(tpls);
+  }catch(e){ console.warn('[seed contrato autonomo tpl]', e); }
+})();
+
+// ── Visualizar / imprimir o modelo AUTÔNOMO preenchido ───────────────────────
+window.atlasVerModeloContratoAutonomo = function(empId){
+  const emp = empId ? APP.employees.find(e=>e.id===empId) : null;
+  const txt = atlasPreencherContratoAutonomo(emp||{});
+  const win = window.open('', '_blank');
+  if(!win){ toast('Permita pop-ups para visualizar o contrato.','warn'); return; }
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
+    <title>Contrato de Prestação de Serviços Autônomos${emp?(' — '+esc(emp.nome)):''}</title>
+    <style>
+      *{box-sizing:border-box} body{font-family:'Segoe UI',Arial,sans-serif;max-width:820px;margin:0 auto;padding:40px 48px;color:#1a1a1a;line-height:1.6;font-size:13.5px}
+      .hd{background:#0B1E35;color:#fff;padding:20px 26px;border-radius:10px;margin-bottom:26px;display:flex;justify-content:space-between;align-items:center}
+      .hd h1{margin:0;font-size:20px;letter-spacing:.5px} .hd .g{color:#C9A84C}
+      pre{white-space:pre-wrap;font-family:'Segoe UI',Arial,sans-serif;font-size:13.5px;line-height:1.65;margin:0}
+      @media print{.noprint{display:none}body{padding:16px}}
+      .noprint{position:fixed;top:14px;right:14px;display:flex;gap:8px}
+      .btn{background:#2563EB;color:#fff;border:none;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer}
+      .btn.g{background:#059669}
+    </style></head><body>
+    <div class="noprint">
+      <button class="btn" onclick="window.print()">🖨 Imprimir / PDF</button>
+      <button class="btn g" onclick="window.close()">✓ Fechar</button>
+    </div>
+    <div class="hd"><h1>ATLAS <span class="g">RH</span></h1><div style="text-align:right;font-size:11px">Comércio e Assistência Técnica<br>DOCUMENTO OFICIAL</div></div>
+    <pre>${esc(txt)}</pre>
+  </body></html>`);
+  win.document.close();
+};
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  CORREÇÃO: Modal de Modelos de Contrato (substitui o fluxo de advertências)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// 1) Registra um TIPO próprio "Contrato" (antes caía em "Outro Documento")
+(function _atlasAddTipoContrato(){
+  try{
+    if(typeof DOC_TPL_TIPOS!=='undefined' && Array.isArray(DOC_TPL_TIPOS)
+       && !DOC_TPL_TIPOS.find(t=>t.id==='contrato')){
+      DOC_TPL_TIPOS.push({id:'contrato',label:'Contrato',icon:'📑',cor:'#0B1E35'});
+    }
+  }catch(e){ console.warn('[tipo contrato]',e); }
+})();
+
+// 2) Limpa os contratos antigos e regrava os 2 modelos corretos
+(function _atlasReseedContratos(){
+  try{
+    if(typeof _tplLoad!=='function' || typeof _tplSave!=='function') return;
+    let tpls = _tplLoad().filter(t =>
+      t.id!=='atlas_contrato_clt_modelo' &&
+      t.id!=='atlas_contrato_autonomo_modelo' &&
+      !(t.nome && /contrato individual de trabalho|presta[cç][aã]o de servi[cç]os aut/i.test(t.nome))
+    );
+    tpls.unshift({
+      id:'atlas_contrato_autonomo_modelo',
+      nome:'Contrato de Prestação de Serviços Autônomos (PF sem CNPJ)',
+      tipo:'contrato',
+      titulo:'CONTRATO DE PRESTAÇÃO DE SERVIÇOS AUTÔNOMOS — Código Civil, arts. 593-609',
+      corpo: ATLAS_CONTRATO_AUTONOMO,
+      fixo:true, createdAt:new Date().toISOString()
+    });
+    tpls.unshift({
+      id:'atlas_contrato_clt_modelo',
+      nome:'Contrato Individual de Trabalho (CLT) — Modelo Zoom Tech',
+      tipo:'contrato',
+      titulo:'CONTRATO INDIVIDUAL DE TRABALHO — Contrato de Experiência (Art. 443, §2º, "c" da CLT)',
+      corpo: ATLAS_CONTRATO_MODELO,
+      fixo:true, createdAt:new Date().toISOString()
+    });
+    _tplSave(tpls);
+  }catch(e){ console.warn('[reseed contratos]',e); }
+})();
+
+// 3) MODAL de modelos de contrato
+window.atlasModalContratos = function(only){
+  const emps = ((typeof APP!=='undefined' && APP.employees) ? APP.employees : [])
+    .slice().sort((a,b)=> String(a.nome||'').localeCompare(String(b.nome||'')));
+  const opts = emps.map(e=>`<option value="${e.id}">${esc(e.nome||'(sem nome)')}${e.cargo?(' — '+esc(e.cargo)):''}</option>`).join('');
+
+  const cardCLT = `
+    <div style="border:1px solid var(--border);border-left:4px solid #0B1E35;border-radius:10px;padding:14px;background:#fff">
+      <div style="font-weight:800;font-size:15px;margin-bottom:4px">📑 Contrato Individual de Trabalho (CLT)</div>
+      <div style="font-size:12px;color:var(--mt);margin-bottom:10px">Contrato de experiência com 22 cláusulas — jornada, comissões, prêmios, banco de horas, FGTS, LGPD. Base: CLT / Lei 13.467/2017.</div>
+      <button class="btn btn-blue btn-sm" onclick="atlasGerarContratoSel('clt')">👁 Gerar / Imprimir</button>
+      <button class="btn btn-ghost btn-sm" onclick="atlasCopiarContrato('clt')">📋 Copiar texto</button>
+    </div>`;
+
+  const cardAUT = `
+    <div style="border:1px solid var(--border);border-left:4px solid #C9A84C;border-radius:10px;padding:14px;background:#fff">
+      <div style="font-weight:800;font-size:15px;margin-bottom:4px">📝 Prestação de Serviços Autônomos (sem CNPJ)</div>
+      <div style="font-size:12px;color:var(--mt);margin-bottom:10px">Pessoa física autônoma, sem vínculo empregatício. INSS contribuinte individual (11%), RPA, ISS. Base: Código Civil, arts. 593-609.</div>
+      <button class="btn btn-blue btn-sm" onclick="atlasGerarContratoSel('autonomo')">👁 Gerar / Imprimir</button>
+      <button class="btn btn-ghost btn-sm" onclick="atlasCopiarContrato('autonomo')">📋 Copiar texto</button>
+    </div>`;
+
+  let cards = cardCLT + cardAUT;
+  if(only==='clt') cards = cardCLT;
+  if(only==='autonomo') cards = cardAUT;
+
+  openModal('📑 Modelos de Contrato', `
+    <div class="fld">
+      <label>Colaborador (opcional — preenche os dados automaticamente)</label>
+      <select id="atlas-ct-emp">
+        <option value="">— Deixar em branco para preencher à mão —</option>
+        ${opts}
+      </select>
+    </div>
+    <div style="display:grid;gap:12px;margin-top:6px">${cards}</div>
+    <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>
+  `, 640);
+};
+
+window._atlasEmpSel = function(){
+  const sel = document.getElementById('atlas-ct-emp');
+  return (sel && sel.value) ? sel.value : null;
+};
+
+window.atlasGerarContratoSel = function(kind){
+  const empId = _atlasEmpSel();
+  closeModal();
+  if(kind==='autonomo') atlasVerModeloContratoAutonomo(empId);
+  else atlasVerModeloContrato(empId);
+};
+
+window.atlasCopiarContrato = function(kind){
+  const empId = _atlasEmpSel();
+  const emp = empId ? APP.employees.find(e=>e.id===empId) : null;
+  const txt = (kind==='autonomo')
+    ? atlasPreencherContratoAutonomo(emp||{})
+    : atlasPreencherContrato(emp||{});
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(
+      ()=>toast('Contrato copiado para a área de transferência!'),
+      ()=>toast('Não foi possível copiar. Use "Gerar / Imprimir".','warn')
+    );
+  } else {
+    toast('Não foi possível copiar. Use "Gerar / Imprimir".','warn');
+  }
+};
+
+// 4) Intercepta o "⚡ Usar" dos templates: contrato abre o MODAL, não advertências
+(function _atlasOverrideUsarTemplate(){
+  const _orig = window.usarTemplate || (typeof usarTemplate!=='undefined' ? usarTemplate : null);
+  window.usarTemplate = function(id){
+    try{
+      const t = (typeof _tplLoad==='function' ? _tplLoad() : []).find(x=>x.id===id);
+      const ehContrato = t && (t.tipo==='contrato' || String(t.id).indexOf('atlas_contrato_')===0);
+      if(ehContrato){
+        atlasModalContratos(id==='atlas_contrato_autonomo_modelo' ? 'autonomo' : 'clt');
+        return;
+      }
+    }catch(e){ console.warn('[usarTemplate override]',e); }
+    if(typeof _orig==='function') return _orig.apply(this, arguments);
+  };
+})();
+
 (function _atlasInjectButtons(){
   // 3a. Botão no módulo de Assinatura Digital
   const _origAssin = window.rAssinaturaDigital;
@@ -51890,7 +52107,7 @@ window.atlasVerRegimentoPreview = function(){
   if(typeof _origCont==='function'){
     window.rContratos = function(){
       let html = _origCont.apply(this, arguments);
-      const btns = `<button class="btn btn-ghost btn-sm" onclick="atlasVerModeloContrato(null)" title="Ver o modelo padrão de contrato CLT">📄 Modelo de Contrato CLT</button>
+      const btns = `<button class="btn btn-ghost btn-sm" onclick="atlasModalContratos()" title="Modelos de contrato (CLT e Autônomo)">📑 Modelos de Contrato</button>
       <button class="btn btn-ghost btn-sm" onclick="atlasModalRegimento()" title="Enviar regimento interno para assinatura">📖 Regimento Interno</button>`;
       // Insere ao lado do botão de "Análise IA em Lote"
       html = html.replace(
