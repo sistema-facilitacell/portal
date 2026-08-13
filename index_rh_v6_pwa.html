@@ -3198,7 +3198,9 @@ const IntervalManager = (function(){
       // após trocar de módulo, causando stale references silenciosas.
       if(typeof _bioPollInterval !== 'undefined'){ _bioPollInterval = null; }
       if(typeof _bioClockTick    !== 'undefined'){ _bioClockTick    = null; }
-      console.log('[IntervalManager] Intervalos de tela limpos');
+      // Log apenas em depuração: era impresso a cada troca de módulo e
+      // enchia o console (246 linhas numa sessão), escondendo erros reais.
+      if(window.ATLAS_DEBUG) console.log('[IntervalManager] Intervalos de tela limpos');
     },
     // Verifica se um intervalo nomeado ainda está ativo no store interno
     _isAlive(name){ return !!(_screen[name] || _global[name]); }
@@ -51835,8 +51837,19 @@ async function _atlasCriarDocRegimento(empId){
 }
 
 // Sincroniza APP.assinaturas com o Firestore (merge) e envia ao portal
+
+// Salva assinaturas sem depender de _saveAssinaturas, que vive dentro de uma
+// IIFE (linha ~39159) e por isso NÃO é visível a partir deste módulo.
+function _atlasSalvarAssinaturas(){
+  try{
+    if(typeof save==='function'){ save('assinaturas'); return; }
+    if(typeof lsSave==='function') lsSave('assinaturas');
+    if(typeof FBASE!=='undefined' && FBASE && typeof fbSave==='function') fbSave('assinaturas');
+  }catch(e){ console.warn('[salvar assinaturas]', e); }
+}
+
 async function _atlasSyncAssinaturasFB(){
-  if(!FBASE) { _saveAssinaturas(); return; }
+  if(!FBASE) { _atlasSalvarAssinaturas(); return; }
   try{
     // lê estado atual do Firestore para não sobrescrever assinaturas do portal
     const snap = await FBASE.collection('hr').doc('assinaturas').get();
@@ -51849,7 +51862,7 @@ async function _atlasSyncAssinaturasFB(){
     await FBASE.collection('hr').doc('assinaturas').set({d:JSON.stringify(merged), ts:Date.now(), k:'assinaturas'});
     APP.assinaturas = merged;
   }catch(e){ console.warn('[regimento sync fb]', e); }
-  _saveAssinaturas();
+  _atlasSalvarAssinaturas();
 }
 
 // Envia o regimento para UM colaborador assinar no portal
@@ -53282,7 +53295,7 @@ window.rAtlasTimelinePage = function(){
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:8px;flex-wrap:wrap">
     <div style="font-size:16px;font-weight:700">Linha do Tempo dos Colaboradores</div>
     <input id="tl-busca" value="${esc(window.ATLAS_TL_BUSCA||'')}" placeholder="🔍 Buscar por nome ou cargo..."
-      oninput="window.ATLAS_TL_BUSCA=this.value;clearTimeout(window._tlT);window._tlT=setTimeout(()=>{navigate('linha_tempo');setTimeout(()=>{const i=document.getElementById('tl-busca');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}},30);},350)"
+      oninput="window.ATLAS_TL_BUSCA=this.value;clearTimeout(window._tlT);window._tlT=setTimeout(()=>{if(MOD!=='linha_tempo')return;navigate('linha_tempo');setTimeout(()=>{const i=document.getElementById('tl-busca');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}},30);},350)"
       style="padding:9px 14px;border:1px solid var(--border);border-radius:9px;font-size:13px;min-width:250px">
   </div>
   <div class="card" style="padding:0;overflow:hidden">
@@ -53429,7 +53442,7 @@ window.atlasRemoverAssinatura = async function(assinId){
     }
   }
 
-  try{ if(typeof _saveAssinaturas==='function') _saveAssinaturas(); }catch(e){}
+  _atlasSalvarAssinaturas();
   try{
     if(typeof auditLog==='function')
       auditLog('Removeu documento do portal: '+(doc.tipoLabel||doc.titulo||'documento')+(assinado?' (JÁ ASSINADO)':''),
@@ -53439,6 +53452,66 @@ window.atlasRemoverAssinatura = async function(assinId){
   toast('🗑 Documento removido do portal.','ok');
   if(typeof navigate==='function' && typeof MOD!=='undefined') navigate(MOD);
 };
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  LIMPEZA DO ENTULHO CIFRADO (era do Supabase, hoje desativado)
+//  A senha nunca foi escolhida por ninguém: era sorteada por dispositivo,
+//  e por isso um navegador não abria o que o outro gravou. Como o Supabase
+//  está inerte e o Firebase guarda tudo em claro, a cópia local cifrada é
+//  lixo. Aqui ela é SOBRESCRITA pelos dados bons — nunca apagada às cegas.
+// ═══════════════════════════════════════════════════════════════════════════
+function _atlasEhCifrado(v){ return !!(v && typeof v==='object' && v.__enc===true); }
+
+window.atlasLimparCifrados = function(silencioso){
+  const chaves = (typeof SB_SENSITIVE_KEYS!=='undefined') ? [...SB_SENSITIVE_KEYS] : [];
+  const limpas = [], mantidas = [];
+
+  chaves.forEach(k=>{
+    let local = null;
+    try{ local = (typeof lsLoad==='function') ? lsLoad(k) : null; }catch(e){ return; }
+    if(!_atlasEhCifrado(local)) return;                 // cópia local já está boa
+
+    // Só sobrescreve se o que está na memória (vindo do Firebase) for legível
+    const memOk = APP[k]!==undefined && APP[k]!==null && !_atlasEhCifrado(APP[k]);
+    if(memOk){
+      try{ lsSave(k); limpas.push(k); }catch(e){ mantidas.push(k); }
+    } else {
+      mantidas.push(k);   // sem versão boa: não mexe, para não perder nada
+    }
+  });
+
+  if(!silencioso){
+    if(!limpas.length && !mantidas.length){
+      toast('✅ Nenhum dado cifrado sobrando — está tudo limpo.','ok',4000);
+    } else if(limpas.length && !mantidas.length){
+      toast('✅ Entulho cifrado removido de: '+limpas.join(', '),'ok',6000);
+    } else {
+      toast('Limpo: '+(limpas.join(', ')||'nada')+'. Sem versão legível (mantido intacto): '+mantidas.join(', '),'warn',9000);
+    }
+  }
+  if(limpas.length){
+    try{ if(typeof auditLog==='function') auditLog('Limpou cópias locais cifradas: '+limpas.join(', '), '', 'sistema'); }catch(e){}
+  }
+  return {limpas, mantidas};
+};
+
+// Limpeza automática no boot, sem incomodar: se o Firebase já trouxe os dados
+// bons, a cópia local cifrada é substituída e o modal de reparo para de surgir.
+(function _atlasAutoLimparCifrados(){
+  try{
+    if(!Array.isArray(window._firebaseReadyCallbacks)) window._firebaseReadyCallbacks = [];
+    window._firebaseReadyCallbacks.push(function(){
+      setTimeout(()=>{
+        try{
+          const r = atlasLimparCifrados(true);
+          if(r.limpas.length) console.log('[Atlas] Entulho cifrado substituído:', r.limpas.join(', '));
+          if(r.mantidas.length) console.warn('[Atlas] Cifrados sem versão legível (preservados):', r.mantidas.join(', '));
+        }catch(e){ console.warn('[limpar cifrados]', e); }
+      }, 6000);   // depois da recuperação automática que já existe (4s)
+    });
+  }catch(e){ console.warn('[auto limpar cifrados]', e); }
+})();
 
 (function _atlasInjectButtons(){
   // 3a. Botão no módulo de Assinatura Digital
