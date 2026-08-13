@@ -51771,6 +51771,10 @@ async function _atlasCriarDocRegimento(empId){
     conteudo:_atlasRegimentoConteudo(emp.nome),
     status:'pendente',
     origem:'rh_regimento',
+    exigirSelfie:true,          // portal pede foto do rosto junto da assinatura
+    exigirFoto:true,            // alias aceito por versões diferentes do portal
+    registrarDataHora:true,     // carimbo de data/hora gravado na foto
+    exigirGeo:false,
     criadoEm:new Date().toISOString(),
     criadoPor:'RH',
     assinaturaData:null, assinaturaPNG:null, assinaturaHash:null, assinaturaIP:null, assinaturaGeo:null,
@@ -52075,6 +52079,10 @@ async function _atlasCriarDocContrato(empId, kind){
     conteudo: _atlasContratoConteudo(emp, kind),
     status:'pendente',
     origem:'rh_contrato',
+    exigirSelfie:true,          // portal pede foto do rosto junto da assinatura
+    exigirFoto:true,            // alias aceito por versões diferentes do portal
+    registrarDataHora:true,     // carimbo de data/hora gravado na foto
+    exigirGeo:false,
     criadoEm:new Date().toISOString(),
     criadoPor:'RH',
     assinaturaData:null, assinaturaPNG:null, assinaturaHash:null, assinaturaIP:null, assinaturaGeo:null,
@@ -52712,6 +52720,10 @@ window.atlasEnviarComunicadoNP = async function(empId, fimContrato, dataAviso){
     titulo:'Comunicado de Não Prorrogação — Ciência',
     conteudo: _atlasNPTexto(emp, fimContrato, dataAviso),
     status:'pendente', origem:'rh_rescisao',
+    exigirSelfie:true,          // portal deve capturar foto junto da assinatura
+    exigirFoto:true,            // alias aceito por versões diferentes do portal
+    registrarDataHora:true,     // carimbo de data/hora no ato da assinatura
+    exigirGeo:false,
     criadoEm:new Date().toISOString(), criadoPor:'RH',
     assinaturaData:null, assinaturaPNG:null, assinaturaHash:null, assinaturaIP:null, assinaturaGeo:null,
     historicoStatus:[{status:'pendente',ts:new Date().toISOString(),por:'RH'}]
@@ -52739,20 +52751,21 @@ window.atlasModalNaoProrrogacao = function(empIdPre){
       Documento que comprova que o contrato terminou <b>no prazo</b>, e não por dispensa. Não é aviso prévio — contrato por prazo determinado não tem.
     </div>
     <div class="fld"><label>Colaborador</label>
-      <select id="np-emp" onchange="atlasNPSugereFim()">
+      <select id="np-emp" onchange="atlasNPSugereFim();atlasNPPreview()">
         ${ativos.map(e=>`<option value="${e.id}" ${e.id===empIdPre?'selected':''}>${esc(e.nome)}</option>`).join('')}
       </select>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <div class="fld" style="flex:1;min-width:170px">
         <label>Término do contrato (último dia)</label>
-        <input type="date" id="np-fim">
+        <input type="date" id="np-fim" oninput="this.dataset.tocado='1';atlasNPPreview()" onchange="this.dataset.tocado='1';atlasNPPreview()">
       </div>
       <div class="fld" style="flex:1;min-width:170px">
         <label>Data da comunicação</label>
-        <input type="date" id="np-aviso" value="${hoje}">
+        <input type="date" id="np-aviso" value="${hoje}" onchange="atlasNPPreview()">
       </div>
     </div>
+    <div id="np-preview" style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:9px;padding:9px 12px;font-size:12px;color:#166534;font-weight:700;margin-bottom:8px"></div>
     <div style="font-size:11px;color:#64748B;line-height:1.5;margin-top:-4px">
       O colaborador trabalha normalmente até o término, inclusive. Trabalhar 1 dia a mais converte o contrato em prazo indeterminado (art. 451 da CLT).
     </div>
@@ -52761,34 +52774,63 @@ window.atlasModalNaoProrrogacao = function(empIdPre){
       <button class="btn btn-sm" style="background:#0B1E35;color:#C9A84C;border:none;font-weight:700" onclick="atlasNPEnviar()">✍️ Enviar p/ ciência no portal</button>
       <button class="btn btn-blue" onclick="atlasNPGerar()">🖨 Gerar / Imprimir</button>
     </div>`, 620);
-  setTimeout(()=>{ try{ atlasNPSugereFim(); }catch(_){ } }, 60);
+  setTimeout(()=>{ try{ atlasNPSugereFim(); atlasNPPreview(); }catch(_){ } }, 60);
 };
 
 // Sugere o término em 90 dias da admissão (teto do art. 445, § único)
-window.atlasNPSugereFim = function(){
-  const eid = document.getElementById('np-emp')?.value;
+window.atlasNPSugereFim = function(forcar){
+  const eid = _atlasNPVal('np-emp');
   const emp = (APP.employees||[]).find(e=>e.id===eid);
-  const inp = document.getElementById('np-fim');
+  const inp = _atlasNPEl('np-fim');
   if(!emp || !inp) return;
+  // NUNCA sobrescreve uma data já digitada pelo usuário (bug corrigido):
+  // a sugestão só preenche o campo vazio ou quando pedida explicitamente.
+  if(inp.value && !forcar) return;
+  if(inp.dataset.tocado==='1' && !forcar) return;
   if(emp.dataAdmissao){
     const d = new Date(emp.dataAdmissao+'T00:00:00');
     if(!isNaN(d)){ d.setDate(d.getDate()+90); inp.value = d.toISOString().slice(0,10); }
   }
 };
 
+// Leitura robusta: pega o campo dentro do modal aberto; se houver mais de um
+// elemento com o mesmo id (modal reaberto), usa sempre o último renderizado.
+window._atlasNPEl = function(id){
+  const todos = document.querySelectorAll('#'+id);
+  if(!todos.length) return null;
+  return todos[todos.length-1];
+};
+window._atlasNPVal = function(id){
+  const el = _atlasNPEl(id);
+  return el ? el.value : '';
+};
+
+window.atlasNPPreview = function(){
+  const box = _atlasNPEl('np-preview');
+  if(!box) return;
+  const fim = _atlasNPVal('np-fim');
+  const eid = _atlasNPVal('np-emp');
+  const emp = (APP.employees||[]).find(e=>e.id===eid);
+  if(!fim){ box.textContent='Informe a data de término do contrato.'; box.style.background='#FEF2F2'; box.style.borderColor='#FECACA'; box.style.color='#B91C1C'; return; }
+  const f = new Date(fim+'T00:00:00');
+  const txt = isNaN(f) ? fim : f.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  box.style.background='#F0FDF4'; box.style.borderColor='#BBF7D0'; box.style.color='#166534';
+  box.textContent = '✓ Último dia de trabalho: ' + txt + (emp&&emp.dataAdmissao?(' · admitido em '+new Date(emp.dataAdmissao+'T00:00:00').toLocaleDateString('pt-BR')):'');
+};
+
 window.atlasNPGerar = function(){
-  const eid = document.getElementById('np-emp')?.value;
-  const fim = document.getElementById('np-fim')?.value;
-  const av  = document.getElementById('np-aviso')?.value;
+  const eid = _atlasNPVal('np-emp');
+  const fim = _atlasNPVal('np-fim');
+  const av  = _atlasNPVal('np-aviso');
   if(!fim){ toast('Informe a data de término do contrato.','warn'); return; }
   closeModal();
   atlasVerComunicadoNP(eid, fim, av);
 };
 
 window.atlasNPEnviar = async function(){
-  const eid = document.getElementById('np-emp')?.value;
-  const fim = document.getElementById('np-fim')?.value;
-  const av  = document.getElementById('np-aviso')?.value;
+  const eid = _atlasNPVal('np-emp');
+  const fim = _atlasNPVal('np-fim');
+  const av  = _atlasNPVal('np-aviso');
   if(!fim){ toast('Informe a data de término do contrato.','warn'); return; }
   closeModal();
   await atlasEnviarComunicadoNP(eid, fim, av);
