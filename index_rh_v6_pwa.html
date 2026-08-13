@@ -12602,6 +12602,7 @@ function rDemissao(){
       <button class="btn" style="background:#FFF7ED;color:#C2410C;font-weight:700" onclick="abrirAvisoPrevio()">📋 Aviso Prévio</button>
       <button class="btn" style="background:#F0FDF4;color:#047857;font-weight:700" onclick="abrirCalcRescisao()">🧮 Calcular Rescisão</button>
       <button class="btn" style="background:#EEF2FF;color:#4338CA;font-weight:700" onclick="atlasModalNaoProrrogacao()" title="Comunicado de não prorrogação do contrato de experiência">📨 Não Prorrogação</button>
+      <button class="btn" style="background:#FEF9EC;color:#92400E;font-weight:700" onclick="atlasModalEncerrarAutonomo()" title="Encerrar contrato de prestador autônomo (sem vínculo)">📄 Encerrar Autônomo</button>
       <button class="btn btn-red" onclick="openDemForm()">+ Novo Processo</button>
     </div>
   </div>
@@ -52919,6 +52920,9 @@ function _atlasDiasEntre(a, b){
 // Calcula a situação de experiência de um colaborador
 function atlasStatusExperiencia(emp){
   if(!emp || !emp.dataAdmissao || emp.status!=='ativo') return null;
+  // Intermitente é por prazo indeterminado: não existe "fim de experiência".
+  // Mostrá-lo aqui induziria a uma rescisão calculada pela regra errada.
+  try{ if(typeof atlasEhIntermitente==='function' && atlasEhIntermitente(emp)) return null; }catch(e){}
   const hoje = new Date().toISOString().slice(0,10);
   const diasCasa = _atlasDiasEntre(emp.dataAdmissao, hoje);
   if(diasCasa===null || diasCasa < 0) return null;
@@ -53002,7 +53006,7 @@ window.rAtlasPainelRH = function(){
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn btn-sm" style="background:#EEF2FF;color:#4338CA;border:none;font-weight:700" onclick="atlasModalNaoProrrogacao('${s.emp.id}')">📨 Não prorrogar</button>
-        <button class="btn btn-ghost btn-sm" onclick="abrirCalcRescisao('${s.emp.id}')">🧮 Rescisão</button>
+        <button class="btn btn-ghost btn-sm" onclick="atlasRescisaoInteligente('${s.emp.id}')">🧮 Rescisão</button>
         <button class="btn btn-ghost btn-sm" onclick="atlasModalTimeline('${s.emp.id}')">📖 Histórico</button>
       </div>
     </div>`;
@@ -53584,6 +53588,352 @@ window.atlasDiagnosticarAssinatura = async function(assinId){
   `, 640);
 };
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  RESCISÃO DO TRABALHO INTERMITENTE (CLT art. 443 §3º e 452-A)
+//  Não é contrato por prazo determinado: é CLT por prazo INDETERMINADO com
+//  prestação descontínua. Logo, não há "fim de experiência" nem indenização
+//  do art. 479. E como o art. 452-A §6º manda pagar férias+1/3, 13º e DSR
+//  ao fim de CADA convocação, essas verbas já saíram nos recibos — a
+//  rescisão fica bem menor que a de um mensalista.
+// ═══════════════════════════════════════════════════════════════════════════
+window.atlasEhIntermitente = function(emp){
+  if(!emp) return false;
+  const cpf = String(emp.cpf||'').replace(/\D/g,'');
+  if(!cpf) return false;
+  return (APP.contratos||[]).some(c=>c && c.tipo==='INTERMITENTE'
+      && String(c.empCpf||'').replace(/\D/g,'')===cpf);
+};
+
+window.atlasRecibosDoEmp = function(emp){
+  const cpf = String(emp.cpf||'').replace(/\D/g,'');
+  return (APP.recibosInt||[])
+    .filter(r=>r && String(r.cpf||'').replace(/\D/g,'')===cpf)
+    .sort((a,b)=> String(b.periodoFim||b.criadoEm||'').localeCompare(String(a.periodoFim||a.criadoEm||'')));
+};
+
+window.atlasCalcRescisaoIntermitente = function(empId, dataResc, diasAviso){
+  const emp = (APP.employees||[]).find(e=>e.id===empId);
+  if(!emp) return null;
+  const recs = atlasRecibosDoEmp(emp);
+  const ref = dataResc || new Date().toISOString().slice(0,10);
+
+  // Média das remunerações dos últimos 12 meses (art. 452-A §6º, I)
+  const limite = new Date(ref+'T00:00:00'); limite.setMonth(limite.getMonth()-12);
+  const limISO = limite.toISOString().slice(0,10);
+  const recs12 = recs.filter(r=>String(r.periodoFim||r.criadoEm||'').slice(0,10) >= limISO);
+  const base = recs12.length ? recs12 : recs;
+  const somaTotal = base.reduce((s,r)=>s+(parseFloat(r.total)||0), 0);
+  const media = base.length ? +(somaTotal/base.length).toFixed(2) : 0;
+
+  // FGTS: 8% já calculado em cada recibo
+  const fgtsAcum = recs.reduce((s,r)=>s+(parseFloat(r.fgts)||0), 0);
+
+  // Já pago ao longo do contrato (não entra de novo na rescisão)
+  const jaPago = {
+    ferias: recs.reduce((s,r)=>s+(parseFloat(r.ferias)||0)+(parseFloat(r.terco)||0),0),
+    decimo: recs.reduce((s,r)=>s+(parseFloat(r.decimo)||0),0),
+    dsr:    recs.reduce((s,r)=>s+(parseFloat(r.dsr)||0),0)
+  };
+
+  // Aviso prévio indenizado sobre a MÉDIA (não sobre salário mensal)
+  const anos = emp.dataAdmissao
+    ? Math.floor((new Date(ref) - new Date(emp.dataAdmissao+'T00:00:00'))/(365.25*86400000)) : 0;
+  const dias = diasAviso!==undefined ? diasAviso : Math.min(90, 30 + anos*3);
+  const avisoInden = +((media/30)*dias).toFixed(2);
+  const multaFgts  = +(fgtsAcum*0.40).toFixed(2);
+
+  const ultimo = recs[0] || null;
+  return { emp, recs, recs12, media, somaTotal, fgtsAcum, multaFgts, jaPago,
+           anos, dias, avisoInden, ultimo,
+           total: +(avisoInden).toFixed(2) };
+};
+
+
+// Escolhe a calculadora certa conforme o regime do colaborador
+window.atlasRescisaoInteligente = function(empId){
+  const emp = (APP.employees||[]).find(e=>e.id===empId);
+  if(emp && typeof atlasEhIntermitente==='function' && atlasEhIntermitente(emp)){
+    atlasModalRescisaoInt(empId);
+    return;
+  }
+  if(typeof abrirCalcRescisao==='function') abrirCalcRescisao(empId);
+};
+
+window.atlasEhIntermitente = window.atlasEhIntermitente;
+
+window.atlasModalRescisaoInt = function(empId){
+  const emp = (APP.employees||[]).find(e=>e.id===empId);
+  if(!emp){ toast('Colaborador não encontrado.','warn'); return; }
+  const r = atlasCalcRescisaoIntermitente(empId);
+  if(!r) return;
+  const brl = v => 'R$ ' + (parseFloat(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const L = (d,v,cor) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed #E2E8F0;font-size:13px">
+      <span style="color:#334155">${d}</span><span style="font-weight:700;color:${cor||'#047857'};white-space:nowrap">${brl(v)}</span></div>`;
+
+  const semRecibo = r.recs.length===0;
+
+  openModal('🧮 Rescisão — Trabalho Intermitente', `
+    <div style="background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:10px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:#1E40AF;line-height:1.6">
+      Intermitente é CLT por <b>prazo indeterminado</b> (art. 443 §3º). Não tem fim de experiência
+      nem indenização do art. 479. Férias + 1/3, 13º e DSR já foram pagos <b>a cada convocação</b>
+      (art. 452-A §6º), por isso não entram de novo aqui.
+    </div>
+
+    ${semRecibo ? `<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:12px;font-size:12.5px;color:#B91C1C;line-height:1.6">
+      <b>Nenhum recibo intermitente encontrado</b> para ${esc(emp.nome)} (CPF ${esc(emp.cpf||'—')}).
+      Sem recibos não há como calcular a média nem o FGTS. Emita os recibos em "Recibos Intermitente" antes de rescindir.
+    </div>` : `
+    <div style="background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px">
+      <div style="font-size:11px;color:#64748B;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Base de cálculo</div>
+      ${L('Convocações pagas (total no período)', r.recs.length ? r.somaTotal : 0, '#334155')}
+      ${L('Recibos considerados na média', r.recs12.length || r.recs.length, '#334155')}
+      ${L('<b>Média das remunerações</b> (art. 452-A §6º, I)', r.media, '#0B1E35')}
+    </div>
+
+    <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:12px 14px;margin-bottom:12px">
+      <div style="font-size:11px;color:#166534;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Devido na rescisão (dispensa sem justa causa)</div>
+      ${L('Aviso prévio indenizado ('+r.dias+' dias sobre a média)', r.avisoInden)}
+      ${L('Multa de 40% do FGTS (fora do TRCT — guia da Caixa)', r.multaFgts, '#B45309')}
+      <div style="display:flex;justify-content:space-between;padding-top:9px;font-size:15px;font-weight:900;color:#065F46">
+        <span>Total no TRCT</span><span>${brl(r.avisoInden)}</span></div>
+      <div style="font-size:11px;color:#64748B;margin-top:6px;line-height:1.5">
+        Somando a multa de 40%, o custo total fica em ${brl(r.avisoInden + r.multaFgts)}.
+      </div>
+    </div>
+
+    <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:12px 14px;margin-bottom:12px">
+      <div style="font-size:11px;color:#92400E;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Já pago nas convocações — não repetir</div>
+      ${L('Férias + 1/3', r.jaPago.ferias, '#92400E')}
+      ${L('13º proporcional', r.jaPago.decimo, '#92400E')}
+      ${L('DSR', r.jaPago.dsr, '#92400E')}
+      ${L('FGTS depositado (8%)', r.fgtsAcum, '#92400E')}
+    </div>
+
+    <div style="font-size:11.5px;color:#64748B;line-height:1.6">
+      <b>Confira antes de pagar:</b> se houver convocação trabalhada e ainda não recebida, emita o recibo
+      antes da rescisão. O saque do FGTS segue o código de dispensa sem justa causa. O direito ao
+      seguro-desemprego do intermitente é controvertido — confirme com a contabilidade.
+      ${r.ultimo?`<br>Último recibo: ${esc(r.ultimo.numero||'—')} · período até ${esc(r.ultimo.periodoFim||'—')}.`:''}
+    </div>`}
+    <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>
+  `, 640);
+};
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ENCERRAMENTO DE CONTRATO — PRESTADOR AUTÔNOMO (PF sem CNPJ)
+//  Não há rescisão trabalhista: sem vínculo, não existem aviso prévio, FGTS,
+//  multa de 40%, 13º nem férias. O que se faz é encerrar a prestação, pagar
+//  os serviços prestados (RPA final) e assinar a quitação recíproca.
+// ═══════════════════════════════════════════════════════════════════════════
+const ATLAS_INSS_TETO_AUT = 8475.55;   // teto do salário de contribuição 2026
+
+window.atlasCalcRPA = function(bruto, issPct){
+  const v = parseFloat(bruto)||0;
+  if(v<=0) return {bruto:0, inss:0, irrf:0, iss:0, liquido:0, patronal:0};
+  // Contribuinte individual: 11% sobre a remuneração, limitado ao teto
+  const baseInss = Math.min(v, ATLAS_INSS_TETO_AUT);
+  const inss = +(baseInss*0.11).toFixed(2);
+  // IRRF sobre o bruto menos o INSS retido
+  let irrf = 0;
+  try{ if(typeof calcIRRF==='function') irrf = calcIRRF(+(v-inss).toFixed(2), v); }catch(e){}
+  const iss = +(v*((parseFloat(issPct)||0)/100)).toFixed(2);
+  const patronal = +(v*0.20).toFixed(2);   // 20% CPP a cargo da contratante
+  return { bruto:+v.toFixed(2), inss, irrf, iss, patronal,
+           liquido:+(v-inss-irrf-iss).toFixed(2) };
+};
+
+function _atlasTermoEncerramento(emp, dados){
+  const cfg = (typeof EMPRESA_CFG!=='undefined' && EMPRESA_CFG) ? EMPRESA_CFG : {};
+  const fix = (typeof EMPRESA_FIXA!=='undefined' && EMPRESA_FIXA) ? EMPRESA_FIXA : {};
+  const V = (...a)=>{ for(const x of a){ if(x!==undefined && x!==null && String(x).trim()!=='') return String(x).trim(); } return ''; };
+  const fmt = d => { try{ return /^\d{4}-\d{2}-\d{2}$/.test(d) ? new Date(d+'T00:00:00').toLocaleDateString('pt-BR') : (d||'____/____/______'); }catch(e){ return d||''; } };
+  const brl = v => 'R$ ' + (parseFloat(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const empresa = V(cfg.nomeRazao, cfg.nome, fix.nome, 'ZOOM TECH');
+  const cnpj = V(cfg.cnpj, fix.cnpj, '__.___.___/____-__');
+  const cidade = V(cfg.cidade, fix.cidade, 'Foz do Iguaçu');
+  const r = dados.rpa;
+
+  return `TERMO DE ENCERRAMENTO DE CONTRATO DE PRESTAÇÃO DE SERVIÇOS AUTÔNOMOS
+E RECIBO DE QUITAÇÃO — Código Civil, arts. 593 a 609
+
+CONTRATANTE: ${empresa}, inscrita no CNPJ nº ${cnpj}.
+
+CONTRATADO(A): ${V(emp.nome,'________________')}, CPF nº ${V(emp.cpf,'___.___.___-__')}, profissional autônomo(a), pessoa física, sem inscrição em CNPJ.
+
+1. DO ENCERRAMENTO
+1.1. As partes, de comum acordo, dão por ENCERRADO em ${fmt(dados.dataFim)} o contrato de prestação de serviços autônomos firmado entre si${dados.dataInicio?(', vigente desde '+fmt(dados.dataInicio)):''}.
+1.2. O encerramento observou a comunicação prévia prevista em contrato, nada havendo a reclamar quanto à forma ou ao prazo do aviso.
+
+2. DO PAGAMENTO FINAL
+2.1. Pelos serviços efetivamente prestados e não quitados até a data do encerramento, a CONTRATANTE paga ao(à) CONTRATADO(A) o valor bruto de ${brl(r.bruto)}, com as retenções legais discriminadas:
+
+   Valor bruto dos serviços .................. ${brl(r.bruto)}
+   (−) INSS contribuinte individual (11%) .... ${brl(r.inss)}
+   (−) IRRF .................................. ${brl(r.irrf)}
+   (−) ISS ................................... ${brl(r.iss)}
+   ────────────────────────────────────────────────────────
+   VALOR LÍQUIDO A RECEBER ................... ${brl(r.liquido)}
+
+2.2. A CONTRATANTE recolherá, ainda, a contribuição previdenciária patronal de 20% (${brl(r.patronal)}) sobre a remuneração, nos termos do Art. 22, III, da Lei nº 8.212/1991, sem qualquer ônus para o(a) CONTRATADO(A).
+2.3. O comprovante das retenções será fornecido ao(à) CONTRATADO(A) para fins de comprovação junto ao INSS e à Receita Federal.
+
+3. DA INEXISTÊNCIA DE VÍNCULO E DAS VERBAS NÃO DEVIDAS
+3.1. As partes reafirmam que a relação foi de prestação de serviços autônomos, sem os elementos do Art. 3º da CLT — pessoalidade, subordinação jurídica, habitualidade e onerosidade salarial.
+3.2. Por consequência, NÃO são devidas verbas de natureza trabalhista, tais como aviso prévio, FGTS e respectiva multa de 40%, 13º salário, férias acrescidas de 1/3, horas extras ou verbas rescisórias, por não haver contrato de emprego entre as partes.
+
+4. DA QUITAÇÃO
+4.1. Recebido o valor acima, o(a) CONTRATADO(A) dá à CONTRATANTE plena, geral e irrevogável quitação quanto aos serviços prestados e aos valores deles decorrentes, nada mais tendo a reclamar a qualquer título.
+4.2. A CONTRATANTE, por sua vez, declara não haver pendências quanto às obrigações assumidas pelo(a) CONTRATADO(A).
+4.3. Permanece em vigor, pelo prazo contratado, a obrigação de sigilo sobre as informações a que o(a) CONTRATADO(A) teve acesso.
+
+5. DO FORO
+5.1. Por inexistir relação de emprego, eventuais controvérsias serão dirimidas pela Justiça Comum (Cível) da Comarca de ${V(cfg.comarca, fix.comarca, cidade)}.
+
+${cidade}, ${new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}.
+
+
+_______________________________________
+${V(emp.nome,'________________')}
+CPF: ${V(emp.cpf,'___.___.___-__')}
+CONTRATADO(A) — PRESTADOR(A) AUTÔNOMO(A)
+
+
+_______________________________________
+${empresa}
+CNPJ: ${cnpj}
+CONTRATANTE
+
+
+TESTEMUNHAS:
+Nome: ___________________________  CPF: ______________________
+Nome: ___________________________  CPF: ______________________`;
+}
+
+window.atlasVerEncerramentoAut = function(empId, dados){
+  const emp = (APP.employees||[]).find(e=>e.id===empId) || {};
+  const txt = _atlasTermoEncerramento(emp, dados);
+  const win = window.open('', '_blank');
+  if(!win){ toast('Permita pop-ups para visualizar o termo.','warn'); return; }
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
+    <title>Encerramento — ${esc(emp.nome||'')}</title>
+    <style>*{box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;max-width:820px;margin:0 auto;padding:40px 48px;color:#1a1a1a;line-height:1.65;font-size:13.5px}
+    .hd{background:#0B1E35;color:#fff;padding:20px 26px;border-radius:10px;margin-bottom:26px;display:flex;justify-content:space-between;align-items:center}
+    .hd h1{margin:0;font-size:20px} .hd .g{color:#C9A84C}
+    pre{white-space:pre-wrap;font-family:'Segoe UI',Arial,sans-serif;font-size:13.5px;line-height:1.7;margin:0}
+    @media print{.noprint{display:none}body{padding:16px}}
+    .noprint{position:fixed;top:14px;right:14px;display:flex;gap:8px}
+    .btn{background:#2563EB;color:#fff;border:none;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer}.btn.g{background:#059669}</style></head><body>
+    <div class="noprint"><button class="btn" onclick="window.print()">🖨 Imprimir / PDF</button><button class="btn g" onclick="window.close()">✓ Fechar</button></div>
+    <div class="hd"><h1>ATLAS <span class="g">RH</span></h1><div style="text-align:right;font-size:11px">Comércio e Assistência Técnica<br>DOCUMENTO OFICIAL</div></div>
+    <pre>${esc(txt)}</pre></body></html>`);
+  win.document.close();
+  try{ if(typeof auditLog==='function') auditLog('Gerou termo de encerramento autônomo', emp.nome||'', 'contratos'); }catch(e){}
+};
+
+window.atlasEnviarEncerramentoAut = async function(empId, dados){
+  const emp = (APP.employees||[]).find(e=>e.id===empId);
+  if(!emp){ toast('Selecione o prestador.','warn'); return; }
+  const doc = { id: uid(), empId, empNome: emp.nome||'',
+    tipo:'encerramento_autonomo',
+    tipoLabel:'Termo de Encerramento e Quitação — Prestação Autônoma',
+    titulo:'Encerramento de Contrato Autônomo — Assinatura',
+    conteudo: _atlasTermoEncerramento(emp, dados),
+    status:'pendente', origem:'rh_autonomo',
+    exigirSelfie:true, exigirFoto:true, registrarDataHora:true, exigirGeo:false,
+    criadoEm:new Date().toISOString(), criadoPor:'RH',
+    assinaturaData:null, assinaturaPNG:null, assinaturaHash:null, assinaturaIP:null, assinaturaGeo:null,
+    historicoStatus:[{status:'pendente',ts:new Date().toISOString(),por:'RH'}] };
+  if(!APP.assinaturas) APP.assinaturas=[];
+  await atlasCarimbarVersao(doc);
+  APP.assinaturas.push(doc);
+  await _atlasSyncAssinaturasFB();
+  if(typeof pushNotificacaoPortal==='function'){
+    pushNotificacaoPortal(empId, '📄 Termo de Encerramento para assinar',
+      'O RH disponibilizou o termo de encerramento da prestação de serviços. Acesse "Assinaturas".', 'contrato');
+  }
+  try{ if(typeof auditLog==='function') auditLog('Enviou termo de encerramento autônomo', emp.nome, 'assinaturas'); }catch(e){}
+  toast('✅ Termo enviado para assinatura no portal!','ok',4000);
+};
+
+window.atlasModalEncerrarAutonomo = function(empIdPre){
+  const emps = (APP.employees||[]).filter(e=>e && (e.status==='ativo' || e.id===empIdPre))
+    .slice().sort((a,b)=>String(a.nome||'').localeCompare(String(b.nome||'')));
+  if(!emps.length){ toast('Nenhum colaborador disponível.','err'); return; }
+  const hoje = new Date().toISOString().slice(0,10);
+  openModal('📄 Encerrar Contrato — Prestador Autônomo', `
+    <div style="background:#FFFBEB;border:1.5px solid #FDE68A;border-radius:10px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:#92400E;line-height:1.6">
+      Sem vínculo empregatício <b>não há rescisão</b>: nada de aviso prévio, FGTS, multa de 40%, 13º ou férias.
+      Paga-se o serviço prestado (RPA) e assina-se a quitação.
+    </div>
+    <div class="fld"><label>Prestador</label>
+      <select id="ea-emp">${emps.map(e=>`<option value="${e.id}" ${e.id===empIdPre?'selected':''}>${esc(e.nome)}</option>`).join('')}</select>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="fld" style="flex:1;min-width:150px"><label>Início da prestação</label><input type="date" id="ea-ini"></div>
+      <div class="fld" style="flex:1;min-width:150px"><label>Data do encerramento</label><input type="date" id="ea-fim" value="${hoje}"></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="fld" style="flex:1;min-width:150px"><label>Valor bruto a pagar (R$)</label><input type="number" id="ea-valor" step="0.01" placeholder="0,00" oninput="atlasPreviewRPA()"></div>
+      <div class="fld" style="flex:1;min-width:120px"><label>ISS do município (%)</label><input type="number" id="ea-iss" step="0.01" value="0" oninput="atlasPreviewRPA()"></div>
+    </div>
+    <div id="ea-preview" style="background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:6px;font-size:12.5px;color:#64748B">
+      Informe o valor bruto para ver as retenções do RPA.
+    </div>
+    <div class="mft" style="gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+      <button class="btn btn-sm" style="background:#0B1E35;color:#C9A84C;border:none;font-weight:700" onclick="atlasEncerrarAutEnviar()">✍️ Enviar p/ assinar</button>
+      <button class="btn btn-blue" onclick="atlasEncerrarAutGerar()">🖨 Gerar termo + RPA</button>
+    </div>`, 640);
+  setTimeout(()=>{ try{ atlasPreviewRPA(); }catch(e){} }, 50);
+};
+
+window.atlasPreviewRPA = function(){
+  const box = document.getElementById('ea-preview');
+  if(!box) return;
+  const v = parseFloat(document.getElementById('ea-valor')?.value)||0;
+  const iss = parseFloat(document.getElementById('ea-iss')?.value)||0;
+  if(v<=0){ box.innerHTML = 'Informe o valor bruto para ver as retenções do RPA.'; return; }
+  const r = atlasCalcRPA(v, iss);
+  const brl = x => 'R$ ' + (parseFloat(x)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const L = (d,x,cor) => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed #E2E8F0"><span>${d}</span><span style="font-weight:700;color:${cor||'#334155'}">${brl(x)}</span></div>`;
+  box.innerHTML = `
+    <div style="font-size:11px;font-weight:800;color:#0B1E35;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px">Recibo de Pagamento a Autônomo</div>
+    ${L('Valor bruto', r.bruto)}
+    ${L('(−) INSS contribuinte individual 11%', r.inss, '#DC2626')}
+    ${L('(−) IRRF', r.irrf, '#DC2626')}
+    ${L('(−) ISS ('+iss+'%)', r.iss, '#DC2626')}
+    <div style="display:flex;justify-content:space-between;padding-top:8px;font-size:14.5px;font-weight:900;color:#065F46"><span>Líquido a receber</span><span>${brl(r.liquido)}</span></div>
+    <div style="font-size:11px;color:#64748B;margin-top:7px;line-height:1.5">
+      A empresa recolhe ainda ${brl(r.patronal)} de INSS patronal (20%), sem desconto do prestador.
+      Custo total: ${brl(r.bruto + r.patronal)}.
+    </div>`;
+};
+
+function _atlasEncerrarAutDados(){
+  const empId = document.getElementById('ea-emp')?.value;
+  const valor = parseFloat(document.getElementById('ea-valor')?.value)||0;
+  const iss   = parseFloat(document.getElementById('ea-iss')?.value)||0;
+  return { empId, dados:{ dataInicio: document.getElementById('ea-ini')?.value||'',
+    dataFim: document.getElementById('ea-fim')?.value||'', rpa: atlasCalcRPA(valor, iss) } };
+}
+
+window.atlasEncerrarAutGerar = function(){
+  const d = _atlasEncerrarAutDados();
+  if(!d.dados.dataFim){ toast('Informe a data de encerramento.','warn'); return; }
+  closeModal();
+  atlasVerEncerramentoAut(d.empId, d.dados);
+};
+
+window.atlasEncerrarAutEnviar = async function(){
+  const d = _atlasEncerrarAutDados();
+  if(!d.dados.dataFim){ toast('Informe a data de encerramento.','warn'); return; }
+  closeModal();
+  await atlasEnviarEncerramentoAut(d.empId, d.dados);
+  if(typeof navigate==='function') navigate('assinatura_digital');
+};
+
 (function _atlasInjectButtons(){
   // 3a. Botão no módulo de Assinatura Digital
   const _origAssin = window.rAssinaturaDigital;
@@ -53678,6 +54028,7 @@ window.atlasDiagnosticarAssinatura = async function(assinId){
       <button class="btn btn-sm" style="background:#EEF2FF;color:#4338CA;border:none;font-weight:700" onclick="atlasModalNaoProrrogacao(_atlasEmpSel())">📨 Comunicado de Não Prorrogação</button>
       <button class="btn btn-ghost btn-sm" onclick="abrirCalcRescisao(_atlasEmpSel())">🧮 Calcular Rescisão</button>
       <button class="btn btn-ghost btn-sm" onclick="atlasModalTimeline(_atlasEmpSel())">📖 Linha do Tempo</button>
+      <button class="btn btn-ghost btn-sm" onclick="atlasModalEncerrarAutonomo(_atlasEmpSel())" title="Encerrar contrato de prestador autônomo (sem vínculo)">📄 Encerrar Autônomo</button>
     </div>
     <div style="padding:10px 18px;background:#FEF9EC;border-top:1px solid #FDE68A;font-size:11.5px;color:#92400E">
       💡 Selecione o colaborador acima para preencher os dados automaticamente. Sem seleção, o contrato sai em branco para preenchimento manual.
