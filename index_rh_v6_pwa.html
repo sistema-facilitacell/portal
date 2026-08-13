@@ -10114,6 +10114,7 @@ function executarCalcRescisao(){
       <div style="text-align:right;margin-top:12px">
         <button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8" onclick="imprimirRescisao()">🖨 Demonstrativo</button>
         <button class="btn btn-sm" style="background:#1E293B;color:#C9A84C;font-weight:700" onclick="gerarTRCT()">📄 Gerar TRCT</button>
+        <button class="btn btn-sm btn-ghost" onclick="atlasModalNaoProrrogacao(document.getElementById('rsc-emp')?.value)" title="Comunicado de não prorrogação do contrato de experiência">📨 Comunicado de Não Prorrogação</button>
       </div>
     </div>`;
 }
@@ -12549,6 +12550,7 @@ function rDemissao(){
       <button class="btn" style="background:#EFF6FF;color:#1D4ED8;font-weight:700" onclick="abrirDecimoTerceiro()">🎁 13º Salário</button>
       <button class="btn" style="background:#FFF7ED;color:#C2410C;font-weight:700" onclick="abrirAvisoPrevio()">📋 Aviso Prévio</button>
       <button class="btn" style="background:#F0FDF4;color:#047857;font-weight:700" onclick="abrirCalcRescisao()">🧮 Calcular Rescisão</button>
+      <button class="btn" style="background:#EEF2FF;color:#4338CA;font-weight:700" onclick="atlasModalNaoProrrogacao()" title="Comunicado de não prorrogação do contrato de experiência">📨 Não Prorrogação</button>
       <button class="btn btn-red" onclick="openDemForm()">+ Novo Processo</button>
     </div>
   </div>
@@ -29438,16 +29440,12 @@ const DOC_NAMES_MAP = {
   doc_ficha:           {label:'Ficha de Registro de Empregado',  icon:'📋', obrig:true},
   doc_declaracao:      {label:'Declaração de Veracidade',        icon:'✅', obrig:true},
   doc_cameras:         {label:'Termo Aditivo — Câmeras de Segurança', icon:'📷', obrig:false},
-  doc_equipamentos:    {label:'Termo de Responsabilidade — Equipamentos', icon:'🔧', obrig:false},
   doc_banco:           {label:'Política de Banco de Horas',     icon:'⏱', obrig:false},
   doc_premios:         {label:'Regulamento de Comissões e Conduta', icon:'🏆', obrig:false},
   doc_confidencialidade:{label:'Termo de Confidencialidade (NDA)', icon:'🔒', obrig:false},
   doc_lgpd:            {label:'Termo de Proteção de Dados (LGPD)', icon:'🛡', obrig:true},
   doc_treinamento:     {label:'Termo de Treinamento Pós-Admissão', icon:'📚', obrig:false},
   doc_conduta:         {label:'Código de Conduta e Ética Profissional', icon:'⚖️', obrig:false},
-  doc_acumulacao:      {label:'Decl. Não Acumulação de Vínculos', icon:'🏛️', obrig:false},
-  doc_epi:             {label:'Termo de Responsabilidade por EPIs', icon:'🦺', obrig:false},
-  doc_recibo_docs:     {label:'Recibo de Entrega de Documentos', icon:'📁', obrig:false},
 };
 
 // ── Render principal ─────────────────────────────────────────────
@@ -29992,6 +29990,7 @@ function mapDadosWizard(){
   var w = window.CONT_WIZARD || {};
   var d = w.dados || {};
   var emp = (window.APP && window.APP.employees || []).find(function(e){ return e.id === w.empId; }) || {};
+  window.__WIZ_EMP = emp;
   // Se dados está vazio, preencher a partir do funcionário
   if(!d.f_nome && emp.nome && window.preencherDadosEmp){
     d = Object.assign({}, window.preencherDadosEmp(emp), d);
@@ -30278,22 +30277,31 @@ if(id==='doc_ficha') return `<div class="doc-wrap">${H()}
     <tr><td>Setor</td><td>Loja / Atendimento ao Cliente</td></tr>
   </table>
 
-  <div class="doc-section-title">Conta Bancária para Pagamento</div>
-  <table class="doc-table">
-    <tr><td>Banco</td><td>___________________________________</td></tr>
-    <tr><td>Agência</td><td>___________________________________</td></tr>
-    <tr><td>Conta Corrente</td><td>___________________________________</td></tr>
-    <tr><td>Tipo</td><td>( ) Conta Corrente &nbsp; ( ) Conta Salário &nbsp; ( ) PIX</td></tr>
-    <tr><td>Chave PIX</td><td>___________________________________</td></tr>
-  </table>
+  ${(function(){
+    var e = window.__WIZ_EMP || {};
+    var banco = e.banco||'', tipoPix = e.tipoPix||'', pix = e.chavePix||'';
+    if(!banco && !pix) return '';   // sem dado bancário, a seção não é impressa
+    return '<div class="doc-section-title">Conta Bancária para Pagamento</div>'
+      + '<table class="doc-table">'
+      + '<tr><td>Banco</td><td>'+(banco||'___________________________________')+'</td></tr>'
+      + '<tr><td>Tipo de Chave PIX</td><td>'+(tipoPix||'___________________________________')+'</td></tr>'
+      + '<tr><td>Chave PIX</td><td>'+(pix||'___________________________________')+'</td></tr>'
+      + '<tr><td>Titular</td><td>'+(e.nome||'___________________________________')+'</td></tr>'
+      + '</table>';
+  })()}
 
-  <div class="doc-section-title">Dependentes (para IRRF e Plano de Saúde)</div>
-  <table class="doc-table">
-    <tr style="background:#f8f6f3"><td><b>Nome Completo</b></td><td><b>Parentesco</b></td><td><b>Data Nasc.</b></td><td><b>CPF</b></td></tr>
-    <tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
-    <tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
-    <tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
-  </table>
+  ${(function(){
+    var e = window.__WIZ_EMP || {};
+    var fs = (e.filhos||[]).filter(function(f){ return f && f.nome && String(f.nome).trim(); });
+    if(!fs.length) return '';   // sem dependentes cadastrados, a seção não é impressa
+    var linhas = fs.map(function(f){
+      return '<tr><td>'+String(f.nome).trim()+'</td><td>Filho(a)</td><td>'+(f.nascimento||'____/____/______')+'</td><td>'+(f.cpf||'___.___.___-__')+'</td></tr>';
+    }).join('');
+    return '<div class="doc-section-title">Dependentes (para IRRF e Plano de Saúde)</div>'
+      + '<table class="doc-table">'
+      + '<tr style="background:#f8f6f3"><td><b>Nome Completo</b></td><td><b>Parentesco</b></td><td><b>Data Nasc.</b></td><td><b>CPF</b></td></tr>'
+      + linhas + '</table>';
+  })()}
 
   <div class="doc-section-title">Exame Médico Admissional — NR-7</div>
   <table class="doc-table">
@@ -52453,7 +52461,7 @@ window.atlasSetTipoContrato = function(kind){
   if(!window.CONT_WIZARD) return;
   CONT_WIZARD.tipoContrato = kind;
   // Documentos exclusivos da CLT não fazem sentido no contrato autônomo
-  const soCLT = ['doc_banco','doc_epi','doc_premios','doc_treinamento'];
+  const soCLT = ['doc_banco','doc_premios','doc_treinamento'];
   if(kind==='autonomo'){
     CONT_WIZARD.docs = CONT_WIZARD.docs.filter(d=>!soCLT.includes(d));
   }
@@ -52476,18 +52484,18 @@ const ATLAS_DOC_GRUPOS = [
     ids:['doc_contrato','doc_ficha','doc_declaracao','doc_lgpd'] },
   { nome:'Termos de responsabilidade', cor:'#2563EB', icone:'🔒',
     desc:'Protegem o patrimônio e as informações da empresa.',
-    ids:['doc_equipamentos','doc_epi','doc_confidencialidade','doc_recibo_docs'] },
+    ids:['doc_confidencialidade'] },
   { nome:'Políticas e regulamentos', cor:'#059669', icone:'📚',
     desc:'Regras internas que o colaborador declara conhecer.',
     ids:['doc_banco','doc_premios','doc_conduta','doc_treinamento'] },
   { nome:'Declarações e aditivos', cor:'#D97706', icone:'📝',
     desc:'Complementos conforme a realidade da operação.',
-    ids:['doc_cameras','doc_acumulacao'] }
+    ids:['doc_cameras'] }
 ];
 
 window.wizardStep2 = function(w){
   const kind = _atlasCtWizKind();
-  const soCLT = ['doc_banco','doc_epi','doc_premios','doc_treinamento'];
+  const soCLT = ['doc_banco','doc_premios','doc_treinamento'];
 
   const cardTipo = (k, titulo, sub, cor) => {
     const on = kind===k;
@@ -52595,6 +52603,198 @@ window.atlasSetModeloModal = function(kind){
   }catch(e){ console.warn('[modelo modal]', e); }
 };
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  COMUNICADO DE NÃO PRORROGAÇÃO DO CONTRATO DE EXPERIÊNCIA
+//  Não é aviso prévio (inexistente em contrato por prazo determinado); é a
+//  prova de que o contrato terminou no prazo, e não por dispensa imotivada.
+// ═══════════════════════════════════════════════════════════════════════════
+function _atlasNPTexto(emp, fimContrato, dataAviso){
+  emp = emp || {};
+  const cfg = (typeof EMPRESA_CFG!=='undefined' && EMPRESA_CFG) ? EMPRESA_CFG : {};
+  const fix = (typeof EMPRESA_FIXA!=='undefined' && EMPRESA_FIXA) ? EMPRESA_FIXA : {};
+  const V = (...a)=>{ for(const x of a){ if(x!==undefined && x!==null && String(x).trim()!=='') return String(x).trim(); } return ''; };
+  const fmt = d => { try{ return /^\d{4}-\d{2}-\d{2}$/.test(d) ? new Date(d+'T00:00:00').toLocaleDateString('pt-BR') : (d||'____/____/______'); }catch(e){ return d||'____/____/______'; } };
+  const empresa = V(cfg.nomeRazao, cfg.nome, fix.nome, 'ZOOM TECH');
+  const cnpj    = V(cfg.cnpj, fix.cnpj, '__.___.___/____-__');
+  const cidade  = V(cfg.cidade, fix.cidade, 'Foz do Iguaçu');
+  const adm     = emp.dataAdmissao ? fmt(emp.dataAdmissao) : '____/____/______';
+  const fim     = fmt(fimContrato);
+  const dtAviso = dataAviso ? fmt(dataAviso) : new Date().toLocaleDateString('pt-BR');
+  const dataExt = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+
+  return `COMUNICADO DE NÃO PRORROGAÇÃO DE CONTRATO DE EXPERIÊNCIA
+Art. 443, §2º, "c" e Art. 445, parágrafo único, da CLT
+
+EMPREGADOR(A): ${empresa}, inscrita no CNPJ nº ${cnpj}.
+
+EMPREGADO(A): ${V(emp.nome,'________________')}, CPF nº ${V(emp.cpf,'___.___.___-__')}, ocupante da função de ${V(emp.cargo,'________________')}.
+
+Prezado(a) ${V(String(emp.nome||'').split(' ')[0],'colaborador(a)')},
+
+Comunicamos que o Contrato Individual de Trabalho por prazo determinado (Contrato de Experiência), firmado entre as partes em ${adm}, encerra-se em ${fim}, data em que se esgota o prazo nele previsto.
+
+Informamos que o referido contrato NÃO será prorrogado e tampouco convertido em contrato por prazo indeterminado, extinguindo-se de pleno direito no seu termo final, na forma do Art. 443, §2º, "c", da CLT.
+
+Esclarecemos que:
+
+1. O término se dá pelo decurso do prazo ajustado, não se tratando de dispensa sem justa causa, razão pela qual não é devido aviso prévio (Art. 487 da CLT, aplicável apenas aos contratos por prazo indeterminado).
+
+2. O(A) empregado(a) permanecerá em exercício regular de suas funções até ${fim}, inclusive, data do último dia de trabalho.
+
+3. As verbas rescisórias devidas — saldo de salário, 13º salário proporcional e férias proporcionais acrescidas de 1/3 — serão pagas no prazo de até 10 (dez) dias corridos contados do término do contrato, nos termos do Art. 477, §6º, da CLT.
+
+4. Será disponibilizado o saque do FGTS depositado, mediante o código de movimentação próprio do término de contrato por prazo determinado, não incidindo a multa de 40% por não se tratar de rescisão imotivada.
+
+5. A presente modalidade de encerramento não gera direito ao benefício do seguro-desemprego.
+
+Agradecemos pelo período de convívio e pelos serviços prestados, colocando-nos à disposição para os esclarecimentos que se fizerem necessários.
+
+${cidade}, ${dataExt}.
+
+
+_______________________________________
+${empresa}
+CNPJ: ${cnpj}
+EMPREGADOR(A)
+
+
+CIÊNCIA DO(A) EMPREGADO(A)
+
+Declaro que recebi a presente comunicação em ${dtAviso}, tendo tomado ciência de que o meu contrato de experiência encerra-se em ${fim} e não será prorrogado.
+
+
+_______________________________________
+${V(emp.nome,'________________')}
+CPF: ${V(emp.cpf,'___.___.___-__')}
+EMPREGADO(A)
+
+Data: ____/____/______`;
+}
+
+// Abre o comunicado para impressão / PDF
+window.atlasVerComunicadoNP = function(empId, fimContrato, dataAviso){
+  const emp = empId ? (APP.employees||[]).find(e=>e.id===empId) : null;
+  const txt = _atlasNPTexto(emp||{}, fimContrato, dataAviso);
+  const win = window.open('', '_blank');
+  if(!win){ toast('Permita pop-ups para visualizar o comunicado.','warn'); return; }
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
+    <title>Comunicado de Não Prorrogação${emp?(' — '+esc(emp.nome)):''}</title>
+    <style>
+      *{box-sizing:border-box} body{font-family:'Segoe UI',Arial,sans-serif;max-width:820px;margin:0 auto;padding:40px 48px;color:#1a1a1a;line-height:1.65;font-size:13.5px}
+      .hd{background:#0B1E35;color:#fff;padding:20px 26px;border-radius:10px;margin-bottom:26px;display:flex;justify-content:space-between;align-items:center}
+      .hd h1{margin:0;font-size:20px;letter-spacing:.5px} .hd .g{color:#C9A84C}
+      pre{white-space:pre-wrap;font-family:'Segoe UI',Arial,sans-serif;font-size:13.5px;line-height:1.7;margin:0}
+      @media print{.noprint{display:none}body{padding:16px}}
+      .noprint{position:fixed;top:14px;right:14px;display:flex;gap:8px}
+      .btn{background:#2563EB;color:#fff;border:none;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer}
+      .btn.g{background:#059669}
+    </style></head><body>
+    <div class="noprint">
+      <button class="btn" onclick="window.print()">🖨 Imprimir / PDF</button>
+      <button class="btn g" onclick="window.close()">✓ Fechar</button>
+    </div>
+    <div class="hd"><h1>ATLAS <span class="g">RH</span></h1><div style="text-align:right;font-size:11px">Comércio e Assistência Técnica<br>DOCUMENTO OFICIAL</div></div>
+    <pre>${esc(txt)}</pre>
+  </body></html>`);
+  win.document.close();
+  try{ if(typeof auditLog==='function' && emp) auditLog('Gerou comunicado de não prorrogação', emp.nome, 'contratos'); }catch(_){}
+};
+
+// Envia o comunicado ao portal para assinatura (ciência do colaborador)
+window.atlasEnviarComunicadoNP = async function(empId, fimContrato, dataAviso){
+  const emp = (APP.employees||[]).find(e=>e.id===empId);
+  if(!emp){ toast('Selecione um colaborador.','warn'); return; }
+  const doc = {
+    id: uid(), empId, empNome: emp.nome||'',
+    tipo:'comunicado_nao_prorrogacao',
+    tipoLabel:'Comunicado de Não Prorrogação de Contrato de Experiência',
+    titulo:'Comunicado de Não Prorrogação — Ciência',
+    conteudo: _atlasNPTexto(emp, fimContrato, dataAviso),
+    status:'pendente', origem:'rh_rescisao',
+    criadoEm:new Date().toISOString(), criadoPor:'RH',
+    assinaturaData:null, assinaturaPNG:null, assinaturaHash:null, assinaturaIP:null, assinaturaGeo:null,
+    historicoStatus:[{status:'pendente',ts:new Date().toISOString(),por:'RH'}]
+  };
+  if(!APP.assinaturas) APP.assinaturas=[];
+  APP.assinaturas.push(doc);
+  if(typeof _atlasSyncAssinaturasFB==='function') await _atlasSyncAssinaturasFB();
+  if(typeof pushNotificacaoPortal==='function'){
+    pushNotificacaoPortal(empId, '📄 Comunicado de Não Prorrogação',
+      'O RH disponibilizou um comunicado sobre o término do seu contrato de experiência. Acesse "Assinaturas" para dar ciência.',
+      'comunicado');
+  }
+  try{ if(typeof auditLog==='function') auditLog('Enviou comunicado de não prorrogação', emp.nome, 'assinaturas'); }catch(_){}
+  toast('✅ Comunicado enviado para ciência no portal!','ok',4000);
+};
+
+// Modal do comunicado
+window.atlasModalNaoProrrogacao = function(empIdPre){
+  const ativos = (APP.employees||[]).filter(e=>e && (e.status==='ativo' || e.id===empIdPre))
+    .slice().sort((a,b)=>String(a.nome||'').localeCompare(String(b.nome||'')));
+  if(!ativos.length){ toast('Nenhum colaborador disponível.','err'); return; }
+  const hoje = new Date().toISOString().slice(0,10);
+  openModal('📄 Comunicado de Não Prorrogação', `
+    <div style="background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:10px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:#1E40AF;line-height:1.55">
+      Documento que comprova que o contrato terminou <b>no prazo</b>, e não por dispensa. Não é aviso prévio — contrato por prazo determinado não tem.
+    </div>
+    <div class="fld"><label>Colaborador</label>
+      <select id="np-emp" onchange="atlasNPSugereFim()">
+        ${ativos.map(e=>`<option value="${e.id}" ${e.id===empIdPre?'selected':''}>${esc(e.nome)}</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="fld" style="flex:1;min-width:170px">
+        <label>Término do contrato (último dia)</label>
+        <input type="date" id="np-fim">
+      </div>
+      <div class="fld" style="flex:1;min-width:170px">
+        <label>Data da comunicação</label>
+        <input type="date" id="np-aviso" value="${hoje}">
+      </div>
+    </div>
+    <div style="font-size:11px;color:#64748B;line-height:1.5;margin-top:-4px">
+      O colaborador trabalha normalmente até o término, inclusive. Trabalhar 1 dia a mais converte o contrato em prazo indeterminado (art. 451 da CLT).
+    </div>
+    <div class="mft" style="flex-wrap:wrap;gap:8px">
+      <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+      <button class="btn btn-sm" style="background:#0B1E35;color:#C9A84C;border:none;font-weight:700" onclick="atlasNPEnviar()">✍️ Enviar p/ ciência no portal</button>
+      <button class="btn btn-blue" onclick="atlasNPGerar()">🖨 Gerar / Imprimir</button>
+    </div>`, 620);
+  setTimeout(()=>{ try{ atlasNPSugereFim(); }catch(_){ } }, 60);
+};
+
+// Sugere o término em 90 dias da admissão (teto do art. 445, § único)
+window.atlasNPSugereFim = function(){
+  const eid = document.getElementById('np-emp')?.value;
+  const emp = (APP.employees||[]).find(e=>e.id===eid);
+  const inp = document.getElementById('np-fim');
+  if(!emp || !inp) return;
+  if(emp.dataAdmissao){
+    const d = new Date(emp.dataAdmissao+'T00:00:00');
+    if(!isNaN(d)){ d.setDate(d.getDate()+90); inp.value = d.toISOString().slice(0,10); }
+  }
+};
+
+window.atlasNPGerar = function(){
+  const eid = document.getElementById('np-emp')?.value;
+  const fim = document.getElementById('np-fim')?.value;
+  const av  = document.getElementById('np-aviso')?.value;
+  if(!fim){ toast('Informe a data de término do contrato.','warn'); return; }
+  closeModal();
+  atlasVerComunicadoNP(eid, fim, av);
+};
+
+window.atlasNPEnviar = async function(){
+  const eid = document.getElementById('np-emp')?.value;
+  const fim = document.getElementById('np-fim')?.value;
+  const av  = document.getElementById('np-aviso')?.value;
+  if(!fim){ toast('Informe a data de término do contrato.','warn'); return; }
+  closeModal();
+  await atlasEnviarComunicadoNP(eid, fim, av);
+  if(typeof navigate==='function') navigate('assinatura_digital');
+};
+
 (function _atlasInjectButtons(){
   // 3a. Botão no módulo de Assinatura Digital
   const _origAssin = window.rAssinaturaDigital;
@@ -52683,6 +52883,11 @@ window.atlasSetModeloModal = function(kind){
       ${modelo('autonomo','#C9A84C','📝','Prestação de Serviços Autônomos','Pessoa física sem CNPJ — sem vínculo',
         'Prestação autônoma sem subordinação: INSS contribuinte individual (11%), RPA, ISS e ausência expressa de vínculo empregatício.',
         ['Código Civil','Arts. 593-609','Lei 8.212/91'])}
+    </div>
+    <div style="padding:11px 18px;background:#F8FAFC;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:11.5px;color:#64748B;font-weight:700">Fim da experiência:</span>
+      <button class="btn btn-sm" style="background:#EEF2FF;color:#4338CA;border:none;font-weight:700" onclick="atlasModalNaoProrrogacao(_atlasEmpSel())">📨 Comunicado de Não Prorrogação</button>
+      <button class="btn btn-ghost btn-sm" onclick="abrirCalcRescisao(_atlasEmpSel())">🧮 Calcular Rescisão</button>
     </div>
     <div style="padding:10px 18px;background:#FEF9EC;border-top:1px solid #FDE68A;font-size:11.5px;color:#92400E">
       💡 Selecione o colaborador acima para preencher os dados automaticamente. Sem seleção, o contrato sai em branco para preenchimento manual.
