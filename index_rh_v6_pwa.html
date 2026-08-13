@@ -53003,7 +53003,10 @@ window.rAtlasPainelRH = function(){
           ⏳ pendente há ${p.dias} dia(s)
         </div>
       </div>
-      <button class="btn btn-sm btn-green" onclick="atlasCobrarAssinatura('${p.doc.id}')">💬 Cobrar</button>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm btn-green" onclick="atlasCobrarAssinatura('${p.doc.id}')">💬 Cobrar</button>
+        <button class="btn btn-sm" style="background:#FEF2F2;color:#DC2626;border:1px solid #FECACA;font-weight:700" onclick="atlasRemoverAssinatura('${p.doc.id}')" title="Remover do portal do colaborador">🗑 Remover</button>
+      </div>
     </div>`;
 
   const vazio = t => `<div style="text-align:center;padding:26px;color:var(--mt);font-size:13px">${t}</div>`;
@@ -53385,6 +53388,56 @@ window.atlasVerificarIntegridade = async function(assinId){
     </div>
     <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>
   `, 560);
+};
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  REMOVER DOCUMENTO DO PORTAL
+//  O sync normal faz merge por id e NUNCA apaga — se apagássemos só local,
+//  o documento voltaria no próximo sync. Aqui a exclusão é feita direto na
+//  lista do Firestore, filtrando o id antes de regravar.
+// ═══════════════════════════════════════════════════════════════════════════
+window.atlasRemoverAssinatura = async function(assinId){
+  const doc = (APP.assinaturas||[]).find(a=>a.id===assinId);
+  if(!doc){ toast('Documento não encontrado.','warn'); return; }
+
+  const assinado = doc.status==='assinado';
+  const aviso = assinado
+    ? 'Este documento JÁ FOI ASSINADO. Remover apaga a assinatura e o registro — isso não pode ser desfeito.\n\nEm caso de disputa trabalhista, a assinatura é a sua prova. Tem certeza?'
+    : 'Remover este documento do portal do colaborador?\n\nEle deixará de aparecer para assinatura. Esta ação não pode ser desfeita.';
+
+  let ok = false;
+  try{ ok = (typeof confirmDialog==='function') ? await confirmDialog(aviso) : confirm(aviso); }
+  catch(e){ ok = confirm(aviso); }
+  if(!ok) return;
+
+  // 1) remove da memória
+  APP.assinaturas = (APP.assinaturas||[]).filter(a=>a.id!==assinId);
+
+  // 2) remove do Firestore de verdade (não dá para usar o merge aqui)
+  if(typeof FBASE!=='undefined' && FBASE){
+    try{
+      const snap = await FBASE.collection('hr').doc('assinaturas').get();
+      let all = [];
+      if(snap.exists){ try{ all = JSON.parse(snap.data().d||'[]'); }catch(e){ all=[]; } }
+      const filtrada = all.filter(a=>a && a.id!==assinId);
+      await FBASE.collection('hr').doc('assinaturas')
+        .set({d:JSON.stringify(filtrada), ts:Date.now(), k:'assinaturas'});
+    }catch(e){
+      console.warn('[remover assinatura]', e);
+      toast('Removido localmente, mas falhou no servidor. Tente sincronizar.','warn',5000);
+    }
+  }
+
+  try{ if(typeof _saveAssinaturas==='function') _saveAssinaturas(); }catch(e){}
+  try{
+    if(typeof auditLog==='function')
+      auditLog('Removeu documento do portal: '+(doc.tipoLabel||doc.titulo||'documento')+(assinado?' (JÁ ASSINADO)':''),
+               doc.empNome||'', 'assinaturas');
+  }catch(e){}
+
+  toast('🗑 Documento removido do portal.','ok');
+  if(typeof navigate==='function' && typeof MOD!=='undefined') navigate(MOD);
 };
 
 (function _atlasInjectButtons(){
