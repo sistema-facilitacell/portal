@@ -53018,6 +53018,7 @@ window.rAtlasPainelRH = function(){
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn btn-sm btn-green" onclick="atlasCobrarAssinatura('${p.doc.id}')">💬 Cobrar</button>
+        <button class="btn btn-ghost btn-sm" onclick="atlasDiagnosticarAssinatura('${p.doc.id}')" title="Descobrir por que não aparece no portal">🔍 Diagnóstico</button>
         <button class="btn btn-sm" style="background:#FEF2F2;color:#DC2626;border:1px solid #FECACA;font-weight:700" onclick="atlasRemoverAssinatura('${p.doc.id}')" title="Remover do portal do colaborador">🗑 Remover</button>
       </div>
     </div>`;
@@ -53512,6 +53513,76 @@ window.atlasLimparCifrados = function(silencioso){
     });
   }catch(e){ console.warn('[auto limpar cifrados]', e); }
 })();
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  DIAGNÓSTICO: por que um documento não aparece no portal
+//  O portal lê hr/assinaturas e filtra por empId === EMP.id. Se o documento
+//  existe aqui mas não lá, ou o empId não bate, o colaborador não vê nada.
+// ═══════════════════════════════════════════════════════════════════════════
+window.atlasDiagnosticarAssinatura = async function(assinId){
+  const local = (APP.assinaturas||[]).find(a=>a.id===assinId);
+  if(!local){ toast('Documento não encontrado no sistema.','warn'); return; }
+  const emp = (APP.employees||[]).find(e=>e.id===local.empId);
+
+  openModal('🔍 Diagnóstico do documento', '<div style="text-align:center;padding:30px">⏳ Consultando o Firestore...</div>', 620);
+
+  let noFirestore = null, totalFB = 0, doEmpFB = 0, erroFB = '';
+  if(typeof FBASE!=='undefined' && FBASE){
+    try{
+      const snap = await FBASE.collection('hr').doc('assinaturas').get();
+      if(snap.exists){
+        const all = JSON.parse(snap.data().d||'[]');
+        totalFB = all.length;
+        noFirestore = all.find(a=>a && a.id===assinId) || null;
+        doEmpFB = all.filter(a=>a && a.empId===local.empId).length;
+      } else { erroFB = 'O documento hr/assinaturas não existe no Firestore.'; }
+    }catch(e){ erroFB = (e && e.message) || String(e); }
+  } else { erroFB = 'Firebase não conectado nesta sessão.'; }
+
+  const item = (ok, txt, det) => `
+    <div style="display:flex;gap:9px;align-items:flex-start;padding:9px 0;border-bottom:1px dashed #E2E8F0">
+      <span style="font-size:15px;flex-shrink:0">${ok?'✅':'❌'}</span>
+      <div><div style="font-size:13px;font-weight:700;color:${ok?'#166534':'#B91C1C'}">${txt}</div>
+      ${det?`<div style="font-size:11.5px;color:#64748B;margin-top:2px;word-break:break-all">${det}</div>`:''}</div>
+    </div>`;
+
+  let veredito;
+  if(!noFirestore){
+    veredito = `<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:9px;padding:12px;font-size:12.5px;color:#7F1D1D;line-height:1.6">
+      <b>O documento não chegou ao Firestore.</b> Por isso o portal não tem como mostrá-lo.
+      Remova este pendente e envie novamente — agora que o erro de gravação foi corrigido, deve subir.
+    </div>`;
+  } else if(noFirestore.status!=='pendente'){
+    veredito = `<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:9px;padding:12px;font-size:12.5px;color:#92400E;line-height:1.6">
+      No Firestore o status é <b>${esc(noFirestore.status||'?')}</b>. O portal só lista os pendentes.
+    </div>`;
+  } else {
+    veredito = `<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:9px;padding:12px;font-size:12.5px;color:#166534;line-height:1.6">
+      <b>Está tudo certo do lado do sistema.</b> O documento está no Firestore, pendente e com o empId correto.
+      Se não aparece, é sessão antiga no portal: peça para o colaborador <b>sair e entrar de novo</b>
+      (o portal só busca as assinaturas no login) e dar um Ctrl+Shift+R.
+    </div>`;
+  }
+
+  openModal('🔍 Diagnóstico do documento', `
+    <div style="background:#F8FAFC;border:1px solid var(--border);border-radius:9px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:#475569">
+      <b>${esc(local.tipoLabel||local.titulo||'Documento')}</b><br>
+      Colaborador: ${esc(emp?emp.nome:(local.empNome||'—'))}
+    </div>
+    ${item(true, 'Existe no sistema (RH)', 'id: '+esc(assinId)+' · status: '+esc(local.status||'—'))}
+    ${item(!!emp, emp?'Colaborador encontrado no cadastro':'Colaborador NÃO encontrado no cadastro', 'empId: '+esc(local.empId||'—'))}
+    ${item(!erroFB, erroFB?('Falha ao consultar o Firestore'):'Firestore consultado', erroFB || (totalFB+' documento(s) na coleção'))}
+    ${item(!!noFirestore, noFirestore?'Documento está no Firestore':'Documento NÃO está no Firestore',
+           noFirestore?('status lá: '+esc(noFirestore.status||'—')):'foi criado aqui, mas não subiu')}
+    ${item(doEmpFB>0, doEmpFB+' documento(s) deste colaborador no Firestore', 'o portal filtra por empId — precisa ser maior que zero')}
+    <div style="margin-top:14px">${veredito}</div>
+    <div class="mft" style="gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+      <button class="btn btn-blue btn-sm" onclick="closeModal();_atlasSyncAssinaturasFB().then(()=>toast('Sincronizado. Peça para o colaborador entrar de novo no portal.','ok',6000))">🔄 Reenviar ao Firestore</button>
+    </div>
+  `, 640);
+};
 
 (function _atlasInjectButtons(){
   // 3a. Botão no módulo de Assinatura Digital
