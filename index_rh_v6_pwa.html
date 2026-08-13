@@ -53733,9 +53733,15 @@ window.atlasModalRescisaoInt = function(empId){
 // ═══════════════════════════════════════════════════════════════════════════
 const ATLAS_INSS_TETO_AUT = 8475.55;   // teto do salário de contribuição 2026
 
-window.atlasCalcRPA = function(bruto, issPct){
+window.atlasCalcRPA = function(bruto, issPct, semRetencao){
   const v = parseFloat(bruto)||0;
-  if(v<=0) return {bruto:0, inss:0, irrf:0, iss:0, liquido:0, patronal:0};
+  if(v<=0) return {bruto:0, inss:0, irrf:0, iss:0, liquido:0, patronal:0, semRetencao:!!semRetencao};
+  // Pagamento sem retenção: o líquido é o próprio bruto. A contribuição
+  // patronal de 20% continua sendo da empresa (Lei 8.212/91, art. 22, III).
+  if(semRetencao){
+    return { bruto:+v.toFixed(2), inss:0, irrf:0, iss:0,
+             patronal:+(v*0.20).toFixed(2), liquido:+v.toFixed(2), semRetencao:true };
+  }
   // Contribuinte individual: 11% sobre a remuneração, limitado ao teto
   const baseInss = Math.min(v, ATLAS_INSS_TETO_AUT);
   const inss = +(baseInss*0.11).toFixed(2);
@@ -53781,14 +53787,11 @@ ${(function(){
   if(c.outros>0)  L += '   ' + 'Outros valores'.padEnd(42,'.') + ' ' + brl(c.outros) + '\n';
   return L;
 })()}   Valor bruto dos serviços .................. ${brl(r.bruto)}
-   (−) INSS contribuinte individual (11%) .... ${brl(r.inss)}
-   (−) IRRF .................................. ${brl(r.irrf)}
-   (−) ISS ................................... ${brl(r.iss)}
-   ────────────────────────────────────────────────────────
+${r.semRetencao ? '' : '   (−) INSS contribuinte individual (11%) .... '+brl(r.inss)+'\n   (−) IRRF .................................. '+brl(r.irrf)+'\n   (−) ISS ................................... '+brl(r.iss)+'\n'}   ────────────────────────────────────────────────────────
    VALOR LÍQUIDO A RECEBER ................... ${brl(r.liquido)}
 
 2.2. A CONTRATANTE recolherá, ainda, a contribuição previdenciária patronal de 20% (${brl(r.patronal)}) sobre a remuneração, nos termos do Art. 22, III, da Lei nº 8.212/1991, sem qualquer ônus para o(a) CONTRATADO(A).
-2.3. O comprovante das retenções será fornecido ao(à) CONTRATADO(A) para fins de comprovação junto ao INSS e à Receita Federal.
+${r.semRetencao ? '2.3. O valor foi pago integralmente, sem retenções na fonte, cabendo ao(à) CONTRATADO(A) o recolhimento de suas próprias obrigações previdenciárias e fiscais na condição de contribuinte individual.' : '2.3. O comprovante das retenções será fornecido ao(à) CONTRATADO(A) para fins de comprovação junto ao INSS e à Receita Federal.'}
 
 3. DA INEXISTÊNCIA DE VÍNCULO E DAS VERBAS NÃO DEVIDAS
 3.1. As partes reafirmam que a relação foi de prestação de serviços autônomos, sem os elementos do Art. 3º da CLT — pessoalidade, subordinação jurídica, habitualidade e onerosidade salarial.
@@ -53899,7 +53902,11 @@ window.atlasModalEncerrarAutonomo = function(empIdPre){
       <div class="fld" style="flex:1;min-width:110px"><label>Comissão por aparelho (R$)</label><input type="number" id="ea-vap" step="0.01" value="15" oninput="atlasPreviewRPA()"></div>
       <div class="fld" style="flex:1;min-width:110px"><label>Outros valores (R$)</label><input type="number" id="ea-outros" step="0.01" placeholder="0,00" oninput="atlasPreviewRPA()"></div>
     </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:#475569;margin:4px 0 10px;cursor:pointer">
+      <input type="checkbox" id="ea-semret" onchange="atlasToggleRetencoes()" style="width:15px;height:15px">
+      <span>Pagar o valor cheio, <b>sem descontar</b> INSS, IRRF e ISS</span>
+    </label>
+    <div id="ea-iss-wrap" style="display:flex;gap:10px;flex-wrap:wrap">
       <div class="fld" style="flex:1;min-width:120px"><label>ISS do município (%)</label><input type="number" id="ea-iss" step="0.01" value="0" oninput="atlasPreviewRPA()"></div>
     </div>
     <div id="ea-preview" style="background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:6px;font-size:12.5px;color:#64748B">
@@ -53936,13 +53943,21 @@ window.atlasComporBrutoAut = function(){
            bruto: +(propor + comissao + outros).toFixed(2) };
 };
 
+window.atlasToggleRetencoes = function(){
+  const sem = !!document.getElementById('ea-semret')?.checked;
+  const w = document.getElementById('ea-iss-wrap');
+  if(w) w.style.display = sem ? 'none' : 'flex';
+  atlasPreviewRPA();
+};
+
 window.atlasPreviewRPA = function(){
   const box = document.getElementById('ea-preview');
   if(!box) return;
   const c = atlasComporBrutoAut();
   const iss = parseFloat(document.getElementById('ea-iss')?.value)||0;
+  const sem = !!document.getElementById('ea-semret')?.checked;
   if(c.bruto<=0){ box.innerHTML = 'Informe o valor mensal e os dias para ver o cálculo.'; return; }
-  const r = atlasCalcRPA(c.bruto, iss);
+  const r = atlasCalcRPA(c.bruto, iss, sem);
   const brl = x => 'R$ ' + (parseFloat(x)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
   const L = (d,x,cor) => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed #E2E8F0"><span>${d}</span><span style="font-weight:700;color:${cor||'#334155'}">${brl(x)}</span></div>`;
   box.innerHTML = `
@@ -53951,14 +53966,19 @@ window.atlasPreviewRPA = function(){
     ${c.comissao>0 ? L('Comissão ('+c.ap+' aparelho(s) × '+brl(c.vap)+')', c.comissao) : ''}
     ${c.outros>0 ? L('Outros valores', c.outros) : ''}
     ${L('<b>Valor bruto</b>', r.bruto, '#0B1E35')}
-    ${L('(−) INSS contribuinte individual 11%', r.inss, '#DC2626')}
-    ${L('(−) IRRF', r.irrf, '#DC2626')}
-    ${L('(−) ISS ('+iss+'%)', r.iss, '#DC2626')}
+    ${r.semRetencao ? '' : L('(−) INSS contribuinte individual 11%', r.inss, '#DC2626')}
+    ${r.semRetencao ? '' : L('(−) IRRF', r.irrf, '#DC2626')}
+    ${r.semRetencao ? '' : L('(−) ISS ('+iss+'%)', r.iss, '#DC2626')}
     <div style="display:flex;justify-content:space-between;padding-top:8px;font-size:14.5px;font-weight:900;color:#065F46"><span>Líquido a receber</span><span>${brl(r.liquido)}</span></div>
     <div style="font-size:11px;color:#64748B;margin-top:7px;line-height:1.5">
       A empresa recolhe ainda ${brl(r.patronal)} de INSS patronal (20%), sem desconto do prestador.
       Custo total: ${brl(r.bruto + r.patronal)}.
-    </div>`;
+    </div>
+    ${r.semRetencao ? `<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:9px 11px;margin-top:9px;font-size:11px;color:#B91C1C;line-height:1.55">
+      ⚠️ Sem retenção: a lei atribui à empresa contratante a retenção dos 11% de INSS do contribuinte
+      individual (Lei nº 10.666/2003, art. 4º) e do IRRF. Não retendo, a empresa continua responsável
+      pelo recolhimento. Confirme esta escolha com a sua contabilidade.
+    </div>` : ''}`;
 };
 
 function _atlasEncerrarAutDados(){
@@ -53967,7 +53987,7 @@ function _atlasEncerrarAutDados(){
   const c     = atlasComporBrutoAut();
   return { empId, dados:{ dataInicio: document.getElementById('ea-ini')?.value||'',
     dataFim: document.getElementById('ea-fim')?.value||'',
-    comp: c, rpa: atlasCalcRPA(c.bruto, iss) } };
+    comp: c, rpa: atlasCalcRPA(c.bruto, iss, !!document.getElementById('ea-semret')?.checked) } };
 }
 
 window.atlasEncerrarAutGerar = function(){
