@@ -3443,7 +3443,7 @@ function navigate(mod){
     return;
   }
 
-  const renders={dashboard:(typeof window._rDashComAlertas==="function"?window._rDashComAlertas:rDash),funcionarios:rFuncs,ponto:rPonto,financeiro:rFin,holerite:rHolerite,atestados:rAtestados,candidatos:rCand,admissao:rAdmissao,demissao:rDemissao,salarios:rSalarios,metadiaria:rMetaDiaria,biometrico:function(){ return (typeof window.rBiometrico==='function') ? window.rBiometrico() : rBiometrico(); },relatorio:rRelatorio,advertencias:rAdvertencias,ferias:rFerias,desempenho:rDesempenho,comunicados:rComunicados,bancohoras:rBancoHoras,recrutamento:rRecrutamento,contratos:function(){ return (typeof rContratos==='function') ? rContratos() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Contratos carregando...</div>'; },comprovantes:rComprovantes,portaislinks:rPortaisLinks,assinatura_digital:function(){ return (typeof window.rAssinaturaDigital==='function') ? window.rAssinaturaDigital() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Assinatura carregando...</div>'; },alarmes_portal:rAlarmesPortal,solicitacoes_portal:rSolicitacoesPortal,absenteismo:rAbsenteismo,suspensao:function(){ const t=document.getElementById('_susp_module_html_'); return t?t.innerHTML:'<div class="card" style="padding:30px;text-align:center">⏳ Módulo Suspensões carregando...</div>'; },agenda_rh:rAgendaRH,doc_templates:rDocTemplates,auditoria:function(){ return (typeof window.rAuditoria==='function') ? window.rAuditoria() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando auditoria...</div>'; },ocorrencias_contratados:function(){ return (typeof window.rOcorrenciasContratados==='function') ? window.rOcorrenciasContratados() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },adiantamentos:function(){ return (typeof window.rAdiantamentos==='function') ? window.rAdiantamentos() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },contratos_pj:function(){ return (typeof window.rContratosPJ==='function') ? window.rContratosPJ() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando Contratos PJ...</div>'; },conformidade:function(){ return (typeof window.rConformidade==='function') ? window.rConformidade() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },pj_risco:function(){ return (typeof window.rPJRisco==='function') ? window.rPJRisco() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },backup:function(){ return (typeof window.rBackup==='function') ? window.rBackup() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },fechamento:function(){ return (typeof window.rFechamento==='function') ? window.rFechamento() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },bh_testes:function(){ return (typeof window.rBHTestes==='function') ? window.rBHTestes() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },consultor_clt:function(){ return (typeof window.rConsultorCLT==='function') ? window.rConsultorCLT() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando Consultor CLT...</div>'; },contratos_int:function(){ return (typeof window.rContratosInt==='function') ? window.rContratosInt() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },convocacoes:function(){ return (typeof window.rConvocacoes==='function') ? window.rConvocacoes() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },recibos_int:function(){ return (typeof window.rRecibosInt==='function') ? window.rRecibosInt() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },regularizacao:function(){ return (typeof window.rRegularizacao==='function') ? window.rRegularizacao() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },pacote_contador:function(){ return (typeof window.rPacoteContador==='function') ? window.rPacoteContador() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },painel_prazos:function(){ return (typeof window.rAtlasPainelRH==='function') ? window.rAtlasPainelRH() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando painel...</div>'; }};
+  const renders={dashboard:(typeof window._rDashComAlertas==="function"?window._rDashComAlertas:rDash),funcionarios:rFuncs,ponto:rPonto,financeiro:rFin,holerite:rHolerite,atestados:rAtestados,candidatos:rCand,admissao:rAdmissao,demissao:rDemissao,salarios:rSalarios,metadiaria:rMetaDiaria,biometrico:function(){ return (typeof window.rBiometrico==='function') ? window.rBiometrico() : rBiometrico(); },relatorio:rRelatorio,advertencias:rAdvertencias,ferias:rFerias,desempenho:rDesempenho,comunicados:rComunicados,bancohoras:rBancoHoras,recrutamento:rRecrutamento,contratos:function(){ return (typeof rContratos==='function') ? rContratos() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Contratos carregando...</div>'; },comprovantes:rComprovantes,portaislinks:rPortaisLinks,assinatura_digital:function(){ return (typeof window.rAssinaturaDigital==='function') ? window.rAssinaturaDigital() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Assinatura carregando...</div>'; },alarmes_portal:rAlarmesPortal,solicitacoes_portal:rSolicitacoesPortal,absenteismo:rAbsenteismo,suspensao:function(){ const t=document.getElementById('_susp_module_html_'); return t?t.innerHTML:'<div class="card" style="padding:30px;text-align:center">⏳ Módulo Suspensões carregando...</div>'; },agenda_rh:rAgendaRH,doc_templates:rDocTemplates,auditoria:function(){ return (typeof window.rAuditoria==='function') ? window.rAuditoria() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando auditoria...</div>'; },ocorrencias_contratados:function(){ return (typeof window.rOcorrenciasContratados==='function') ? window.rOcorrenciasContratados() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },adiantamentos:function(){ return (typeof window.rAdiantamentos==='function') ? window.rAdiantamentos() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },contratos_pj:function(){ return (typeof window.rContratosPJ==='function') ? window.rContratosPJ() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando Contratos PJ...</div>'; },conformidade:function(){ return (typeof window.rConformidade==='function') ? window.rConformidade() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },pj_risco:function(){ return (typeof window.rPJRisco==='function') ? window.rPJRisco() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },backup:function(){ return (typeof window.rBackup==='function') ? window.rBackup() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },fechamento:function(){ return (typeof window.rFechamento==='function') ? window.rFechamento() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },bh_testes:function(){ return (typeof window.rBHTestes==='function') ? window.rBHTestes() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },consultor_clt:function(){ return (typeof window.rConsultorCLT==='function') ? window.rConsultorCLT() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando Consultor CLT...</div>'; },contratos_int:function(){ return (typeof window.rContratosInt==='function') ? window.rContratosInt() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },convocacoes:function(){ return (typeof window.rConvocacoes==='function') ? window.rConvocacoes() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },recibos_int:function(){ return (typeof window.rRecibosInt==='function') ? window.rRecibosInt() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },regularizacao:function(){ return (typeof window.rRegularizacao==='function') ? window.rRegularizacao() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },pacote_contador:function(){ return (typeof window.rPacoteContador==='function') ? window.rPacoteContador() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },painel_prazos:function(){ return (typeof window.rAtlasPainelRH==='function') ? window.rAtlasPainelRH() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando painel...</div>'; },linha_tempo:function(){ return (typeof window.rAtlasTimelinePage==='function') ? window.rAtlasTimelinePage() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando linha do tempo...</div>'; }};
   // FIX-C1: try-catch no dispatcher — evita tela branca se qualquer render lançar erro
   try {
     document.getElementById('content').innerHTML=(renders[mod]||rDash)();
@@ -53023,23 +53023,29 @@ window.rAtlasPainelRH = function(){
 // ── Registro do módulo na navegação ───────────────────────────────────────
 (function _atlasRegistraPainel(){
   try{
-    if(typeof PAGE_TITLES!=='undefined') PAGE_TITLES['painel_prazos'] = 'Painel de Prazos e Pendências';
+    if(typeof PAGE_TITLES!=='undefined'){
+      PAGE_TITLES['painel_prazos'] = 'Painel de Prazos e Pendências';
+      PAGE_TITLES['linha_tempo']   = 'Linha do Tempo dos Colaboradores';
+    }
     // Item no menu lateral, logo abaixo de Demissão
     if(typeof NAV_GROUPS!=='undefined' && Array.isArray(NAV_GROUPS)){
       const jaTem = NAV_GROUPS.some(g=>g && (g.items||[]).some(n=>n && n.id==='painel_prazos'));
       if(!jaTem){
         const item = {id:'painel_prazos', label:'Prazos & Pendências',
           icon:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'};
+        const itemTL = {id:'linha_tempo', label:'Linha do Tempo',
+          icon:'<path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/>'};
         const grp = NAV_GROUPS.find(g=>g && (g.items||[]).some(n=>n && n.id==='demissao'));
         if(grp){
           const i = grp.items.findIndex(n=>n && n.id==='demissao');
-          grp.items.splice(i+1, 0, item);
+          grp.items.splice(i+1, 0, item, itemTL);
         } else if(NAV_GROUPS[0] && NAV_GROUPS[0].items){
           NAV_GROUPS[0].items.push(item);
         }
         // NAV é derivado de NAV_GROUPS no carregamento; mantém os dois em sincronia
-        if(typeof NAV!=='undefined' && Array.isArray(NAV) && !NAV.find(n=>n && n.id==='painel_prazos')){
-          NAV.push(item);
+        if(typeof NAV!=='undefined' && Array.isArray(NAV)){
+          if(!NAV.find(n=>n && n.id==='painel_prazos')) NAV.push(item);
+          if(!NAV.find(n=>n && n.id==='linha_tempo'))   NAV.push(itemTL);
         }
       }
     }
@@ -53096,9 +53102,13 @@ window.atlasTimeline = function(empId){
 
   // Advertências e suspensões
   (APP.advertencias||[]).filter(a=>a.empId===emp.id).forEach(a=>{
-    add(a.dataEmissao||a.criadoEm, 'advertencia',
-        (a.tipoLabel||a.tipo||'Documento disciplinar'),
-        a.motivo_resumo||a.motivo||'', '#D97706', '⚠️');
+    // ADV_TIPOS traduz 'advertencia_escrita' para 'Advertência Escrita'
+    let rot = a.tipoLabel;
+    try{ if(!rot && typeof ADV_TIPOS!=='undefined' && ADV_TIPOS[a.tipo]) rot = ADV_TIPOS[a.tipo].label; }catch(e){}
+    if(!rot) rot = String(a.tipo||'Documento disciplinar').replace(/_/g,' ');
+    const cor = (a.status==='assinado') ? '#D97706' : '#DC2626';
+    add(a.dataEmissao||a.criadoEm, 'advertencia', rot,
+        (a.motivo_resumo||a.motivo||'') + (a.status?(' · '+a.status):''), cor, '⚠️');
   });
 
   // Férias
@@ -53118,13 +53128,172 @@ window.atlasTimeline = function(empId){
     add(o.data||o.criadoEm, 'ocorrencia', 'Ocorrência', o.tipo||o.descricao||'', '#64748B', '📌');
   });
 
+  // Adiantamentos e empréstimos
+  (APP.adiantamentos||[]).filter(x=>x.empId===emp.id).forEach(x=>{
+    add(x.data||x.criadoEm, 'adiantamento', 'Adiantamento / Empréstimo',
+        (x.valor?('R$ '+x.valor):'') + (x.parcelas?(' · '+x.parcelas+'x'):''), '#0891B2', '💰');
+  });
+
+  // Comprovantes de pagamento
+  (APP.comprovantes||[]).filter(x=>x.empId===emp.id).forEach(x=>{
+    add(x.data||x.criadoEm, 'comprovante', 'Comprovante de pagamento',
+        x.tipo||x.descricao||'', '#475569', '🧾');
+  });
+
+  // Convocações (intermitente)
+  (APP.convocacoes||[]).filter(x=>x.empId===emp.id).forEach(x=>{
+    add(x.data||x.dataInicio||x.criadoEm, 'convocacao', 'Convocação',
+        x.status||'', '#7C3AED', '📣');
+  });
+
+  // Avaliações de desempenho
+  (APP.avaliacoes||[]).filter(x=>x.empId===emp.id).forEach(x=>{
+    add(x.data||x.criadoEm, 'avaliacao', 'Avaliação de desempenho',
+        (x.nota!==undefined?('nota '+x.nota):'') , '#059669', '⭐');
+  });
+
+  // ── PONTO: um evento por DIA, não por batida ────────────────────────────
+  // 120 batidas/mês soterrariam o histórico. Cada dia vira uma linha com as
+  // marcações e o status; dias com falta/atraso ganham destaque em vermelho.
+  try{
+    const pref = emp.id + '_';
+    Object.keys(APP.pontos||{}).filter(k=>k.startsWith(pref)).forEach(k=>{
+      const partes = k.split('_');
+      const ano = parseInt(partes[partes.length-2]);
+      const mesIdx = parseInt(partes[partes.length-1]);     // 0-based
+      if(isNaN(ano)||isNaN(mesIdx)) return;
+      const mesRec = APP.pontos[k] || {};
+      Object.keys(mesRec).forEach(dia=>{
+        const d = parseInt(dia); if(isNaN(d)) return;
+        const rec = mesRec[dia] || {};
+        const iso = ano + '-' + String(mesIdx+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+        const st = String(rec.status||'').toLowerCase();
+        const marc = [rec.entrada, rec.almoco, rec.voltaAlmoco, rec.cafe, rec.voltaCafe, rec.saida]
+                     .filter(Boolean).join(' · ');
+        const problema = ['falta','atraso','falta_justificada','atestado','saida_antecipada'].includes(st);
+        const titulo = problema ? ('Ponto: ' + st.replace(/_/g,' ')) : 'Ponto do dia';
+        const detalhe = marc || (rec.obs||'') || (st?st.replace(/_/g,' '):'sem marcações');
+        add(iso, 'ponto', titulo, detalhe + (rec.obs&&marc?(' · '+rec.obs):''),
+            problema ? '#DC2626' : '#94A3B8', problema ? '⛔' : '🕐');
+      });
+    });
+  }catch(e){ console.warn('[tl ponto]', e); }
+
+  // ── BANCO DE HORAS: lançamentos individuais ─────────────────────────────
+  try{
+    const bh = (APP.bancohoras||{})[emp.id];
+    if(Array.isArray(bh)){
+      bh.forEach(l=>{
+        if(!l) return;
+        const min = Number(l.minutos||l.saldo||0);
+        const sinal = min>=0 ? '+' : '−';
+        const hs = Math.floor(Math.abs(min)/60), mn = Math.abs(min)%60;
+        add(l.data, 'bancohoras', 'Banco de horas ' + sinal + hs + 'h' + String(mn).padStart(2,'0'),
+            l.motivo || l.obs || (l._syncAuto?'lançamento automático':''),
+            min>=0 ? '#059669' : '#D97706', '⏱');
+      });
+    }
+  }catch(e){ console.warn('[tl bh]', e); }
+
+  // ── HOLERITES: um por competência ───────────────────────────────────────
+  try{
+    const pref2 = emp.id + '_';
+    Object.keys(APP.salarios||{}).filter(k=>k.startsWith(pref2)).forEach(k=>{
+      const partes = k.split('_');
+      const ano = parseInt(partes[partes.length-2]);
+      const mesIdx = parseInt(partes[partes.length-1]);
+      if(isNaN(ano)||isNaN(mesIdx)) return;
+      const rec = APP.salarios[k] || {};
+      const liq = rec.liquido || rec.totalLiquido || rec.valorLiquido;
+      // Data da competência: último dia do mês de referência
+      const iso = new Date(ano, mesIdx+1, 0).toISOString().slice(0,10);
+      const comp = String(mesIdx+1).padStart(2,'0') + '/' + ano;
+      add(iso, 'holerite', 'Holerite ' + comp,
+          (liq?('líquido R$ '+liq):'') + (rec.pago?' · pago':''), '#2563EB', '💵');
+    });
+  }catch(e){ console.warn('[tl holerite]', e); }
+
   return ev.sort((a,b)=> b.data.localeCompare(a.data));   // mais recente primeiro
 };
 
-window.atlasModalTimeline = function(empId){
+// ── Módulo dedicado: Linha do Tempo de todos os colaboradores ─────────────
+window.ATLAS_TL_BUSCA = '';
+window.ATLAS_TL_FILTRO = 'todos';
+
+window.rAtlasTimelinePage = function(){
+  const busca = String(window.ATLAS_TL_BUSCA||'').toLowerCase();
+  const emps = (APP.employees||[])
+    .filter(e=>!busca || String(e.nome||'').toLowerCase().includes(busca) || String(e.cargo||'').toLowerCase().includes(busca))
+    .slice().sort((a,b)=>{
+      if(a.status==='ativo' && b.status!=='ativo') return -1;
+      if(b.status==='ativo' && a.status!=='ativo') return 1;
+      return String(a.nome||'').localeCompare(String(b.nome||''));
+    });
+
+  const card = e => {
+    const n = atlasTimeline(e.id).length;
+    const ult = atlasTimeline(e.id)[0];
+    const inativo = e.status!=='ativo';
+    return `
+    <div onclick="atlasModalTimeline('${e.id}')" style="cursor:pointer;background:#fff;border:1px solid var(--border);border-left:4px solid ${inativo?'#94A3B8':'#0B1E35'};border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:12px;transition:.15s"
+      onmouseover="this.style.boxShadow='0 2px 10px rgba(11,30,53,.10)'" onmouseout="this.style.boxShadow='none'">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:800;font-size:13.5px;color:var(--tx)">${esc(e.nome||'')} ${inativo?'<span style="font-size:10px;background:#F1F5F9;color:#64748B;padding:1px 7px;border-radius:10px;font-weight:700">'+esc(e.status||'')+'</span>':''}</div>
+        <div style="font-size:11.5px;color:var(--mt);margin-top:2px">${esc(e.cargo||'—')}${e.dataAdmissao?(' · desde '+new Date(e.dataAdmissao+'T00:00:00').toLocaleDateString('pt-BR')):''}</div>
+        ${ult?`<div style="font-size:11px;color:#94A3B8;margin-top:3px">último: ${ult.icone} ${esc(ult.titulo)}</div>`:''}
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="background:#0B1E35;color:#C9A84C;font-size:12px;font-weight:800;padding:3px 11px;border-radius:20px">${n}</div>
+        <div style="font-size:10px;color:var(--mt);margin-top:3px">evento(s)</div>
+      </div>
+    </div>`;
+  };
+
+  return `
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:8px;flex-wrap:wrap">
+    <div style="font-size:16px;font-weight:700">Linha do Tempo dos Colaboradores</div>
+    <input id="tl-busca" value="${esc(window.ATLAS_TL_BUSCA||'')}" placeholder="🔍 Buscar por nome ou cargo..."
+      oninput="window.ATLAS_TL_BUSCA=this.value;clearTimeout(window._tlT);window._tlT=setTimeout(()=>{navigate('linha_tempo');setTimeout(()=>{const i=document.getElementById('tl-busca');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}},30);},350)"
+      style="padding:9px 14px;border:1px solid var(--border);border-radius:9px;font-size:13px;min-width:250px">
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div style="background:linear-gradient(135deg,#0B1E35,#152F4D);padding:14px 18px">
+      <div style="color:#fff;font-weight:800;font-size:15px">📖 Histórico completo por colaborador</div>
+      <div style="color:#C9A84C;font-size:11.5px;margin-top:3px">Clique em um colaborador para ver tudo que aconteceu com ele</div>
+    </div>
+    <div style="padding:14px;display:grid;gap:9px;background:#F8FAFC">
+      ${emps.length ? emps.map(card).join('') : '<div style="text-align:center;padding:26px;color:var(--mt);font-size:13px">Nenhum colaborador encontrado.</div>'}
+    </div>
+  </div>`;
+};
+
+window.ATLAS_TL_LIMITE = 60;
+window.atlasModalTimeline = function(empId, filtro, limite){
   const emp = (APP.employees||[]).find(e=>e.id===empId);
   if(!emp){ toast('Colaborador não encontrado.','warn'); return; }
-  const ev = atlasTimeline(empId);
+  const todos = atlasTimeline(empId);
+  filtro = filtro || 'todos';
+  const evTodos = (filtro==='todos') ? todos : todos.filter(x=>x.tipo===filtro);
+  const lim = limite || window.ATLAS_TL_LIMITE;
+  const ev = evTodos.slice(0, lim);
+  const restam = evTodos.length - ev.length;
+
+  // Abas de filtro montadas a partir do que o colaborador realmente tem
+  const rot = {admissao:'Admissão', demissao:'Desligamento', contrato:'Documentos',
+    assinatura:'Assinaturas', advertencia:'Disciplinar', ferias:'Férias',
+    atestado:'Atestados', ocorrencia:'Ocorrências', adiantamento:'Adiantamentos',
+    comprovante:'Comprovantes', convocacao:'Convocações', avaliacao:'Avaliações',
+    ponto:'Ponto', bancohoras:'Banco de horas', holerite:'Holerites'};
+  const cont = {};
+  todos.forEach(x=>{ cont[x.tipo] = (cont[x.tipo]||0)+1; });
+  const abas = ['todos'].concat(Object.keys(cont));
+  const barra = abas.map(t=>{
+    const at = t===filtro;
+    const n = t==='todos' ? todos.length : cont[t];
+    return `<button onclick="atlasModalTimeline('${empId}','${t}',60)"
+      style="padding:5px 11px;border-radius:20px;border:1px solid ${at?'#0B1E35':'var(--border)'};background:${at?'#0B1E35':'#fff'};color:${at?'#C9A84C':'#475569'};font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap">
+      ${t==='todos'?'Tudo':(rot[t]||t)} (${n})</button>`;
+  }).join('');
   const fmt = d => { try{ return new Date(d+'T00:00:00').toLocaleDateString('pt-BR'); }catch(e){ return d; } };
 
   const linha = (e,i) => `
@@ -53143,10 +53312,12 @@ window.atlasModalTimeline = function(empId){
   openModal('📖 Linha do Tempo — ' + esc(emp.nome), `
     <div style="background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:11px 14px;margin-bottom:16px;font-size:12px;color:#475569">
       <b>${esc(emp.cargo||'—')}</b> · admitido em ${emp.dataAdmissao?fmt(emp.dataAdmissao):'—'} ·
-      <b>${ev.length}</b> evento(s) no histórico
+      <b>${todos.length}</b> evento(s) no histórico
     </div>
-    ${ev.length ? `<div style="max-height:56vh;overflow-y:auto;padding-right:4px">${ev.map(linha).join('')}</div>`
-                : '<div style="text-align:center;padding:28px;color:var(--mt);font-size:13px">Nenhum evento registrado.</div>'}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">${barra}</div>
+    ${ev.length ? `<div style="max-height:56vh;overflow-y:auto;padding-right:4px">${ev.map(linha).join('')}
+      ${restam>0 ? `<div style="text-align:center;padding:10px 0 4px"><button class="btn btn-ghost btn-sm" onclick="atlasModalTimeline('${empId}','${filtro}',${lim+120})">\u2193 Carregar mais (${restam} restante(s))</button></div>` : ''}</div>`
+                : '<div style="text-align:center;padding:28px;color:var(--mt);font-size:13px">Nenhum evento neste filtro.</div>'}
     <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>
   `, 620);
 };
