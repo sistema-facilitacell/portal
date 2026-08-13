@@ -2593,6 +2593,43 @@ async function _salvarAssinaturaDigital(id, status, png, selfie) {
   } catch (e) { toast('Erro ao salvar: ' + e.message, 'err'); }
 }
 
+
+// ── LEITOR DE DOCUMENTO COMPLETO ─────────────────────────────────────────
+// O documento só aparecia cortado (280 caracteres na lista, caixinha de
+// 140px no modal). Ninguém consegue ler um contrato assim — e assinar sem
+// poder ler é exatamente o que invalida a assinatura. Aqui abre inteiro.
+function abrirDocCompleto(id) {
+  const doc = (ASSINATURAS_DIGITAL || []).find(x => x.id === id);
+  if (!doc) { toast('Documento não encontrado.', 'err'); return; }
+
+  const ovAnt = document.getElementById('__doc-ler-ov__');
+  if (ovAnt) ovAnt.remove();
+
+  const ov = document.createElement('div');
+  ov.id = '__doc-ler-ov__';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(15,23,42,.92);display:flex;flex-direction:column;padding:0;backdrop-filter:blur(3px)';
+  ov.innerHTML = `
+    <div style="background:#0B1E35;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-shrink:0">
+      <div style="min-width:0">
+        <div style="color:#fff;font-weight:800;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(doc.tipoLabel || doc.titulo || 'Documento')}</div>
+        <div style="color:#C9A84C;font-size:11px;margin-top:2px">Leia o documento inteiro antes de assinar</div>
+      </div>
+      <button onclick="document.getElementById('__doc-ler-ov__').remove()"
+        style="background:rgba(255,255,255,.14);color:#fff;border:none;width:34px;height:34px;border-radius:9px;font-size:17px;cursor:pointer;flex-shrink:0">✕</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;background:#fff;padding:20px 18px;-webkit-overflow-scrolling:touch">
+      <pre style="white-space:pre-wrap;word-wrap:break-word;font-family:'Segoe UI',system-ui,Arial,sans-serif;font-size:13.5px;line-height:1.75;color:#1a1a1a;margin:0">${esc(doc.conteudo || 'Documento sem conteúdo.')}</pre>
+    </div>
+    <div style="background:#fff;border-top:1px solid #E2E8F0;padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0">
+      <button onclick="document.getElementById('__doc-ler-ov__').remove()"
+        style="flex:1;min-width:110px;padding:12px;border-radius:10px;background:#F1F5F9;color:#475569;font-weight:700;font-size:13px;border:none;cursor:pointer">Fechar</button>
+      ${doc.status === 'pendente' ? `<button onclick="document.getElementById('__doc-ler-ov__').remove();assinarDigitalEletronico('${doc.id}')"
+        style="flex:2;min-width:170px;padding:12px;border-radius:10px;background:linear-gradient(135deg,#059669,#047857);color:#fff;font-weight:700;font-size:13px;border:none;cursor:pointer">✅ Li e quero assinar</button>` : ''}
+    </div>`;
+  document.body.appendChild(ov);
+}
+window.abrirDocCompleto = abrirDocCompleto;
+
 function assinarDigitalEletronico(id) {
   const doc = (ASSINATURAS_DIGITAL || []).find(x => x.id === id);
   const titulo = doc ? (doc.titulo || doc.tipoLabel || 'Documento') : 'Documento';
@@ -2616,7 +2653,8 @@ function assinarDigitalEletronico(id) {
 
       <div style="overflow-y:auto;flex:1;padding:18px 20px">
         ${doc && doc.conteudo ? `
-        <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#334155;line-height:1.7;white-space:pre-wrap;max-height:140px;overflow-y:auto">${esc(doc.conteudo)}</div>
+        <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:12px 14px;margin-bottom:8px;font-size:13px;color:#334155;line-height:1.7;white-space:pre-wrap;max-height:220px;overflow-y:auto">${esc(doc.conteudo)}</div>
+        <button onclick="abrirDocCompleto('${doc.id}')" style="width:100%;padding:10px;border-radius:9px;background:#0B1E35;color:#C9A84C;font-weight:700;font-size:12.5px;border:none;cursor:pointer;margin-bottom:16px">📄 Abrir documento completo em tela cheia</button>
         ` : ''}
 
         <div style="background:#FEF3C7;border:1px solid #FDE68A;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#78350F">
@@ -5210,6 +5248,7 @@ function renderDocs() {
           ⚖️ Assinar confirma ciência (não necessariamente concordância) — validade jurídica Lei nº 14.063/2020.
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button onclick="abrirDocCompleto('${a.id}')" style="flex:1;min-width:160px;padding:10px 14px;border-radius:8px;background:#0B1E35;color:#C9A84C;font-weight:700;font-size:13px;border:none;cursor:pointer">📄 Ler documento completo</button>
           <button onclick="assinarDigitalEletronico('${a.id}')" style="flex:1;min-width:160px;padding:10px 14px;border-radius:8px;background:linear-gradient(135deg,#059669,#047857);color:#fff;font-weight:700;font-size:13px;border:none;cursor:pointer">✅ Assinar com Assinatura</button>
           <button onclick="recusarDigital('${a.id}')" style="padding:10px 14px;border-radius:8px;background:#FEF2F2;color:#DC2626;font-weight:700;font-size:12px;border:1px solid #FECACA;cursor:pointer">✗ Recusar</button>
         </div>
@@ -5231,6 +5270,7 @@ function renderDocs() {
           ⚖️ Assinar confirma ciência do documento (não necessariamente concordância) — validade jurídica Lei nº 14.063/2020.
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button onclick="abrirDocCompleto('${a.id}')" style="padding:9px 14px;border-radius:8px;background:#0B1E35;color:#C9A84C;font-weight:700;font-size:12px;border:none;cursor:pointer">📄 Ler documento completo</button>
           <button onclick="assinarDigitalEletronico('${a.id}')" style="padding:9px 14px;border-radius:8px;background:#F0FDF4;color:#059669;font-weight:700;font-size:12px;border:1px solid #86EFAC;cursor:pointer">✅ Assinar Eletronicamente</button>
           <button onclick="recusarDigital('${a.id}')" style="padding:9px 14px;border-radius:8px;background:#FEF2F2;color:#DC2626;font-weight:700;font-size:12px;border:1px solid #FECACA;cursor:pointer">✗ Recusar</button>
         </div>
