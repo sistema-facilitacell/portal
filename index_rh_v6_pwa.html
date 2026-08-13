@@ -53773,7 +53773,14 @@ CONTRATADO(A): ${V(emp.nome,'________________')}, CPF nº ${V(emp.cpf,'___.___._
 2. DO PAGAMENTO FINAL
 2.1. Pelos serviços efetivamente prestados e não quitados até a data do encerramento, a CONTRATANTE paga ao(à) CONTRATADO(A) o valor bruto de ${brl(r.bruto)}, com as retenções legais discriminadas:
 
-   Valor bruto dos serviços .................. ${brl(r.bruto)}
+${(function(){
+  const c = dados.comp||{};
+  let L = '';
+  if(c.propor>0) L += '   ' + (c.cheio ? 'Serviços prestados (valor mensal)' : ('Serviços ('+brl(c.mensal)+' ÷ 30 × '+c.dias+' dia(s))')).padEnd(42,'.') + ' ' + brl(c.propor) + '\n';
+  if(c.comissao>0) L += '   ' + ('Comissão ('+c.ap+' aparelho(s) × '+brl(c.vap)+')').padEnd(42,'.') + ' ' + brl(c.comissao) + '\n';
+  if(c.outros>0)  L += '   ' + 'Outros valores'.padEnd(42,'.') + ' ' + brl(c.outros) + '\n';
+  return L;
+})()}   Valor bruto dos serviços .................. ${brl(r.bruto)}
    (−) INSS contribuinte individual (11%) .... ${brl(r.inss)}
    (−) IRRF .................................. ${brl(r.irrf)}
    (−) ISS ................................... ${brl(r.iss)}
@@ -53875,11 +53882,24 @@ window.atlasModalEncerrarAutonomo = function(empIdPre){
       <select id="ea-emp">${emps.map(e=>`<option value="${e.id}" ${e.id===empIdPre?'selected':''}>${esc(e.nome)}</option>`).join('')}</select>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <div class="fld" style="flex:1;min-width:150px"><label>Início da prestação</label><input type="date" id="ea-ini"></div>
-      <div class="fld" style="flex:1;min-width:150px"><label>Data do encerramento</label><input type="date" id="ea-fim" value="${hoje}"></div>
+      <div class="fld" style="flex:1;min-width:150px"><label>Início da prestação</label><input type="date" id="ea-ini" onchange="atlasCalcDiasAut()"></div>
+      <div class="fld" style="flex:1;min-width:150px"><label>Data do encerramento</label><input type="date" id="ea-fim" value="${hoje}" onchange="atlasCalcDiasAut()"></div>
+    </div>
+    <div style="font-size:11px;font-weight:800;color:#0B1E35;text-transform:uppercase;letter-spacing:.06em;margin:6px 0 8px;padding-top:10px;border-top:1px solid var(--border)">Composição do pagamento</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="fld" style="flex:1;min-width:150px"><label>Valor mensal contratado (R$)</label><input type="number" id="ea-mensal" step="0.01" placeholder="2500,00" oninput="atlasPreviewRPA()"></div>
+      <div class="fld" style="flex:1;min-width:110px"><label>Dias prestados</label><input type="number" id="ea-dias" step="1" oninput="this.dataset.tocado='1';atlasPreviewRPA()"></div>
+    </div>
+    <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:#475569;margin-bottom:10px;cursor:pointer">
+      <input type="checkbox" id="ea-cheio" onchange="atlasPreviewRPA()" style="width:15px;height:15px">
+      Pagar o valor mensal cheio (não proporcional aos dias)
+    </label>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="fld" style="flex:1;min-width:110px"><label>Aparelhos vendidos</label><input type="number" id="ea-ap" step="1" placeholder="0" oninput="atlasPreviewRPA()"></div>
+      <div class="fld" style="flex:1;min-width:110px"><label>Comissão por aparelho (R$)</label><input type="number" id="ea-vap" step="0.01" value="15" oninput="atlasPreviewRPA()"></div>
+      <div class="fld" style="flex:1;min-width:110px"><label>Outros valores (R$)</label><input type="number" id="ea-outros" step="0.01" placeholder="0,00" oninput="atlasPreviewRPA()"></div>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <div class="fld" style="flex:1;min-width:150px"><label>Valor bruto a pagar (R$)</label><input type="number" id="ea-valor" step="0.01" placeholder="0,00" oninput="atlasPreviewRPA()"></div>
       <div class="fld" style="flex:1;min-width:120px"><label>ISS do município (%)</label><input type="number" id="ea-iss" step="0.01" value="0" oninput="atlasPreviewRPA()"></div>
     </div>
     <div id="ea-preview" style="background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:6px;font-size:12.5px;color:#64748B">
@@ -53893,18 +53913,44 @@ window.atlasModalEncerrarAutonomo = function(empIdPre){
   setTimeout(()=>{ try{ atlasPreviewRPA(); }catch(e){} }, 50);
 };
 
+// Conta os dias de prestação (início e fim inclusive) e sugere no campo
+window.atlasCalcDiasAut = function(){
+  const ini = document.getElementById('ea-ini')?.value;
+  const fim = document.getElementById('ea-fim')?.value;
+  const inp = document.getElementById('ea-dias');
+  if(!inp || !ini || !fim) { atlasPreviewRPA(); return; }
+  const d = Math.round((new Date(fim+'T00:00:00') - new Date(ini+'T00:00:00'))/86400000) + 1;
+  if(d>0 && inp.dataset.tocado!=='1') inp.value = d;
+  atlasPreviewRPA();
+};
+
+// Monta o bruto: mensal proporcional aos dias + comissão por aparelho + outros
+window.atlasComporBrutoAut = function(){
+  const n = id => parseFloat(document.getElementById(id)?.value)||0;
+  const mensal = n('ea-mensal'), dias = n('ea-dias'), ap = n('ea-ap'),
+        vap = n('ea-vap'), outros = n('ea-outros');
+  const cheio = !!document.getElementById('ea-cheio')?.checked;
+  const propor = cheio ? mensal : +((mensal/30)*dias).toFixed(2);
+  const comissao = +(ap*vap).toFixed(2);
+  return { mensal, dias, cheio, propor, ap, vap, comissao, outros,
+           bruto: +(propor + comissao + outros).toFixed(2) };
+};
+
 window.atlasPreviewRPA = function(){
   const box = document.getElementById('ea-preview');
   if(!box) return;
-  const v = parseFloat(document.getElementById('ea-valor')?.value)||0;
+  const c = atlasComporBrutoAut();
   const iss = parseFloat(document.getElementById('ea-iss')?.value)||0;
-  if(v<=0){ box.innerHTML = 'Informe o valor bruto para ver as retenções do RPA.'; return; }
-  const r = atlasCalcRPA(v, iss);
+  if(c.bruto<=0){ box.innerHTML = 'Informe o valor mensal e os dias para ver o cálculo.'; return; }
+  const r = atlasCalcRPA(c.bruto, iss);
   const brl = x => 'R$ ' + (parseFloat(x)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
   const L = (d,x,cor) => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed #E2E8F0"><span>${d}</span><span style="font-weight:700;color:${cor||'#334155'}">${brl(x)}</span></div>`;
   box.innerHTML = `
     <div style="font-size:11px;font-weight:800;color:#0B1E35;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px">Recibo de Pagamento a Autônomo</div>
-    ${L('Valor bruto', r.bruto)}
+    ${c.propor>0 ? L(c.cheio ? 'Serviços (valor mensal cheio)' : 'Serviços ('+brl(c.mensal)+' ÷ 30 × '+c.dias+' dia(s))', c.propor) : ''}
+    ${c.comissao>0 ? L('Comissão ('+c.ap+' aparelho(s) × '+brl(c.vap)+')', c.comissao) : ''}
+    ${c.outros>0 ? L('Outros valores', c.outros) : ''}
+    ${L('<b>Valor bruto</b>', r.bruto, '#0B1E35')}
     ${L('(−) INSS contribuinte individual 11%', r.inss, '#DC2626')}
     ${L('(−) IRRF', r.irrf, '#DC2626')}
     ${L('(−) ISS ('+iss+'%)', r.iss, '#DC2626')}
@@ -53917,10 +53963,11 @@ window.atlasPreviewRPA = function(){
 
 function _atlasEncerrarAutDados(){
   const empId = document.getElementById('ea-emp')?.value;
-  const valor = parseFloat(document.getElementById('ea-valor')?.value)||0;
   const iss   = parseFloat(document.getElementById('ea-iss')?.value)||0;
+  const c     = atlasComporBrutoAut();
   return { empId, dados:{ dataInicio: document.getElementById('ea-ini')?.value||'',
-    dataFim: document.getElementById('ea-fim')?.value||'', rpa: atlasCalcRPA(valor, iss) } };
+    dataFim: document.getElementById('ea-fim')?.value||'',
+    comp: c, rpa: atlasCalcRPA(c.bruto, iss) } };
 }
 
 window.atlasEncerrarAutGerar = function(){
