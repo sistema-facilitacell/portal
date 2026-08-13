@@ -3443,7 +3443,7 @@ function navigate(mod){
     return;
   }
 
-  const renders={dashboard:(typeof window._rDashComAlertas==="function"?window._rDashComAlertas:rDash),funcionarios:rFuncs,ponto:rPonto,financeiro:rFin,holerite:rHolerite,atestados:rAtestados,candidatos:rCand,admissao:rAdmissao,demissao:rDemissao,salarios:rSalarios,metadiaria:rMetaDiaria,biometrico:function(){ return (typeof window.rBiometrico==='function') ? window.rBiometrico() : rBiometrico(); },relatorio:rRelatorio,advertencias:rAdvertencias,ferias:rFerias,desempenho:rDesempenho,comunicados:rComunicados,bancohoras:rBancoHoras,recrutamento:rRecrutamento,contratos:function(){ return (typeof rContratos==='function') ? rContratos() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Contratos carregando...</div>'; },comprovantes:rComprovantes,portaislinks:rPortaisLinks,assinatura_digital:function(){ return (typeof window.rAssinaturaDigital==='function') ? window.rAssinaturaDigital() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Assinatura carregando...</div>'; },alarmes_portal:rAlarmesPortal,solicitacoes_portal:rSolicitacoesPortal,absenteismo:rAbsenteismo,suspensao:function(){ const t=document.getElementById('_susp_module_html_'); return t?t.innerHTML:'<div class="card" style="padding:30px;text-align:center">⏳ Módulo Suspensões carregando...</div>'; },agenda_rh:rAgendaRH,doc_templates:rDocTemplates,auditoria:function(){ return (typeof window.rAuditoria==='function') ? window.rAuditoria() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando auditoria...</div>'; },ocorrencias_contratados:function(){ return (typeof window.rOcorrenciasContratados==='function') ? window.rOcorrenciasContratados() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },adiantamentos:function(){ return (typeof window.rAdiantamentos==='function') ? window.rAdiantamentos() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },contratos_pj:function(){ return (typeof window.rContratosPJ==='function') ? window.rContratosPJ() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando Contratos PJ...</div>'; },conformidade:function(){ return (typeof window.rConformidade==='function') ? window.rConformidade() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },pj_risco:function(){ return (typeof window.rPJRisco==='function') ? window.rPJRisco() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },backup:function(){ return (typeof window.rBackup==='function') ? window.rBackup() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },fechamento:function(){ return (typeof window.rFechamento==='function') ? window.rFechamento() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },bh_testes:function(){ return (typeof window.rBHTestes==='function') ? window.rBHTestes() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },consultor_clt:function(){ return (typeof window.rConsultorCLT==='function') ? window.rConsultorCLT() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando Consultor CLT...</div>'; },contratos_int:function(){ return (typeof window.rContratosInt==='function') ? window.rContratosInt() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },convocacoes:function(){ return (typeof window.rConvocacoes==='function') ? window.rConvocacoes() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },recibos_int:function(){ return (typeof window.rRecibosInt==='function') ? window.rRecibosInt() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },regularizacao:function(){ return (typeof window.rRegularizacao==='function') ? window.rRegularizacao() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },pacote_contador:function(){ return (typeof window.rPacoteContador==='function') ? window.rPacoteContador() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; }};
+  const renders={dashboard:(typeof window._rDashComAlertas==="function"?window._rDashComAlertas:rDash),funcionarios:rFuncs,ponto:rPonto,financeiro:rFin,holerite:rHolerite,atestados:rAtestados,candidatos:rCand,admissao:rAdmissao,demissao:rDemissao,salarios:rSalarios,metadiaria:rMetaDiaria,biometrico:function(){ return (typeof window.rBiometrico==='function') ? window.rBiometrico() : rBiometrico(); },relatorio:rRelatorio,advertencias:rAdvertencias,ferias:rFerias,desempenho:rDesempenho,comunicados:rComunicados,bancohoras:rBancoHoras,recrutamento:rRecrutamento,contratos:function(){ return (typeof rContratos==='function') ? rContratos() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Contratos carregando...</div>'; },comprovantes:rComprovantes,portaislinks:rPortaisLinks,assinatura_digital:function(){ return (typeof window.rAssinaturaDigital==='function') ? window.rAssinaturaDigital() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Assinatura carregando...</div>'; },alarmes_portal:rAlarmesPortal,solicitacoes_portal:rSolicitacoesPortal,absenteismo:rAbsenteismo,suspensao:function(){ const t=document.getElementById('_susp_module_html_'); return t?t.innerHTML:'<div class="card" style="padding:30px;text-align:center">⏳ Módulo Suspensões carregando...</div>'; },agenda_rh:rAgendaRH,doc_templates:rDocTemplates,auditoria:function(){ return (typeof window.rAuditoria==='function') ? window.rAuditoria() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando auditoria...</div>'; },ocorrencias_contratados:function(){ return (typeof window.rOcorrenciasContratados==='function') ? window.rOcorrenciasContratados() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },adiantamentos:function(){ return (typeof window.rAdiantamentos==='function') ? window.rAdiantamentos() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },contratos_pj:function(){ return (typeof window.rContratosPJ==='function') ? window.rContratosPJ() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando Contratos PJ...</div>'; },conformidade:function(){ return (typeof window.rConformidade==='function') ? window.rConformidade() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },pj_risco:function(){ return (typeof window.rPJRisco==='function') ? window.rPJRisco() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },backup:function(){ return (typeof window.rBackup==='function') ? window.rBackup() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },fechamento:function(){ return (typeof window.rFechamento==='function') ? window.rFechamento() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },bh_testes:function(){ return (typeof window.rBHTestes==='function') ? window.rBHTestes() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },consultor_clt:function(){ return (typeof window.rConsultorCLT==='function') ? window.rConsultorCLT() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando Consultor CLT...</div>'; },contratos_int:function(){ return (typeof window.rContratosInt==='function') ? window.rContratosInt() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },convocacoes:function(){ return (typeof window.rConvocacoes==='function') ? window.rConvocacoes() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },recibos_int:function(){ return (typeof window.rRecibosInt==='function') ? window.rRecibosInt() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },regularizacao:function(){ return (typeof window.rRegularizacao==='function') ? window.rRegularizacao() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },pacote_contador:function(){ return (typeof window.rPacoteContador==='function') ? window.rPacoteContador() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },painel_prazos:function(){ return (typeof window.rAtlasPainelRH==='function') ? window.rAtlasPainelRH() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando painel...</div>'; }};
   // FIX-C1: try-catch no dispatcher — evita tela branca se qualquer render lançar erro
   try {
     document.getElementById('content').innerHTML=(renders[mod]||rDash)();
@@ -4999,10 +4999,29 @@ function openEmpForm(id){
     <div class="fld"><label>Nascimento</label><input type="date" id="ef-nasc" value="${esc(e.dataNasc)}"></div>
     <div class="fld"><label>E-mail</label><input type="email" id="ef-email" value="${esc(e.email)}"></div>
     <div class="fld"><label>Telefone</label><input id="ef-tel" value="${esc(e.telefone)}" placeholder="(00) 00000-0000"></div>
+    <div class="fld"><label>Órgão do RG</label><input id="ef-rgorgao" value="${esc(e.rgOrgao||'')}" placeholder="SSP/PR"></div>
+    <div class="fld"><label>PIS / NIT</label><input id="ef-pis" value="${esc(e.pis||'')}" placeholder="000.00000.00-0"></div>
+    <div class="fld"><label>CTPS (nº/série)</label><input id="ef-ctps" value="${esc(e.ctps||'')}" placeholder="1234567/0010-PR"></div>
+    <div class="fld"><label>Estado Civil</label>
+      <select id="ef-ecivil">${['Solteiro(a)','Casado(a)','Divorciado(a)','Viúvo(a)','União Estável'].map(o=>`<option${(e.estadoCivil||'Solteiro(a)')===o?' selected':''}>${o}</option>`).join('')}</select>
+    </div>
+    <div class="fld"><label>Nacionalidade</label><input id="ef-nacion" value="${esc(e.nacionalidade||'Brasileiro(a)')}"></div>
+    <div class="fld"><label>Nome da Mãe</label><input id="ef-mae" value="${esc(e.nomeMae||'')}"></div>
+  </div>
+  <div class="sh g">Endereço</div>
+  <div class="g2">
+    <div class="fld"><label>Rua / Logradouro</label><input id="ef-rua" value="${esc(e.rua||'')}"></div>
+    <div class="fld"><label>Número</label><input id="ef-num" value="${esc(e.numero||'')}"></div>
+    <div class="fld"><label>Complemento</label><input id="ef-compl" value="${esc(e.complemento||'')}"></div>
+    <div class="fld"><label>Bairro</label><input id="ef-bairro" value="${esc(e.bairro||'')}"></div>
+    <div class="fld"><label>CEP</label><input id="ef-cep" value="${esc(e.cep||'')}" placeholder="85851-000"></div>
+    <div class="fld"><label>Cidade</label><input id="ef-cidade" value="${esc(e.cidade||'Foz do Iguaçu')}"></div>
+    <div class="fld"><label>UF</label><input id="ef-uf" value="${esc(e.uf||'PR')}" maxlength="2"></div>
   </div>
   <div class="sh g">Dados Profissionais</div>
   <div class="g2">
     <div class="fld"><label>Cargo</label><input id="ef-cargo" value="${esc(e.cargo)}"></div>
+    <div class="fld"><label>CBO</label><input id="ef-cbo" value="${esc(e.cbo||'')}" placeholder="5211-10"></div>
     <div class="fld"><label>Departamento</label><select id="ef-dept">${DEPTS.map(d=>`<option${e.departamento===d?' selected':''}>${d}</option>`).join('')}</select></div>
     <div class="fld"><label>Loja / Unidade</label><select id="ef-loja"><option value="">— Selecione a loja —</option>${(typeof EMPRESAS_FILIAIS!=='undefined'?EMPRESAS_FILIAIS:[]).map(f=>`<option value="${esc(f.label)}"${e.loja===f.label?' selected':''}>${esc(f.label)}</option>`).join('')}</select></div>
     <div class="fld"><label>Data de Admissão</label><input type="date" id="ef-adm" value="${esc(e.dataAdmissao)}"></div>
@@ -5197,6 +5216,10 @@ async function saveEmp(){
     email:g('ef-email'),telefone:g('ef-tel'),cargo:g('ef-cargo'),departamento:g('ef-dept'),loja:g('ef-loja'),
     dataAdmissao:g('ef-adm'),salario:g('ef-sal'),meta:g('ef-meta'),status:g('ef-status'),
     banco:g('ef-banco'),tipoPix:g('ef-pixt'),chavePix:g('ef-pix'),
+    rgOrgao:g('ef-rgorgao'),pis:g('ef-pis'),ctps:g('ef-ctps'),
+    estadoCivil:g('ef-ecivil'),nacionalidade:g('ef-nacion'),nomeMae:g('ef-mae'),cbo:g('ef-cbo'),
+    rua:g('ef-rua'),numero:g('ef-num'),complemento:g('ef-compl'),bairro:g('ef-bairro'),
+    cep:g('ef-cep'),cidade:g('ef-cidade'),uf:g('ef-uf'),
     // SEC-03: senhaPortal será hasheada antes de salvar (veja _finalizarSaveEmp)
     _senhaPortalPlain:g('ef-senha-portal'),
     portalBloqueado:document.getElementById('ef-portal-bloqueado')?.checked||false,
@@ -52089,6 +52112,7 @@ async function _atlasCriarDocContrato(empId, kind){
     historicoStatus:[{status:'pendente',ts:new Date().toISOString(),por:'RH'}]
   };
   if(!APP.assinaturas) APP.assinaturas=[];
+  await atlasCarimbarVersao(doc);
   APP.assinaturas.push(doc);
   return doc;
 }
@@ -52837,6 +52861,335 @@ window.atlasNPEnviar = async function(){
   if(typeof navigate==='function') navigate('assinatura_digital');
 };
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  PAINEL: FIM DE EXPERIÊNCIA + PENDÊNCIAS DE ASSINATURA
+//  Um dia de atraso converte o contrato de experiência em prazo
+//  indeterminado (CLT art. 451) e passa a custar aviso prévio + 40% de FGTS.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Marcos legais do contrato de experiência (art. 445, § único: teto de 90 dias)
+const ATLAS_EXP_MARCOS = [30, 45, 90];
+
+function _atlasDiasEntre(a, b){
+  const d1 = new Date(a+'T00:00:00'), d2 = new Date(b+'T00:00:00');
+  if(isNaN(d1)||isNaN(d2)) return null;
+  return Math.round((d2 - d1) / 86400000);
+}
+
+// Calcula a situação de experiência de um colaborador
+function atlasStatusExperiencia(emp){
+  if(!emp || !emp.dataAdmissao || emp.status!=='ativo') return null;
+  const hoje = new Date().toISOString().slice(0,10);
+  const diasCasa = _atlasDiasEntre(emp.dataAdmissao, hoje);
+  if(diasCasa===null || diasCasa < 0) return null;
+  if(diasCasa > 95) return null;               // já passou da experiência
+
+  // Próximo marco ainda não vencido
+  let marco = null;
+  for(const m of ATLAS_EXP_MARCOS){ if(diasCasa <= m){ marco = m; break; } }
+  if(marco===null) return null;
+
+  const venc = new Date(emp.dataAdmissao+'T00:00:00');
+  venc.setDate(venc.getDate() + marco);
+  const vencISO = venc.toISOString().slice(0,10);
+  const faltam = _atlasDiasEntre(hoje, vencISO);
+
+  let nivel = 'ok';
+  if(faltam < 0)       nivel = 'vencido';
+  else if(faltam <= 2) nivel = 'critico';
+  else if(faltam <= 7) nivel = 'atencao';
+
+  return { emp, diasCasa, marco, vencISO, faltam, nivel,
+           vencBR: venc.toLocaleDateString('pt-BR') };
+}
+
+// Lista todos com experiência em curso, ordenada pela urgência
+window.atlasExperienciasAtivas = function(){
+  return (APP.employees||[])
+    .map(atlasStatusExperiencia)
+    .filter(Boolean)
+    .sort((a,b)=> a.faltam - b.faltam);
+};
+
+// Assinaturas pendentes com dias de espera
+window.atlasAssinaturasPendentes = function(){
+  const hoje = new Date();
+  return (APP.assinaturas||[])
+    .filter(a=>a.status==='pendente')
+    .map(a=>{
+      let dias = 0;
+      try{ dias = Math.max(0, Math.round((hoje - new Date(a.criadoEm))/86400000)); }catch(e){}
+      const emp = (APP.employees||[]).find(e=>e.id===a.empId);
+      return { doc:a, emp, dias };
+    })
+    .sort((a,b)=> b.dias - a.dias);
+};
+
+// Cobrança no WhatsApp de uma assinatura pendente
+window.atlasCobrarAssinatura = function(assinId){
+  const item = atlasAssinaturasPendentes().find(x=>x.doc.id===assinId);
+  if(!item || !item.emp){ toast('Colaborador não encontrado.','warn'); return; }
+  const nome = String(item.emp.nome||'').split(' ')[0];
+  const msg = encodeURIComponent(
+    'Olá '+nome+'! Passando para lembrar que você tem um documento pendente de assinatura no portal: '+
+    (item.doc.tipoLabel||item.doc.titulo||'Documento')+'.\n\nAcesse o Portal do Colaborador, aba "Assinaturas", para assinar. Obrigada!'
+  );
+  const tel = (item.emp.telefone||'').replace(/\D/g,'');
+  window.open(tel ? ('https://wa.me/55'+tel+'?text='+msg) : ('https://web.whatsapp.com/send?text='+msg), '_blank');
+};
+
+// ── Painel completo ────────────────────────────────────────────────────────
+window.rAtlasPainelRH = function(){
+  const exps = atlasExperienciasAtivas();
+  const pend = atlasAssinaturasPendentes();
+
+  const cor = { vencido:'#DC2626', critico:'#DC2626', atencao:'#D97706', ok:'#059669' };
+  const rotulo = s => s.faltam < 0
+      ? ('VENCEU há '+Math.abs(s.faltam)+' dia(s)')
+      : (s.faltam===0 ? 'VENCE HOJE' : ('faltam '+s.faltam+' dia(s)'));
+
+  const cardExp = s => `
+    <div style="background:#fff;border:1px solid var(--border);border-left:4px solid ${cor[s.nivel]};border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <div style="font-weight:800;font-size:13.5px;color:var(--tx)">${esc(s.emp.nome||'')}</div>
+        <div style="font-size:11.5px;color:var(--mt);margin-top:2px">
+          ${esc(s.emp.cargo||'—')} · ${s.diasCasa} dias de casa · marco de ${s.marco} dias
+        </div>
+        <div style="font-size:12px;font-weight:800;color:${cor[s.nivel]};margin-top:4px">
+          ${s.nivel==='vencido'?'⛔':(s.nivel==='critico'?'🔴':(s.nivel==='atencao'?'🟡':'🟢'))}
+          Vence em ${s.vencBR} — ${rotulo(s)}
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm" style="background:#EEF2FF;color:#4338CA;border:none;font-weight:700" onclick="atlasModalNaoProrrogacao('${s.emp.id}')">📨 Não prorrogar</button>
+        <button class="btn btn-ghost btn-sm" onclick="abrirCalcRescisao('${s.emp.id}')">🧮 Rescisão</button>
+        <button class="btn btn-ghost btn-sm" onclick="atlasModalTimeline('${s.emp.id}')">📖 Histórico</button>
+      </div>
+    </div>`;
+
+  const cardPend = p => `
+    <div style="background:#fff;border:1px solid var(--border);border-left:4px solid ${p.dias>=7?'#DC2626':(p.dias>=3?'#D97706':'#64748B')};border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <div style="font-weight:800;font-size:13.5px;color:var(--tx)">${esc(p.emp?p.emp.nome:(p.doc.empNome||'—'))}</div>
+        <div style="font-size:11.5px;color:var(--mt);margin-top:2px">${esc(p.doc.tipoLabel||p.doc.titulo||'Documento')}</div>
+        <div style="font-size:12px;font-weight:800;color:${p.dias>=7?'#DC2626':'#64748B'};margin-top:4px">
+          ⏳ pendente há ${p.dias} dia(s)
+        </div>
+      </div>
+      <button class="btn btn-sm btn-green" onclick="atlasCobrarAssinatura('${p.doc.id}')">💬 Cobrar</button>
+    </div>`;
+
+  const vazio = t => `<div style="text-align:center;padding:26px;color:var(--mt);font-size:13px">${t}</div>`;
+  const urgentes = exps.filter(s=>s.nivel!=='ok').length;
+
+  return `
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:8px;flex-wrap:wrap">
+    <div style="font-size:16px;font-weight:700">Painel de Prazos e Pendências</div>
+    <button class="btn btn-ghost btn-sm" onclick="navigate('painel_prazos')">🔄 Atualizar</button>
+  </div>
+
+  <div class="card" style="padding:0;overflow:hidden;margin-bottom:18px">
+    <div style="background:linear-gradient(135deg,#0B1E35,#152F4D);padding:15px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div>
+        <div style="color:#fff;font-weight:800;font-size:15px">⏰ Contratos de Experiência</div>
+        <div style="color:#C9A84C;font-size:11.5px;margin-top:3px">Trabalhar 1 dia após o término converte em prazo indeterminado (art. 451)</div>
+      </div>
+      <div style="background:${urgentes?'#DC2626':'#059669'};color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:800">
+        ${urgentes} urgente(s)
+      </div>
+    </div>
+    <div style="padding:14px;display:grid;gap:9px;background:#F8FAFC">
+      ${exps.length ? exps.map(cardExp).join('') : vazio('Nenhum colaborador em período de experiência.')}
+    </div>
+  </div>
+
+  <div class="card" style="padding:0;overflow:hidden">
+    <div style="background:linear-gradient(135deg,#0B1E35,#152F4D);padding:15px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div>
+        <div style="color:#fff;font-weight:800;font-size:15px">✍️ Assinaturas Pendentes</div>
+        <div style="color:#C9A84C;font-size:11.5px;margin-top:3px">Documentos enviados ao portal e ainda não assinados</div>
+      </div>
+      <div style="background:${pend.length?'#D97706':'#059669'};color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:800">
+        ${pend.length} pendente(s)
+      </div>
+    </div>
+    <div style="padding:14px;display:grid;gap:9px;background:#F8FAFC">
+      ${pend.length ? pend.map(cardPend).join('') : vazio('Nenhuma assinatura pendente. Tudo em dia!')}
+    </div>
+  </div>`;
+};
+
+// ── Registro do módulo na navegação ───────────────────────────────────────
+(function _atlasRegistraPainel(){
+  try{
+    if(typeof PAGE_TITLES!=='undefined') PAGE_TITLES['painel_prazos'] = 'Painel de Prazos e Pendências';
+    // Item no menu lateral, logo abaixo de Demissão
+    if(typeof NAV_GROUPS!=='undefined' && Array.isArray(NAV_GROUPS)){
+      const jaTem = NAV_GROUPS.some(g=>g && (g.items||[]).some(n=>n && n.id==='painel_prazos'));
+      if(!jaTem){
+        const item = {id:'painel_prazos', label:'Prazos & Pendências',
+          icon:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'};
+        const grp = NAV_GROUPS.find(g=>g && (g.items||[]).some(n=>n && n.id==='demissao'));
+        if(grp){
+          const i = grp.items.findIndex(n=>n && n.id==='demissao');
+          grp.items.splice(i+1, 0, item);
+        } else if(NAV_GROUPS[0] && NAV_GROUPS[0].items){
+          NAV_GROUPS[0].items.push(item);
+        }
+        // NAV é derivado de NAV_GROUPS no carregamento; mantém os dois em sincronia
+        if(typeof NAV!=='undefined' && Array.isArray(NAV) && !NAV.find(n=>n && n.id==='painel_prazos')){
+          NAV.push(item);
+        }
+      }
+    }
+  }catch(e){ console.warn('[painel prazos]', e); }
+})();
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  LINHA DO TEMPO DO COLABORADOR
+//  Reúne, em ordem cronológica, o que hoje está espalhado por 8 módulos.
+//  Cada coleção tem formato próprio, então a leitura é defensiva: campos
+//  ausentes são ignorados em vez de quebrar a montagem.
+// ═══════════════════════════════════════════════════════════════════════════
+function _atlasDataOK(v){
+  if(!v) return null;
+  const s = String(v);
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+  try{ const d = new Date(s); return isNaN(d) ? null : d.toISOString().slice(0,10); }catch(e){ return null; }
+}
+
+window.atlasTimeline = function(empId){
+  const ev = [];
+  const emp = (APP.employees||[]).find(e=>e.id===empId);
+  if(!emp) return ev;
+  const add = (data, tipo, titulo, detalhe, cor, icone) => {
+    const d = _atlasDataOK(data);
+    if(d) ev.push({data:d, tipo, titulo, detalhe:detalhe||'', cor, icone});
+  };
+
+  // Admissão e desligamento
+  add(emp.dataAdmissao, 'admissao', 'Admissão',
+      (emp.cargo||'') + (emp.salario?(' · R$ '+emp.salario):''), '#059669', '🎉');
+  try{
+    const dem = (APP.demissoes||{})[emp.id];
+    if(dem) add(dem.data||dem.dataDesligamento, 'demissao', 'Desligamento',
+                dem.motivo||dem.tipo||'', '#DC2626', '🚪');
+  }catch(e){}
+
+  // Contratos gerados (pacotes de documentos)
+  (APP.contratos||[]).filter(c=>c.empId===emp.id).forEach(c=>{
+    add(c.dataGeracao||c.criadoEm, 'contrato', 'Documentos gerados',
+        ((c.documentos||[]).length||0)+' documento(s)' + (c.status?(' · '+c.status):''), '#2563EB', '📄');
+  });
+
+  // Assinaturas digitais
+  (APP.assinaturas||[]).filter(a=>a.empId===emp.id).forEach(a=>{
+    const assinado = a.status==='assinado';
+    add(a.assinaturaData||a.criadoEm, 'assinatura',
+        (assinado?'Assinou: ':(a.status==='recusado'?'Recusou: ':'Enviado p/ assinar: ')) + (a.tipoLabel||a.titulo||'Documento'),
+        assinado&&a.assinaturaSelfie?'com foto de confirmação':'',
+        assinado?'#059669':(a.status==='recusado'?'#DC2626':'#D97706'),
+        assinado?'✍️':(a.status==='recusado'?'✗':'⏳'));
+  });
+
+  // Advertências e suspensões
+  (APP.advertencias||[]).filter(a=>a.empId===emp.id).forEach(a=>{
+    add(a.dataEmissao||a.criadoEm, 'advertencia',
+        (a.tipoLabel||a.tipo||'Documento disciplinar'),
+        a.motivo_resumo||a.motivo||'', '#D97706', '⚠️');
+  });
+
+  // Férias
+  (APP.ferias||[]).filter(f=>f.empId===emp.id).forEach(f=>{
+    add(f.inicio||f.dataInicio, 'ferias', 'Férias',
+        ((f.dias||30)+' dias') + (f.fim?(' · até '+f.fim):''), '#7C3AED', '🏖');
+  });
+
+  // Atestados
+  (APP.atestados||[]).filter(a=>a.empId===emp.id).forEach(a=>{
+    add(a.data, 'atestado', 'Atestado médico',
+        ((a.dias||1)+' dia(s)') + (a.medico?(' · Dr(a). '+a.medico):''), '#0891B2', '🏥');
+  });
+
+  // Ocorrências
+  (APP.ocorrenciasContratados||[]).filter(o=>o.empId===emp.id).forEach(o=>{
+    add(o.data||o.criadoEm, 'ocorrencia', 'Ocorrência', o.tipo||o.descricao||'', '#64748B', '📌');
+  });
+
+  return ev.sort((a,b)=> b.data.localeCompare(a.data));   // mais recente primeiro
+};
+
+window.atlasModalTimeline = function(empId){
+  const emp = (APP.employees||[]).find(e=>e.id===empId);
+  if(!emp){ toast('Colaborador não encontrado.','warn'); return; }
+  const ev = atlasTimeline(empId);
+  const fmt = d => { try{ return new Date(d+'T00:00:00').toLocaleDateString('pt-BR'); }catch(e){ return d; } };
+
+  const linha = (e,i) => `
+    <div style="display:flex;gap:12px;position:relative">
+      <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">
+        <div style="width:30px;height:30px;border-radius:50%;background:${e.cor}18;border:2px solid ${e.cor};display:flex;align-items:center;justify-content:center;font-size:14px">${e.icone}</div>
+        ${i < ev.length-1 ? `<div style="width:2px;flex:1;background:linear-gradient(${e.cor}55,#E2E8F0);min-height:16px"></div>` : ''}
+      </div>
+      <div style="flex:1;padding-bottom:16px;min-width:0">
+        <div style="font-size:11px;color:var(--mt);font-weight:700">${fmt(e.data)}</div>
+        <div style="font-size:13.5px;font-weight:800;color:var(--tx);margin-top:1px">${esc(e.titulo)}</div>
+        ${e.detalhe?`<div style="font-size:12px;color:var(--mt);margin-top:2px">${esc(e.detalhe)}</div>`:''}
+      </div>
+    </div>`;
+
+  openModal('📖 Linha do Tempo — ' + esc(emp.nome), `
+    <div style="background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:11px 14px;margin-bottom:16px;font-size:12px;color:#475569">
+      <b>${esc(emp.cargo||'—')}</b> · admitido em ${emp.dataAdmissao?fmt(emp.dataAdmissao):'—'} ·
+      <b>${ev.length}</b> evento(s) no histórico
+    </div>
+    ${ev.length ? `<div style="max-height:56vh;overflow-y:auto;padding-right:4px">${ev.map(linha).join('')}</div>`
+                : '<div style="text-align:center;padding:28px;color:var(--mt);font-size:13px">Nenhum evento registrado.</div>'}
+    <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>
+  `, 620);
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  VERSIONAMENTO DO CONTRATO
+//  Congela o texto e o hash no momento do envio, para que a assinatura fique
+//  atrelada à versão que a pessoa realmente leu — e não ao modelo atual.
+// ═══════════════════════════════════════════════════════════════════════════
+const ATLAS_MODELO_VERSAO = '2026.08';
+
+window.atlasCarimbarVersao = async function(doc){
+  try{
+    doc.modeloVersao = ATLAS_MODELO_VERSAO;
+    doc.conteudoCongeladoEm = new Date().toISOString();
+    if(typeof hashSHA256==='function' && doc.conteudo){
+      doc.conteudoHash = await hashSHA256(doc.conteudo);
+    }
+  }catch(e){ console.warn('[versao contrato]', e); }
+  return doc;
+};
+
+// Confere se o texto guardado ainda bate com o hash registrado
+window.atlasVerificarIntegridade = async function(assinId){
+  const doc = (APP.assinaturas||[]).find(a=>a.id===assinId);
+  if(!doc){ toast('Documento não encontrado.','warn'); return; }
+  if(!doc.conteudoHash){ toast('Documento sem hash (enviado antes do versionamento).','warn'); return; }
+  const atual = await hashSHA256(doc.conteudo||'');
+  const ok = atual === doc.conteudoHash;
+  openModal(ok?'✅ Documento íntegro':'⚠️ Divergência encontrada', `
+    <div style="background:${ok?'#F0FDF4':'#FEF2F2'};border:1px solid ${ok?'#BBF7D0':'#FECACA'};border-radius:10px;padding:14px;font-size:13px;color:${ok?'#166534':'#B91C1C'};line-height:1.6">
+      ${ok ? 'O texto armazenado corresponde exatamente ao que foi assinado. Nada foi alterado depois da assinatura.'
+           : 'O texto atual <b>não corresponde</b> ao hash registrado no envio. O conteúdo foi alterado após a assinatura.'}
+    </div>
+    <div style="margin-top:12px;font-size:11px;color:var(--mt);line-height:1.7;word-break:break-all">
+      <b>Versão do modelo:</b> ${esc(doc.modeloVersao||'—')}<br>
+      <b>Hash no envio:</b> ${esc(doc.conteudoHash)}<br>
+      <b>Hash agora:</b> ${esc(atual)}
+    </div>
+    <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>
+  `, 560);
+};
+
 (function _atlasInjectButtons(){
   // 3a. Botão no módulo de Assinatura Digital
   const _origAssin = window.rAssinaturaDigital;
@@ -52930,6 +53283,7 @@ window.atlasNPEnviar = async function(){
       <span style="font-size:11.5px;color:#64748B;font-weight:700">Fim da experiência:</span>
       <button class="btn btn-sm" style="background:#EEF2FF;color:#4338CA;border:none;font-weight:700" onclick="atlasModalNaoProrrogacao(_atlasEmpSel())">📨 Comunicado de Não Prorrogação</button>
       <button class="btn btn-ghost btn-sm" onclick="abrirCalcRescisao(_atlasEmpSel())">🧮 Calcular Rescisão</button>
+      <button class="btn btn-ghost btn-sm" onclick="atlasModalTimeline(_atlasEmpSel())">📖 Linha do Tempo</button>
     </div>
     <div style="padding:10px 18px;background:#FEF9EC;border-top:1px solid #FDE68A;font-size:11.5px;color:#92400E">
       💡 Selecione o colaborador acima para preencher os dados automaticamente. Sem seleção, o contrato sai em branco para preenchimento manual.
