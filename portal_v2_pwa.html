@@ -2544,7 +2544,7 @@ async function loadPontoMes(mes, ano) {
   } catch (e) { console.warn('[Espelho] loadPontoMes:', e); }
 }
 
-async function _salvarAssinaturaDigital(id, status, png) {
+async function _salvarAssinaturaDigital(id, status, png, selfie) {
   if (!DB) { toast('Sem conexão.', 'err'); return; }
   try {
     const snap = await DB.collection('hr').doc('assinaturas').get();
@@ -2558,6 +2558,11 @@ async function _salvarAssinaturaDigital(id, status, png) {
       all[idx].assinaturaData = agora.toISOString();
       all[idx].assinadoEm_br = agora.toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'medium' });
       if (png) all[idx].assinaturaPNG = png;
+      if (selfie) {
+        all[idx].assinaturaSelfie = selfie;              // foto do rosto no ato
+        all[idx].assinaturaSelfieTs = agora.toISOString();
+      }
+      all[idx].metodoAssinatura = selfie ? 'canvas_selfie_portal' : (png ? 'canvas_portal' : 'eletronico_simples');
       if (!all[idx].historicoStatus) all[idx].historicoStatus = [];
       all[idx].historicoStatus.push({ status, ts: agora.toISOString(), origem: 'portal_colaborador' });
     }
@@ -2679,14 +2684,131 @@ window.__assinDigitalConfirmar = async function(id) {
   const btn = document.getElementById('__assin-digital-confirmar__');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
   const png = window.__assinDigitalGetPNG ? window.__assinDigitalGetPNG() : null;
-  await _salvarAssinaturaDigital(id, 'assinado', png);
+
+  // Documentos marcados pelo RH com exigirSelfie pedem foto do rosto com
+  // carimbo de data/hora antes de concluir (ex.: comunicado de não prorrogação).
+  const _doc = (ASSINATURAS_DIGITAL || []).find(x => x.id === id);
+  if (_doc && (_doc.exigirSelfie || _doc.exigirFoto)) {
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Confirmar assinatura'; }
+    _abrirEtapaSelfie(id, png);
+    return;
+  }
+
+  await _salvarAssinaturaDigital(id, 'assinado', png, null);
   const ov = document.getElementById('__assin-digital-ov__');
   if (ov) ov.remove();
 };
 
+// ── ETAPA 2: selfie com carimbo de data/hora ──────────────────────────────
+let _SELFIE_STREAM = null;
+
+function _pararCameraSelfie() {
+  try { if (_SELFIE_STREAM) { _SELFIE_STREAM.getTracks().forEach(t => t.stop()); _SELFIE_STREAM = null; } } catch (e) {}
+}
+
+function _abrirEtapaSelfie(id, png) {
+  const ovAnt = document.getElementById('__assin-selfie-ov__');
+  if (ovAnt) ovAnt.remove();
+
+  const ov = document.createElement('div');
+  ov.id = '__assin-selfie-ov__';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(15,23,42,.9);display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)';
+  ov.innerHTML = `
+    <div style="background:#fff;border-radius:18px;max-width:460px;width:100%;padding:22px 20px;max-height:94vh;overflow-y:auto">
+      <div style="font-size:16px;font-weight:800;color:#0F172A;margin-bottom:4px">📸 Etapa 2 de 2 — Foto de confirmação</div>
+      <div style="font-size:12px;color:#64748B;margin-bottom:14px;line-height:1.5">
+        Para validar sua assinatura, tire uma foto do seu rosto. A imagem recebe carimbo com data e hora.
+      </div>
+      <div style="position:relative;border-radius:12px;overflow:hidden;background:#0F172A;margin-bottom:12px">
+        <video id="__selfie-video__" autoplay playsinline muted style="width:100%;display:block;max-height:320px;object-fit:cover"></video>
+        <canvas id="__selfie-canvas__" style="display:none"></canvas>
+        <img id="__selfie-preview__" style="display:none;width:100%;max-height:320px;object-fit:cover">
+      </div>
+      <div id="__selfie-status__" style="font-size:12px;color:#64748B;margin-bottom:12px;text-align:center">Iniciando câmera...</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button id="__selfie-cancelar__" onclick="_pararCameraSelfie();document.getElementById('__assin-selfie-ov__').remove()"
+          style="flex:1;min-width:110px;padding:12px;border-radius:10px;background:#F1F5F9;color:#475569;font-weight:700;font-size:13px;border:none;cursor:pointer">Cancelar</button>
+        <button id="__selfie-tirar__" onclick="_tirarSelfie()"
+          style="flex:2;min-width:150px;padding:12px;border-radius:10px;background:#7C3AED;color:#fff;font-weight:700;font-size:13px;border:none;cursor:pointer">📸 Tirar foto</button>
+        <button id="__selfie-confirmar__" onclick="_confirmarSelfie('${id}')" style="display:none;flex:2;min-width:150px;padding:12px;border-radius:10px;background:linear-gradient(135deg,#059669,#047857);color:#fff;font-weight:700;font-size:13px;border:none;cursor:pointer">✅ Concluir assinatura</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  window.__assinSelfiePNG = png;
+  window.__assinSelfieFoto = null;
+
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 } }, audio: false })
+    .then(st => {
+      _SELFIE_STREAM = st;
+      const v = document.getElementById('__selfie-video__');
+      if (v) v.srcObject = st;
+      const s = document.getElementById('__selfie-status__');
+      if (s) s.textContent = 'Enquadre o rosto e toque em "Tirar foto".';
+    })
+    .catch(err => {
+      const s = document.getElementById('__selfie-status__');
+      if (s) { s.textContent = '⚠️ Não foi possível acessar a câmera: ' + (err.message || err); s.style.color = '#DC2626'; }
+      // Sem câmera, permite concluir só com a assinatura manuscrita
+      const bt = document.getElementById('__selfie-tirar__');
+      const bc = document.getElementById('__selfie-confirmar__');
+      if (bt) bt.style.display = 'none';
+      if (bc) { bc.style.display = ''; bc.textContent = '✅ Concluir sem foto'; }
+    });
+}
+
+function _tirarSelfie() {
+  const v = document.getElementById('__selfie-video__');
+  const c = document.getElementById('__selfie-canvas__');
+  if (!v || !c || !v.videoWidth) { toast('Aguarde a câmera iniciar.', 'err'); return; }
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(v, 0, 0, c.width, c.height);
+
+  // Carimbo de data/hora sobre a foto
+  const agora = new Date();
+  const carimbo = agora.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'medium' });
+  const nome = (typeof EMP !== 'undefined' && EMP && EMP.nome) ? EMP.nome : '';
+  const fh = Math.max(16, Math.round(c.width * 0.038));
+  ctx.font = '700 ' + fh + 'px Arial, sans-serif';
+  ctx.textBaseline = 'bottom';
+  const alturaBarra = fh * 2.6;
+  ctx.fillStyle = 'rgba(11,30,53,.78)';
+  ctx.fillRect(0, c.height - alturaBarra, c.width, alturaBarra);
+  ctx.fillStyle = '#C9A84C';
+  ctx.fillText(carimbo, 12, c.height - fh - 6);
+  ctx.fillStyle = '#fff';
+  ctx.font = '600 ' + Math.round(fh * 0.8) + 'px Arial, sans-serif';
+  ctx.fillText(nome, 12, c.height - 8);
+
+  window.__assinSelfieFoto = c.toDataURL('image/jpeg', 0.75);
+  const prev = document.getElementById('__selfie-preview__');
+  if (prev) { prev.src = window.__assinSelfieFoto; prev.style.display = 'block'; }
+  if (v) v.style.display = 'none';
+  _pararCameraSelfie();
+
+  const s = document.getElementById('__selfie-status__');
+  if (s) { s.textContent = '✅ Foto capturada em ' + carimbo; s.style.color = '#059669'; }
+  const bt = document.getElementById('__selfie-tirar__');
+  const bc = document.getElementById('__selfie-confirmar__');
+  if (bt) bt.textContent = '🔄 Refazer';
+  if (bt) bt.onclick = () => { const ov = document.getElementById('__assin-selfie-ov__'); if (ov) ov.remove(); _abrirEtapaSelfie(window.__assinSelfieDocId || '', window.__assinSelfiePNG); };
+  if (bc) bc.style.display = '';
+}
+
+async function _confirmarSelfie(id) {
+  const bc = document.getElementById('__selfie-confirmar__');
+  if (bc) { bc.disabled = true; bc.textContent = '⏳ Salvando...'; }
+  _pararCameraSelfie();
+  await _salvarAssinaturaDigital(id, 'assinado', window.__assinSelfiePNG || null, window.__assinSelfieFoto || null);
+  const ov = document.getElementById('__assin-selfie-ov__');
+  if (ov) ov.remove();
+  const ov2 = document.getElementById('__assin-digital-ov__');
+  if (ov2) ov2.remove();
+}
+
 async function recusarDigital(id) {
   if (!confirm('Confirmar recusa de assinatura?\n\nO RH será notificado. A recusa será registrada com data e hora.')) return;
-  await _salvarAssinaturaDigital(id, 'recusado', null);
+  await _salvarAssinaturaDigital(id, 'recusado', null, null);
 }
 
 // ── Sistema de "avisos lidos" por colaborador ─────────────────────────────────
