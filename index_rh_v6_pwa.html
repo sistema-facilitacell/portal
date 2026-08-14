@@ -2462,6 +2462,7 @@ const _VALID_KEYS=new Set(['employees','candidates','pontos','financeiro','atest
   'adiantamentos',         // vales e adiantamentos a descontar no holerite
   'convocacoes',           // convocações do contrato intermitente (art. 452-A)
   'recibosInt',            // recibos discriminados do trabalho intermitente
+  'rpas',                  // RPAs emitidos a prestadores autônomos (PF sem CNPJ)
 ]);
 
 // ── save(k) — salva local + Firebase + Supabase (dados sensíveis) ──
@@ -3449,7 +3450,7 @@ function navigate(mod){
     return;
   }
 
-  const renders={dashboard:(typeof window._rDashComAlertas==="function"?window._rDashComAlertas:rDash),funcionarios:rFuncs,ponto:rPonto,financeiro:rFin,holerite:rHolerite,atestados:rAtestados,candidatos:rCand,admissao:rAdmissao,demissao:rDemissao,salarios:rSalarios,metadiaria:rMetaDiaria,biometrico:function(){ return (typeof window.rBiometrico==='function') ? window.rBiometrico() : rBiometrico(); },relatorio:rRelatorio,advertencias:rAdvertencias,ferias:rFerias,desempenho:rDesempenho,comunicados:rComunicados,bancohoras:rBancoHoras,recrutamento:rRecrutamento,contratos:function(){ return (typeof rContratos==='function') ? rContratos() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Contratos carregando...</div>'; },comprovantes:rComprovantes,portaislinks:rPortaisLinks,assinatura_digital:function(){ return (typeof window.rAssinaturaDigital==='function') ? window.rAssinaturaDigital() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Assinatura carregando...</div>'; },alarmes_portal:rAlarmesPortal,solicitacoes_portal:rSolicitacoesPortal,absenteismo:rAbsenteismo,suspensao:function(){ const t=document.getElementById('_susp_module_html_'); return t?t.innerHTML:'<div class="card" style="padding:30px;text-align:center">⏳ Módulo Suspensões carregando...</div>'; },agenda_rh:rAgendaRH,doc_templates:rDocTemplates,auditoria:function(){ return (typeof window.rAuditoria==='function') ? window.rAuditoria() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando auditoria...</div>'; },ocorrencias_contratados:function(){ return (typeof window.rOcorrenciasContratados==='function') ? window.rOcorrenciasContratados() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },adiantamentos:function(){ return (typeof window.rAdiantamentos==='function') ? window.rAdiantamentos() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },contratos_pj:function(){ return (typeof window.rContratosPJ==='function') ? window.rContratosPJ() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando Contratos PJ...</div>'; },conformidade:function(){ return (typeof window.rConformidade==='function') ? window.rConformidade() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },pj_risco:function(){ return (typeof window.rPJRisco==='function') ? window.rPJRisco() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },backup:function(){ return (typeof window.rBackup==='function') ? window.rBackup() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },fechamento:function(){ return (typeof window.rFechamento==='function') ? window.rFechamento() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },bh_testes:function(){ return (typeof window.rBHTestes==='function') ? window.rBHTestes() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },consultor_clt:function(){ return (typeof window.rConsultorCLT==='function') ? window.rConsultorCLT() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando Consultor CLT...</div>'; },contratos_int:function(){ return (typeof window.rContratosInt==='function') ? window.rContratosInt() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },convocacoes:function(){ return (typeof window.rConvocacoes==='function') ? window.rConvocacoes() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },recibos_int:function(){ return (typeof window.rRecibosInt==='function') ? window.rRecibosInt() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },regularizacao:function(){ return (typeof window.rRegularizacao==='function') ? window.rRegularizacao() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },pacote_contador:function(){ return (typeof window.rPacoteContador==='function') ? window.rPacoteContador() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },painel_prazos:function(){ return (typeof window.rAtlasPainelRH==='function') ? window.rAtlasPainelRH() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando painel...</div>'; },linha_tempo:function(){ return (typeof window.rAtlasTimelinePage==='function') ? window.rAtlasTimelinePage() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando linha do tempo...</div>'; }};
+  const renders={dashboard:(typeof window._rDashComAlertas==="function"?window._rDashComAlertas:rDash),funcionarios:rFuncs,ponto:rPonto,financeiro:rFin,holerite:rHolerite,atestados:rAtestados,candidatos:rCand,admissao:rAdmissao,demissao:rDemissao,salarios:rSalarios,metadiaria:rMetaDiaria,biometrico:function(){ return (typeof window.rBiometrico==='function') ? window.rBiometrico() : rBiometrico(); },relatorio:rRelatorio,advertencias:rAdvertencias,ferias:rFerias,desempenho:rDesempenho,comunicados:rComunicados,bancohoras:rBancoHoras,recrutamento:rRecrutamento,contratos:function(){ return (typeof rContratos==='function') ? rContratos() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Contratos carregando...</div>'; },comprovantes:rComprovantes,portaislinks:rPortaisLinks,assinatura_digital:function(){ return (typeof window.rAssinaturaDigital==='function') ? window.rAssinaturaDigital() : '<div class="card" style="padding:30px;text-align:center">⏳ Módulo Assinatura carregando...</div>'; },alarmes_portal:rAlarmesPortal,solicitacoes_portal:rSolicitacoesPortal,absenteismo:rAbsenteismo,suspensao:function(){ const t=document.getElementById('_susp_module_html_'); return t?t.innerHTML:'<div class="card" style="padding:30px;text-align:center">⏳ Módulo Suspensões carregando...</div>'; },agenda_rh:rAgendaRH,doc_templates:rDocTemplates,auditoria:function(){ return (typeof window.rAuditoria==='function') ? window.rAuditoria() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando auditoria...</div>'; },ocorrencias_contratados:function(){ return (typeof window.rOcorrenciasContratados==='function') ? window.rOcorrenciasContratados() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },adiantamentos:function(){ return (typeof window.rAdiantamentos==='function') ? window.rAdiantamentos() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },contratos_pj:function(){ return (typeof window.rContratosPJ==='function') ? window.rContratosPJ() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando Contratos PJ...</div>'; },conformidade:function(){ return (typeof window.rConformidade==='function') ? window.rConformidade() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },pj_risco:function(){ return (typeof window.rPJRisco==='function') ? window.rPJRisco() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },backup:function(){ return (typeof window.rBackup==='function') ? window.rBackup() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },fechamento:function(){ return (typeof window.rFechamento==='function') ? window.rFechamento() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },bh_testes:function(){ return (typeof window.rBHTestes==='function') ? window.rBHTestes() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },consultor_clt:function(){ return (typeof window.rConsultorCLT==='function') ? window.rConsultorCLT() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando Consultor CLT...</div>'; },contratos_int:function(){ return (typeof window.rContratosInt==='function') ? window.rContratosInt() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },convocacoes:function(){ return (typeof window.rConvocacoes==='function') ? window.rConvocacoes() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },recibos_int:function(){ return (typeof window.rRecibosInt==='function') ? window.rRecibosInt() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },regularizacao:function(){ return (typeof window.rRegularizacao==='function') ? window.rRegularizacao() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },pacote_contador:function(){ return (typeof window.rPacoteContador==='function') ? window.rPacoteContador() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando...</div>'; },painel_prazos:function(){ return (typeof window.rAtlasPainelRH==='function') ? window.rAtlasPainelRH() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando painel...</div>'; },linha_tempo:function(){ return (typeof window.rAtlasTimelinePage==='function') ? window.rAtlasTimelinePage() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando linha do tempo...</div>'; },rpas:function(){ return (typeof window.rAtlasRPAs==='function') ? window.rAtlasRPAs() : '<div class="card" style="padding:30px;text-align:center">⏳ Carregando RPAs...</div>'; },conferidor:function(){ return (typeof window.rAtlasConferidor==='function') ? window.rAtlasConferidor() : '<div class="card" style="padding:30px;text-align:center">⏳ Conferindo...</div>'; }};
   // FIX-C1: try-catch no dispatcher — evita tela branca se qualquer render lançar erro
   try {
     document.getElementById('content').innerHTML=(renders[mod]||rDash)();
@@ -5014,6 +5015,15 @@ function openEmpForm(id){
     <div class="fld"><label>Nacionalidade</label><input id="ef-nacion" value="${esc(e.nacionalidade||'Brasileiro(a)')}"></div>
     <div class="fld"><label>Nome da Mãe</label><input id="ef-mae" value="${esc(e.nomeMae||'')}"></div>
   </div>
+  <div class="sh g">Admissão — obrigações legais</div>
+  <div class="g2">
+    <div class="fld"><label>Data do ASO admissional (NR-7)</label><input type="date" id="ef-aso" value="${esc(e.asoData||'')}"></div>
+    <div class="fld"><label>Resultado do ASO</label>
+      <select id="ef-asores">${['','Apto','Apto com restrições','Inapto'].map(o=>`<option value="${o}"${(e.asoResultado||'')===o?' selected':''}>${o||'— não informado —'}</option>`).join('')}</select>
+    </div>
+    <div class="fld"><label>Médico / CRM</label><input id="ef-asomed" value="${esc(e.asoMedico||'')}" placeholder="Dr(a). Nome — CRM/PR 00000"></div>
+    <div class="fld"><label>CTPS anotada em</label><input type="date" id="ef-ctpsdata" value="${esc(e.ctpsAnotadaEm||'')}"></div>
+  </div>
   <div class="sh g">Endereço</div>
   <div class="g2">
     <div class="fld"><label>Rua / Logradouro</label><input id="ef-rua" value="${esc(e.rua||'')}"></div>
@@ -5026,6 +5036,15 @@ function openEmpForm(id){
   </div>
   <div class="sh g">Dados Profissionais</div>
   <div class="g2">
+    <div class="fld"><label>Regime de contratação</label>
+      <select id="ef-regime">${[
+        ['clt','CLT — empregado registrado'],
+        ['intermitente','CLT Intermitente (art. 443 §3º)'],
+        ['autonomo','Autônomo PF (sem CNPJ)'],
+        ['pj','PJ / Prestador com CNPJ'],
+        ['estagio','Estágio (Lei 11.788/2008)']
+      ].map(([v,t])=>`<option value="${v}"${(e.regime||'clt')===v?' selected':''}>${t}</option>`).join('')}</select>
+    </div>
     <div class="fld"><label>Cargo</label><input id="ef-cargo" value="${esc(e.cargo)}"></div>
     <div class="fld"><label>CBO</label><input id="ef-cbo" value="${esc(e.cbo||'')}" placeholder="5211-10"></div>
     <div class="fld"><label>Departamento</label><select id="ef-dept">${DEPTS.map(d=>`<option${e.departamento===d?' selected':''}>${d}</option>`).join('')}</select></div>
@@ -5222,6 +5241,8 @@ async function saveEmp(){
     email:g('ef-email'),telefone:g('ef-tel'),cargo:g('ef-cargo'),departamento:g('ef-dept'),loja:g('ef-loja'),
     dataAdmissao:g('ef-adm'),salario:g('ef-sal'),meta:g('ef-meta'),status:g('ef-status'),
     banco:g('ef-banco'),tipoPix:g('ef-pixt'),chavePix:g('ef-pix'),
+    regime:g('ef-regime'),
+    asoData:g('ef-aso'),asoResultado:g('ef-asores'),asoMedico:g('ef-asomed'),ctpsAnotadaEm:g('ef-ctpsdata'),
     rgOrgao:g('ef-rgorgao'),pis:g('ef-pis'),ctps:g('ef-ctps'),
     estadoCivil:g('ef-ecivil'),nacionalidade:g('ef-nacion'),nomeMae:g('ef-mae'),cbo:g('ef-cbo'),
     rua:g('ef-rua'),numero:g('ef-num'),complemento:g('ef-compl'),bairro:g('ef-bairro'),
@@ -52924,9 +52945,9 @@ function _atlasDiasEntre(a, b){
 // Calcula a situação de experiência de um colaborador
 function atlasStatusExperiencia(emp){
   if(!emp || !emp.dataAdmissao || emp.status!=='ativo') return null;
-  // Intermitente é por prazo indeterminado: não existe "fim de experiência".
-  // Mostrá-lo aqui induziria a uma rescisão calculada pela regra errada.
-  try{ if(typeof atlasEhIntermitente==='function' && atlasEhIntermitente(emp)) return null; }catch(e){}
+  // Só o CLT comum tem contrato de experiência. Intermitente é por prazo
+  // indeterminado; autônomo, PJ e estágio nem sequer têm vínculo de emprego.
+  try{ if(atlasRegime(emp)!=='clt') return null; }catch(e){}
   const hoje = new Date().toISOString().slice(0,10);
   const diasCasa = _atlasDiasEntre(emp.dataAdmissao, hoje);
   if(diasCasa===null || diasCasa < 0) return null;
@@ -52999,7 +53020,7 @@ window.rAtlasPainelRH = function(){
   const cardExp = s => `
     <div style="background:#fff;border:1px solid var(--border);border-left:4px solid ${cor[s.nivel]};border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
       <div style="flex:1;min-width:200px">
-        <div style="font-weight:800;font-size:13.5px;color:var(--tx)">${esc(s.emp.nome||'')}</div>
+        <div style="font-weight:800;font-size:13.5px;color:var(--tx);display:flex;align-items:center;gap:7px;flex-wrap:wrap">${esc(s.emp.nome||'')} ${atlasBadgeRegime(s.emp)}</div>
         <div style="font-size:11.5px;color:var(--mt);margin-top:2px">
           ${esc(s.emp.cargo||'—')} · ${s.diasCasa} dias de casa · marco de ${s.marco} dias
         </div>
@@ -53077,6 +53098,8 @@ window.rAtlasPainelRH = function(){
     if(typeof PAGE_TITLES!=='undefined'){
       PAGE_TITLES['painel_prazos'] = 'Painel de Prazos e Pendências';
       PAGE_TITLES['linha_tempo']   = 'Linha do Tempo dos Colaboradores';
+      PAGE_TITLES['rpas']          = 'RPA — Recibos de Pagamento a Autônomo';
+      PAGE_TITLES['conferidor']    = 'Conferência de Dados e Risco de Vínculo';
     }
     // Item no menu lateral, logo abaixo de Demissão
     if(typeof NAV_GROUPS!=='undefined' && Array.isArray(NAV_GROUPS)){
@@ -53086,10 +53109,14 @@ window.rAtlasPainelRH = function(){
           icon:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'};
         const itemTL = {id:'linha_tempo', label:'Linha do Tempo',
           icon:'<path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/>'};
+        const itemCONF = {id:'conferidor', label:'Conferência de Dados',
+          icon:'<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>'};
+        const itemRPA = {id:'rpas', label:'RPA Autônomos',
+          icon:'<path d="M14 2H6a2 2 0 0 0-2 2v16l4-2 4 2 4-2 4 2V8z"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="13" y2="14"/>'};
         const grp = NAV_GROUPS.find(g=>g && (g.items||[]).some(n=>n && n.id==='demissao'));
         if(grp){
           const i = grp.items.findIndex(n=>n && n.id==='demissao');
-          grp.items.splice(i+1, 0, item, itemTL);
+          grp.items.splice(i+1, 0, item, itemTL, itemRPA, itemCONF);
         } else if(NAV_GROUPS[0] && NAV_GROUPS[0].items){
           NAV_GROUPS[0].items.push(item);
         }
@@ -53097,6 +53124,8 @@ window.rAtlasPainelRH = function(){
         if(typeof NAV!=='undefined' && Array.isArray(NAV)){
           if(!NAV.find(n=>n && n.id==='painel_prazos')) NAV.push(item);
           if(!NAV.find(n=>n && n.id==='linha_tempo'))   NAV.push(itemTL);
+          if(!NAV.find(n=>n && n.id==='rpas'))          NAV.push(itemRPA);
+          if(!NAV.find(n=>n && n.id==='conferidor'))    NAV.push(itemCONF);
         }
       }
     }
@@ -53289,7 +53318,7 @@ window.rAtlasTimelinePage = function(){
     <div onclick="atlasModalTimeline('${e.id}')" style="cursor:pointer;background:#fff;border:1px solid var(--border);border-left:4px solid ${inativo?'#94A3B8':'#0B1E35'};border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:12px;transition:.15s"
       onmouseover="this.style.boxShadow='0 2px 10px rgba(11,30,53,.10)'" onmouseout="this.style.boxShadow='none'">
       <div style="flex:1;min-width:0">
-        <div style="font-weight:800;font-size:13.5px;color:var(--tx)">${esc(e.nome||'')} ${inativo?'<span style="font-size:10px;background:#F1F5F9;color:#64748B;padding:1px 7px;border-radius:10px;font-weight:700">'+esc(e.status||'')+'</span>':''}</div>
+        <div style="font-weight:800;font-size:13.5px;color:var(--tx)">${esc(e.nome||'')} ${atlasBadgeRegime(e)} ${inativo?'<span style="font-size:10px;background:#F1F5F9;color:#64748B;padding:1px 7px;border-radius:10px;font-weight:700">'+esc(e.status||'')+'</span>':''}</div>
         <div style="font-size:11.5px;color:var(--mt);margin-top:2px">${esc(e.cargo||'—')}${e.dataAdmissao?(' · desde '+new Date(e.dataAdmissao+'T00:00:00').toLocaleDateString('pt-BR')):''}</div>
         ${ult?`<div style="font-size:11px;color:#94A3B8;margin-top:3px">último: ${ult.icone} ${esc(ult.titulo)}</div>`:''}
       </div>
@@ -53433,6 +53462,8 @@ window.atlasRemoverAssinatura = async function(assinId){
   catch(e){ ok = confirm(aviso); }
   if(!ok) return;
 
+  atlasBackupAntes('remover documento: '+(doc.tipoLabel||doc.titulo||'documento'));
+
   // 1) remove da memória
   APP.assinaturas = (APP.assinaturas||[]).filter(a=>a.id!==assinId);
 
@@ -53475,6 +53506,7 @@ function _atlasEhCifrado(v){ return !!(v && typeof v==='object' && v.__enc===tru
 window.atlasLimparCifrados = function(silencioso){
   const chaves = (typeof SB_SENSITIVE_KEYS!=='undefined') ? [...SB_SENSITIVE_KEYS] : [];
   const limpas = [], mantidas = [];
+  if(!silencioso) atlasBackupAntes('limpar dados cifrados');
 
   chaves.forEach(k=>{
     let local = null;
@@ -53657,9 +53689,11 @@ window.atlasCalcRescisaoIntermitente = function(empId, dataResc, diasAviso){
 // Escolhe a calculadora certa conforme o regime do colaborador
 window.atlasRescisaoInteligente = function(empId){
   const emp = (APP.employees||[]).find(e=>e.id===empId);
-  if(emp && typeof atlasEhIntermitente==='function' && atlasEhIntermitente(emp)){
-    atlasModalRescisaoInt(empId);
-    return;
+  const reg = emp ? atlasRegime(emp) : 'clt';
+  if(reg==='intermitente'){ atlasModalRescisaoInt(empId); return; }
+  if(reg==='autonomo' || reg==='pj'){
+    toast('Sem vínculo empregatício não há rescisão — abrindo o encerramento de contrato.','ok',5000);
+    atlasModalEncerrarAutonomo(empId); return;
   }
   if(typeof abrirCalcRescisao==='function') abrirCalcRescisao(empId);
 };
@@ -54003,6 +54037,586 @@ window.atlasEncerrarAutEnviar = async function(){
   closeModal();
   await atlasEnviarEncerramentoAut(d.empId, d.dados);
   if(typeof navigate==='function') navigate('assinatura_digital');
+};
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  REGIME DE CONTRATAÇÃO — a fonte da verdade
+//  Antes o sistema adivinhava pelo módulo em que você estava ou pela data de
+//  admissão, e errava: autônomo aparecia como contrato de experiência e caía
+//  na calculadora de CLT. Agora o cadastro diz o regime, e quem não tiver o
+//  campo preenchido ainda é inferido pelos contratos existentes.
+// ═══════════════════════════════════════════════════════════════════════════
+const ATLAS_REGIMES = {
+  clt:          {label:'CLT',            curto:'CLT',          cor:'#2563EB', vinculo:true},
+  intermitente: {label:'CLT Intermitente',curto:'Intermitente', cor:'#7C3AED', vinculo:true},
+  autonomo:     {label:'Autônomo PF',    curto:'Autônomo',     cor:'#C9A84C', vinculo:false},
+  pj:           {label:'PJ / CNPJ',      curto:'PJ',           cor:'#0891B2', vinculo:false},
+  estagio:      {label:'Estágio',        curto:'Estágio',      cor:'#059669', vinculo:false}
+};
+
+window.atlasRegime = function(emp){
+  if(!emp) return 'clt';
+  if(emp.regime && ATLAS_REGIMES[emp.regime]) return emp.regime;   // explícito manda
+  // Sem campo preenchido: infere pelos contratos já existentes
+  try{
+    const cpf = String(emp.cpf||'').replace(/\D/g,'');
+    if(cpf){
+      const cts = (APP.contratos||[]).filter(c=>c && String(c.empCpf||'').replace(/\D/g,'')===cpf);
+      if(cts.some(c=>c.tipo==='INTERMITENTE')) return 'intermitente';
+      if(cts.some(c=>c.tipo==='PJ')) return 'pj';
+    }
+    if((APP.contratosPJ||[]).some(c=>c && c.empId===emp.id)) return 'pj';
+  }catch(e){}
+  return 'clt';
+};
+
+window.atlasRegimeInfo = function(emp){ return ATLAS_REGIMES[atlasRegime(emp)] || ATLAS_REGIMES.clt; };
+
+window.atlasBadgeRegime = function(emp){
+  const r = atlasRegimeInfo(emp);
+  return `<span style="background:${r.cor}18;color:${r.cor};font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px;white-space:nowrap">${r.curto}</span>`;
+};
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  MÓDULO: RPA — RECIBO DE PAGAMENTO A AUTÔNOMO
+//  Antes só havia RPA no encerramento do contrato. Sem emissão recorrente,
+//  não existe histórico de pagamento — e é justamente esse histórico que
+//  demonstra a natureza da prestação de serviço ao longo do tempo.
+// ═══════════════════════════════════════════════════════════════════════════
+if(!Array.isArray(APP.rpas)) APP.rpas = [];
+
+window.atlasNumeroRPA = function(){
+  const ano = new Date().getFullYear();
+  const n = (APP.rpas||[]).filter(r=>String(r.numero||'').indexOf('RPA-'+ano)===0).length + 1;
+  return 'RPA-' + ano + '-' + String(n).padStart(4,'0');
+};
+
+function _atlasTextoRPA(rec){
+  const cfg = (typeof EMPRESA_CFG!=='undefined' && EMPRESA_CFG) ? EMPRESA_CFG : {};
+  const fix = (typeof EMPRESA_FIXA!=='undefined' && EMPRESA_FIXA) ? EMPRESA_FIXA : {};
+  const V = (...a)=>{ for(const x of a){ if(x!==undefined&&x!==null&&String(x).trim()!=='') return String(x).trim(); } return ''; };
+  const brl = v => 'R$ ' + (parseFloat(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fmt = d => { try{ return /^\d{4}-\d{2}-\d{2}$/.test(d) ? new Date(d+'T00:00:00').toLocaleDateString('pt-BR') : (d||''); }catch(e){ return d||''; } };
+  const empresa = V(cfg.nomeRazao,cfg.nome,fix.nome,'ZOOM TECH');
+  const cnpj = V(cfg.cnpj,fix.cnpj,'__.___.___/____-__');
+  const cidade = V(cfg.cidade,fix.cidade,'Foz do Iguaçu');
+  const r = rec.rpa, c = rec.comp||{};
+  let comp = '';
+  if(c.propor>0) comp += '   ' + (c.cheio?'Serviços prestados':('Serviços ('+brl(c.mensal)+' ÷ 30 × '+c.dias+' dia(s))')).padEnd(42,'.') + ' ' + brl(c.propor) + '\n';
+  if(c.comissao>0) comp += '   ' + ('Comissão ('+c.ap+' × '+brl(c.vap)+')').padEnd(42,'.') + ' ' + brl(c.comissao) + '\n';
+  if(c.outros>0) comp += '   ' + 'Outros valores'.padEnd(42,'.') + ' ' + brl(c.outros) + '\n';
+
+  return `RECIBO DE PAGAMENTO A AUTÔNOMO — RPA
+Nº ${rec.numero}
+
+CONTRATANTE (FONTE PAGADORA): ${empresa} — CNPJ nº ${cnpj}
+
+PRESTADOR(A) AUTÔNOMO(A): ${V(rec.empNome,'________________')}
+CPF nº ${V(rec.cpf,'___.___.___-__')}   ${rec.pis?('PIS/NIT nº '+rec.pis):''}
+
+Competência: ${rec.competencia||'—'}    Período: ${fmt(rec.periodoIni)} a ${fmt(rec.periodoFim)}
+Serviço prestado: ${V(rec.descricao,'Prestação de serviços autônomos')}
+
+DEMONSTRATIVO
+${comp}   Valor bruto ............................... ${brl(r.bruto)}
+${r.semRetencao ? '' : '   (−) INSS contribuinte individual (11%) .... '+brl(r.inss)+'\n   (−) IRRF .................................. '+brl(r.irrf)+'\n   (−) ISS ................................... '+brl(r.iss)+'\n'}   ────────────────────────────────────────────────────────
+   VALOR LÍQUIDO RECEBIDO .................... ${brl(r.liquido)}
+
+${r.semRetencao
+  ? 'Pagamento efetuado sem retenções na fonte. Cabe ao(à) prestador(a), na condição de contribuinte individual, o recolhimento de suas obrigações previdenciárias e fiscais.'
+  : 'Contribuição previdenciária retida na forma do Art. 4º da Lei nº 10.666/2003. A contratante recolhe ainda a cota patronal de 20% ('+brl(r.patronal)+'), sem ônus para o(a) prestador(a) (Art. 22, III, da Lei nº 8.212/1991).'}
+
+Declaro haver recebido a importância líquida acima discriminada, referente aos serviços prestados em caráter autônomo, sem vínculo empregatício, nos termos dos Arts. 593 a 609 do Código Civil, dando plena quitação do valor.
+
+${cidade}, ${fmt(rec.dataPagamento)||new Date().toLocaleDateString('pt-BR')}.
+
+
+_______________________________________
+${V(rec.empNome,'________________')}
+CPF: ${V(rec.cpf,'___.___.___-__')}
+PRESTADOR(A) — RECEBI
+
+_______________________________________
+${empresa}
+CNPJ: ${cnpj}
+FONTE PAGADORA`;
+}
+
+window.atlasVerRPA = function(id){
+  const rec = (APP.rpas||[]).find(r=>r.id===id);
+  if(!rec){ toast('RPA não encontrado.','warn'); return; }
+  const win = window.open('','_blank');
+  if(!win){ toast('Permita pop-ups para visualizar o RPA.','warn'); return; }
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(rec.numero)}</title>
+    <style>*{box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;max-width:800px;margin:0 auto;padding:38px 46px;color:#1a1a1a;line-height:1.65;font-size:13.5px}
+    .hd{background:#0B1E35;color:#fff;padding:18px 24px;border-radius:10px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:center}
+    .hd h1{margin:0;font-size:19px}.hd .g{color:#C9A84C}
+    pre{white-space:pre-wrap;font-family:'Segoe UI',Arial,sans-serif;font-size:13.5px;line-height:1.7;margin:0}
+    @media print{.noprint{display:none}body{padding:14px}}
+    .noprint{position:fixed;top:14px;right:14px;display:flex;gap:8px}
+    .btn{background:#2563EB;color:#fff;border:none;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer}.btn.g{background:#059669}</style></head><body>
+    <div class="noprint"><button class="btn" onclick="window.print()">🖨 Imprimir / PDF</button><button class="btn g" onclick="window.close()">✓ Fechar</button></div>
+    <div class="hd"><h1>ATLAS <span class="g">RH</span></h1><div style="text-align:right;font-size:11px">Comércio e Assistência Técnica<br>RPA ${esc(rec.numero)}</div></div>
+    <pre>${esc(_atlasTextoRPA(rec))}</pre></body></html>`);
+  win.document.close();
+};
+
+window.atlasSalvarRPA = function(){
+  const empId = document.getElementById('rpa-emp')?.value;
+  const emp = (APP.employees||[]).find(e=>e.id===empId);
+  if(!emp){ toast('Selecione o prestador.','warn'); return; }
+  const n = id => parseFloat(document.getElementById(id)?.value)||0;
+  const mensal=n('rpa-mensal'), dias=n('rpa-dias'), ap=n('rpa-ap'), vap=n('rpa-vap'), outros=n('rpa-outros');
+  const cheio = !!document.getElementById('rpa-cheio')?.checked;
+  const sem   = !!document.getElementById('rpa-semret')?.checked;
+  const iss   = n('rpa-iss');
+  const propor = cheio ? mensal : +((mensal/30)*dias).toFixed(2);
+  const comissao = +(ap*vap).toFixed(2);
+  const comp = {mensal,dias,cheio,propor,ap,vap,comissao,outros,bruto:+(propor+comissao+outros).toFixed(2)};
+  if(comp.bruto<=0){ toast('Informe os valores do pagamento.','warn'); return; }
+
+  const rec = { id: uid(), numero: atlasNumeroRPA(), empId, empNome: emp.nome||'',
+    cpf: emp.cpf||'', pis: emp.pis||'',
+    competencia: document.getElementById('rpa-comp')?.value||'',
+    periodoIni: document.getElementById('rpa-ini')?.value||'',
+    periodoFim: document.getElementById('rpa-fim')?.value||'',
+    dataPagamento: document.getElementById('rpa-pag')?.value||'',
+    descricao: document.getElementById('rpa-desc')?.value||'',
+    comp, rpa: atlasCalcRPA(comp.bruto, iss, sem),
+    criadoEm: new Date().toISOString() };
+  APP.rpas.push(rec);
+  try{ if(typeof save==='function') save('rpas'); }catch(e){}
+  try{ if(typeof auditLog==='function') auditLog('Emitiu '+rec.numero, emp.nome, 'rpas'); }catch(e){}
+  closeModal();
+  toast('✅ '+rec.numero+' emitido.','ok');
+  atlasVerRPA(rec.id);
+  if(typeof navigate==='function') navigate('rpas');
+};
+
+window.atlasModalNovoRPA = function(empIdPre){
+  const emps = (APP.employees||[]).filter(e=>e && (e.status==='ativo' || e.id===empIdPre))
+    .filter(e=> atlasRegime(e)==='autonomo' || e.id===empIdPre)
+    .slice().sort((a,b)=>String(a.nome||'').localeCompare(String(b.nome||'')));
+  if(!emps.length){ toast('Nenhum prestador autônomo cadastrado. Marque o regime no cadastro.','warn',6000); return; }
+  const hoje = new Date().toISOString().slice(0,10);
+  const comp = hoje.slice(0,7).split('-').reverse().join('/');
+  openModal('🧾 Emitir RPA', `
+    <div class="fld"><label>Prestador autônomo</label>
+      <select id="rpa-emp">${emps.map(e=>`<option value="${e.id}"${e.id===empIdPre?' selected':''}>${esc(e.nome)}</option>`).join('')}</select>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="fld" style="flex:1;min-width:120px"><label>Competência</label><input id="rpa-comp" value="${comp}" placeholder="08/2026"></div>
+      <div class="fld" style="flex:1;min-width:130px"><label>Início do período</label><input type="date" id="rpa-ini"></div>
+      <div class="fld" style="flex:1;min-width:130px"><label>Fim do período</label><input type="date" id="rpa-fim" value="${hoje}"></div>
+    </div>
+    <div class="fld"><label>Descrição do serviço</label><input id="rpa-desc" placeholder="Prestação de serviços autônomos"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="fld" style="flex:1;min-width:150px"><label>Valor mensal contratado (R$)</label><input type="number" id="rpa-mensal" step="0.01" oninput="atlasPreviewRPA2()"></div>
+      <div class="fld" style="flex:1;min-width:110px"><label>Dias prestados</label><input type="number" id="rpa-dias" step="1" oninput="atlasPreviewRPA2()"></div>
+    </div>
+    <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:#475569;margin-bottom:9px;cursor:pointer">
+      <input type="checkbox" id="rpa-cheio" onchange="atlasPreviewRPA2()" style="width:15px;height:15px"> Valor mensal cheio (não proporcional)</label>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="fld" style="flex:1;min-width:110px"><label>Aparelhos vendidos</label><input type="number" id="rpa-ap" step="1" oninput="atlasPreviewRPA2()"></div>
+      <div class="fld" style="flex:1;min-width:110px"><label>Comissão por aparelho</label><input type="number" id="rpa-vap" step="0.01" value="15" oninput="atlasPreviewRPA2()"></div>
+      <div class="fld" style="flex:1;min-width:110px"><label>Outros valores</label><input type="number" id="rpa-outros" step="0.01" oninput="atlasPreviewRPA2()"></div>
+    </div>
+    <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:#475569;margin-bottom:9px;cursor:pointer">
+      <input type="checkbox" id="rpa-semret" onchange="atlasPreviewRPA2()" style="width:15px;height:15px"> Pagar cheio, <b>sem descontar</b> INSS, IRRF e ISS</label>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="fld" style="flex:1;min-width:110px"><label>ISS (%)</label><input type="number" id="rpa-iss" step="0.01" value="0" oninput="atlasPreviewRPA2()"></div>
+      <div class="fld" style="flex:1;min-width:130px"><label>Data do pagamento</label><input type="date" id="rpa-pag" value="${hoje}"></div>
+    </div>
+    <div id="rpa-preview" style="background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:12.5px;color:#64748B">Informe os valores para ver o demonstrativo.</div>
+    <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-blue" onclick="atlasSalvarRPA()">🧾 Emitir RPA</button></div>`, 660);
+};
+
+window.atlasPreviewRPA2 = function(){
+  const box = document.getElementById('rpa-preview');
+  if(!box) return;
+  const n = id => parseFloat(document.getElementById(id)?.value)||0;
+  const cheio = !!document.getElementById('rpa-cheio')?.checked;
+  const sem = !!document.getElementById('rpa-semret')?.checked;
+  const propor = cheio ? n('rpa-mensal') : +((n('rpa-mensal')/30)*n('rpa-dias')).toFixed(2);
+  const comissao = +(n('rpa-ap')*n('rpa-vap')).toFixed(2);
+  const bruto = +(propor + comissao + n('rpa-outros')).toFixed(2);
+  if(bruto<=0){ box.innerHTML='Informe os valores para ver o demonstrativo.'; return; }
+  const r = atlasCalcRPA(bruto, n('rpa-iss'), sem);
+  const brl = v => 'R$ '+(parseFloat(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const L = (d,v,cor) => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed #E2E8F0"><span>${d}</span><span style="font-weight:700;color:${cor||'#334155'}">${brl(v)}</span></div>`;
+  box.innerHTML = `${propor>0?L(cheio?'Serviços (mensal cheio)':'Serviços proporcionais',propor):''}
+    ${comissao>0?L('Comissão',comissao):''}${n('rpa-outros')>0?L('Outros',n('rpa-outros')):''}
+    ${L('<b>Bruto</b>',r.bruto,'#0B1E35')}
+    ${r.semRetencao?'':L('(−) INSS 11%',r.inss,'#DC2626')+L('(−) IRRF',r.irrf,'#DC2626')+L('(−) ISS',r.iss,'#DC2626')}
+    <div style="display:flex;justify-content:space-between;padding-top:8px;font-size:14.5px;font-weight:900;color:#065F46"><span>Líquido</span><span>${brl(r.liquido)}</span></div>`;
+};
+
+window.rAtlasRPAs = function(){
+  const lista = (APP.rpas||[]).slice().sort((a,b)=>String(b.criadoEm||'').localeCompare(String(a.criadoEm||'')));
+  const brl = v => 'R$ '+(parseFloat(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const total = lista.reduce((s,r)=>s+(r.rpa?.bruto||0),0);
+  const card = r => `
+    <div style="background:#fff;border:1px solid var(--border);border-left:4px solid #C9A84C;border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:190px">
+        <div style="font-weight:800;font-size:13.5px">${esc(r.empNome||'')} <span style="font-size:10px;background:#F1F5F9;color:#64748B;padding:1px 7px;border-radius:9px;font-weight:700">${esc(r.numero||'')}</span></div>
+        <div style="font-size:11.5px;color:var(--mt);margin-top:2px">Competência ${esc(r.competencia||'—')} · ${esc(r.descricao||'Prestação de serviços')}</div>
+        <div style="font-size:12px;margin-top:3px"><b>${brl(r.rpa?.bruto)}</b> bruto · líquido ${brl(r.rpa?.liquido)}${r.rpa?.semRetencao?' <span style="color:#B45309;font-weight:700">· sem retenção</span>':''}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="atlasVerRPA('${r.id}')">🖨 Ver / Imprimir</button>
+    </div>`;
+  return `
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:8px;flex-wrap:wrap">
+    <div style="font-size:16px;font-weight:700">RPA — Autônomos</div>
+    <button class="btn btn-blue btn-sm" onclick="atlasModalNovoRPA()">+ Emitir RPA</button>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div style="background:linear-gradient(135deg,#0B1E35,#152F4D);padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div><div style="color:#fff;font-weight:800;font-size:15px">🧾 Recibos de Pagamento a Autônomo</div>
+      <div style="color:#C9A84C;font-size:11.5px;margin-top:3px">Histórico dos pagamentos a prestadores pessoa física sem CNPJ</div></div>
+      <div style="background:#C9A84C;color:#0B1E35;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:800">${lista.length} · ${brl(total)}</div>
+    </div>
+    <div style="padding:14px;display:grid;gap:9px;background:#F8FAFC">
+      ${lista.length ? lista.map(card).join('') : '<div style="text-align:center;padding:26px;color:var(--mt);font-size:13px">Nenhum RPA emitido ainda.</div>'}
+    </div>
+  </div>`;
+};
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  CONFERIDOR DE DADOS + DETECTOR DE VÍNCULO
+//  Quase todo erro caro desta semana veio de dado faltando, não de código:
+//  contrato saindo em branco, rescisão inflada por férias não lançadas,
+//  ficha vazia. Aqui os buracos aparecem antes de virarem prejuízo.
+// ═══════════════════════════════════════════════════════════════════════════
+const ATLAS_CHECKS = [
+  {id:'regime',  label:'Regime de contratação', peso:'alto',
+   falta:e=>!e.regime, por:'Sem regime o sistema adivinha e pode abrir a rescisão errada.'},
+  {id:'cpf',     label:'CPF', peso:'alto',
+   falta:e=>!String(e.cpf||'').replace(/\D/g,''), por:'Sem CPF não há contrato, RPA nem eSocial.'},
+  {id:'pis',     label:'PIS/NIT', peso:'alto', so:'clt,intermitente',
+   falta:e=>!e.pis, por:'Obrigatório no registro e no eSocial.'},
+  {id:'ctps',    label:'CTPS', peso:'alto', so:'clt,intermitente',
+   falta:e=>!e.ctps, por:'Registro em CTPS é obrigatório (art. 29 da CLT).'},
+  {id:'endereco',label:'Endereço', peso:'medio',
+   falta:e=>!e.rua && !e.bairro, por:'Sai em branco no contrato e na ficha de registro.'},
+  {id:'admissao',label:'Data de admissão', peso:'alto',
+   falta:e=>!e.dataAdmissao, por:'Base de férias, 13º, aviso prévio e experiência.'},
+  {id:'salario', label:'Salário / valor contratado', peso:'alto',
+   falta:e=>!(parseFloat(e.salario)||0), por:'Sem valor não há holerite nem rescisão.'},
+  {id:'cargo',   label:'Cargo', peso:'medio', falta:e=>!e.cargo, por:'Aparece em todos os documentos.'},
+  {id:'ferias',  label:'Férias lançadas', peso:'alto', so:'clt,intermitente',
+   falta:e=>{
+     if(!e.dataAdmissao) return false;
+     const anos = (Date.now() - new Date(e.dataAdmissao+'T00:00:00'))/(365.25*86400000);
+     if(anos < 1) return false;
+     return !(APP.ferias||[]).some(f=>f && f.empId===e.id && f.status==='gozado');
+   }, por:'Sem registro, a rescisão paga férias vencidas em dobro indevidamente.'},
+  {id:'telefone',label:'Telefone', peso:'baixo', falta:e=>!e.telefone, por:'Necessário para enviar link de assinatura.'}
+];
+
+window.atlasConferirDados = function(){
+  return (APP.employees||[]).filter(e=>e && e.status==='ativo').map(emp=>{
+    const reg = atlasRegime(emp);
+    const faltas = ATLAS_CHECKS.filter(c=>{
+      if(c.so && !c.so.split(',').includes(reg)) return false;
+      try{ return c.falta(emp); }catch(e){ return false; }
+    });
+    return {emp, reg, faltas,
+      altos: faltas.filter(f=>f.peso==='alto').length,
+      total: faltas.length};
+  }).filter(x=>x.total>0).sort((a,b)=> b.altos-a.altos || b.total-a.total);
+};
+
+// ── Detector de vínculo em autônomos e PJ ────────────────────────────────
+window.atlasSinaisVinculo = function(emp){
+  const s = [];
+  const reg = atlasRegime(emp);
+  if(reg!=='autonomo' && reg!=='pj') return s;
+  const cargo = String(emp.cargo||'').toLowerCase();
+
+  if(parseFloat(emp.salario)||0)
+    s.push({t:'Valor mensal fixo', d:'Remuneração fixa por mês é típica de salário, não de serviço por entrega.'});
+  if(/vendedor|vendedora|atendente|caixa|balconista|estoquista|tecnico|técnico/.test(cargo))
+    s.push({t:'Função operacional permanente', d:'"'+esc(emp.cargo)+'" é atividade-fim, exercida de forma contínua.'});
+  try{
+    const pref = emp.id+'_';
+    const temPonto = Object.keys(APP.pontos||{}).some(k=>k.startsWith(pref) && Object.keys(APP.pontos[k]||{}).length>0);
+    if(temPonto) s.push({t:'Registro de ponto', d:'Controle de jornada é subordinação — o mais forte dos indícios.'});
+  }catch(e){}
+  if(emp.horarioEntrada || emp.horarioSaida)
+    s.push({t:'Horário definido', d:'Jornada fixada pela empresa indica submissão a controle.'});
+  try{
+    if((APP.advertencias||[]).some(a=>a && a.empId===emp.id))
+      s.push({t:'Advertência aplicada', d:'Poder disciplinar só existe na relação de emprego.'});
+  }catch(e){}
+  try{
+    const n = (APP.rpas||[]).filter(r=>r && r.empId===emp.id).length;
+    if(n>=3) s.push({t:'Pagamentos habituais ('+n+' RPAs)', d:'Habitualidade é um dos quatro elementos do art. 3º da CLT.'});
+  }catch(e){}
+  if(emp.dataAdmissao){
+    const meses = (Date.now()-new Date(emp.dataAdmissao+'T00:00:00'))/(30*86400000);
+    if(meses>=6) s.push({t:'Relação contínua ('+Math.floor(meses)+' meses)', d:'Prestação prolongada e ininterrupta reforça o vínculo.'});
+  }
+  return s;
+};
+
+window.rAtlasConferidor = function(){
+  const pend = atlasConferirDados();
+  const risco = (APP.employees||[]).filter(e=>e && e.status==='ativo')
+    .map(e=>({emp:e, sinais:atlasSinaisVinculo(e)})).filter(x=>x.sinais.length>0)
+    .sort((a,b)=> b.sinais.length-a.sinais.length);
+
+  const corPeso = {alto:'#DC2626', medio:'#D97706', baixo:'#64748B'};
+  const cardDados = x => `
+    <div style="background:#fff;border:1px solid var(--border);border-left:4px solid ${x.altos?'#DC2626':'#D97706'};border-radius:10px;padding:12px 14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+        <div style="font-weight:800;font-size:13.5px;display:flex;align-items:center;gap:7px;flex-wrap:wrap">${esc(x.emp.nome||'')} ${atlasBadgeRegime(x.emp)}</div>
+        <button class="btn btn-ghost btn-sm" onclick="openEmpForm('${x.emp.id}')">✏️ Completar</button>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        ${x.faltas.map(f=>`<span title="${esc(f.por)}" style="background:${corPeso[f.peso]}14;color:${corPeso[f.peso]};font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:11px">${f.label}</span>`).join('')}
+      </div>
+    </div>`;
+
+  const cardRisco = x => `
+    <div style="background:#fff;border:1px solid var(--border);border-left:4px solid ${x.sinais.length>=4?'#DC2626':'#D97706'};border-radius:10px;padding:12px 14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:7px">
+        <div style="font-weight:800;font-size:13.5px;display:flex;align-items:center;gap:7px;flex-wrap:wrap">${esc(x.emp.nome||'')} ${atlasBadgeRegime(x.emp)}</div>
+        <span style="background:${x.sinais.length>=4?'#DC2626':'#D97706'};color:#fff;font-size:11px;font-weight:800;padding:2px 10px;border-radius:11px">${x.sinais.length} indício(s)</span>
+      </div>
+      ${x.sinais.map(s=>`<div style="font-size:11.5px;color:#475569;padding:3px 0;line-height:1.5">• <b>${s.t}</b> — ${s.d}</div>`).join('')}
+    </div>`;
+
+  // Admissões com pendência obrigatória (ASO, CTPS, contrato assinado…)
+  const adms = (APP.employees||[]).filter(e=>e && e.status==='ativo')
+    .map(e=>({emp:e, r:atlasResumoAdmissao(e)})).filter(x=>!x.r.ok)
+    .sort((a,b)=> b.r.pendentes.length - a.r.pendentes.length);
+  const cardAdm = x => `
+    <div style="background:#fff;border:1px solid var(--border);border-left:4px solid #DC2626;border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="flex:1;min-width:190px">
+        <div style="font-weight:800;font-size:13.5px;display:flex;align-items:center;gap:7px;flex-wrap:wrap">${esc(x.emp.nome||'')} ${atlasBadgeRegime(x.emp)}</div>
+        <div style="font-size:11.5px;color:#B91C1C;margin-top:3px">${x.r.pendentes.map(p=>p.label).join(' · ')}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="atlasModalChecklist('${x.emp.id}')">✅ Checklist</button>
+    </div>`;
+
+  return `
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:8px;flex-wrap:wrap">
+    <div style="font-size:16px;font-weight:700">Conferência de Dados</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="atlasModalBackups()">💾 Backups</button>
+      <button class="btn btn-ghost btn-sm" onclick="navigate('conferidor')">🔄 Atualizar</button>
+    </div>
+  </div>
+
+  <div class="card" style="padding:0;overflow:hidden;margin-bottom:18px">
+    <div style="background:linear-gradient(135deg,#0B1E35,#152F4D);padding:15px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div><div style="color:#fff;font-weight:800;font-size:15px">✅ Admissões com pendência legal</div>
+      <div style="color:#C9A84C;font-size:11.5px;margin-top:3px">ASO (NR-7), CTPS (art. 29) e contrato assinado</div></div>
+      <div style="background:${adms.length?'#DC2626':'#059669'};color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:800">${adms.length} pendente(s)</div>
+    </div>
+    <div style="padding:14px;display:grid;gap:9px;background:#F8FAFC">
+      ${adms.length ? adms.map(cardAdm).join('') : '<div style="text-align:center;padding:26px;color:var(--mt);font-size:13px">Todas as admissões estão regulares. 🎉</div>'}
+    </div>
+  </div>
+
+  <div class="card" style="padding:0;overflow:hidden;margin-bottom:18px">
+    <div style="background:linear-gradient(135deg,#0B1E35,#152F4D);padding:15px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div><div style="color:#fff;font-weight:800;font-size:15px">📋 Cadastros incompletos</div>
+      <div style="color:#C9A84C;font-size:11.5px;margin-top:3px">Campo faltando é a causa de contrato em branco e rescisão errada</div></div>
+      <div style="background:${pend.length?'#D97706':'#059669'};color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:800">${pend.length} colaborador(es)</div>
+    </div>
+    <div style="padding:14px;display:grid;gap:9px;background:#F8FAFC">
+      ${pend.length ? pend.map(cardDados).join('') : '<div style="text-align:center;padding:26px;color:var(--mt);font-size:13px">Todos os cadastros ativos estão completos. 🎉</div>'}
+    </div>
+  </div>
+
+  <div class="card" style="padding:0;overflow:hidden">
+    <div style="background:linear-gradient(135deg,#7F1D1D,#B91C1C);padding:15px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div><div style="color:#fff;font-weight:800;font-size:15px">⚖️ Risco de vínculo — autônomos e PJ</div>
+      <div style="color:#FECACA;font-size:11.5px;margin-top:3px">Indícios dos elementos do art. 3º da CLT na prática da relação</div></div>
+      <div style="background:${risco.length?'#fff':'#059669'};color:${risco.length?'#B91C1C':'#fff'};padding:4px 12px;border-radius:20px;font-size:12px;font-weight:800">${risco.length} em risco</div>
+    </div>
+    <div style="padding:14px;display:grid;gap:9px;background:#FEF7F7">
+      ${risco.length ? risco.map(cardRisco).join('') : '<div style="text-align:center;padding:26px;color:var(--mt);font-size:13px">Nenhum indício de vínculo detectado.</div>'}
+    </div>
+    ${risco.length?`<div style="padding:11px 18px;background:#FFFBEB;border-top:1px solid #FDE68A;font-size:11.5px;color:#92400E;line-height:1.6">
+      Indício não é condenação — mas quatro ou mais reunidos é o cenário em que a Justiça do Trabalho costuma reconhecer vínculo. Vale conversar com a contabilidade sobre registrar em CLT.
+    </div>`:''}
+  </div>`;
+};
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  BACKUP AUTOMÁTICO ANTES DE OPERAÇÃO DE RISCO
+//  Toda ação que apaga ou sobrescreve em lote grava antes um retrato dos
+//  dados. Transforma erro em inconveniente: dá para voltar em dois cliques.
+// ═══════════════════════════════════════════════════════════════════════════
+const ATLAS_BKP_CHAVES = ['employees','assinaturas','contratos','advertencias',
+  'ferias','salarios','recibosInt','rpas','adiantamentos','demissoes'];
+const ATLAS_BKP_MAX = 8;   // mantém os 8 últimos; os antigos saem sozinhos
+
+window.atlasBackupAntes = function(motivo){
+  try{
+    const dados = {};
+    ATLAS_BKP_CHAVES.forEach(k=>{ if(APP[k]!==undefined) dados[k] = APP[k]; });
+    const snap = { id:'atlas_bkp_'+Date.now(), motivo: motivo||'operação de risco',
+                   ts:new Date().toISOString(), dados };
+    const json = JSON.stringify(snap);
+    localStorage.setItem(snap.id, json);
+
+    // Poda os mais antigos para não estourar a cota do navegador
+    const todos = Object.keys(localStorage).filter(k=>k.indexOf('atlas_bkp_')===0).sort();
+    while(todos.length > ATLAS_BKP_MAX){ localStorage.removeItem(todos.shift()); }
+    console.log('[Atlas] Backup gravado antes de:', motivo, '·', Math.round(json.length/1024)+'KB');
+    return snap.id;
+  }catch(e){
+    console.warn('[backup]', e);
+    // Cota cheia: remove o mais antigo e tenta uma vez
+    try{
+      const todos = Object.keys(localStorage).filter(k=>k.indexOf('atlas_bkp_')===0).sort();
+      if(todos.length){ localStorage.removeItem(todos[0]); return atlasBackupAntes(motivo); }
+    }catch(_){}
+    return null;
+  }
+};
+
+window.atlasListarBackups = function(){
+  return Object.keys(localStorage).filter(k=>k.indexOf('atlas_bkp_')===0)
+    .map(k=>{ try{ const s=JSON.parse(localStorage.getItem(k));
+      return {id:k, motivo:s.motivo, ts:s.ts,
+              tamanho:Math.round((localStorage.getItem(k)||'').length/1024),
+              itens:Object.keys(s.dados||{}).length}; }catch(e){ return null; } })
+    .filter(Boolean).sort((a,b)=> String(b.ts).localeCompare(String(a.ts)));
+};
+
+window.atlasRestaurarBackup = async function(id){
+  let snap;
+  try{ snap = JSON.parse(localStorage.getItem(id)); }catch(e){}
+  if(!snap || !snap.dados){ toast('Backup não encontrado ou ilegível.','err'); return; }
+  const quando = new Date(snap.ts).toLocaleString('pt-BR');
+  const msg = 'Restaurar o backup de '+quando+' ("'+snap.motivo+'")?\n\n'+
+              'Os dados atuais dessas áreas serão SUBSTITUÍDOS pelos do backup.\n'+
+              'Antes de restaurar, será gravado um novo backup do estado de agora.';
+  let ok=false;
+  try{ ok = (typeof confirmDialog==='function') ? await confirmDialog(msg) : confirm(msg); }catch(e){ ok = confirm(msg); }
+  if(!ok) return;
+
+  atlasBackupAntes('antes de restaurar backup de '+quando);
+  Object.keys(snap.dados).forEach(k=>{
+    APP[k] = snap.dados[k];
+    try{ if(typeof save==='function') save(k); }catch(e){}
+  });
+  try{ if(typeof auditLog==='function') auditLog('Restaurou backup de '+quando, snap.motivo, 'sistema'); }catch(e){}
+  toast('✅ Backup restaurado. Confira os dados.','ok',6000);
+  if(typeof navigate==='function' && typeof MOD!=='undefined') navigate(MOD);
+};
+
+window.atlasModalBackups = function(){
+  const lista = atlasListarBackups();
+  const linha = b => `
+    <div style="background:#fff;border:1px solid var(--border);border-radius:9px;padding:11px 13px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="flex:1;min-width:180px">
+        <div style="font-size:12.5px;font-weight:700;color:var(--tx)">${new Date(b.ts).toLocaleString('pt-BR')}</div>
+        <div style="font-size:11.5px;color:var(--mt);margin-top:2px">${esc(b.motivo)} · ${b.itens} área(s) · ${b.tamanho} KB</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal();atlasRestaurarBackup('${b.id}')">↩ Restaurar</button>
+    </div>`;
+  openModal('💾 Backups automáticos', `
+    <div style="background:#F8FAFC;border:1px solid var(--border);border-radius:9px;padding:11px 13px;margin-bottom:13px;font-size:12px;color:#475569;line-height:1.6">
+      Gravados automaticamente antes de remover documentos, limpar dados ou restaurar.
+      Ficam neste navegador; são mantidos os ${ATLAS_BKP_MAX} mais recentes.
+    </div>
+    <div style="display:grid;gap:8px">
+      ${lista.length ? lista.map(linha).join('') : '<div style="text-align:center;padding:22px;color:var(--mt);font-size:13px">Nenhum backup ainda.</div>'}
+    </div>
+    <div class="mft" style="gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+      <button class="btn btn-blue btn-sm" onclick="atlasBackupAntes('backup manual');closeModal();toast('💾 Backup gravado.','ok')">💾 Gravar agora</button>
+    </div>`, 600);
+};
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  CHECKLIST DE ADMISSÃO
+//  As obrigações que, se ficarem para depois, viram multa ou perda de prova:
+//  ASO (NR-7), anotação em CTPS (art. 29 da CLT) e contrato assinado.
+//  O sistema não trava o cadastro — avisa e mostra o que falta, porque a
+//  admissão às vezes precisa ser registrada antes de o papel chegar.
+// ═══════════════════════════════════════════════════════════════════════════
+window.atlasChecklistAdmissao = function(emp){
+  if(!emp) return [];
+  const reg = atlasRegime(emp);
+  const clt = (reg==='clt' || reg==='intermitente');
+  const assinado = t => (APP.assinaturas||[]).some(a=>a && a.empId===emp.id
+      && a.status==='assinado' && String(a.tipo||'').indexOf(t)===0);
+  const enviado = t => (APP.assinaturas||[]).some(a=>a && a.empId===emp.id
+      && String(a.tipo||'').indexOf(t)===0);
+
+  const itens = [
+    {id:'cadastro', label:'Cadastro completo', obrig:true,
+     ok: !!(emp.cpf && emp.dataAdmissao && emp.cargo && (parseFloat(emp.salario)||0)),
+     dica:'CPF, admissão, cargo e valor são a base de todo documento.'},
+    {id:'regime', label:'Regime definido', obrig:true, ok: !!emp.regime,
+     dica:'Sem regime o sistema adivinha e pode abrir a rescisão errada.'},
+    {id:'aso', label:'ASO admissional', obrig:true, ok: !!emp.asoData,
+     dica:'NR-7 exige de toda empresa, inclusive escritório. É o que mais pesa em fiscalização.'},
+    {id:'contrato', label:'Contrato gerado', obrig:true, ok: enviado('contrato'),
+     dica:'Gere pelo módulo Contratos & Docs.'},
+    {id:'contrato_ass', label:'Contrato assinado', obrig:true, ok: assinado('contrato'),
+     dica:'Enquanto pendente, não há prova do que foi combinado.'}
+  ];
+  if(clt){
+    itens.push({id:'pis', label:'PIS/NIT informado', obrig:true, ok: !!emp.pis,
+      dica:'Obrigatório no eSocial.'});
+    itens.push({id:'ctps', label:'CTPS anotada', obrig:true, ok: !!(emp.ctps && emp.ctpsAnotadaEm),
+      dica:'Art. 29 da CLT: anotação em até 5 dias úteis.'});
+    itens.push({id:'regimento', label:'Regimento assinado', obrig:false, ok: assinado('regimento'),
+      dica:'Sem ciência do regimento, advertência por norma interna fica frágil.'});
+  }
+  return itens;
+};
+
+window.atlasResumoAdmissao = function(emp){
+  const it = atlasChecklistAdmissao(emp);
+  const pend = it.filter(i=>!i.ok && i.obrig);
+  return {itens:it, pendentes:pend, ok:pend.length===0,
+          feitos:it.filter(i=>i.ok).length, total:it.length};
+};
+
+window.atlasModalChecklist = function(empId){
+  const emp = (APP.employees||[]).find(e=>e.id===empId);
+  if(!emp){ toast('Colaborador não encontrado.','warn'); return; }
+  const r = atlasResumoAdmissao(emp);
+  const pct = Math.round(r.feitos/r.total*100);
+  const linha = i => `
+    <div style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px dashed #E2E8F0">
+      <span style="font-size:15px;flex-shrink:0">${i.ok?'✅':(i.obrig?'❌':'⚪')}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:${i.ok?'#166534':(i.obrig?'#B91C1C':'#64748B')}">
+          ${i.label}${!i.obrig?' <span style="font-size:10px;font-weight:600;color:#94A3B8">(recomendado)</span>':''}</div>
+        ${!i.ok?`<div style="font-size:11.5px;color:#64748B;margin-top:2px;line-height:1.5">${i.dica}</div>`:''}
+      </div>
+    </div>`;
+  openModal('✅ Checklist de Admissão — '+esc(emp.nome), `
+    <div style="background:${r.ok?'#F0FDF4':'#FEF2F2'};border:1px solid ${r.ok?'#BBF7D0':'#FECACA'};border-radius:10px;padding:12px 14px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px">
+        <span style="font-size:13px;font-weight:800;color:${r.ok?'#166534':'#B91C1C'}">
+          ${r.ok?'Admissão completa':r.pendentes.length+' pendência(s) obrigatória(s)'}</span>
+        <span style="font-size:12px;font-weight:800;color:${r.ok?'#166534':'#B91C1C'}">${r.feitos}/${r.total}</span>
+      </div>
+      <div style="height:7px;background:#E2E8F0;border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${r.ok?'#059669':'#DC2626'}"></div>
+      </div>
+    </div>
+    ${r.itens.map(linha).join('')}
+    <div class="mft" style="gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+      <button class="btn btn-blue btn-sm" onclick="closeModal();openEmpForm('${emp.id}')">✏️ Completar cadastro</button>
+    </div>`, 600);
 };
 
 (function _atlasInjectButtons(){
