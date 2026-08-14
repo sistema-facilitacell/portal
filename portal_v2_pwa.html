@@ -2563,6 +2563,14 @@ async function _salvarAssinaturaDigital(id, status, png, selfie) {
         all[idx].assinaturaSelfieTs = agora.toISOString();
       }
       all[idx].metodoAssinatura = selfie ? 'canvas_selfie_portal' : (png ? 'canvas_portal' : 'eletronico_simples');
+      try {
+        const lt = (typeof resumoLeitura === 'function') ? resumoLeitura(id) : null;
+        if (lt) {
+          all[idx].leituraSegundos = lt.segundos;
+          all[idx].leituraAteOFim  = lt.ateOFim;
+          all[idx].leituraAberturas = lt.aberturas;
+        }
+      } catch (e) {}
       if (!all[idx].historicoStatus) all[idx].historicoStatus = [];
       all[idx].historicoStatus.push({ status, ts: agora.toISOString(), origem: 'portal_colaborador' });
     }
@@ -2598,6 +2606,32 @@ async function _salvarAssinaturaDigital(id, status, png, selfie) {
 // O documento só aparecia cortado (280 caracteres na lista, caixinha de
 // 140px no modal). Ninguém consegue ler um contrato assim — e assinar sem
 // poder ler é exatamente o que invalida a assinatura. Aqui abre inteiro.
+
+// Leitor genérico: usado por documentos que não estão em ASSINATURAS_DIGITAL
+// (advertências, comunicados). Mesma tela cheia do leitor de contratos.
+function abrirTextoCompleto(titulo, texto) {
+  const ovAnt = document.getElementById('__texto-ler-ov__');
+  if (ovAnt) ovAnt.remove();
+  const ov = document.createElement('div');
+  ov.id = '__texto-ler-ov__';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(15,23,42,.92);display:flex;flex-direction:column;backdrop-filter:blur(3px)';
+  ov.innerHTML = `
+    <div style="background:#0B1E35;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-shrink:0">
+      <div style="color:#fff;font-weight:800;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(titulo || 'Documento')}</div>
+      <button onclick="document.getElementById('__texto-ler-ov__').remove()"
+        style="background:rgba(255,255,255,.14);color:#fff;border:none;width:34px;height:34px;border-radius:9px;font-size:17px;cursor:pointer;flex-shrink:0">✕</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;background:#fff;padding:20px 18px;-webkit-overflow-scrolling:touch">
+      <pre style="white-space:pre-wrap;word-wrap:break-word;font-family:'Segoe UI',system-ui,Arial,sans-serif;font-size:13.5px;line-height:1.75;color:#1a1a1a;margin:0">${esc(texto || 'Documento sem conteúdo.')}</pre>
+    </div>
+    <div style="background:#fff;border-top:1px solid #E2E8F0;padding:12px 16px;flex-shrink:0">
+      <button onclick="document.getElementById('__texto-ler-ov__').remove()"
+        style="width:100%;padding:12px;border-radius:10px;background:#F1F5F9;color:#475569;font-weight:700;font-size:13px;border:none;cursor:pointer">Fechar</button>
+    </div>`;
+  document.body.appendChild(ov);
+}
+window.abrirTextoCompleto = abrirTextoCompleto;
+
 function abrirDocCompleto(id) {
   const doc = (ASSINATURAS_DIGITAL || []).find(x => x.id === id);
   if (!doc) { toast('Documento não encontrado.', 'err'); return; }
@@ -2617,8 +2651,9 @@ function abrirDocCompleto(id) {
       <button onclick="document.getElementById('__doc-ler-ov__').remove()"
         style="background:rgba(255,255,255,.14);color:#fff;border:none;width:34px;height:34px;border-radius:9px;font-size:17px;cursor:pointer;flex-shrink:0">✕</button>
     </div>
-    <div style="flex:1;overflow-y:auto;background:#fff;padding:20px 18px;-webkit-overflow-scrolling:touch">
+    <div id="__doc-scroll__" style="flex:1;overflow-y:auto;background:#fff;padding:20px 18px;-webkit-overflow-scrolling:touch">
       <pre style="white-space:pre-wrap;word-wrap:break-word;font-family:'Segoe UI',system-ui,Arial,sans-serif;font-size:13.5px;line-height:1.75;color:#1a1a1a;margin:0">${esc(doc.conteudo || 'Documento sem conteúdo.')}</pre>
+      <div id="__doc-fim__" style="text-align:center;padding:14px 0 4px;font-size:11.5px;color:#94A3B8">— fim do documento —</div>
     </div>
     <div style="background:#fff;border-top:1px solid #E2E8F0;padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0">
       <button onclick="document.getElementById('__doc-ler-ov__').remove()"
@@ -2627,10 +2662,64 @@ function abrirDocCompleto(id) {
         style="flex:2;min-width:170px;padding:12px;border-radius:10px;background:linear-gradient(135deg,#059669,#047857);color:#fff;font-weight:700;font-size:13px;border:none;cursor:pointer">✅ Li e quero assinar</button>` : ''}
     </div>`;
   document.body.appendChild(ov);
+
+  // ── COMPROVANTE DE LEITURA ────────────────────────────────────────────
+  // Guarda quanto tempo o documento ficou aberto e se a pessoa rolou até o
+  // fim. Assinatura acompanhada dessa prova é muito mais difícil de
+  // contestar depois com o argumento de que "não teve como ler".
+  if (!window.LEITURA_DOCS) window.LEITURA_DOCS = {};
+  const _reg = window.LEITURA_DOCS[id] || {segundos: 0, ateOFim: false, aberturas: 0};
+  _reg.aberturas++;
+  _reg.abertoEm = Date.now();
+  window.LEITURA_DOCS[id] = _reg;
+
+  const sc = document.getElementById('__doc-scroll__');
+  if (sc) {
+    // Documento curto que já cabe na tela conta como lido por inteiro
+    setTimeout(() => {
+      if (sc.scrollHeight <= sc.clientHeight + 8) _reg.ateOFim = true;
+    }, 120);
+    sc.addEventListener('scroll', () => {
+      if (sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 40) {
+        if (!_reg.ateOFim) {
+          _reg.ateOFim = true;
+          const fim = document.getElementById('__doc-fim__');
+          if (fim) { fim.textContent = '✅ Você leu o documento até o fim'; fim.style.color = '#059669'; fim.style.fontWeight = '700'; }
+        }
+      }
+    });
+  }
+
+  // Fecha contando o tempo, seja pelo X, pelo Fechar ou pelo botão de assinar
+  const _fechar = () => {
+    if (_reg.abertoEm) { _reg.segundos += Math.round((Date.now() - _reg.abertoEm) / 1000); _reg.abertoEm = null; }
+  };
+  ov.querySelectorAll('button').forEach(b => b.addEventListener('click', _fechar));
 }
 window.abrirDocCompleto = abrirDocCompleto;
 
+// Resumo da leitura, gravado junto da assinatura
+window.resumoLeitura = function (id) {
+  const r = (window.LEITURA_DOCS || {})[id];
+  if (!r) return {lido: false, segundos: 0, ateOFim: false, aberturas: 0};
+  let seg = r.segundos;
+  if (r.abertoEm) seg += Math.round((Date.now() - r.abertoEm) / 1000);
+  return {lido: true, segundos: seg, ateOFim: !!r.ateOFim, aberturas: r.aberturas};
+};
+
 function assinarDigitalEletronico(id) {
+  // Se nem abriu o documento completo, oferece abrir antes de assinar
+  try {
+    const doc = (ASSINATURAS_DIGITAL || []).find(x => x.id === id);
+    const lt = (typeof resumoLeitura === 'function') ? resumoLeitura(id) : {lido: false};
+    if (doc && (doc.conteudo || '').length > 400 && !lt.lido) {
+      if (confirm('Você ainda não abriu este documento por inteiro.\n\nQuer ler antes de assinar?')) {
+        abrirDocCompleto(id);
+        return;
+      }
+    }
+  } catch (e) {}
+
   const doc = (ASSINATURAS_DIGITAL || []).find(x => x.id === id);
   const titulo = doc ? (doc.titulo || doc.tipoLabel || 'Documento') : 'Documento';
 
@@ -5243,7 +5332,7 @@ function renderDocs() {
           <span style="padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;background:#FEF3C7;color:#92400E;flex-shrink:0;white-space:nowrap">⏳ Pendente</span>
         </div>
         <div style="font-size:11px;color:#94A3B8;margin-bottom:10px">Emitido pelo RH em ${dt}</div>
-        ${a.conteudo ? `<div style="font-size:12px;color:#475569;background:#F8FAFC;border-radius:8px;padding:10px 12px;margin-bottom:12px;line-height:1.7;white-space:pre-wrap;max-height:100px;overflow:hidden">${esc(a.conteudo.slice(0, 280))}${a.conteudo.length > 280 ? '...' : ''}</div>` : ''}
+        ${a.conteudo ? `<div style="font-size:12px;color:#475569;background:#F8FAFC;border-radius:8px;padding:10px 12px;margin-bottom:12px;line-height:1.7;white-space:pre-wrap;max-height:150px;overflow:hidden">${esc(a.conteudo.slice(0, 400))}${a.conteudo.length > 400 ? '...' : ''}</div>` : ''}
         <div style="background:#EFF6FF;border-radius:8px;padding:8px 12px;font-size:11px;color:#1D4ED8;margin-bottom:12px">
           ⚖️ Assinar confirma ciência (não necessariamente concordância) — validade jurídica Lei nº 14.063/2020.
         </div>
@@ -5265,7 +5354,8 @@ function renderDocs() {
           <span style="font-size:12px;color:#64748B">Emitido em ${dt}</span>
         </div>
         <div style="font-size:14px;font-weight:700;margin-bottom:6px">${esc(a.titulo || '—')}</div>
-        <div style="font-size:13px;color:#475569;margin-bottom:14px;line-height:1.6;white-space:pre-wrap">${esc((a.conteudo || '').slice(0, 200))}${(a.conteudo || '').length > 200 ? '...' : ''}</div>
+        <div style="font-size:13px;color:#475569;margin-bottom:8px;line-height:1.6;white-space:pre-wrap;max-height:150px;overflow:hidden">${esc((a.conteudo || '').slice(0, 400))}${(a.conteudo || '').length > 400 ? '...' : ''}</div>
+        ${(a.conteudo || '').length > 400 ? `<button onclick="abrirDocCompleto('${a.id}')" style="width:100%;padding:9px;border-radius:8px;background:#0B1E35;color:#C9A84C;font-weight:700;font-size:12px;border:none;cursor:pointer;margin-bottom:12px">📄 Ler documento completo</button>` : '<div style="margin-bottom:6px"></div>'}
         <div style="background:#EFF6FF;border-radius:8px;padding:8px 12px;font-size:11px;color:#1D4ED8;margin-bottom:12px">
           ⚖️ Assinar confirma ciência do documento (não necessariamente concordância) — validade jurídica Lei nº 14.063/2020.
         </div>
@@ -5287,7 +5377,8 @@ function renderDocs() {
           <span style="font-size:12px;color:#64748B">${a.dataEmissao ? new Date(a.dataEmissao + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}</span>
         </div>
         <div style="font-size:13px;font-weight:700;margin-bottom:6px">${esc(a.motivo_resumo || '—')}</div>
-        <div style="font-size:13px;color:#475569;margin-bottom:14px;line-height:1.6">${esc((a.descricao || '').slice(0, 200))}${(a.descricao || '').length > 200 ? '...' : ''}</div>
+        <div style="font-size:13px;color:#475569;margin-bottom:8px;line-height:1.6;white-space:pre-wrap;max-height:150px;overflow:hidden">${esc((a.descricao || '').slice(0, 400))}${(a.descricao || '').length > 400 ? '...' : ''}</div>
+        ${(a.descricao || '').length > 400 ? `<button onclick="abrirTextoCompleto('Documento Disciplinar', ${JSON.stringify(a.descricao || '')})" style="width:100%;padding:9px;border-radius:8px;background:#0B1E35;color:#C9A84C;font-weight:700;font-size:12px;border:none;cursor:pointer;margin-bottom:12px">📄 Ler documento completo</button>` : '<div style="margin-bottom:6px"></div>'}
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button onclick="verDocumento('${a.id}')" style="padding:9px 14px;border-radius:8px;background:#EFF6FF;color:#2563EB;font-weight:700;font-size:12px;border:1px solid #BFDBFE;cursor:pointer">👁 Visualizar</button>
           <button onclick="assinarDocEletronico('${a.id}')" style="padding:9px 14px;border-radius:8px;background:#F0FDF4;color:#059669;font-weight:700;font-size:12px;border:1px solid #86EFAC;cursor:pointer">✅ Assinar Eletronicamente</button>
