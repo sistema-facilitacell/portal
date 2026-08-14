@@ -1848,8 +1848,57 @@ function _atualizarBadgeHol() {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+//  LEMBRETE DE ASSINATURAS PENDENTES
+//  O badge na aba só é visto por quem abre o menu. Esta faixa aparece em
+//  QUALQUER tela enquanto houver documento esperando assinatura — contrato,
+//  holerite, advertência, suspensão ou termo — e some sozinha ao assinar.
+// ═══════════════════════════════════════════════════════════════════════════
+function _pendenciasAssinatura() {
+  const advs   = (ADVS || []).filter(a => a.status === 'pendente');
+  const assin  = (ASSINATURAS_DIGITAL || []).filter(a => a.status === 'pendente');
+  const hols   = (HOL || []).filter(h => h && h.exigeAssinatura && !h.assinadoEm && !h.dataAssinatura);
+  const itens  = [];
+  advs.forEach(a  => itens.push({tipo:'Documento disciplinar', nome:(a.tipoLabel || 'Advertência'), id:a.id, origem:'adv'}));
+  assin.forEach(a => itens.push({tipo:(a.tipoLabel || 'Documento'), nome:(a.titulo || a.tipoLabel || 'Documento'), id:a.id, origem:'assin'}));
+  hols.forEach(h  => itens.push({tipo:'Holerite', nome:('Holerite ' + (h.competencia || h.mes || '')), id:h.id, origem:'hol'}));
+  return itens;
+}
+
+function _atualizarLembreteAssinatura() {
+  const itens = _pendenciasAssinatura();
+  let bar = document.getElementById('__lembrete-assin__');
+
+  if (!itens.length) { if (bar) bar.remove(); return; }
+  // Não repete a cobrança quando a pessoa já está na aba de documentos
+  if (typeof TAB !== 'undefined' && TAB === 'docs') { if (bar) bar.remove(); return; }
+
+  const n = itens.length;
+  const lista = itens.slice(0, 3).map(i => i.tipo).join(' · ') + (n > 3 ? ' e mais ' + (n - 3) : '');
+
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = '__lembrete-assin__';
+    bar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:9990;background:linear-gradient(135deg,#0B1E35,#152F4D);' +
+      'padding:12px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 -4px 18px rgba(0,0,0,.25);cursor:pointer';
+    bar.onclick = () => { if (typeof showTab === 'function') showTab('docs'); };
+    document.body.appendChild(bar);
+  }
+  bar.innerHTML = `
+    <div style="width:34px;height:34px;border-radius:10px;background:#C9A84C22;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">✍️</div>
+    <div style="flex:1;min-width:0">
+      <div style="color:#fff;font-weight:800;font-size:13.5px">${n === 1 ? 'Você tem 1 documento para assinar' : 'Você tem ' + n + ' documentos para assinar'}</div>
+      <div style="color:#C9A84C;font-size:11.5px;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(lista)}</div>
+    </div>
+    <button onclick="event.stopPropagation();showTab('docs')" style="background:#C9A84C;color:#0B1E35;border:none;border-radius:9px;padding:9px 14px;font-size:12.5px;font-weight:800;cursor:pointer;flex-shrink:0">Assinar</button>
+    <button onclick="event.stopPropagation();document.getElementById('__lembrete-assin__').remove()" title="Ocultar até recarregar"
+      style="background:rgba(255,255,255,.12);color:#fff;border:none;border-radius:8px;width:30px;height:30px;font-size:15px;cursor:pointer;flex-shrink:0">✕</button>`;
+}
+window._atualizarLembreteAssinatura = _atualizarLembreteAssinatura;
+
 // ── Badge de Documentos pendentes de assinatura ────────────────
 function _atualizarBadgeDocs() {
+  try { _atualizarLembreteAssinatura(); } catch (e) {}
   const badge = document.getElementById('docs-badge');
   if (!badge) return;
   // Documentos disciplinares (advertências/suspensões) com assinatura pendente
@@ -2587,8 +2636,20 @@ async function _salvarAssinaturaDigital(id, status, png, selfie) {
           allAdv[iAdv].status = status;
           allAdv[iAdv].dataAssinatura = agora.toISOString().slice(0, 10);
           allAdv[iAdv].assinadoEm = agora.toISOString();
-          allAdv[iAdv].metodoAssinatura = png ? 'canvas_portal' : 'eletronico_simples';
+          allAdv[iAdv].metodoAssinatura = selfie ? 'canvas_selfie_portal' : (png ? 'canvas_portal' : 'eletronico_simples');
+          allAdv[iAdv].assinadoEm_br = agora.toLocaleString('pt-BR');
           if (png) { allAdv[iAdv].assinaturaPNG = png; allAdv[iAdv].assinaturaData = png; }
+          // Espelha também a foto e o comprovante de leitura, para que o
+          // documento impresso no RH mostre hora, assinatura e selfie.
+          if (selfie) {
+            allAdv[iAdv].assinaturaSelfie = selfie;
+            allAdv[iAdv].fotoRosto = selfie;
+            allAdv[iAdv].assinaturaSelfieTs = agora.toISOString();
+          }
+          try {
+            const lt = (typeof resumoLeitura === 'function') ? resumoLeitura(id) : null;
+            if (lt) { allAdv[iAdv].leituraSegundos = lt.segundos; allAdv[iAdv].leituraAteOFim = lt.ateOFim; }
+          } catch (e) {}
           if (status === 'recusado') allAdv[iAdv].recusadoEm = agora.toISOString();
         }
         await DB.collection('hr').doc('advertencias').set({ d: JSON.stringify(allAdv), ts: Date.now(), k: 'advertencias' });
