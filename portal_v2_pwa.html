@@ -4334,6 +4334,9 @@ function renderPonto() {
     <button id="btn-bater-ponto" onclick="abrirBioPonto()" style="width:100%;padding:14px;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.1px;background:${lastType === 'in' ? 'linear-gradient(135deg,#DC2626,#EF4444)' : 'linear-gradient(135deg,#059669,#10B981)'};color:#fff;box-shadow:0 4px 16px ${lastType === 'in' ? 'rgba(220,38,38,.4)' : 'rgba(5,150,105,.4)'}">
       ${lastType === 'in' ? '■ Registrar Saída' : '▶ Registrar Entrada'}
     </button>
+    ${pontoExternoLiberado() ? `<button id="btn-ponto-externo" onclick="abrirPontoExterno()" style="width:100%;margin-top:8px;padding:12px;border:1.5px solid #C9A84C;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;background:#FFFBEB;color:#92400E">
+      📍 Registrar ponto externo (trabalho na rua)
+    </button>` : ''}
   </div>
 
   <!-- ── ÚLTIMAS BATIDAS DO DIA ────────────────────────────── -->
@@ -8292,6 +8295,128 @@ function bioStopStream() {
 // ── Grava a batida de ponto no Firestore (bio_punches), com espelho no DB2 ───
 // e fallback offline (IndexedDB) quando não há conexão. Retorna { tipo, timeStr }
 // usado pela tela de resultado (PONTO APROVADO / detalhes da batida).
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  PONTO EXTERNO — panfletagem e ações de rua
+//  A cláusula 8.4.1 do contrato promete registro por meio telemático para
+//  quem trabalha fora. Aqui ele existe de fato: grava hora e coordenadas,
+//  SEM validar a geocerca (a pessoa está longe da loja de propósito), mas
+//  deixando registrado onde estava — o que preserva a prova dos dois lados.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Só quem o RH autorizou vê o botão de ponto externo. A liberação vem do
+// cadastro (hr/employees) e pode ter prazo de validade — vencida, some.
+function pontoExternoLiberado() {
+  try {
+    if (!EMP || !EMP.pontoExternoAutorizado) return false;
+    if (EMP.pontoExternoAte) {
+      const hoje = new Date().toISOString().slice(0, 10);
+      if (EMP.pontoExternoAte < hoje) return false;
+    }
+    return true;
+  } catch (e) { return false; }
+}
+window.pontoExternoLiberado = pontoExternoLiberado;
+
+async function abrirPontoExterno() {
+  if (!pontoExternoLiberado()) {
+    toast('Ponto externo não autorizado pelo RH para o seu cadastro.', 'err', 6000);
+    return;
+  }
+  if (!EMP || !EMP.id) { toast('Recarregue a página e entre novamente.', 'err'); return; }
+
+  const ovAnt = document.getElementById('__pext-ov__');
+  if (ovAnt) ovAnt.remove();
+  const ov = document.createElement('div');
+  ov.id = '__pext-ov__';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.9);display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)';
+  ov.innerHTML = `
+    <div style="background:#fff;border-radius:18px;max-width:420px;width:100%;padding:22px 20px">
+      <div style="font-size:16px;font-weight:800;color:#0F172A;margin-bottom:4px">📍 Ponto externo</div>
+      <div style="font-size:12px;color:#64748B;margin-bottom:14px;line-height:1.55">
+        Para quando você está trabalhando fora da loja (panfletagem, ação de rua, evento).
+        A localização é registrada junto do horário.
+      </div>
+      <div class="fld" style="margin-bottom:12px">
+        <label style="font-size:12px;font-weight:700;color:#475569;display:block;margin-bottom:5px">O que você está fazendo</label>
+        <select id="__pext-ativ__" style="width:100%;padding:11px;border:1px solid #E2E8F0;border-radius:9px;font-size:13px">
+          <option>Panfletagem em via pública</option>
+          <option>Ação promocional externa</option>
+          <option>Evento / feira</option>
+          <option>Entrega ou visita a cliente</option>
+          <option>Outra atividade externa</option>
+        </select>
+      </div>
+      <div class="fld" style="margin-bottom:12px">
+        <label style="font-size:12px;font-weight:700;color:#475569;display:block;margin-bottom:5px">Local (opcional)</label>
+        <input id="__pext-local__" placeholder="Ex.: Av. Brasil, em frente ao mercado" style="width:100%;padding:11px;border:1px solid #E2E8F0;border-radius:9px;font-size:13px">
+      </div>
+      <div id="__pext-geo__" style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:9px;padding:10px 12px;font-size:12px;color:#64748B;margin-bottom:14px">📡 Obtendo localização...</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button onclick="document.getElementById('__pext-ov__').remove()" style="flex:1;min-width:100px;padding:12px;border-radius:10px;background:#F1F5F9;color:#475569;font-weight:700;font-size:13px;border:none;cursor:pointer">Cancelar</button>
+        <button id="__pext-ok__" onclick="confirmarPontoExterno()" style="flex:2;min-width:150px;padding:12px;border-radius:10px;background:linear-gradient(135deg,#0B1E35,#152F4D);color:#C9A84C;font-weight:800;font-size:13px;border:none;cursor:pointer">📍 Registrar agora</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+
+  // Localização sem validar geocerca — só registra onde a pessoa está
+  window.__PEXT_GEO = null;
+  const box = document.getElementById('__pext-geo__');
+  if (!navigator.geolocation) {
+    if (box) { box.textContent = '⚠️ Este aparelho não informa localização. O ponto será registrado só com o horário.'; box.style.color = '#B45309'; }
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      window.__PEXT_GEO = {
+        lat: +pos.coords.latitude.toFixed(6),
+        lng: +pos.coords.longitude.toFixed(6),
+        precisao: Math.round(pos.coords.accuracy || 0)
+      };
+      if (box) {
+        box.innerHTML = `✅ Localização obtida · precisão de ${window.__PEXT_GEO.precisao}m<br>
+          <span style="font-size:11px;color:#94A3B8">${window.__PEXT_GEO.lat}, ${window.__PEXT_GEO.lng}</span>`;
+        box.style.color = '#166534';
+      }
+    },
+    err => {
+      if (box) {
+        box.textContent = '⚠️ Não foi possível obter a localização (' + (err.message || 'permissão negada') + '). O ponto será registrado só com o horário.';
+        box.style.color = '#B45309';
+      }
+    },
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
+  );
+}
+window.abrirPontoExterno = abrirPontoExterno;
+
+async function confirmarPontoExterno() {
+  const bt = document.getElementById('__pext-ok__');
+  if (bt) { bt.disabled = true; bt.textContent = '⏳ Registrando...'; }
+  const ativ  = document.getElementById('__pext-ativ__')?.value || 'Atividade externa';
+  const local = document.getElementById('__pext-local__')?.value || '';
+  const geo   = window.__PEXT_GEO;
+
+  const extra = {
+    origem: 'ponto_externo', externo: true, atividadeExterna: ativ,
+    localExterno: local,
+    ...(geo ? { geoLat: geo.lat, geoLng: geo.lng, geoPrecisao: geo.precisao,
+                geoLink: 'https://www.google.com/maps?q=' + geo.lat + ',' + geo.lng } : { geoIndisponivel: true })
+  };
+
+  try {
+    const r = await registrarPontoNoBanco('externo', extra);
+    const ov = document.getElementById('__pext-ov__');
+    if (ov) ov.remove();
+    toast('📍 ' + (r.rotulo || 'Ponto') + ' registrado às ' + r.timeStr + (geo ? ' com localização' : '') + (r.pendente ? ' (será enviado quando houver internet)' : ''), 'ok', 6000);
+    if (typeof renderPonto === 'function') renderPonto();
+  } catch (e) {
+    if (bt) { bt.disabled = false; bt.textContent = '📍 Registrar agora'; }
+    toast('Não foi possível registrar: ' + (e.message || e), 'err', 6000);
+  }
+}
+window.confirmarPontoExterno = confirmarPontoExterno;
+
 async function registrarPontoNoBanco(method, extra) {
   if (!EMP || !EMP.id) throw new Error('Colaborador não identificado. Recarregue a página.');
 
