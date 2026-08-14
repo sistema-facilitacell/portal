@@ -5024,6 +5024,17 @@ function openEmpForm(id){
     <div class="fld"><label>Médico / CRM</label><input id="ef-asomed" value="${esc(e.asoMedico||'')}" placeholder="Dr(a). Nome — CRM/PR 00000"></div>
     <div class="fld"><label>CTPS anotada em</label><input type="date" id="ef-ctpsdata" value="${esc(e.ctpsAnotadaEm||'')}"></div>
   </div>
+  <div class="sh g">Ponto externo</div>
+  <div class="g2">
+    <div class="fld">
+      <label>Autorizado a bater ponto fora da loja</label>
+      <select id="ef-pontoext">
+        <option value=""${!e.pontoExternoAutorizado?' selected':''}>Não — só na loja</option>
+        <option value="1"${e.pontoExternoAutorizado?' selected':''}>Sim — panfletagem e ações externas</option>
+      </select>
+    </div>
+    <div class="fld"><label>Autorização válida até (opcional)</label><input type="date" id="ef-pontoextate" value="${esc(e.pontoExternoAte||'')}"></div>
+  </div>
   <div class="sh g">Endereço</div>
   <div class="g2">
     <div class="fld"><label>Rua / Logradouro</label><input id="ef-rua" value="${esc(e.rua||'')}"></div>
@@ -5243,6 +5254,7 @@ async function saveEmp(){
     banco:g('ef-banco'),tipoPix:g('ef-pixt'),chavePix:g('ef-pix'),
     regime:g('ef-regime'),
     asoData:g('ef-aso'),asoResultado:g('ef-asores'),asoMedico:g('ef-asomed'),ctpsAnotadaEm:g('ef-ctpsdata'),
+    pontoExternoAutorizado: g('ef-pontoext')==='1', pontoExternoAte: g('ef-pontoextate'),
     rgOrgao:g('ef-rgorgao'),pis:g('ef-pis'),ctps:g('ef-ctps'),
     estadoCivil:g('ef-ecivil'),nacionalidade:g('ef-nacion'),nomeMae:g('ef-mae'),cbo:g('ef-cbo'),
     rua:g('ef-rua'),numero:g('ef-num'),complemento:g('ef-compl'),bairro:g('ef-bairro'),
@@ -15968,7 +15980,8 @@ function rBiometrico() {
     <div style="display:flex;gap:6px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:14px;flex-wrap:wrap">
       ${tabs.map(([id,lbl])=>`<button onclick="BIO_TAB='${id}';navigate('biometrico')" class="btn btn-sm" style="${BIO_TAB===id?'background:var(--navy);color:#fff':'background:#F1F5F9;color:var(--mt)'}">${lbl}</button>`).join('')}
       <button onclick="sincronizarTudo({mes:BIO_MES,ano:BIO_ANO,origem:'biometrico'})" class="btn btn-sm" style="background:#7C3AED;color:#fff;font-weight:700" title="Sincroniza Biométrico → Cartão Ponto → Banco de Horas">⚡ Sincronizar Tudo</button>
-      <button onclick="bioLoadData().then(()=>navigate('biometrico'))" class="btn btn-sm" style="background:#EFF6FF;color:var(--blue);margin-left:auto">🔄 Atualizar</button>
+      <button onclick="atlasModalPontoExterno()" class="btn btn-sm" style="background:#FFFBEB;color:#92400E;font-weight:700;margin-left:auto" title="Autorizar quem pode bater ponto fora da loja">📍 Ponto Externo</button>
+      <button onclick="bioLoadData().then(()=>navigate('biometrico'))" class="btn btn-sm" style="background:#EFF6FF;color:var(--blue)">🔄 Atualizar</button>
     </div>
     ${BIO_TAB==='revisao'?rBioRevisao():BIO_TAB==='solicitacoes'?rBioSolicitacoes():BIO_TAB==='hoje'?rBioHoje():BIO_TAB==='funcionarios'?rBioFuncionarios():BIO_TAB==='mensal'?rBioMensal():BIO_TAB==='geo'?rBioGeo():BIO_TAB==='justificativas'?rBioJustificativas():BIO_TAB==='comunicados'?rBioComunicados():rBioFechamento()}
   </div>`;
@@ -48360,7 +48373,8 @@ window.rBiometrico = function(){
     const tabs=[['hoje','🏠 Hoje'],['ia','🤖 IA Monitor'],['funcionarios','👥 Colaboradores'],['mensal','📅 Mensal'],['fechamento','📊 Fechamento'],['justificativas','📎 Justificativas'],['comunicados','📢 Comunicados'],['geo','📍 Geolocalização'],['solicitacoes','📋 Solicitações'],['analiseia','🧠 Análise IA']];
     const bar=`<div style="display:flex;gap:6px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:14px;flex-wrap:wrap">
       ${tabs.map(([id,lbl])=>`<button onclick="BIO_TAB='${id}';navigate('biometrico')" class="btn btn-sm" style="${id==='analiseia'?'background:#0B1E35;color:#fff':'background:#F1F5F9;color:#475569'}">${lbl}</button>`).join('')}
-      <button onclick="bioLoadData().then(()=>navigate('biometrico'))" class="btn btn-sm" style="background:#EFF6FF;color:var(--blue);margin-left:auto">🔄 Atualizar</button>
+      <button onclick="atlasModalPontoExterno()" class="btn btn-sm" style="background:#FFFBEB;color:#92400E;font-weight:700;margin-left:auto" title="Autorizar quem pode bater ponto fora da loja">📍 Ponto Externo</button>
+      <button onclick="bioLoadData().then(()=>navigate('biometrico'))" class="btn btn-sm" style="background:#EFF6FF;color:var(--blue)">🔄 Atualizar</button>
     </div>`;
     return `<div>${bar}${(typeof window.rBioIA==='function'?window.rBioIA():rBioIA())}</div>`;
   }
@@ -53251,10 +53265,14 @@ window.atlasTimeline = function(empId){
         const marc = [rec.entrada, rec.almoco, rec.voltaAlmoco, rec.cafe, rec.voltaCafe, rec.saida]
                      .filter(Boolean).join(' · ');
         const problema = ['falta','atraso','falta_justificada','atestado','saida_antecipada'].includes(st);
-        const titulo = problema ? ('Ponto: ' + st.replace(/_/g,' ')) : 'Ponto do dia';
+        const ext = !!(rec.externo || rec.origem==='ponto_externo' || rec.atividadeExterna);
+        const titulo = problema ? ('Ponto: ' + st.replace(/_/g,' '))
+                     : (ext ? ('Ponto externo' + (rec.atividadeExterna?(' — '+rec.atividadeExterna):'')) : 'Ponto do dia');
         const detalhe = marc || (rec.obs||'') || (st?st.replace(/_/g,' '):'sem marcações');
-        add(iso, 'ponto', titulo, detalhe + (rec.obs&&marc?(' · '+rec.obs):''),
-            problema ? '#DC2626' : '#94A3B8', problema ? '⛔' : '🕐');
+        const extraDet = ext ? ((rec.localExterno?(' · '+rec.localExterno):'') +
+                                (rec.geoLat?(' · '+rec.geoLat+', '+rec.geoLng):'')) : '';
+        add(iso, 'ponto', titulo, detalhe + (rec.obs&&marc?(' · '+rec.obs):'') + extraDet,
+            problema ? '#DC2626' : (ext ? '#C9A84C' : '#94A3B8'), problema ? '⛔' : (ext ? '📍' : '🕐'));
       });
     });
   }catch(e){ console.warn('[tl ponto]', e); }
@@ -54616,7 +54634,315 @@ window.atlasModalChecklist = function(empId){
     <div class="mft" style="gap:8px;flex-wrap:wrap">
       <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
       <button class="btn btn-blue btn-sm" onclick="closeModal();openEmpForm('${emp.id}')">✏️ Completar cadastro</button>
+      <button class="btn btn-sm" style="background:#0B1E35;color:#C9A84C;border:none;font-weight:700" onclick="closeModal();atlasModalESocial('${emp.id}','S-2200')">📤 eSocial</button>
     </div>`, 600);
+};
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  AUTORIZAÇÃO DE PONTO EXTERNO
+//  Bater ponto fora da loja não pode ser livre para todos: sem autorização,
+//  qualquer pessoa registraria jornada de qualquer lugar. Aqui o RH libera
+//  individualmente, com validade opcional — vencida, o botão some do portal.
+// ═══════════════════════════════════════════════════════════════════════════
+window.atlasPontoExternoOK = function(emp){
+  if(!emp || !emp.pontoExternoAutorizado) return false;
+  if(emp.pontoExternoAte){
+    const hoje = new Date().toISOString().slice(0,10);
+    if(emp.pontoExternoAte < hoje) return false;   // autorização vencida
+  }
+  return true;
+};
+
+window.atlasAlternarPontoExterno = async function(empId){
+  const emp = (APP.employees||[]).find(e=>e.id===empId);
+  if(!emp) return;
+  const liberado = atlasPontoExternoOK(emp);
+  emp.pontoExternoAutorizado = !liberado;
+  if(!emp.pontoExternoAutorizado){ emp.pontoExternoAte = ''; }
+  try{ if(typeof save==='function') save('employees'); }catch(e){}
+  try{ if(typeof auditLog==='function')
+    auditLog((emp.pontoExternoAutorizado?'Autorizou':'Revogou')+' ponto externo', emp.nome||'', 'ponto'); }catch(e){}
+  toast(emp.pontoExternoAutorizado
+    ? '✅ '+String(emp.nome).split(' ')[0]+' pode bater ponto fora da loja.'
+    : '🔒 Autorização revogada. O botão some do portal dela.', 'ok', 5000);
+  atlasModalPontoExterno();
+};
+
+window.atlasDefinirValidadePE = function(empId){
+  const emp = (APP.employees||[]).find(e=>e.id===empId);
+  if(!emp) return;
+  const v = document.getElementById('pe-ate-'+empId)?.value || '';
+  emp.pontoExternoAte = v;
+  try{ if(typeof save==='function') save('employees'); }catch(e){}
+  toast(v ? ('Autorização válida até '+new Date(v+'T00:00:00').toLocaleDateString('pt-BR'))
+          : 'Autorização sem prazo de validade.', 'ok');
+};
+
+window.atlasModalPontoExterno = function(){
+  const emps = (APP.employees||[]).filter(e=>e && e.status==='ativo')
+    .slice().sort((a,b)=>String(a.nome||'').localeCompare(String(b.nome||'')));
+  const linha = e => {
+    const ok = atlasPontoExternoOK(e);
+    const vencida = e.pontoExternoAutorizado && !ok;
+    return `
+    <div style="background:#fff;border:1px solid var(--border);border-left:4px solid ${ok?'#059669':(vencida?'#D97706':'#CBD5E1')};border-radius:10px;padding:11px 13px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="flex:1;min-width:170px">
+        <div style="font-weight:800;font-size:13px;display:flex;align-items:center;gap:7px;flex-wrap:wrap">${esc(e.nome||'')} ${atlasBadgeRegime(e)}</div>
+        <div style="font-size:11.5px;color:${ok?'#166534':(vencida?'#B45309':'var(--mt)')};margin-top:2px">
+          ${ok ? ('✅ Autorizado' + (e.pontoExternoAte?(' até '+new Date(e.pontoExternoAte+'T00:00:00').toLocaleDateString('pt-BR')):' (sem prazo)'))
+               : (vencida ? ('⚠️ Autorização venceu em '+new Date(e.pontoExternoAte+'T00:00:00').toLocaleDateString('pt-BR'))
+                          : '🔒 Só bate ponto na loja')}
+        </div>
+        ${ok?`<input type="date" id="pe-ate-${e.id}" value="${esc(e.pontoExternoAte||'')}" onchange="atlasDefinirValidadePE('${e.id}')"
+             style="margin-top:6px;padding:5px 8px;border:1px solid var(--border);border-radius:7px;font-size:11.5px" title="Validade da autorização">`:''}
+      </div>
+      <button class="btn btn-sm" style="${ok?'background:#FEF2F2;color:#DC2626;border:1px solid #FECACA':'background:#0B1E35;color:#C9A84C;border:none'};font-weight:700"
+        onclick="atlasAlternarPontoExterno('${e.id}')">${ok?'🔒 Revogar':'📍 Autorizar'}</button>
+    </div>`;
+  };
+  const libs = emps.filter(atlasPontoExternoOK).length;
+  openModal('📍 Autorização de ponto externo', `
+    <div style="background:#FFFBEB;border:1.5px solid #FDE68A;border-radius:10px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:#92400E;line-height:1.6">
+      Só quem está autorizado vê o botão de ponto externo no portal. Sem isso, o registro
+      fica restrito à loja. Use validade quando a liberação for para uma ação específica.
+    </div>
+    <div style="font-size:12px;color:#475569;font-weight:700;margin-bottom:9px">${libs} de ${emps.length} colaborador(es) autorizado(s)</div>
+    <div style="display:grid;gap:8px;max-height:52vh;overflow-y:auto;padding-right:3px">
+      ${emps.length ? emps.map(linha).join('') : '<div style="text-align:center;padding:22px;color:var(--mt);font-size:13px">Nenhum colaborador ativo.</div>'}
+    </div>
+    <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>
+  `, 620);
+};
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  PACOTE eSOCIAL — S-2200 (admissão) e S-2299 (desligamento)
+//  ATENÇÃO: este módulo NÃO transmite nada. O envio ao eSocial exige
+//  certificado digital A1/A3 e webservice, o que um sistema em navegador
+//  não faz. Aqui a entrega é o dado pronto, na ordem da digitação, mais o
+//  XML rascunho para quem usa sistema que importa — e o controle do prazo.
+// ═══════════════════════════════════════════════════════════════════════════
+const ESOCIAL_CATEGORIAS = {
+  clt:          {cod:'101', label:'101 — Empregado geral'},
+  intermitente: {cod:'111', label:'111 — Empregado com contrato intermitente'},
+  estagio:      {cod:'901', label:'901 — Estagiário'},
+  autonomo:     {cod:'701', label:'701 — Contribuinte individual (autônomo)'},
+  pj:           {cod:'—',   label:'não se aplica (PJ não gera S-2200)'}
+};
+
+// Motivos de desligamento mais comuns (Tabela 19 do eSocial)
+const ESOCIAL_MOT_DESLIG = {
+  sem_justa_causa:            {cod:'02', label:'02 — Rescisão sem justa causa, por iniciativa do empregador'},
+  pedido_demissao:            {cod:'07', label:'07 — Rescisão a pedido do empregado'},
+  justa_causa:                {cod:'06', label:'06 — Rescisão por justa causa, por iniciativa do empregador'},
+  acordo:                     {cod:'33', label:'33 — Rescisão por acordo entre as partes (art. 484-A)'},
+  fim_experiencia:            {cod:'10', label:'10 — Término de contrato a termo (prazo determinado)'},
+  exp_antecipada_empregador:  {cod:'11', label:'11 — Término antecipado por iniciativa do empregador (art. 479)'},
+  exp_antecipada_empregado:   {cod:'12', label:'12 — Término antecipado por iniciativa do empregado (art. 480)'},
+  exp_clausula_481:           {cod:'02', label:'02 — Rescisão sem justa causa (cláusula assecuratória, art. 481)'}
+};
+
+function _esData(d){ try{ return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : ''; }catch(e){ return ''; } }
+function _esSo(v){ return String(v||'').replace(/\D/g,''); }
+
+// Campos do S-2200 montados a partir do cadastro
+window.atlasES2200 = function(empId){
+  const emp = (APP.employees||[]).find(e=>e.id===empId);
+  if(!emp) return null;
+  const reg = atlasRegime(emp);
+  const cat = ESOCIAL_CATEGORIAS[reg] || ESOCIAL_CATEGORIAS.clt;
+  const cfg = (typeof EMPRESA_CFG!=='undefined' && EMPRESA_CFG) ? EMPRESA_CFG : {};
+
+  const campos = [
+    {g:'Empregador', k:'nrInsc', label:'CNPJ', v:_esSo(cfg.cnpj), obrig:true},
+    {g:'Trabalhador', k:'cpfTrab', label:'CPF', v:_esSo(emp.cpf), obrig:true},
+    {g:'Trabalhador', k:'nmTrab', label:'Nome completo', v:emp.nome||'', obrig:true},
+    {g:'Trabalhador', k:'sexo', label:'Sexo', v:emp.sexo||'', obrig:true},
+    {g:'Trabalhador', k:'racaCor', label:'Raça/cor', v:emp.racaCor||'', obrig:true},
+    {g:'Trabalhador', k:'estCiv', label:'Estado civil', v:emp.estadoCivil||'', obrig:false},
+    {g:'Trabalhador', k:'grauInstr', label:'Grau de instrução', v:emp.instrucao||'', obrig:true},
+    {g:'Nascimento', k:'dtNascto', label:'Data de nascimento', v:_esData(emp.dataNasc), obrig:true},
+    {g:'Nascimento', k:'nmMae', label:'Nome da mãe', v:emp.nomeMae||'', obrig:false},
+    {g:'Documentos', k:'nisTrab', label:'PIS/NIT', v:_esSo(emp.pis), obrig:true},
+    {g:'Documentos', k:'nrCtps', label:'CTPS', v:emp.ctps||'', obrig:false},
+    {g:'Endereço', k:'dscLograd', label:'Logradouro', v:emp.rua||'', obrig:true},
+    {g:'Endereço', k:'nrLograd', label:'Número', v:emp.numero||'', obrig:true},
+    {g:'Endereço', k:'bairro', label:'Bairro', v:emp.bairro||'', obrig:false},
+    {g:'Endereço', k:'cep', label:'CEP', v:_esSo(emp.cep), obrig:true},
+    {g:'Endereço', k:'uf', label:'UF', v:emp.uf||'PR', obrig:true},
+    {g:'Vínculo', k:'matricula', label:'Matrícula', v:emp.matricula||emp.id||'', obrig:true},
+    {g:'Vínculo', k:'tpRegTrab', label:'Regime trabalhista', v:'1 (CLT)', obrig:true},
+    {g:'Vínculo', k:'tpRegPrev', label:'Regime previdenciário', v:'1 (RGPS)', obrig:true},
+    {g:'Vínculo', k:'codCateg', label:'Categoria', v:cat.label, obrig:true},
+    {g:'Contrato', k:'dtAdm', label:'Data de admissão', v:_esData(emp.dataAdmissao), obrig:true},
+    {g:'Contrato', k:'tpContr', label:'Tipo de contrato',
+       v: emp.dataAdmissao ? '2 — prazo determinado (experiência)' : '', obrig:true},
+    {g:'Contrato', k:'nmCargo', label:'Cargo', v:emp.cargo||'', obrig:true},
+    {g:'Contrato', k:'CBOCargo', label:'CBO', v:_esSo(emp.cbo), obrig:true},
+    {g:'Contrato', k:'vrSalFx', label:'Salário fixo', v: emp.salario ? String(emp.salario) : '', obrig:true},
+    {g:'Contrato', k:'undSalFixo', label:'Unidade do salário', v:'5 (por mês)', obrig:true},
+    {g:'Jornada', k:'qtdHrsSem', label:'Horas semanais', v: emp.horasSemanais||'44', obrig:true}
+  ];
+  const faltando = campos.filter(c=>c.obrig && !String(c.v||'').trim());
+  // Prazo: o S-2200 vence no dia anterior ao início do trabalho
+  let prazo = null;
+  if(emp.dataAdmissao){
+    const d = new Date(emp.dataAdmissao+'T00:00:00'); d.setDate(d.getDate()-1);
+    prazo = d.toISOString().slice(0,10);
+  }
+  return {emp, reg, cat, campos, faltando, prazo};
+};
+
+// Campos do S-2299 a partir do último cálculo de rescisão
+window.atlasES2299 = function(empId, tipoResc, dataDeslig){
+  const emp = (APP.employees||[]).find(e=>e.id===empId);
+  if(!emp) return null;
+  const mot = ESOCIAL_MOT_DESLIG[tipoResc] || null;
+  const cfg = (typeof EMPRESA_CFG!=='undefined' && EMPRESA_CFG) ? EMPRESA_CFG : {};
+  const campos = [
+    {g:'Empregador', k:'nrInsc', label:'CNPJ', v:_esSo(cfg.cnpj), obrig:true},
+    {g:'Trabalhador', k:'cpfTrab', label:'CPF', v:_esSo(emp.cpf), obrig:true},
+    {g:'Vínculo', k:'matricula', label:'Matrícula', v:emp.matricula||emp.id||'', obrig:true},
+    {g:'Desligamento', k:'mtvDeslig', label:'Motivo (Tabela 19)', v: mot?mot.label:'', obrig:true},
+    {g:'Desligamento', k:'dtDeslig', label:'Data do desligamento', v:_esData(dataDeslig), obrig:true},
+    {g:'Desligamento', k:'indPagtoAPI', label:'Aviso prévio indenizado',
+       v: (tipoResc==='sem_justa_causa'||tipoResc==='exp_clausula_481') ? 'S (sim)' : 'N (não)', obrig:false},
+    {g:'Verbas', k:'dtProjFimAPI', label:'Fim do aviso projetado', v:'', obrig:false},
+    {g:'Verbas', k:'observacao', label:'Observação', v:'', obrig:false}
+  ];
+  const faltando = campos.filter(c=>c.obrig && !String(c.v||'').trim());
+  // Prazo: até 10 dias corridos do desligamento
+  let prazo = null;
+  if(_esData(dataDeslig)){
+    const d = new Date(dataDeslig+'T00:00:00'); d.setDate(d.getDate()+10);
+    prazo = d.toISOString().slice(0,10);
+  }
+  return {emp, mot, campos, faltando, prazo, dataDeslig};
+};
+
+// XML rascunho — para sistemas que importam; NÃO é assinado nem transmissível
+window.atlasES2200XML = function(empId){
+  const r = atlasES2200(empId);
+  if(!r) return '';
+  const V = k => (r.campos.find(c=>c.k===k)||{}).v || '';
+  const esc2 = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!-- RASCUNHO gerado pelo Atlas RH. NÃO está assinado digitalmente e NÃO pode
+     ser transmitido diretamente ao eSocial. Use para conferência ou importação
+     no sistema da contabilidade. -->
+<eSocial xmlns="http://www.esocial.gov.br/schema/evt/evtAdmissao/v_S_01_03_00">
+  <evtAdmissao Id="ID1${_esSo((typeof EMPRESA_CFG!=='undefined'&&EMPRESA_CFG.cnpj)||'').padEnd(14,'0').slice(0,14)}00000000000000">
+    <ideEvento><indRetif>1</indRetif><tpAmb>1</tpAmb><procEmi>1</procEmi><verProc>AtlasRH</verProc></ideEvento>
+    <ideEmpregador><tpInsc>1</tpInsc><nrInsc>${esc2(V('nrInsc'))}</nrInsc></ideEmpregador>
+    <trabalhador>
+      <cpfTrab>${esc2(V('cpfTrab'))}</cpfTrab>
+      <nmTrab>${esc2(V('nmTrab'))}</nmTrab>
+      <sexo>${esc2(V('sexo'))}</sexo>
+      <racaCor>${esc2(V('racaCor'))}</racaCor>
+      <grauInstr>${esc2(V('grauInstr'))}</grauInstr>
+      <nascimento><dtNascto>${esc2(V('dtNascto'))}</dtNascto><nmMae>${esc2(V('nmMae'))}</nmMae><paisNascto>105</paisNascto><paisNac>105</paisNac></nascimento>
+      <documentos><CTPS><nrCtps>${esc2(V('nrCtps'))}</nrCtps></CTPS></documentos>
+      <endereco><brasil>
+        <tpLograd>R</tpLograd><dscLograd>${esc2(V('dscLograd'))}</dscLograd>
+        <nrLograd>${esc2(V('nrLograd'))}</nrLograd><bairro>${esc2(V('bairro'))}</bairro>
+        <cep>${esc2(V('cep'))}</cep><uf>${esc2(V('uf'))}</uf>
+      </brasil></endereco>
+    </trabalhador>
+    <vinculo>
+      <matricula>${esc2(V('matricula'))}</matricula><tpRegTrab>1</tpRegTrab><tpRegPrev>1</tpRegPrev>
+      <infoRegimeTrab><infoCeletista>
+        <dtAdm>${esc2(V('dtAdm'))}</dtAdm><tpAdmissao>1</tpAdmissao><indAdmissao>1</indAdmissao>
+        <tpRegJor>1</tpRegJor><natAtividade>1</natAtividade>
+      </infoCeletista></infoRegimeTrab>
+      <infoContrato>
+        <nmCargo>${esc2(V('nmCargo'))}</nmCargo><CBOCargo>${esc2(V('CBOCargo'))}</CBOCargo>
+        <codCateg>${esc2((r.cat.cod||'101'))}</codCateg>
+        <remuneracao><vrSalFx>${esc2(V('vrSalFx'))}</vrSalFx><undSalFixo>5</undSalFixo></remuneracao>
+        <duracao><tpContr>2</tpContr></duracao>
+      </infoContrato>
+    </vinculo>
+  </evtAdmissao>
+</eSocial>`;
+};
+
+window.atlasCopiarTexto = function(txt, msg){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(()=>toast(msg||'Copiado!','ok'), ()=>toast('Não foi possível copiar.','warn'));
+  } else { toast('Não foi possível copiar.','warn'); }
+};
+
+window.atlasModalESocial = function(empId, evento){
+  const emp = (APP.employees||[]).find(e=>e.id===empId);
+  if(!emp){ toast('Selecione um colaborador.','warn'); return; }
+  evento = evento || 'S-2200';
+  const r = evento==='S-2200' ? atlasES2200(empId)
+          : atlasES2299(empId, (window._ultimaRescisao && window._ultimaRescisao.tipoId) || 'sem_justa_causa',
+                        (window._ultimaRescisao && window._ultimaRescisao.dataRescisao) || new Date().toISOString().slice(0,10));
+  if(!r) return;
+
+  const grupos = {};
+  r.campos.forEach(c=>{ (grupos[c.g] = grupos[c.g] || []).push(c); });
+  const hoje = new Date().toISOString().slice(0,10);
+  const atrasado = r.prazo && r.prazo < hoje;
+
+  const linha = c => `
+    <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed #E2E8F0;font-size:12.5px">
+      <span style="color:#475569">${c.label}${c.obrig?' <span style="color:#DC2626">*</span>':''}</span>
+      <span style="font-weight:700;color:${String(c.v||'').trim()?'#0F172A':'#DC2626'};text-align:right;max-width:58%">
+        ${String(c.v||'').trim() ? esc(c.v) : '— faltando —'}</span>
+    </div>`;
+  const bloco = g => `
+    <div style="margin-bottom:12px">
+      <div style="font-size:10.5px;font-weight:800;color:#0B1E35;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">${g}</div>
+      ${grupos[g].map(linha).join('')}
+    </div>`;
+
+  const texto = Object.keys(grupos).map(g=>
+    g.toUpperCase()+'\n'+grupos[g].map(c=>'  '+c.label+': '+(String(c.v||'').trim()||'[FALTANDO]')).join('\n')
+  ).join('\n\n');
+
+  openModal('📤 eSocial — '+evento+' · '+esc(emp.nome), `
+    <div style="background:#FFFBEB;border:1.5px solid #FDE68A;border-radius:10px;padding:11px 13px;margin-bottom:13px;font-size:11.5px;color:#92400E;line-height:1.6">
+      Este módulo <b>não transmite</b> ao eSocial — o envio exige certificado digital A1/A3.
+      Use os dados abaixo para digitar no eSocial Web ou entregar à contabilidade.
+    </div>
+
+    <div style="display:flex;gap:6px;margin-bottom:13px">
+      <button onclick="atlasModalESocial('${empId}','S-2200')" style="flex:1;padding:8px;border-radius:9px;border:1px solid ${evento==='S-2200'?'#0B1E35':'var(--border)'};background:${evento==='S-2200'?'#0B1E35':'#fff'};color:${evento==='S-2200'?'#C9A84C':'#475569'};font-size:12px;font-weight:800;cursor:pointer">S-2200 Admissão</button>
+      <button onclick="atlasModalESocial('${empId}','S-2299')" style="flex:1;padding:8px;border-radius:9px;border:1px solid ${evento==='S-2299'?'#0B1E35':'var(--border)'};background:${evento==='S-2299'?'#0B1E35':'#fff'};color:${evento==='S-2299'?'#C9A84C':'#475569'};font-size:12px;font-weight:800;cursor:pointer">S-2299 Desligamento</button>
+    </div>
+
+    ${r.prazo?`<div style="background:${atrasado?'#FEF2F2':'#F0FDF4'};border:1px solid ${atrasado?'#FECACA':'#BBF7D0'};border-radius:9px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:${atrasado?'#B91C1C':'#166534'};font-weight:700">
+      ${atrasado?'⛔ Prazo vencido em ':'🗓 Prazo de envio: até '}${new Date(r.prazo+'T00:00:00').toLocaleDateString('pt-BR')}
+      <div style="font-size:11px;font-weight:500;margin-top:3px">${evento==='S-2200'?'O S-2200 vence no dia anterior ao início do trabalho.':'O S-2299 vence em até 10 dias corridos do desligamento.'}</div>
+    </div>`:''}
+
+    ${r.faltando.length?`<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:9px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#B91C1C;line-height:1.55">
+      <b>${r.faltando.length} campo(s) obrigatório(s) faltando:</b> ${r.faltando.map(c=>esc(c.label)).join(', ')}.
+      O eSocial rejeita o envio sem eles.
+    </div>`:`<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:9px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#166534;font-weight:700">✅ Todos os campos obrigatórios estão preenchidos.</div>`}
+
+    <div style="max-height:38vh;overflow-y:auto;padding-right:4px">${Object.keys(grupos).map(bloco).join('')}</div>
+
+    <div class="mft" style="gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+      <button class="btn btn-ghost btn-sm" onclick="openEmpForm('${empId}')">✏️ Completar</button>
+      <button class="btn btn-blue btn-sm" onclick='atlasCopiarTexto(${JSON.stringify(texto)}, "Dados copiados — cole no eSocial ou envie ao contador.")'>📋 Copiar dados</button>
+      ${evento==='S-2200'?`<button class="btn btn-sm" style="background:#0B1E35;color:#C9A84C;border:none;font-weight:700" onclick="atlasBaixarXML2200('${empId}')">📄 XML rascunho</button>`:''}
+    </div>`, 660);
+};
+
+window.atlasBaixarXML2200 = function(empId){
+  const xml = atlasES2200XML(empId);
+  const emp = (APP.employees||[]).find(e=>e.id===empId);
+  const blob = new Blob([xml], {type:'application/xml'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'S-2200_' + String(emp?.nome||'colaborador').replace(/\W+/g,'_') + '.xml';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+  toast('XML rascunho baixado. Não é assinado — serve para conferência ou importação.','ok',7000);
 };
 
 (function _atlasInjectButtons(){
