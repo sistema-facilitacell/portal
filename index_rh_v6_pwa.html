@@ -12838,6 +12838,17 @@ async function saveDem(){
 // ════════════════════════════════════════════════════
 // CARTA DE NOTIFICAÇÃO DE DESLIGAMENTO
 // ════════════════════════════════════════════════════
+
+// O aviso prévio existe apenas nos contratos por prazo INDETERMINADO
+// (Art. 487 da CLT). No término do contrato de experiência as duas partes
+// já sabiam a data do fim, então não há o que avisar — e na justa causa e
+// no pedido de demissão ele não é devido pelo empregador.
+function _temAvisoPrevio(motivo){
+  const semAviso = ['Término de Contrato', 'Demissão com Justa Causa', 'Pedido de Demissão'];
+  return !semAviso.includes(String(motivo||''));
+}
+window._temAvisoPrevio = _temAvisoPrevio;
+
 function abrirCartaDesligamento(eid){
   const emp=APP.employees.find(e=>e.id===eid);
   const dem=APP.demissoes?.[eid];
@@ -12855,14 +12866,23 @@ function abrirCartaDesligamento(eid){
   const hoje_extenso=fmtDateObj(hoje);
 
   // Calcula tempo de serviço
+  // Tempo de serviço. Antes saía vazio quando o vínculo tinha menos de um mês
+  // (caso comum na experiência) e quando faltava a data de saída — agora usa a
+  // data de hoje como referência e mostra os dias quando é curto.
   let tempoServico='—';
-  if(emp.dataAdmissao&&dem.dataDemissao){
+  if(emp.dataAdmissao){
     const adm=new Date(emp.dataAdmissao+'T00:00:00');
-    const dem2=new Date(dem.dataDemissao+'T00:00:00');
-    const diffMs=dem2-adm;
-    const anos=Math.floor(diffMs/(1000*60*60*24*365));
-    const meses=Math.floor((diffMs%(1000*60*60*24*365))/(1000*60*60*24*30));
-    tempoServico=(anos>0?anos+' ano(s) e ':'')+meses+' mês(es)';
+    const fim=new Date((dem.dataDemissao||new Date().toISOString().slice(0,10))+'T00:00:00');
+    const dias=Math.max(0, Math.round((fim-adm)/86400000));
+    if(!isNaN(dias)){
+      const anos=Math.floor(dias/365);
+      const meses=Math.floor((dias%365)/30);
+      const partes=[];
+      if(anos>0) partes.push(anos+(anos===1?' ano':' anos'));
+      if(meses>0) partes.push(meses+(meses===1?' mês':' meses'));
+      if(!partes.length) partes.push(dias+(dias===1?' dia':' dias'));
+      tempoServico=partes.join(' e ');
+    }
   }
 
   // Artigo legal conforme motivo
@@ -12871,7 +12891,7 @@ function abrirCartaDesligamento(eid){
     'Demissão sem Justa Causa':'Arts. 477 e 487 da CLT — Rescisão sem justa causa por iniciativa do empregador, com direito a aviso prévio.',
     'Demissão com Justa Causa':'Art. 482 da CLT — Rescisão por justa causa, nos termos legais aplicáveis.',
     'Comum Acordo':'Art. 484-A da CLT — Rescisão por acordo entre as partes.',
-    'Término de Contrato':'Art. 479 da CLT — Extinção por término do prazo determinado no contrato de trabalho.'
+    'Término de Contrato':'Art. 443, §2º, e Art. 451 da CLT — Extinção pelo término do prazo determinado (contrato de experiência), sem aviso prévio.'
   }[motivo]||'Nos termos da CLT e legislação trabalhista vigente.';
 
   // Empresa — usa EMPRESA_CFG (dados salvos em Empresa & IA)
@@ -12944,7 +12964,7 @@ function abrirCartaDesligamento(eid){
         ${dem.decimoTerceiro?`<tr><td style="padding:5px 8px;border:1px solid #ddd;font-size:12px">13.º Salário Proporcional (Art. 3.º da Lei n.º 4.090/1962)</td><td style="padding:5px 8px;border:1px solid #ddd;font-size:12px;text-align:right">✔ Aplicável</td></tr>`:''}
         ${dem.feriasVencidas?`<tr><td style="padding:5px 8px;border:1px solid #ddd;font-size:12px">Férias Proporcionais + 1/3 Constitucional (Art. 7.º, XVII, CF/88)</td><td style="padding:5px 8px;border:1px solid #ddd;font-size:12px;text-align:right">✔ Aplicável</td></tr>`:''}
         ${dem.saldoSalario?`<tr><td style="padding:5px 8px;border:1px solid #ddd;font-size:12px">Saldo de Salário do Período</td><td style="padding:5px 8px;border:1px solid #ddd;font-size:12px;text-align:right">${extenso(dem.saldoSalario)}</td></tr>`:''}
-        <tr><td style="padding:5px 8px;border:1px solid #ddd;font-size:12px">Aviso Prévio ${dem.dataAviso?'(trabalhado)':'(indenizado, conforme aplicável)'}</td><td style="padding:5px 8px;border:1px solid #ddd;font-size:12px;text-align:right">Conforme TRCT</td></tr>
+        ${_temAvisoPrevio(motivo) ? `<tr><td style="padding:5px 8px;border:1px solid #ddd;font-size:12px">Aviso Prévio ${dem.dataAviso?'(trabalhado)':'(indenizado)'} — Art. 487 da CLT</td><td style="padding:5px 8px;border:1px solid #ddd;font-size:12px;text-align:right">Conforme TRCT</td></tr>` : `<tr><td style="padding:5px 8px;border:1px solid #ddd;font-size:12px;color:#666"><i>Aviso prévio — não devido nesta modalidade${motivo==='Término de Contrato'?' (contrato por prazo determinado, Art. 487 da CLT aplica-se apenas aos contratos por prazo indeterminado)':''}</i></td><td style="padding:5px 8px;border:1px solid #ddd;font-size:12px;text-align:right;color:#666"><i>Não aplicável</i></td></tr>`}
       </tbody>
     </table>
     <p style="font-size:11px;color:#555;margin-top:7px;font-style:italic">* Os valores exatos serão apurados e consignados no TRCT, observados os descontos legais de INSS, IRRF e demais encargos pertinentes.</p>
