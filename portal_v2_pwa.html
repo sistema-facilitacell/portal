@@ -8236,6 +8236,14 @@ function bioMostrarComprovante({ tipo, rotulo, timeStr, nsr, nome, metodo, geo, 
   ov.style.display = 'flex';
 }
 
+// TinyFaceDetector: ~5x mais rápido que SsdMobilenetv1, essencial para
+// celulares fracos/rede ruim não perderem frames e travarem no timeout.
+// inputSize menor = mais rápido ainda (416 é o padrão, 320 é bem mais ágil
+// e continua preciso o suficiente para rosto centralizado no círculo).
+function _tinyOpts() {
+  return new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.25 });
+}
+
 // ── Carregamento dos modelos face-api (background) ────────────────────────────
 async function _loadNetWithFallback(net, cdns) {
   for (const cdn of cdns) {
@@ -8253,7 +8261,7 @@ async function _loadNetWithFallback(net, cdns) {
 async function initFaceAPI() {
   if (FACEAPI_READY || typeof faceapi === 'undefined') return;
   await Promise.all([
-    _loadNetWithFallback(faceapi.nets.ssdMobilenetv1,     FACEAPI_CDN_OPTIONS),
+    _loadNetWithFallback(faceapi.nets.tinyFaceDetector,   FACEAPI_CDN_OPTIONS),
     _loadNetWithFallback(faceapi.nets.faceLandmark68Net,  FACEAPI_CDN_OPTIONS),
     _loadNetWithFallback(faceapi.nets.faceRecognitionNet, FACEAPI_CDN_OPTIONS),
   ]);
@@ -8327,12 +8335,12 @@ async function extrairDescriptorDeFoto(base64) {
           c.width = size; c.height = size;
           c.getContext('2d').drawImage(img, 0, 0, size, size);
           const det = await faceapi
-            .detectSingleFace(c, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.25 }))
+            .detectSingleFace(c, _tinyOpts())
             .withFaceLandmarks().withFaceDescriptor();
           if (det) { resolve(det.descriptor); return; }
         }
         const det = await faceapi
-          .detectSingleFace(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.25 }))
+          .detectSingleFace(img, _tinyOpts())
           .withFaceLandmarks().withFaceDescriptor();
         resolve(det ? det.descriptor : null);
       } catch(e) { reject(e); }
@@ -9315,7 +9323,7 @@ async function abrirBioPonto() {
         if (!livOk && FACEAPI_READY) {
           try {
             const det = await faceapi
-              .detectSingleFace(camCanvas, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.25 }))
+              .detectSingleFace(camCanvas, _tinyOpts())
               .withFaceLandmarks();
             if (det?.landmarks) _liveProcessFrame(det.landmarks);
             livOk = _liveMovOk;
@@ -9376,7 +9384,7 @@ async function abrirBioPonto() {
         if (storedDescReady && FACEAPI_READY) {
           try {
             const det = await faceapi
-              .detectSingleFace(camCanvas, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.25 }))
+              .detectSingleFace(camCanvas, _tinyOpts())
               .withFaceLandmarks().withFaceDescriptor();
             if (det) {
               const d = faceapi.euclideanDistance(det.descriptor, storedDesc);
@@ -9416,7 +9424,7 @@ async function abrirBioPonto() {
       if (storedDescReady && FACEAPI_READY) {
         try {
           const det = await faceapi
-            .detectSingleFace(camCanvas, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.25 }))
+            .detectSingleFace(camCanvas, _tinyOpts())
             .withFaceLandmarks().withFaceDescriptor();
 
           if (!BIO_MODAL_ABERTO) { processando = false; return; }
