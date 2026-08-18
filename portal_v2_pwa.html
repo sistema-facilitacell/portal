@@ -9391,18 +9391,25 @@ async function abrirBioPonto() {
               }
             }
           } catch(e) {}
+          // face-api teve a chance e não confirmou → nega de fato.
+          BIO_REGISTRANDO = true;
+          cancelAnimationFrame(BIO_AUTO_LOOP);
+          bioSetRing(1, '#EF4444');
+          bioShowMove(false);
+          console.warn('[Bio v3] NEGADO. melhorDistancia:', melhorDistancia.toFixed(4),
+                       '| threshold:', _THR, '| framesOk:', totalFramesOk,
+                       '| groqTentativas:', groqTentativas);
+          bioMostrarResultado(false,
+            'Identidade nao confirmada. Se o problema persistir, procure o RH para atualizar sua foto de cadastro.');
+          setTimeout(() => bioFecharModal(), 3200);
+          processando = false; return;
         }
-        BIO_REGISTRANDO = true;
-        cancelAnimationFrame(BIO_AUTO_LOOP);
-        bioSetRing(1, '#EF4444');
-        bioShowMove(false);
-        console.warn('[Bio v3] NEGADO. melhorDistancia:', melhorDistancia.toFixed(4),
-                     '| threshold:', _THR, '| framesOk:', totalFramesOk,
-                     '| groqTentativas:', groqTentativas);
-        bioMostrarResultado(false,
-          'Identidade nao confirmada. Se o problema persistir, procure o RH para atualizar sua foto de cadastro.');
-        setTimeout(() => bioFecharModal(), 3200);
-        processando = false; return;
+        // face-api AINDA não carregou (rede lenta) → não pode arbitrar o Groq.
+        // Negar aqui bloquearia o colaborador injustamente sempre que a rede da
+        // loja estiver congestionada (ex.: pico de bater ponto). Em vez disso,
+        // ignora esse veredito do Groq e segue tentando por face-api puro (FASE C)
+        // até o face-api carregar ou o timeout global (BIO_TIMEOUT) expirar.
+        console.warn('[Bio v3] Groq negou mas face-api ainda não carregou — aguardando antes de negar.');
       }
 
       // ── FASE C: face-api direto (Groq ainda rodando ou com erro) ─────────────
