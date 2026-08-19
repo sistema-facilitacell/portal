@@ -7996,6 +7996,20 @@ window.addEventListener('DOMContentLoaded', () => {
 // para trocar a chave sem precisar editar e republicar este arquivo.
 let GROQ_API_KEY = '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';
 
+// ── VERSÃO DO APP (portal) ─────────────────────────────────────────────────
+// Suba junto com a do admin a cada deploy. Grava em hr/_app_version (mesmo
+// doc lido pelo painel de Diagnóstico do admin) e viaja em toda falha/batida
+// de ponto — assim dá pra ver em segundos se um colaborador específico está
+// preso numa versão velha em cache, em vez de suspeitar do device à toa.
+const APP_VERSION = '2026.08.18-1';
+window.APP_VERSION = APP_VERSION;
+(function _publicarVersaoPortal(){
+  try{
+    if (typeof DB === 'undefined' || !DB) return;
+    DB.collection('hr').doc('_app_version').set({latestPortal: APP_VERSION, ts: Date.now()}, {merge:true}).catch(()=>{});
+  }catch(_){}
+})();
+
 // ── Circuit breaker do Groq ─────────────────────────────────────────────────
 // Se a API Groq falhar (ERRO) muitas vezes seguidas, para de chamá-la por um
 // tempo — evita cada colaborador esperando timeout de rede numa API fora do
@@ -8847,6 +8861,7 @@ async function abrirBioPonto() {
         userAgent: navigator.userAgent || '',
         plataforma: navigator.platform || '',
         online: navigator.onLine,
+        appVersion: (typeof APP_VERSION !== 'undefined' ? APP_VERSION : null),
         ...(extra || {})
       };
       DB.collection('bio_falhas').add(payload).catch(() => {});
@@ -9039,6 +9054,7 @@ async function abrirBioPonto() {
       bioSetRing(1, '#EF4444');
       statusEl.innerHTML = `<span style="color:#FCA5A5;font-size:14px;font-weight:800">⚠️ Biometria não cadastrada</span><br>
         <span style="font-size:12px;color:#94A3B8">Procure o RH para regularizar seu acesso.</span>`;
+      _logFalhaPonto('biometria_nao_cadastrada', {});
       return;
     }
 
@@ -9298,6 +9314,7 @@ async function abrirBioPonto() {
           cancelAnimationFrame(BIO_AUTO_LOOP);
           bioShowMove(false);
           bioMostrarResultado(false, _refFalha);
+          _logFalhaPonto('sem_referencia_facial_sem_groq', {});
           setTimeout(() => bioFecharModal(), 4200);
         }
       })
@@ -9711,6 +9728,7 @@ async function abrirBioPonto() {
               : e.name === 'SecurityError'        ? `❌ Câmera bloqueada por segurança.${_iosHint}`
               : '❌ Erro ao abrir câmera: ' + e.message;
     document.getElementById('bio-status').textContent = msg;
+    _logFalhaPonto('erro_camera', { errName: e.name || null, errMsg: (e.message || '').slice(0,200) });
   }
 }
 
