@@ -394,6 +394,35 @@ body{background:var(--bg);color:var(--tx);}
     // ── Service Worker + Web Push ────────────────────────────────
     let _SW_REG = null; // ServiceWorkerRegistration global (usado pelo PortalPush)
 
+    // ── Versão do build ──────────────────────────────────────────────────────
+    // Bump manualmente a cada deploy (data + descrição curta). Objetivo:
+    // diagnosticar em segundos se o colaborador está rodando a versão certa,
+    // em vez de descobrir só depois de um vai-e-vem de suporte (como o bug
+    // do TinyFaceDetector que só apareceu pq o SW servia versão antiga).
+    const APP_BUILD_VERSION = '2026-08-18.1';
+
+    function _mostrarInfoVersao() {
+      let sw = 'sem SW';
+      if (navigator.serviceWorker?.controller) {
+        sw = navigator.serviceWorker.controller.scriptURL.split('/').pop();
+      }
+      const msg = `Portal Colaborador\nBuild: ${APP_BUILD_VERSION}\nSW ativo: ${sw}\nOnline: ${navigator.onLine ? 'sim' : 'não'}`;
+      if (typeof toast === 'function') {
+        toast(msg.replace(/\n/g, ' · '), 'info', 6000);
+      } else {
+        alert(msg);
+      }
+      console.log('[Portal] ' + msg.replace(/\n/g, ' | '));
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const v = document.createElement('div');
+      v.textContent = 'v' + APP_BUILD_VERSION;
+      v.style.cssText = 'position:fixed;bottom:2px;right:6px;z-index:99996;font-size:9px;color:#94A3B8;opacity:.45;font-family:monospace;cursor:pointer;user-select:none;padding:2px 4px';
+      v.onclick = _mostrarInfoVersao;
+      document.body.appendChild(v);
+    });
+
     // ── IndexedDB — Fila offline de punches ─────────────────────────────────
     const IDB_NAME = 'atlas_portal_offline', IDB_STORE = 'punches', IDB_VER = 1;
     let _idb = null;
@@ -514,6 +543,18 @@ body{background:var(--bg);color:var(--tx);}
               if (e.data && e.data.type === 'NOTIF_CLICK') {
                 _pushNavegar(e.data.tipo, e.data.action);
               }
+            });
+
+            // Quando um SW novo assume o controle (deploy/correção nova),
+            // recarrega a página automaticamente. Sem isso, o colaborador
+            // fica preso rodando o JS antigo mesmo com o SW já atualizado
+            // em background — foi a causa do bug de ponto reprovado
+            // persistir mesmo após publicar a correção.
+            let _swReloading = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+              if (_swReloading) return;
+              _swReloading = true;
+              window.location.reload();
             });
           } catch(e) { /* SW indisponível — sem notificações push */ }
         });
@@ -7955,6 +7996,36 @@ window.addEventListener('DOMContentLoaded', () => {
 // para trocar a chave sem precisar editar e republicar este arquivo.
 let GROQ_API_KEY = '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';
 
+// ── Circuit breaker do Groq ─────────────────────────────────────────────────
+// Se a API Groq falhar (ERRO) muitas vezes seguidas, para de chamá-la por um
+// tempo — evita cada colaborador esperando timeout de rede numa API fora do
+// ar, quando o face-api local já dá conta de reconhecer sozinho. Reabre
+// automaticamente (half-open) após o cooldown, sem precisar recarregar a página.
+let _groqFalhasConsecutivas = 0;
+const _GROQ_CIRCUIT_LIMITE   = 4;      // falhas seguidas até abrir o circuito
+const _GROQ_CIRCUIT_COOLDOWN = 5 * 60 * 1000; // 5 min até tentar de novo
+let _groqCircuitAbertoAte    = 0;
+function _groqCircuitDisponivel() {
+  if (_groqCircuitAbertoAte && Date.now() < _groqCircuitAbertoAte) return false;
+  if (_groqCircuitAbertoAte && Date.now() >= _groqCircuitAbertoAte) {
+    // Half-open: dá mais uma chance: zera o contador e permite 1 nova tentativa
+    _groqCircuitAbertoAte = 0;
+    _groqFalhasConsecutivas = 0;
+  }
+  return true;
+}
+function _groqRegistrarResultado(resultado) {
+  if (resultado === 'ERRO') {
+    _groqFalhasConsecutivas++;
+    if (_groqFalhasConsecutivas >= _GROQ_CIRCUIT_LIMITE) {
+      _groqCircuitAbertoAte = Date.now() + _GROQ_CIRCUIT_COOLDOWN;
+      console.warn('[Groq] Circuit breaker aberto após', _groqFalhasConsecutivas, 'falhas seguidas. Pausando Groq por', _GROQ_CIRCUIT_COOLDOWN / 1000, 's.');
+    }
+  } else {
+    _groqFalhasConsecutivas = 0; // qualquer resposta válida (APROVADO/NEGADO) prova que a API está viva
+  }
+}
+
 // Busca a chave compartilhada gravada pelo RH. Se existir, tem prioridade.
 async function _carregarChaveGroqPortal(){
   try{
@@ -8759,6 +8830,29 @@ async function abrirBioPonto() {
     return { ok: true, geoData };
   }
 
+  // ── Observabilidade: log de tentativas de ponto reprovadas ─────────────────
+  // Grava no Firestore o motivo de cada reprovação + dados do device, pra dar
+  // visibilidade ao RH em vez de descobrir problema em massa só quando o
+  // colaborador reclama. Nunca bloqueia o fluxo (fire-and-forget).
+  function _logFalhaPonto(motivo, extra) {
+    try {
+      if (!DB) return;
+      const payload = {
+        empId: EMP?.id || null,
+        empNome: EMP?.nome || null,
+        cpf: (EMP?.cpf || '').replace(/\D/g, ''),
+        motivo: motivo,
+        ts: Date.now(),
+        data: new Date().toISOString().slice(0, 10),
+        userAgent: navigator.userAgent || '',
+        plataforma: navigator.platform || '',
+        online: navigator.onLine,
+        ...(extra || {})
+      };
+      DB.collection('bio_falhas').add(payload).catch(() => {});
+    } catch (_) { /* log nunca deve travar o fluxo de ponto */ }
+  }
+
   // ── Aprovar ponto ─────────────────────────────────────────────────────────────
   let _aprovarEmCurso = false;
   async function aprovar(method, extra) {
@@ -8780,6 +8874,7 @@ async function abrirBioPonto() {
     if (!geoResult.ok) {
       BIO_REGISTRANDO = false;
       bioSetRing(1, '#EF4444');
+      _logFalhaPonto('fora_da_area', { dist: geoResult.geoData?.dist, local: geoResult.geoData?.locName });
       const linhas = geoResult.errMsg.split('\n');
       statusEl.innerHTML = linhas.map((l, i) =>
         i === 0 ? `<span style="color:#FCA5A5;font-size:14px;font-weight:800">${l}</span>`
@@ -9131,6 +9226,9 @@ async function abrirBioPonto() {
     let melhorDistancia  = 999;
     let acertos          = 0;
     let totalFramesOk    = 0;
+    // Anti-fraude: conta frames onde mais de 1 rosto foi detectado no quadro
+    // (colaborador segurando o celular pra outra pessoa bater o ponto dele).
+    let multiFaceFrames  = 0;
     // Threshold efetivo: usa o valor configurado pelo RH no Firestore
     // (hr/config -> bioThreshold), carregado em loadAll(). ANTES esta linha
     // declarava um `const MATCH_THRESHOLD` local que SOMBREAVA a variável
@@ -9139,11 +9237,26 @@ async function abrirBioPonto() {
     const _thrBase = (typeof MATCH_THRESHOLD === 'number' && MATCH_THRESHOLD > 0)
       ? MATCH_THRESHOLD
       : 0.55;                                  // alinhado ao padrão global
-    const _THR      = _fileMode ? Math.min(0.68, _thrBase + 0.08) : _thrBase;
+    const _THR_BASE  = _fileMode ? Math.min(0.68, _thrBase + 0.08) : _thrBase;
+    let _THR         = _THR_BASE;
     // Mesmo em file:// exigimos 2 acertos: 1 único frame permitia aprovação
     // quase indiscriminada se alguém abrisse o HTML localmente.
     const ACERTOS_NECES   = 2;
-    const ZONA_SEGURA     = _fileMode ? Math.min(0.55, _THR - 0.10) : Math.max(0.32, _THR - 0.12);
+    const _ZONA_BASE = _fileMode ? Math.min(0.55, _THR_BASE - 0.10) : Math.max(0.32, _THR_BASE - 0.12);
+    let ZONA_SEGURA  = _ZONA_BASE;
+    // Threshold adaptativo: em pouca luz o descriptor sai mais ruidoso mesmo
+    // após o realce de brilho/contraste. Relaxa uma margem pequena (+0.03)
+    // pra compensar, e volta ao valor base assim que a luz melhorar — nunca
+    // fica "travado" mais permissivo além do necessário no frame atual.
+    function _ajustarThresholdPorLuz(avgBrilho) {
+      if (avgBrilho < 70) {
+        _THR = Math.min(_THR_BASE + 0.03, 0.70);
+        ZONA_SEGURA = Math.min(_ZONA_BASE + 0.02, _THR - 0.08);
+      } else {
+        _THR = _THR_BASE;
+        ZONA_SEGURA = _ZONA_BASE;
+      }
+    }
 
     // Motivo da indisponibilidade da referência facial — usado para avisar o
     // colaborador em vez de deixá-lo preso numa tela que nunca reconhece.
@@ -9204,6 +9317,7 @@ async function abrirBioPonto() {
       if (groqRodando || !BIO_MODAL_ABERTO || !BIO_READY) return;
       if (groqTentativas >= GROQ_MAX_TENT) return;
       if (Date.now() < groqCooldownAte) return;
+      if (!_groqCircuitDisponivel()) return; // circuito aberto: Groq falhando muito, poupa tempo do colaborador
       const fotoUrl = empData.fotoPerfil || null;
       if (!fotoUrl) return;
       groqRodando = true;
@@ -9229,6 +9343,7 @@ async function abrirBioPonto() {
       groqCooldownAte = groqResultado === 'ERRO'
         ? Date.now() + 15000  // espera 15s antes de tentar Groq de novo (face-api assume)
         : Date.now() + GROQ_COOLDOWN;
+      _groqRegistrarResultado(groqResultado);
       groqRodando = false;
       if (!BIO_MODAL_ABERTO) return;
       bioSetMethod(groqResultado === 'APROVADO' ? 'Identidade confirmada' :
@@ -9268,6 +9383,8 @@ async function abrirBioPonto() {
           // o sistema NUNCA reconhece, então mostrar "tente de novo" só faria o
           // colaborador repetir sem solução.
           _falhaMsg = _refFalha;
+        } else if (multiFaceFrames > 0 && totalFramesOk === 0) {
+          _falhaMsg = 'Detectamos mais de uma pessoa no quadro. Bata o ponto sozinho, com a câmera apontada só para o seu rosto.';
         } else if (totalFramesOk === 0) {
           _falhaMsg = (!FACEAPI_READY && !_groqDisponivel)
             ? 'Verificacao indisponivel no momento. Tente novamente em alguns segundos.'
@@ -9275,6 +9392,13 @@ async function abrirBioPonto() {
         } else {
           _falhaMsg = 'Rosto nao reconhecido. Tente novamente mantendo o rosto bem iluminado e centralizado.';
         }
+        _logFalhaPonto(
+          _refFalha && !storedDescReady ? 'sem_referencia_facial'
+            : multiFaceFrames > 0 && totalFramesOk === 0 ? 'multiplos_rostos'
+            : totalFramesOk === 0 ? 'nenhum_rosto_detectado'
+            : 'identidade_nao_confirmada_timeout',
+          { totalFramesOk, multiFaceFrames, melhorDistancia: melhorDistancia === 999 ? null : Number(melhorDistancia.toFixed(4)), thrUsado: _THR, faceapiReady: FACEAPI_READY, groqDisponivel: _groqDisponivel, groqTentativas }
+        );
         bioMostrarResultado(false, _falhaMsg);
         setTimeout(() => bioFecharModal(), 3800);
         processando = false; return;
@@ -9299,6 +9423,7 @@ async function abrirBioPonto() {
               _sum += (_d[i] + _d[i+1] + _d[i+2]) / 3; _n++;
             }
             const _avg = _n ? _sum / _n : 128;
+            _ajustarThresholdPorLuz(_avg);
             if (_avg < 90) {
               // Quanto mais escuro, mais ganho (ate ~1.8x) + leve contraste
               const _gain = Math.min(1.8, 90 / Math.max(_avg, 20));
@@ -9315,6 +9440,41 @@ async function abrirBioPonto() {
           } catch(_realceErr) {}
         }
       } catch(e) { processando = false; return; }
+
+      // ── Anti-fraude: rejeita frame se detectar mais de 1 rosto ────────────────
+      // Evita "buddy punching" — colaborador segurando o celular pra outro
+      // bater o ponto dele. detectAllFaces com tinyOpts é barato (sem
+      // landmarks/descriptor), roda antes de gastar chamada Groq ou a
+      // comparação biométrica completa. O box do rosto único também é
+      // reaproveitado abaixo pra dar feedback de posicionamento em tempo
+      // real, sem custo extra de detecção.
+      let _posicaoMsg = null;
+      if (FACEAPI_READY) {
+        try {
+          const _todosRostos = await faceapi.detectAllFaces(camCanvas, _tinyOpts());
+          if (_todosRostos.length > 1) {
+            multiFaceFrames++;
+            bioSetRing(0.3, '#EF4444');
+            bioShowMove(false);
+            statusEl.innerHTML = `<span style="color:#EF4444;font-weight:700">Mais de um rosto detectado</span><br><span style="font-size:11px;color:#64748B">Bata o ponto sozinho, sem outras pessoas no quadro</span>`;
+            processando = false; return;
+          }
+          if (_todosRostos.length === 1 && totalFramesOk < 2) {
+            // Só orienta posicionamento enquanto ainda não emplacou nenhum
+            // frame reconhecido — depois disso o feedback de identidade
+            // (fases A/B/C abaixo) assume e é mais relevante.
+            const _bx = _todosRostos[0].box;
+            const _cw = camCanvas.width, _ch = camCanvas.height;
+            const _areaPct = (_bx.width * _bx.height) / (_cw * _ch);
+            const _cx = _bx.x + _bx.width / 2, _cy = _bx.y + _bx.height / 2;
+            const _offX = Math.abs(_cx - _cw / 2) / _cw;
+            const _offY = Math.abs(_cy - _ch / 2) / _ch;
+            if (_areaPct < 0.05) _posicaoMsg = 'Aproxime o rosto da câmera';
+            else if (_areaPct > 0.55) _posicaoMsg = 'Afaste um pouco o rosto da câmera';
+            else if (_offX > 0.22 || _offY > 0.22) _posicaoMsg = 'Centralize o rosto no círculo';
+          }
+        } catch(_multiErr) { /* falha na checagem não deve travar o fluxo normal */ }
+      }
 
       // ── FASE A: Groq aprovou → exige liveness → registra ─────────────────────
       if (groqResultado === 'APROVADO') {
@@ -9407,6 +9567,10 @@ async function abrirBioPonto() {
           console.warn('[Bio v3] NEGADO. melhorDistancia:', melhorDistancia.toFixed(4),
                        '| threshold:', _THR, '| framesOk:', totalFramesOk,
                        '| groqTentativas:', groqTentativas);
+          _logFalhaPonto('negado_groq_e_faceapi', {
+            melhorDistancia: Number(melhorDistancia.toFixed(4)), thrUsado: _THR,
+            totalFramesOk, groqTentativas
+          });
           bioMostrarResultado(false,
             'Identidade nao confirmada. Se o problema persistir, procure o RH para atualizar sua foto de cadastro.');
           setTimeout(() => bioFecharModal(), 3200);
@@ -9508,7 +9672,9 @@ async function abrirBioPonto() {
             bioSetRing(0.3, '#3B82F6');
             statusEl.innerHTML = totalFramesOk > 0
               ? `<span style="color:#FCD34D;font-weight:700">Posicione o rosto no círculo</span><span style="font-size:11px;color:#64748B">${timer}</span>`
-              : `<span style="color:#93C5FD;font-weight:700">Analisando</span><span style="font-size:11px;color:#64748B">${timer}</span>`;
+              : _posicaoMsg
+                ? `<span style="color:#FCD34D;font-weight:700">${_posicaoMsg}</span><span style="font-size:11px;color:#64748B">${timer}</span>`
+                : `<span style="color:#93C5FD;font-weight:700">Analisando</span><span style="font-size:11px;color:#64748B">${timer}</span>`;
             // Re-dispara Groq enquanto aguarda rosto ser enquadrado melhor
             if (!groqRodando && groqTentativas < GROQ_MAX_TENT && Date.now() > groqCooldownAte && elapsed > 3000) {
               _dispararGroq().catch(() => {});
