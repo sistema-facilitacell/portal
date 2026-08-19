@@ -10648,6 +10648,12 @@ window.restaurarArquivoHistorico=restaurarArquivoHistorico;
 // ══════════════════════════════════════════════════════════════════════════
 
 const ERRLOG_MAX = 60;              // quantos erros manter
+// ── VERSÃO DO APP ────────────────────────────────────────────────────────
+// Suba este valor a cada deploy (data + contador do dia é suficiente).
+// Usado no painel de Diagnóstico pra detectar tela rodando versão velha em cache.
+const APP_VERSION = '2026.08.18-1';
+window.APP_VERSION = APP_VERSION;
+
 const ERRLOG_KEY = 'fcrh_errlog';
 
 function _errlogLer(){
@@ -10764,6 +10770,25 @@ window.limparLogErros=limparLogErros;
 async function rodarDiagnostico(){
   const testes=[];
   const add=(nome,estado,detalhe,acao)=>testes.push({nome,estado,detalhe,acao});
+
+  // 0. Versão do app rodando nesta tela vs. versão mais recente publicada
+  //    (grava/lê hr/_app_version — atualize o doc no deploy pra detectar cache velho)
+  try{
+    if(FBASE){
+      const vSnap=await FBASE.collection('hr').doc('_app_version').get();
+      if(vSnap.exists && vSnap.data().latest && vSnap.data().latest!==APP_VERSION){
+        add('Versão do app','alerta',`Esta tela está na versão ${APP_VERSION}, mas a mais recente publicada é ${vSnap.data().latest}. Dê um refresh forçado (Ctrl+Shift+R) pra atualizar.`,'Atualizar agora');
+      }else{
+        add('Versão do app','ok',`Rodando a versão ${APP_VERSION}`);
+        if(!vSnap.exists || vSnap.data().latest!==APP_VERSION){
+          // Auto-publica a versão atual como "mais recente" se ninguém tiver feito ainda
+          FBASE.collection('hr').doc('_app_version').set({latest:APP_VERSION,ts:Date.now()},{merge:true}).catch(()=>{});
+        }
+      }
+    }else{
+      add('Versão do app','alerta',`Rodando a versão ${APP_VERSION} (sem Firebase pra comparar com a mais recente)`);
+    }
+  }catch(e){ add('Versão do app','alerta',`Rodando a versão ${APP_VERSION} (não foi possível comparar: ${e.message||''})`); }
 
   // 1. Conexão com o Firebase
   if(!FBASE){
@@ -10882,7 +10907,7 @@ async function abrirDiagnostico(){
   const ico={ok:'✅',alerta:'⚠️',falha:'❌'};
   const cor={ok:'#059669',alerta:'#D97706',falha:'#DC2626'};
   const bg ={ok:'#ECFDF5',alerta:'#FFFBEB',falha:'#FEF2F2'};
-  const acoes={'Configurar IA':'closeModal();openAnthropicKeyModal()','Fazer backup':'closeModal();openBackup()','Ver erros':'closeModal();abrirLogErros()','Abrir biométrico':'closeModal();navigate(\'biometrico\')','Ver colaboradores':'closeModal();navigate(\'funcionarios\')'};
+  const acoes={'Configurar IA':'closeModal();openAnthropicKeyModal()','Fazer backup':'closeModal();openBackup()','Ver erros':'closeModal();abrirLogErros()','Abrir biométrico':'closeModal();navigate(\'biometrico\')','Ver colaboradores':'closeModal();navigate(\'funcionarios\')','Atualizar agora':'location.reload(true)'};
 
   const falhas=testes.filter(t=>t.estado==='falha').length;
   const alertas=testes.filter(t=>t.estado==='alerta').length;
@@ -28097,6 +28122,49 @@ td,th{font-size:15px!important;}
   const pbioToday=()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
   const pbioUid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 
+  // ── OBSERVABILIDADE: log de tentativas reprovadas (fluxo de ponto local deste arquivo) ─
+  // NOTA: o fluxo de ponto que os colaboradores realmente usam no dia a dia é
+  // o portal_v2_pwa.html (Biometria v3, Groq Vision + face-api), que loga em
+  // 'bio_falhas' via _logFalhaPonto() — é essa coleção que a aba "🚨 Falhas
+  // Ponto" deste admin lê. Este bloco aqui cobre o fluxo de câmera embutido
+  // neste MESMO arquivo (ativado via ?portal na URL) caso ele seja usado como
+  // contingência; grava em 'bio_attempts' só por completude, não é a fonte
+  // principal de dados do painel.
+  // Grava no Firestore (visível pra todo mundo, não só localStorage do device)
+  // toda vez que uma tentativa de bater ponto falha, com motivo + device.
+  // Não bloqueia o fluxo do usuário: falha de log nunca deve travar o ponto.
+  function _pbioDeviceInfo(){
+    try{
+      const ua=navigator.userAgent||'';
+      let nav='Outro';
+      if(/Edg\//.test(ua))nav='Edge';
+      else if(/Chrome\//.test(ua)&&!/OPR|Opera/.test(ua))nav='Chrome';
+      else if(/Firefox\//.test(ua))nav='Firefox';
+      else if(/Safari\//.test(ua)&&!/Chrome/.test(ua))nav='Safari';
+      let so='Outro';
+      if(/Android/.test(ua))so='Android';
+      else if(/iPhone|iPad|iPod/.test(ua))so='iOS';
+      else if(/Windows/.test(ua))so='Windows';
+      else if(/Mac OS X/.test(ua))so='macOS';
+      else if(/Linux/.test(ua))so='Linux';
+      return {ua,navegador:nav,so,mobile:/Mobi|Android|iPhone|iPad/.test(ua)};
+    }catch(_){return {ua:'',navegador:'?',so:'?',mobile:false};}
+  }
+  async function logBioAttemptFail(motivo,detalhe){
+    try{
+      const db=P_DB||FBASE;if(!db)return;
+      const dev=_pbioDeviceInfo();
+      const cpf=(P_EMP&&P_EMP.cpf?P_EMP.cpf:'').replace(/\D/g,'');
+      await db.collection('bio_attempts').add({
+        cpf,empName:(P_EMP&&P_EMP.nome)||null,hrEmpId:(P_EMP&&P_EMP.id)||null,
+        ok:false,motivo,detalhe:detalhe?String(detalhe).slice(0,300):null,
+        navegador:dev.navegador,so:dev.so,mobile:dev.mobile,userAgent:dev.ua.slice(0,300),
+        appVersion:(typeof APP_VERSION!=='undefined'?APP_VERSION:null),
+        ts:new Date().toISOString(),date:pbioToday()
+      });
+    }catch(e){ console.warn('[BioAttempts] Falha ao gravar log (não crítico):',e&&e.message); }
+  }
+
   async function pbioLoadModels(){
     if(PBIO.models)return true;
     if(PBIO.loading){
@@ -28198,25 +28266,28 @@ td,th{font-size:15px!important;}
       if(!ok){
         pbioClose();
         pToast('Falha ao baixar modelos de IA. Verifique a internet e tente novamente.','err',5000);
+        logBioAttemptFail('modelos_ia_nao_carregaram');
         return;
       }
     }
 
     // Busca descriptor do funcionário no Firebase
     const db=P_DB||FBASE;
-    if(!db){pbioClose();pToast('Sem conexão com Firebase.','err');return;}
+    if(!db){pbioClose();pToast('Sem conexão com Firebase.','err');return;} // nota: sem db não dá pra logar essa falha (é justamente o motivo)
     try{
         const cpf=(P_EMP.cpf||'').replace(/\D/g,'');
         const snap=await db.collection('bio_users').where('cpf','==',cpf).where('active','==',true).limit(1).get();
         if(snap.empty){
           pbioClose();
-          pToast('Biometria facial não cadastrada. Peça ao RH para cadastrar seu rosto.','err',4000);return;
+          pToast('Biometria facial não cadastrada. Peça ao RH para cadastrar seu rosto.','err',4000);
+          logBioAttemptFail('nao_cadastrado_bio_users');return;
         }
         const u=snap.docs[0].data();
         // Aceita descriptor singular OU primeiro item de descriptors (multi-ângulo)
         const rawDesc=u.descriptor&&u.descriptor.length>=128?u.descriptor:(u.descriptors&&u.descriptors.length>0?u.descriptors[0]:null);
         if(!rawDesc||rawDesc.length<128){
-          pbioClose();pToast('Rosto não cadastrado no sistema. Fale com o RH.','err',4000);return;
+          pbioClose();pToast('Rosto não cadastrado no sistema. Fale com o RH.','err',4000);
+          logBioAttemptFail('descriptor_ausente_ou_invalido');return;
         }
         PBIO.descriptor=new Float32Array(rawDesc);
         // Determina próxima batida
@@ -28231,7 +28302,7 @@ td,th{font-size:15px!important;}
         const badge=document.getElementById('pbio-badge');
         if(badge){badge.textContent=PBIO.nextType==='in'?'▶ ENTRADA':'■ SAÍDA';badge.style.background=PBIO.nextType==='in'?'rgba(16,185,129,.25)':'rgba(244,63,94,.25)';badge.style.color=PBIO.nextType==='in'?'#10b981':'#f43f5e';}
         await pbioOpenCamera();
-      }catch(e){pbioClose();pToast('Erro ao buscar dados: '+e.message,'err');}
+      }catch(e){pbioClose();pToast('Erro ao buscar dados: '+e.message,'err');logBioAttemptFail('erro_buscar_dados',e&&e.message);}
   }
 
   async function pbioOpenCamera(){
@@ -28249,6 +28320,7 @@ td,th{font-size:15px!important;}
       pbioStartDetection();pbioStartTimeout();
     }catch(e){
       pbioSetStatus('❌ Câmera bloqueada','Permita acesso à câmera e tente novamente');
+      logBioAttemptFail('camera_bloqueada',e&&e.message);
     }
   }
 
@@ -28304,6 +28376,7 @@ td,th{font-size:15px!important;}
               PBIO.processing=false;
               pbioStopCamera();
               pbioShowResult(false,'Erro inesperado ao registrar ponto: '+e.message);
+              logBioAttemptFail('erro_inesperado_registro',e&&e.message);
             }
           }
         }else{
@@ -28317,7 +28390,7 @@ td,th{font-size:15px!important;}
 
   function pbioStartTimeout(){
     let rem=40;const bar=document.getElementById('pbio-timeout');
-    PBIO.timeout=setInterval(()=>{rem--;if(bar)bar.style.width=(rem/40*100)+'%';if(rem<=0){clearInterval(PBIO.timeout);PBIO.timeout=null;if(!PBIO.processing){clearInterval(PBIO.detect);PBIO.detect=null;pbioShowResult(false,'Tempo esgotado. Rosto não reconhecido.');}};},1000);
+    PBIO.timeout=setInterval(()=>{rem--;if(bar)bar.style.width=(rem/40*100)+'%';if(rem<=0){clearInterval(PBIO.timeout);PBIO.timeout=null;if(!PBIO.processing){clearInterval(PBIO.detect);PBIO.detect=null;pbioShowResult(false,'Tempo esgotado. Rosto não reconhecido.');logBioAttemptFail('timeout_nao_reconhecido');}};},1000);
   }
 
   async function pbioPunch(){
@@ -28343,6 +28416,7 @@ td,th{font-size:15px!important;}
               ?'Permissão de localização negada. Permita o acesso ao GPS nas configurações do seu navegador e tente novamente.'
               :'GPS indisponível ou tempo esgotado. Aproxime-se de uma área com sinal e tente novamente.';
             pbioShowResult(false,'⛔ Localização necessária\n\n'+gpsMsg);
+            logBioAttemptFail(gpsErr.code===1?'gps_negado':'gps_indisponivel');
             return;
           }
           // Geo não obrigatório: registra sem localização
@@ -28352,7 +28426,7 @@ td,th{font-size:15px!important;}
           const cpf=(P_EMP.cpf||'').replace(/\D/g,'');
           const punch={id:pbioUid(),cpf,userId:cpf,empName:P_EMP.nome,hrEmpId:P_EMP.id,date:today,time,type:PBIO.nextType,lat:null,lng:null,dist:null,locName:null,month,verified:true,origem:'portal_biometrico',geoSkipped:true,ts:new Date().toISOString()};
           try{await db.collection('bio_punches').doc(punch.id).set(punch);P_TODAY_PUNCHES.push(punch);P_TODAY_PUNCHES.sort((a,b)=>a.time.localeCompare(b.time));if(typeof bioAplicarBatidaLocal==='function')bioAplicarBatidaLocal(punch);pbioStopCamera();pbioShowResult(true,null,null,PBIO.nextType,time);}
-          catch(e){pbioStopCamera();pbioShowResult(false,'Erro ao salvar: '+e.message);}
+          catch(e){pbioStopCamera();pbioShowResult(false,'Erro ao salvar: '+e.message);logBioAttemptFail('erro_salvar_punch',e&&e.message);}
           return;
         }
         const myLat=pos.coords.latitude,myLng=pos.coords.longitude;
@@ -28368,6 +28442,7 @@ td,th{font-size:15px!important;}
     if(!geoOk){
       pbioStopCamera();
       pbioShowResult(false,`⛔ Você está fora da área permitida.\n\n📍 Sua distância atual: ${geoData?.dist||'?'} metros\n🏪 Local mais próximo: ${geoData?.locName||'Loja'}\n🔵 Raio permitido: ${geoData?.reqRadius||cfg.locations?.[0]?.radius||50} metros\n\nAproxime-se do local de trabalho e tente novamente.`);
+      logBioAttemptFail('fora_area_permitida','dist:'+(geoData?.dist||'?')+'m local:'+(geoData?.locName||''));
       return;
     }
 
@@ -28380,7 +28455,7 @@ td,th{font-size:15px!important;}
       P_TODAY_PUNCHES.push(punch);P_TODAY_PUNCHES.sort((a,b)=>a.time.localeCompare(b.time));
       if(typeof bioAplicarBatidaLocal==='function')bioAplicarBatidaLocal(punch);
       pbioStopCamera();pbioShowResult(true,null,geoData,PBIO.nextType,time);
-    }catch(e){pbioStopCamera();pbioShowResult(false,'Erro ao salvar: '+e.message);}
+    }catch(e){pbioStopCamera();pbioShowResult(false,'Erro ao salvar: '+e.message);logBioAttemptFail('erro_salvar_punch',e&&e.message);}
   }
 
   function pbioShowResult(ok,errMsg,geoData,type,time){
@@ -55270,6 +55345,154 @@ window.atlasComprovanteAssinatura = function(docId){
 // ═══════════════ FIM DO MÓDULO Regimento + Modelo de Contrato ═══════════════
 
 console.log('[Atlas] Módulo Regimento + Modelo de Contrato carregado ✅');
+</script>
+
+<script>
+// ════════════════════════════════════════════════════════════════════
+// [OBSERVABILIDADE] Painel de Falhas de Reconhecimento — aba "🚨 Falhas Ponto"
+// Lê a coleção bio_falhas — gravada pelo portal.com.br do colaborador
+// (_logFalhaPonto, dentro de abrirBioPonto() no portal_v2_pwa.html) — e
+// mostra agregado por motivo + dispositivo/navegador + versão do app, pra
+// dar visibilidade cross-device de tentativas de ponto reprovadas. Antes
+// disso os erros não ficavam visíveis em lugar nenhum pro RH.
+// ════════════════════════════════════════════════════════════════════
+let BIO_FALHAS_CACHE={loaded:false,loading:false,items:[]};
+const BIO_FALHAS_MOTIVO_LABEL={
+  fora_da_area:'Fora da área permitida (geofence)',
+  sem_referencia_facial:'Sem foto/rosto de referência cadastrado',
+  sem_referencia_facial_sem_groq:'Sem referência facial e Groq indisponível',
+  multiplos_rostos:'Mais de um rosto no quadro',
+  nenhum_rosto_detectado:'Nenhum rosto detectado (timeout)',
+  identidade_nao_confirmada_timeout:'Identidade não confirmada (timeout)',
+  negado_groq_e_faceapi:'Negado por Groq Vision e face-api',
+  biometria_nao_cadastrada:'Biometria não cadastrada',
+  erro_camera:'Erro/permissão de câmera'
+};
+// Extrai navegador/SO/mobile a partir do userAgent bruto salvo pelo portal
+// (o payload do portal só grava userAgent+plataforma, não já separado).
+function _bioFalhaParseUA(ua){
+  ua=ua||'';
+  let nav='Outro';
+  if(/Edg\//.test(ua))nav='Edge';
+  else if(/Chrome\//.test(ua)&&!/OPR|Opera/.test(ua))nav='Chrome';
+  else if(/Firefox\//.test(ua))nav='Firefox';
+  else if(/Safari\//.test(ua)&&!/Chrome/.test(ua))nav='Safari';
+  let so='Outro';
+  if(/Android/.test(ua))so='Android';
+  else if(/iPhone|iPad|iPod/.test(ua))so='iOS';
+  else if(/Windows/.test(ua))so='Windows';
+  else if(/Mac OS X/.test(ua))so='macOS';
+  else if(/Linux/.test(ua))so='Linux';
+  return {navegador:nav,so,mobile:/Mobi|Android|iPhone|iPad/.test(ua)};
+}
+async function bioLoadFalhas(force){
+  if(BIO_FALHAS_CACHE.loaded && !force)return;
+  if(BIO_FALHAS_CACHE.loading)return;
+  BIO_FALHAS_CACHE.loading=true;
+  try{
+    if(!FBASE){BIO_FALHAS_CACHE.items=[];BIO_FALHAS_CACHE.loaded=true;BIO_FALHAS_CACHE.loading=false;return;}
+    const snap=await FBASE.collection('bio_falhas').orderBy('ts','desc').limit(300).get();
+    BIO_FALHAS_CACHE.items=snap.docs.map(d=>{
+      const data=d.data();
+      const dev=_bioFalhaParseUA(data.userAgent);
+      return {id:d.id,...data,...dev};
+    });
+  }catch(e){
+    console.warn('[BioFalhas] Erro ao carregar:',e&&e.message);
+    BIO_FALHAS_CACHE.items=BIO_FALHAS_CACHE.items||[];
+  }
+  BIO_FALHAS_CACHE.loaded=true;BIO_FALHAS_CACHE.loading=false;
+}
+window.bioLoadFalhas=bioLoadFalhas;
+
+function rBioFalhas(){
+  if(!BIO_FALHAS_CACHE.loaded){
+    bioLoadFalhas().then(()=>{ if(typeof BIO_TAB!=='undefined'&&BIO_TAB==='falhas'&&typeof navigate==='function')navigate('biometrico'); });
+    return '<div class="card" style="padding:40px;text-align:center;color:var(--mt)">⏳ Carregando tentativas reprovadas...</div>';
+  }
+  const items=BIO_FALHAS_CACHE.items||[];
+  if(items.length===0){
+    return '<div class="card" style="padding:40px;text-align:center"><div style="font-size:36px;margin-bottom:10px">✅</div><div style="font-weight:700;margin-bottom:6px">Nenhuma tentativa reprovada registrada</div><p style="color:var(--mt);font-size:13px">A partir de agora, toda tentativa de bater ponto que falhar no portal aparece aqui — com motivo, dispositivo e versão do app.</p></div>';
+  }
+  // ts vem como epoch (Date.now()) do portal
+  const ultimas24h=items.filter(i=>i.ts&&(Date.now()-Number(i.ts))<24*3600*1000);
+  const porMotivo={};items.forEach(i=>{const k=i.motivo||'desconhecido';porMotivo[k]=(porMotivo[k]||0)+1;});
+  const porDevice={};items.forEach(i=>{const k=(i.navegador||'?')+' / '+(i.so||'?');porDevice[k]=(porDevice[k]||0)+1;});
+  const porVersao={};items.forEach(i=>{const k=i.appVersion||'(sem versão registrada)';porVersao[k]=(porVersao[k]||0)+1;});
+  const topMotivos=Object.entries(porMotivo).sort((a,b)=>b[1]-a[1]);
+  const topDevices=Object.entries(porDevice).sort((a,b)=>b[1]-a[1]);
+  const topVersoes=Object.entries(porVersao).sort((a,b)=>b[1]-a[1]);
+  // Se um único motivo domina as últimas 24h com muitos colaboradores diferentes,
+  // é sinal forte de problema sistêmico (não um device isolado) — destaca isso.
+  const empsUnicos24h=new Set(ultimas24h.map(i=>i.cpf||i.empNome)).size;
+  const alertaSistemico = ultimas24h.length>=5 && empsUnicos24h>=3;
+  // Se mais de uma versão de app aparece entre as falhas recentes, é sinal
+  // de cache velho em alguns aparelhos — exatamente o problema que motivou este painel.
+  const alertaVersao = topVersoes.length>=2 && ultimas24h.some(i=>i.appVersion && i.appVersion!==APP_VERSION);
+  return `<div>
+    ${alertaSistemico?`<div style="background:#FEF2F2;border:2px solid #FECACA;border-radius:14px;padding:16px 18px;margin-bottom:14px">
+      <div style="font-weight:800;color:#DC2626;margin-bottom:4px">⚠ Padrão sistêmico nas últimas 24h</div>
+      <div style="font-size:13px;color:#7F1D1D">${ultimas24h.length} tentativas reprovadas de ${empsUnicos24h} colaboradores diferentes — não parece ser um dispositivo isolado. Motivo mais comum: <strong>${esc(BIO_FALHAS_MOTIVO_LABEL[topMotivos[0]?.[0]]||topMotivos[0]?.[0]||'?')}</strong>.</div>
+    </div>`:''}
+    ${alertaVersao?`<div style="background:#FFFBEB;border:2px solid #FDE68A;border-radius:14px;padding:16px 18px;margin-bottom:18px">
+      <div style="font-weight:800;color:#92400E;margin-bottom:4px">📦 Versões diferentes rodando ao mesmo tempo</div>
+      <div style="font-size:13px;color:#78350F">Tem colaborador batendo ponto com uma versão do app diferente de ${esc(APP_VERSION)} (a mais recente). Pode ser cache velho — peça pra fazer refresh forçado (Ctrl+Shift+R / fechar e reabrir o app).</div>
+    </div>`:''}
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px">
+      <div class="card" style="padding:16px">
+        <div style="font-weight:700;margin-bottom:10px;font-size:13px;color:var(--mt);text-transform:uppercase;letter-spacing:.5px">Por motivo (últimos 300)</div>
+        ${topMotivos.map(([m,n])=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #F1F5F9;font-size:13px"><span>${esc(BIO_FALHAS_MOTIVO_LABEL[m]||m)}</span><strong>${n}</strong></div>`).join('')}
+      </div>
+      <div class="card" style="padding:16px">
+        <div style="font-weight:700;margin-bottom:10px;font-size:13px;color:var(--mt);text-transform:uppercase;letter-spacing:.5px">Por navegador/SO (últimos 300)</div>
+        ${topDevices.map(([d,n])=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #F1F5F9;font-size:13px"><span>${esc(d)}</span><strong>${n}</strong></div>`).join('')}
+      </div>
+      <div class="card" style="padding:16px">
+        <div style="font-weight:700;margin-bottom:10px;font-size:13px;color:var(--mt);text-transform:uppercase;letter-spacing:.5px">Por versão do app</div>
+        ${topVersoes.map(([v,n])=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #F1F5F9;font-size:13px"><span style="font-family:monospace">${esc(v)}${v===APP_VERSION?' ✓':''}</span><strong>${n}</strong></div>`).join('')}
+      </div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+        <div style="font-weight:700">Últimas tentativas reprovadas</div>
+        <button class="btn btn-sm" style="background:#EFF6FF;color:var(--blue)" onclick="bioLoadFalhas(true).then(()=>navigate('biometrico'))">🔄 Atualizar</button>
+      </div>
+      <div style="max-height:480px;overflow:auto">
+        ${items.slice(0,100).map(i=>`
+          <div style="padding:10px 18px;border-bottom:1px solid #F8FAFC;display:flex;gap:12px;align-items:center;font-size:12.5px">
+            <div style="width:14px;height:14px;border-radius:50%;background:#FEE2E2;color:#DC2626;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px">✗</div>
+            <div style="flex:1">
+              <div style="font-weight:700;color:#0F172A">${esc(BIO_FALHAS_MOTIVO_LABEL[i.motivo]||i.motivo||'desconhecido')}</div>
+              <div style="color:var(--mt)">${esc(i.empNome||'Não identificado')} ${i.cpf?'· '+esc(i.cpf):''} · ${esc(i.navegador||'?')}/${esc(i.so||'?')}${i.mobile?' 📱':' 🖥'}${i.appVersion?' · v'+esc(i.appVersion):''}</div>
+            </div>
+            <div style="color:#94A3B8;white-space:nowrap;font-family:monospace">${i.ts?new Date(Number(i.ts)).toLocaleString('pt-BR'):''}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+window.rBioFalhas=rBioFalhas;
+
+// Injeta a aba "🚨 Falhas Ponto" no mesmo padrão das outras patches de rBiometrico
+(function(){
+  const _prevRBiometrico=window.rBiometrico;
+  window.rBiometrico=function(){
+    if(typeof BIO_TAB!=='undefined' && BIO_TAB==='falhas'){
+      const bar=`<div style="display:flex;gap:6px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:14px;flex-wrap:wrap">
+        <button onclick="BIO_TAB='hoje';navigate('biometrico')" class="btn btn-sm" style="background:#F1F5F9;color:#475569">🏠 Hoje</button>
+        <button onclick="BIO_TAB='falhas';navigate('biometrico')" class="btn btn-sm" style="background:#0B1E35;color:#fff;font-weight:700">🚨 Falhas Ponto</button>
+        <button onclick="bioLoadFalhas(true).then(()=>navigate('biometrico'))" class="btn btn-sm" style="background:#EFF6FF;color:var(--blue);margin-left:auto">🔄 Atualizar</button>
+      </div>`;
+      return `<div>${bar}${rBioFalhas()}</div>`;
+    }
+    let html=_prevRBiometrico?_prevRBiometrico():'';
+    const _ativa=(typeof BIO_TAB!=='undefined' && BIO_TAB==='falhas');
+    const novaAba=`<button onclick="BIO_TAB='falhas';navigate('biometrico')" class="btn btn-sm" style="${_ativa?'background:#0B1E35;color:#fff':'background:#FEF2F2;color:#DC2626'};font-weight:700">🚨 Falhas Ponto</button>`;
+    html=html.replace(/(<button onclick="sincronizarTudo)/, novaAba+'$1');
+    return html;
+  };
+})();
+console.log('[Atlas] Painel de Falhas de Reconhecimento (observabilidade) carregado ✅');
 </script>
 
 </body>
