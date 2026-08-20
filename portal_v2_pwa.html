@@ -9517,6 +9517,12 @@ async function abrirBioPonto() {
           if (FACEAPI_READY) {
             bioShowMove(true);
             statusEl.innerHTML = `<span style="color:#34D399;font-weight:700">Identidade confirmada</span><br><span style="font-size:11px;color:#64748B">Mova levemente a cabeça</span>`;
+          } else if (EXIGIR_LIVENESS) {
+            // Prova de vida exigida pelo RH mas o motor local ainda esta
+            // carregando: NAO libera o ponto por tempo. Avisa o colaborador
+            // que a verificacao esta preparando.
+            bioShowMove(false);
+            statusEl.innerHTML = `<span style="color:#34D399;font-weight:700">Identidade confirmada</span><br><span style="font-size:11px;color:#64748B">Preparando prova de vida…</span>`;
           } else {
             bioShowMove(false);
             statusEl.innerHTML = `<span style="color:#34D399;font-weight:700">Identidade confirmada</span><br><span style="font-size:11px;color:#64748B">Finalizando registro…</span>`;
@@ -9524,15 +9530,26 @@ async function abrirBioPonto() {
           bioSetRing(0.85, '#10B981');
 
           if (elapsed2 > _liveWindow) {
-            if (FACEAPI_READY && EXIGIR_LIVENESS) {
-              // Face-api disponivel e prova de vida exigida: insiste no
-              // movimento em vez de liberar por tempo (senao uma foto passa).
-              statusEl.innerHTML = `<span style="color:#FCD34D;font-weight:700">Prova de vida pendente</span><br><span style="font-size:11px;color:#64748B">Mova levemente a cabeça para concluir</span>`;
-              bioShowMove(true);
+            if (EXIGIR_LIVENESS) {
+              // Prova de vida exigida pelo RH: NUNCA libera por tempo,
+              // independente do face-api ter carregado ou nao. Sem essa
+              // checagem, uma foto do colaborador conseguia bater o ponto
+              // toda vez que o face-api demorasse a carregar (celular
+              // lento, rede ruim, CDN bloqueada).
+              if (!FACEAPI_READY) {
+                // Face-api ainda nao carregou: aguarda em vez de negar
+                // (o timeout global BIO_TIMEOUT cortará se demorar demais).
+                statusEl.innerHTML = `<span style="color:#FCD34D;font-weight:700">Aguardando prova de vida</span><br><span style="font-size:11px;color:#64748B">Carregando verificação de movimento…</span>`;
+                bioShowMove(false);
+              } else {
+                statusEl.innerHTML = `<span style="color:#FCD34D;font-weight:700">Prova de vida pendente</span><br><span style="font-size:11px;color:#64748B">Mova levemente a cabeça para concluir</span>`;
+                bioShowMove(true);
+              }
               processando = false; return;
             }
-            // Prova de vida dispensada pelo RH, ou sem face-api para medir.
-            // Libera, mas registra honestamente que nao foi verificada.
+            // Somente quando o RH dispensou explicitamente a prova de
+            // vida para este colaborador: libera, mas registra
+            // honestamente que nao foi verificada.
             livOk = true;
             _livenessNaoVerificado = true;
           }
