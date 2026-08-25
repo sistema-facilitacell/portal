@@ -3677,6 +3677,44 @@ function gerarTokenAleatorio(){
   return Array.from(arr).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
+
+// URL da página de assinatura avulsa (deriva do PORTAL_URL para seguir o
+// mesmo domínio/pasta configurados, sem precisar de ajuste manual)
+const ATLAS_ASSINATURA_URL = (typeof PORTAL_URL!=='undefined' && PORTAL_URL)
+  ? PORTAL_URL.replace(/[^/]+$/, 'assinatura_doc.html')
+  : 'https://atlasrh.com.br/assinatura_doc.html';
+
+// Token de ASSINATURA DE UM DOCUMENTO — diferente do token do portal.
+// O token do portal abre a conta inteira (ponto, holerite, todos os
+// documentos) e para de funcionar quando o portal é bloqueado após o
+// desligamento. Este token abre SÓ aquele documento, numa página separada,
+// e continua valendo mesmo com o portal bloqueado — é isso que permite
+// mandar TRCT, carta, aviso e recibo para quem já foi desligado assinar.
+async function gerarTokenDocumento(empId, docId){
+  const emp = APP.employees.find(e=>e.id===empId);
+  if(!emp){ toast('Funcionário não encontrado','err'); return null; }
+  if(!FBASE){ toast('Firebase não conectado — impossível gerar link seguro','err'); return null; }
+
+  const token = gerarTokenAleatorio();
+  const agora = new Date();
+  const expira = new Date(agora.getTime() + 7*24*60*60*1000); // 7 dias — mais longo que o do portal, pois após a demissão a pessoa não tem pressa nem outro acesso
+
+  try{
+    await FBASE.collection('doc_tokens').doc(token).set({
+      token, docId, empId, empNome: emp.nome,
+      cpf: (emp.cpf||'').replace(/\D/g,''),
+      criadoEm: agora.toISOString(), expiresAt: expira.toISOString(),
+      ativo: true, usado: false, usadoEm: null, criadoPor:'rh'
+    });
+    console.log('[Token Documento] Gerado para', emp.nome, '— expira em', expira.toLocaleString('pt-BR'));
+    return { token, expira, emp };
+  }catch(e){
+    toast('Erro ao gerar link: '+e.message,'err');
+    console.error('[Token Documento]', e);
+    return null;
+  }
+}
+
 async function gerarTokenPortal(empId){
   const emp = APP.employees.find(e=>e.id===empId);
   if(!emp){ toast('Funcionário não encontrado','err'); return null; }
@@ -12701,7 +12739,7 @@ function rDemissao(){
   ${demitidos.map(e=>{const d=APP.demissoes[e.id];return `<div class="card" style="border-left:4px solid #DC2626;margin-bottom:12px">
     <div style="display:flex;align-items:center;gap:12px">
       ${av(e.nome,e.id,36)}
-      <div style="flex:1"><p style="margin:0 0 2px;font-weight:700;font-size:14px">${esc(e.nome)}</p><p style="margin:0;font-size:12px;color:var(--mt)">${esc(e.cargo)} — ${esc(e.departamento)}</p>${d?`<p style="margin:4px 0 0;font-size:12px;color:#DC2626">Motivo: ${esc(d.motivo)} · Saída: ${d.dataDemissao}</p>`:''}<p style="margin:3px 0 0;font-size:11px;color:${e.portalBloqueado?'#059669':'#D97706'}">🔒 Portal: ${e.portalBloqueado?'Bloqueado automaticamente':'Não bloqueado'}</p></div>
+      <div style="flex:1"><p style="margin:0 0 2px;font-weight:700;font-size:14px">${esc(e.nome)}</p><p style="margin:0;font-size:12px;color:var(--mt)">${esc(e.cargo)} — ${esc(e.departamento)}</p>${d?`<p style="margin:4px 0 0;font-size:12px;color:#DC2626">Motivo: ${esc(d.motivo||'—')} · Saída: ${d.dataDemissao?new Date(d.dataDemissao+'T00:00:00').toLocaleDateString('pt-BR'):'—'}</p>`:''}<p style="margin:3px 0 0;font-size:11px;color:${e.portalBloqueado?'#059669':'#D97706'}">🔒 Portal: ${e.portalBloqueado?'Bloqueado automaticamente':'Não bloqueado'}</p></div>
       <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
         ${bdg('Desligado','#DC2626')}
         <div style="display:flex;gap:4px">
@@ -39497,7 +39535,8 @@ function _assinRow(a){
       ${stBadge}
       <button class="btn btn-sm" style="background:#EFF6FF;color:#2563EB" onclick="assinVerDoc('${a.id}')">👁 Ver</button>
       ${a.status==='pendente'?`<button class="btn btn-sm btn-green" onclick="assinAssinar('${a.id}')">✍️ Assinar</button><button class="btn btn-sm btn-ghost" onclick="assinRecusar('${a.id}')">✗ Recusar</button>`:''}
-      <button class="btn btn-sm btn-ghost" onclick="assinBaixarPDF('${a.id}')">📄 PDF</button>
+      ${a.status==='assinado'?`<button class="btn btn-sm" style="background:#0B1E35;color:#C9A84C" onclick="atlasComprovanteAssinatura('${a.id}')" title="Comprovante com data, hora, assinatura e foto">📄 Comprovante</button>`:''}
+      <button class="btn btn-sm btn-ghost" onclick="assinBaixarPDF('${a.id}')">📄 PDF simples</button>
     </div>
   </div>`;
 }
@@ -55684,25 +55723,28 @@ async function _atlasGerarLinkGenerico(empId, meta){
   if(typeof FBASE==='undefined' || !FBASE){ toast('Conecte o Firebase para gerar links seguros.','err'); return; }
 
   openModal('🔐 Gerando link de assinatura...', `<div style="text-align:center;padding:32px">
-    <div style="font-size:36px;margin-bottom:12px">⏳</div><div>Preparando '+meta.tipoLabel+' e token seguro...</div></div>`, 480);
+    <div style="font-size:36px;margin-bottom:12px">⏳</div><div>Preparando ${meta.tipoLabel} e token seguro...</div></div>`, 480);
 
   const doc = await _atlasEnviarDocParaAssinatura(empId, meta);
   if(!doc){ closeModal(); return; }
 
-  const result = await gerarTokenPortal(empId);
+  // Token do DOCUMENTO, não do portal — continua válido mesmo com o
+  // acesso ao portal bloqueado (o caso normal após a demissão).
+  const result = await gerarTokenDocumento(empId, doc.id);
   if(!result){ closeModal(); return; }
-  const url = PORTAL_URL + '?tk=' + result.token;
+  const url = ATLAS_ASSINATURA_URL + '?tk=' + result.token;
   const expStr = result.expira.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
   const msg = encodeURIComponent(
     'Olá '+String(emp.nome).split(' ')[0]+'! '+meta.tipoLabel+' está disponível para assinatura digital.\n\n'+
-    'Acesse o link seguro abaixo e vá em "Assinaturas":\n'+url+'\n\nO link expira em '+expStr+'.'
+    'Acesse o link abaixo para ler e assinar (não precisa de login):\n'+url+'\n\nO link expira em '+expStr+'.'
   );
   const tel = (emp.telefone||'').replace(/\D/g,'');
   const wa = tel ? ('https://wa.me/55'+tel+'?text='+msg) : ('https://web.whatsapp.com/send?text='+msg);
 
   openModal((meta.icone||'📄')+' Link de assinatura — '+esc(emp.nome), `
     <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;color:#065F46">
-      ✅ ${esc(meta.tipoLabel)} enviado ao portal e disponível em <b>Assinaturas</b>. O link abaixo dá acesso direto, sem login.
+      ✅ Link avulso gerado — <b>não passa pelo portal do colaborador</b>, então funciona mesmo com o acesso bloqueado após o desligamento.
+      Abre direto numa página só para ler e assinar este documento.
     </div>
     <div class="fld">
       <label>Link seguro (expira em ${expStr})</label>
@@ -55712,7 +55754,7 @@ async function _atlasGerarLinkGenerico(empId, meta){
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
       <button class="btn btn-blue btn-sm" onclick="atlasCopiarLinkGenerico()">📋 Copiar link</button>
       <a class="btn btn-green btn-sm" href="${wa}" target="_blank" style="text-decoration:none">💬 Enviar no WhatsApp</a>
-      <a class="btn btn-ghost btn-sm" href="${url}" target="_blank" style="text-decoration:none">🔗 Abrir portal</a>
+      <a class="btn btn-ghost btn-sm" href="${url}" target="_blank" style="text-decoration:none">🔗 Abrir página de assinatura</a>
     </div>
     <div class="mft"><button class="btn btn-ghost" onclick="closeModal();navigate('assinatura_digital')">Ver em Assinaturas</button></div>
   `, 620);
