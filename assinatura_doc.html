@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Assinatura de Documento — Atlas RH</title>
+<link rel="icon" href="data:,">
+<script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --navy:#0B1E35; --navy-2:#152F4D; --gold:#C9A84C; --gold-soft:#C9A84C22;
+    --ink:#1a1a1a; --mut:#64748B; --line:#E2E8F0; --bg:#F6F5F1;
+    --ok:#059669; --ok-bg:#F0FDF4; --ok-bd:#BBF7D0;
+    --err:#DC2626; --err-bg:#FEF2F2; --err-bd:#FECACA;
+    --warn:#92400E; --warn-bg:#FFFBEB; --warn-bd:#FDE68A;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+    background:var(--bg); color:var(--ink); min-height:100vh;
+    display:flex; flex-direction:column;
+  }
+  .topo{
+    background:linear-gradient(135deg,var(--navy),var(--navy-2));
+    padding:18px 20px; display:flex; align-items:center; gap:12px;
+    position:sticky; top:0; z-index:5; box-shadow:0 2px 10px rgba(0,0,0,.15);
+  }
+  .topo .marca{font-weight:800; font-size:17px; color:#fff; letter-spacing:.02em}
+  .topo .marca b{color:var(--gold)}
+  .topo .sub{font-size:11px; color:var(--gold); opacity:.85; margin-top:1px}
+  .miolo{flex:1; max-width:640px; width:100%; margin:0 auto; padding:20px 16px 40px}
+  .card{background:#fff; border:1px solid var(--line); border-radius:14px; padding:20px; margin-bottom:16px}
+  .center{display:flex; flex-direction:column; align-items:center; text-align:center; padding:60px 20px}
+  .spin{width:38px; height:38px; border:3px solid var(--line); border-top-color:var(--navy); border-radius:50%; animation:sp .8s linear infinite; margin-bottom:16px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  h1{font-size:16px; margin:0 0 4px; color:var(--navy)}
+  .doc-sub{font-size:12px; color:var(--mut); margin-bottom:2px}
+  .banner{border-radius:11px; padding:12px 14px; font-size:12.5px; line-height:1.6; margin-bottom:14px}
+  .banner.ok{background:var(--ok-bg); border:1px solid var(--ok-bd); color:#166534}
+  .banner.err{background:var(--err-bg); border:1px solid var(--err-bd); color:#991B1B}
+  .banner.warn{background:var(--warn-bg); border:1px solid var(--warn-bd); color:var(--warn)}
+  .reader{
+    background:#FBFAF6; border:1px solid #E7E2D6; border-radius:11px; padding:16px;
+    font-size:13.5px; line-height:1.75; white-space:pre-wrap; max-height:48vh; overflow-y:auto;
+    -webkit-overflow-scrolling:touch; margin-bottom:8px;
+  }
+  .fim-leitura{text-align:center; padding:10px 0 2px; font-size:11.5px; color:#94A3B8}
+  .fim-leitura.lido{color:var(--ok); font-weight:700}
+  .rot{font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--navy); margin:16px 0 8px}
+  .rot:first-child{margin-top:0}
+  canvas-wrap{display:block}
+  .sig-box{position:relative; border:2px dashed #CBD5E1; border-radius:12px; background:#F8FAFC; overflow:hidden; touch-action:none}
+  #sigCanvas{display:block; width:100%; height:140px; cursor:crosshair; touch-action:none}
+  .sig-ph{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:6px; pointer-events:none; color:#CBD5E1; font-size:13px}
+  .row{display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap}
+  .status-txt{font-size:11.5px; color:var(--mut)}
+  .selfie-shell{border:2px dashed #CBD5E1; border-radius:12px; overflow:hidden; background:var(--navy); position:relative; min-height:220px; display:flex; align-items:center; justify-content:center}
+  video, .selfie-shell img{width:100%; display:block; max-height:280px; object-fit:cover}
+  .btn{
+    border:none; border-radius:10px; padding:12px 16px; font-size:13.5px; font-weight:700;
+    cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .btn-primary{background:linear-gradient(135deg,var(--navy),var(--navy-2)); color:var(--gold); flex:1}
+  .btn-ghost{background:#F1F5F9; color:#475569}
+  .btn-green{background:linear-gradient(135deg,#059669,#047857); color:#fff}
+  .btn-block{width:100%}
+  .btn:disabled{opacity:.5; cursor:not-allowed}
+  .step-dots{display:flex; gap:6px; justify-content:center; margin-bottom:16px}
+  .dot{width:7px; height:7px; border-radius:50%; background:var(--line)}
+  .dot.on{background:var(--gold)}
+  .foot{font-size:10.5px; color:#94A3B8; line-height:1.6; text-align:center; padding:18px 20px 28px}
+  .assinado-nome{font-weight:800; font-size:15px; color:var(--navy); margin-top:2px}
+  .hash{font-family:'Courier New',monospace; font-size:9.5px; word-break:break-all; color:#94A3B8}
+</style>
+</head>
+<body>
+
+<div class="topo">
+  <div>
+    <div class="marca">ATLAS <b>RH</b></div>
+    <div class="sub">Assinatura de documento</div>
+  </div>
+</div>
+
+<div class="miolo" id="app">
+  <div class="center">
+    <div class="spin"></div>
+    <div style="font-size:13px;color:var(--mut)">Abrindo documento...</div>
+  </div>
+</div>
+
+<div class="foot">
+  Página independente do Portal do Colaborador — continua funcionando mesmo após o acesso ao
+  portal ser encerrado. Assinatura eletrônica com validade jurídica nos termos da
+  MP nº 2.200-2/2001 e da Lei nº 14.063/2020.
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  var FIREBASE_CFG = {
+    apiKey: 'AIzaSyAucORaywW7Dl-v1PB-lMtEA-5tl_uCqug',
+    projectId: 'rh-facilitacell',
+    storageBucket: 'rh-facilitacell.firebasestorage.app',
+    messagingSenderId: '98798741381',
+    appId: '1:98798741381:web:f441b922d1c968880a46ec',
+    authDomain: 'rh-facilitacell.firebaseapp.com'
+  };
+
+  var DB = null;
+  var STATE = { token:null, tokenInfo:null, doc:null, empId:null };
+  var LEITURA = { abertoEm:null, segundos:0, ateOFim:false };
+  var SIG = { ctx:null, hasData:false };
+  var SELFIE_STREAM = null, SELFIE_PNG = null;
+
+  function esc(s){
+    return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function qs(id){ return document.getElementById(id); }
+  function app(){ return qs('app'); }
+
+  function render(html){ app().innerHTML = html; }
+
+  function renderCentro(spin, texto, sub){
+    render(
+      '<div class="center">' +
+        (spin ? '<div class="spin"></div>' : '') +
+        '<div style="font-size:14px;font-weight:700;color:var(--navy);margin-bottom:6px">' + esc(texto) + '</div>' +
+        (sub ? '<div style="font-size:12.5px;color:var(--mut);max-width:340px">' + esc(sub) + '</div>' : '') +
+      '</div>'
+    );
+  }
+
+  function renderErro(titulo, msg){
+    render(
+      '<div class="card">' +
+        '<div class="banner err"><b>' + esc(titulo) + '</b><br>' + esc(msg) + '</div>' +
+      '</div>'
+    );
+  }
+
+  // ── Firebase ──────────────────────────────────────────────────────────
+  function initFirebase(){
+    return new Promise(function(resolve, reject){
+      var tries = 0;
+      (function tick(){
+        tries++;
+        if (typeof firebase !== 'undefined') {
+          try{
+            var app_ = firebase.apps && firebase.apps.length ? firebase.apps[0] : firebase.initializeApp(FIREBASE_CFG);
+            DB = firebase.firestore(app_);
+            resolve(DB);
+          }catch(e){ reject(e); }
+          return;
+        }
+        if (tries > 60) { reject(new Error('Não foi possível carregar o Firebase.')); return; }
+        setTimeout(tick, 100);
+      })();
+    });
+  }
+
+  // ── Token e documento ─────────────────────────────────────────────────
+  function getTokenFromUrl(){
+    var m = window.location.search.match(/[?&]tk=([^&]+)/);
+    return m ? decodeURIComponent(m[1]) : null;
+  }
+
+  function carregarDocumento(){
+    var token = getTokenFromUrl();
+    if (!token) {
+      renderErro('Link inválido', 'Este link não contém um código de acesso. Peça ao RH para reenviar o link de assinatura.');
+      return;
+    }
+    STATE.token = token;
+
+    initFirebase().then(function(){
+      return DB.collection('doc_tokens').doc(token).get();
+    }).then(function(snap){
+      if (!snap.exists) {
+        renderErro('Link não encontrado', 'Este link pode já ter sido substituído por um mais recente. Peça ao RH para gerar um novo.');
+        return null;
+      }
+      var info = snap.data();
+      STATE.tokenInfo = info;
+      var expira = new Date(info.expiresAt);
+      if (info.ativo === false) {
+        renderErro('Link substituído', 'Um link mais novo foi gerado para este documento. Peça ao RH o link atual.');
+        return null;
+      }
+      if (isNaN(expira) || expira < new Date()) {
+        renderErro('Link expirado', 'Este link expirou em ' + expira.toLocaleString('pt-BR') + '. Peça ao RH para gerar um novo.');
+        return null;
+      }
+      STATE.empId = info.empId;
+      return DB.collection('hr').doc('assinaturas').get();
+    }).then(function(snap){
+      if (!snap) return; // já tratado (erro) acima
+      var all = [];
+      try{ all = snap.exists ? JSON.parse(snap.data().d || '[]') : []; }catch(e){ all = []; }
+      var doc = all.find(function(d){ return d && d.id === STATE.tokenInfo.docId; });
+      if (!doc) {
+        renderErro('Documento não encontrado', 'O documento associado a este link não existe mais. Peça ao RH para reenviar.');
+        return;
+      }
+      STATE.doc = doc;
+      if (doc.status === 'assinado') {
+        renderJaAssinado(doc);
+      } else {
+        renderLeitura(doc);
+      }
+    }).catch(function(e){
+      console.error(e);
+      renderErro('Erro de conexão', e && e.message ? e.message : 'Não foi possível carregar o documento. Verifique sua internet e tente novamente.');
+    });
+  }
+
+  // ── Tela: já assinado ─────────────────────────────────────────────────
+  function renderJaAssinado(doc){
+    var quando = '';
+    try{
+      var iso = doc.assinadoEm || doc.assinaturaData;
+      if (iso) quando = new Date(iso).toLocaleString('pt-BR', {dateStyle:'long', timeStyle:'short'});
+    }catch(e){}
+    render(
+      '<div class="card">' +
+        '<div class="banner ok">✅ <b>Este documento já foi assinado</b>' + (quando ? ('<br>em ' + esc(quando)) : '') + '</div>' +
+        '<div class="doc-sub" style="margin-bottom:10px">' + esc(doc.tipoLabel || doc.titulo || 'Documento') + '</div>' +
+        (doc.assinaturaPNG ? '<div style="text-align:center;margin-bottom:8px"><img src="' + doc.assinaturaPNG + '" style="max-height:70px;max-width:260px;object-fit:contain"></div>' : '') +
+        '<div style="font-size:11.5px;color:var(--mut);text-align:center">Não é necessário fazer mais nada.</div>' +
+      '</div>'
+    );
+  }
+
+  // ── Tela: leitura do documento ────────────────────────────────────────
+  function renderLeitura(doc){
+    LEITURA.abertoEm = Date.now();
+    render(
+      '<div class="step-dots"><div class="dot on"></div><div class="dot"></div><div class="dot"></div></div>' +
+      '<div class="card">' +
+        '<h1>' + esc(doc.tipoLabel || 'Documento') + '</h1>' +
+        '<div class="doc-sub">' + esc(doc.titulo || '') + '</div>' +
+        '<div class="banner warn" style="margin-top:12px">Leia o documento até o fim antes de assinar.</div>' +
+        '<div class="reader" id="reader">' + esc(doc.conteudo || 'Documento sem conteúdo.') + '</div>' +
+        '<div class="fim-leitura" id="fimLeitura">— role até o fim para continuar —</div>' +
+      '</div>' +
+      '<button class="btn btn-primary btn-block" id="btnContinuar" disabled>Continuar para assinatura</button>'
+    );
+
+    var reader = qs('reader'), fim = qs('fimLeitura'), btn = qs('btnContinuar');
+
+    function marcarLido(){
+      if (LEITURA.ateOFim) return;
+      LEITURA.ateOFim = true;
+      fim.textContent = '✅ Você leu o documento até o fim';
+      fim.className = 'fim-leitura lido';
+      btn.disabled = false;
+    }
+
+    // Documento curto que já cabe na tela conta como lido
+    setTimeout(function(){
+      if (reader.scrollHeight <= reader.clientHeight + 8) marcarLido();
+    }, 150);
+
+    reader.addEventListener('scroll', function(){
+      if (reader.scrollTop + reader.clientHeight >= reader.scrollHeight - 30) marcarLido();
+    });
+
+    btn.addEventListener('click', function(){
+      LEITURA.segundos += Math.round((Date.now() - LEITURA.abertoEm) / 1000);
+      renderAssinatura(doc);
+    });
+  }
+
+  // ── Tela: canvas de assinatura ────────────────────────────────────────
+  function renderAssinatura(doc){
+    render(
+      '<div class="step-dots"><div class="dot on"></div><div class="dot on"></div><div class="dot"></div></div>' +
+      '<div class="card">' +
+        '<h1>Assine com o dedo ou o mouse</h1>' +
+        '<div class="doc-sub" style="margin-bottom:12px">' + esc(doc.tipoLabel || 'Documento') + '</div>' +
+        '<div class="sig-box">' +
+          '<canvas id="sigCanvas"></canvas>' +
+          '<div class="sig-ph" id="sigPh">✍️ Assine aqui</div>' +
+        '</div>' +
+        '<div class="row">' +
+          '<button class="btn btn-ghost" id="btnLimpar" type="button">🗑 Limpar</button>' +
+          '<span class="status-txt" id="sigStatus"></span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="row">' +
+        '<button class="btn btn-ghost" id="btnVoltar" style="flex:1">Voltar</button>' +
+        '<button class="btn btn-primary" id="btnProximo" style="flex:2" disabled>Continuar</button>' +
+      '</div>'
+    );
+
+    var canvas = qs('sigCanvas'), ph = qs('sigPh'), st = qs('sigStatus');
+    canvas.width = canvas.offsetWidth || 520;
+    canvas.height = 140;
+    var ctx = canvas.getContext('2d');
+    ctx.strokeStyle = '#0B1E35'; ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    var drawing = false;
+    SIG.hasData = false;
+
+    function pos(e){
+      var r = canvas.getBoundingClientRect();
+      var sx = canvas.width / r.width, sy = canvas.height / r.height;
+      var s = e.touches ? e.touches[0] : e;
+      return { x: (s.clientX - r.left) * sx, y: (s.clientY - r.top) * sy };
+    }
+    function start(e){ e.preventDefault(); drawing = true; var p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); ph.style.display = 'none'; }
+    function move(e){ if (!drawing) return; e.preventDefault(); var p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); SIG.hasData = true; st.textContent = '✏️ Assinando...'; qs('btnProximo').disabled = false; }
+    function end(){ drawing = false; if (SIG.hasData) st.textContent = '✅ Assinatura registrada'; }
+
+    canvas.addEventListener('mousedown', start);
+    canvas.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', end);
+    canvas.addEventListener('touchstart', start, {passive:false});
+    canvas.addEventListener('touchmove', move, {passive:false});
+    canvas.addEventListener('touchend', end);
+
+    qs('btnLimpar').addEventListener('click', function(){
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      SIG.hasData = false; ph.style.display = 'flex'; st.textContent = '';
+      qs('btnProximo').disabled = true;
+    });
+    qs('btnVoltar').addEventListener('click', function(){ renderLeitura(doc); });
+    qs('btnProximo').addEventListener('click', function(){
+      SIG.pngDataUrl = canvas.toDataURL('image/png');
+      renderSelfie(doc);
+    });
+  }
+
+  // ── Tela: selfie com carimbo de data/hora ──────────────────────────────
+  function pararCamera(){
+    try{ if (SELFIE_STREAM) { SELFIE_STREAM.getTracks().forEach(function(t){ t.stop(); }); SELFIE_STREAM = null; } }catch(e){}
+  }
+
+  function renderSelfie(doc){
+    SELFIE_PNG = null;
+    render(
+      '<div class="step-dots"><div class="dot on"></div><div class="dot on"></div><div class="dot on"></div></div>' +
+      '<div class="card">' +
+        '<h1>Foto de confirmação</h1>' +
+        '<div class="doc-sub" style="margin-bottom:12px">Uma foto do seu rosto, com data e hora, confirma que foi você quem assinou.</div>' +
+        '<div class="selfie-shell">' +
+          '<video id="selfieVideo" autoplay playsinline muted></video>' +
+          '<canvas id="selfieCanvas" style="display:none"></canvas>' +
+          '<img id="selfiePreview" style="display:none">' +
+        '</div>' +
+        '<div class="status-txt" id="selfieStatus" style="margin-top:8px;text-align:center">Iniciando câmera...</div>' +
+      '</div>' +
+      '<div class="row">' +
+        '<button class="btn btn-ghost" id="btnVoltar2" style="flex:1">Voltar</button>' +
+        '<button class="btn btn-primary" id="btnTirar" style="flex:2">📸 Tirar foto</button>' +
+        '<button class="btn btn-green" id="btnConcluir" style="flex:2;display:none">✅ Concluir assinatura</button>' +
+      '</div>'
+    );
+
+    var status = qs('selfieStatus');
+    navigator.mediaDevices && navigator.mediaDevices.getUserMedia ?
+      navigator.mediaDevices.getUserMedia({ video: { facingMode:'user', width:{ideal:640} }, audio:false })
+        .then(function(stream){
+          SELFIE_STREAM = stream;
+          qs('selfieVideo').srcObject = stream;
+          status.textContent = 'Enquadre o rosto e toque em "Tirar foto".';
+        })
+        .catch(function(err){
+          status.textContent = 'Não foi possível acessar a câmera (' + (err.message||'permissão negada') + ').';
+          qs('btnTirar').style.display = 'none';
+          qs('btnConcluir').style.display = 'inline-flex';
+          qs('btnConcluir').textContent = '✅ Concluir sem foto';
+        })
+      : (function(){
+          status.textContent = 'Este navegador não permite acesso à câmera.';
+          qs('btnTirar').style.display = 'none';
+          qs('btnConcluir').style.display = 'inline-flex';
+          qs('btnConcluir').textContent = '✅ Concluir sem foto';
+        })();
+
+    qs('btnVoltar2').addEventListener('click', function(){ pararCamera(); renderAssinatura(doc); });
+
+    qs('btnTirar').addEventListener('click', function(){
+      var v = qs('selfieVideo'), c = qs('selfieCanvas');
+      if (!v.videoWidth) { return; }
+      c.width = v.videoWidth; c.height = v.videoHeight;
+      var ctx = c.getContext('2d');
+      ctx.drawImage(v, 0, 0, c.width, c.height);
+
+      var agora = new Date();
+      var carimbo = agora.toLocaleString('pt-BR', {dateStyle:'short', timeStyle:'medium'});
+      var nome = (STATE.tokenInfo && STATE.tokenInfo.empNome) || '';
+      var fh = Math.max(16, Math.round(c.width * 0.038));
+      ctx.font = '700 ' + fh + 'px Arial, sans-serif';
+      ctx.textBaseline = 'bottom';
+      var alturaBarra = fh * 2.6;
+      ctx.fillStyle = 'rgba(11,30,53,.78)';
+      ctx.fillRect(0, c.height - alturaBarra, c.width, alturaBarra);
+      ctx.fillStyle = '#C9A84C';
+      ctx.fillText(carimbo, 12, c.height - fh - 6);
+      ctx.fillStyle = '#fff';
+      ctx.font = '600 ' + Math.round(fh * 0.8) + 'px Arial, sans-serif';
+      ctx.fillText(nome, 12, c.height - 8);
+
+      SELFIE_PNG = c.toDataURL('image/jpeg', 0.75);
+      var prev = qs('selfiePreview');
+      prev.src = SELFIE_PNG; prev.style.display = 'block';
+      v.style.display = 'none';
+      pararCamera();
+      status.textContent = '✅ Foto capturada em ' + carimbo;
+      qs('btnTirar').textContent = '🔄 Refazer';
+      qs('btnTirar').onclick = function(){ renderSelfie(doc); };
+      qs('btnConcluir').style.display = 'inline-flex';
+    });
+
+    qs('btnConcluir').addEventListener('click', function(){
+      qs('btnConcluir').disabled = true;
+      qs('btnConcluir').textContent = '⏳ Salvando...';
+      pararCamera();
+      salvarAssinatura(doc);
+    });
+  }
+
+  // ── Grava a assinatura no Firestore — mesmos campos que o portal usa ───
+  function salvarAssinatura(doc){
+    renderCentro(true, 'Salvando sua assinatura...', 'Não feche esta página.');
+
+    DB.collection('hr').doc('assinaturas').get().then(function(snap){
+      var all = [];
+      try{ all = snap.exists ? JSON.parse(snap.data().d || '[]') : []; }catch(e){ all = []; }
+      var idx = all.findIndex(function(d){ return d && d.id === doc.id; });
+      if (idx < 0) throw new Error('Documento não encontrado ao salvar.');
+
+      var agora = new Date();
+      all[idx].status = 'assinado';
+      all[idx].assinaturaData = agora.toISOString();
+      all[idx].assinadoEm = agora.toISOString();
+      all[idx].assinadoEm_br = agora.toLocaleString('pt-BR', {dateStyle:'full', timeStyle:'medium'});
+      if (SIG.pngDataUrl) all[idx].assinaturaPNG = SIG.pngDataUrl;
+      if (SELFIE_PNG) {
+        all[idx].assinaturaSelfie = SELFIE_PNG;
+        all[idx].fotoRosto = SELFIE_PNG;
+        all[idx].assinaturaSelfieTs = agora.toISOString();
+      }
+      all[idx].metodoAssinatura = SELFIE_PNG ? 'canvas_selfie_link_avulso' : (SIG.pngDataUrl ? 'canvas_link_avulso' : 'eletronico_simples_link_avulso');
+      all[idx].leituraSegundos = LEITURA.segundos;
+      all[idx].leituraAteOFim = LEITURA.ateOFim;
+      if (!all[idx].historicoStatus) all[idx].historicoStatus = [];
+      all[idx].historicoStatus.push({ status:'assinado', ts: agora.toISOString(), origem:'link_avulso_pos_desligamento' });
+
+      return DB.collection('hr').doc('assinaturas').set({ d: JSON.stringify(all), ts: Date.now(), k:'assinaturas' })
+        .then(function(){
+          // Marca o token como usado (não invalida — permite reabrir para conferir)
+          return DB.collection('doc_tokens').doc(STATE.token).update({ usado:true, usadoEm: agora.toISOString() }).catch(function(){});
+        });
+    }).then(function(){
+      renderSucesso(doc);
+    }).catch(function(e){
+      console.error(e);
+      render(
+        '<div class="card">' +
+          '<div class="banner err"><b>Não foi possível salvar</b><br>' + esc(e.message||'Verifique sua internet e tente novamente.') + '</div>' +
+        '</div>' +
+        '<button class="btn btn-primary btn-block" onclick="location.reload()">Tentar novamente</button>'
+      );
+    });
+  }
+
+  function renderSucesso(doc){
+    render(
+      '<div class="card" style="text-align:center">' +
+        '<div style="font-size:44px;margin-bottom:6px">✅</div>' +
+        '<h1>Assinatura concluída</h1>' +
+        '<div class="doc-sub" style="margin-bottom:14px">' + esc(doc.tipoLabel || doc.titulo || 'Documento') + '</div>' +
+        '<div class="banner ok">Recebemos sua assinatura, com foto e horário registrados. Não é necessário fazer mais nada.</div>' +
+      '</div>'
+    );
+  }
+
+  window.addEventListener('DOMContentLoaded', carregarDocumento);
+  if (document.readyState !== 'loading') carregarDocumento();
+})();
+</script>
+</body>
+</html>
