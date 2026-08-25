@@ -2227,6 +2227,30 @@ async function fbSave(k){
 
     let payload={d:JSON.stringify(APP[k]),ts:Date.now(),k,dev:_FB_DEVICE_ID};
 
+    // ── PROTEÇÃO CONTRA GRAVAÇÃO VAZIA POR CIMA DE DADO REAL ────────────
+    // Um array/objeto vazio sendo salvo quase sempre significa que os dados
+    // ainda não tinham terminado de carregar da nuvem quando algo disparou
+    // o save (ex.: fechar a aba antes do Firebase concluir a leitura
+    // inicial, ou o flushSavesPendentes() do beforeunload). Sem checar
+    // isso, esse salvamento vazio sobrescreve o que já existia — foi assim
+    // que um lançamento de adiantamento real quase virou "adiantamentos: 0KB".
+    const _payloadVazio = (Array.isArray(APP[k]) && APP[k].length===0) ||
+      (APP[k] && typeof APP[k]==='object' && !Array.isArray(APP[k]) && Object.keys(APP[k]).length===0);
+    if(_payloadVazio){
+      try{
+        const _atualVazio = await FBASE.collection('hr').doc(k).get();
+        const _dadosNuvemVazio = (_atualVazio.exists && _atualVazio.data()) || null;
+        const _dNuvem = _dadosNuvemVazio && _dadosNuvemVazio.d;
+        if(_dNuvem && _dNuvem!=='[]' && _dNuvem!=='{}'){
+          console.warn('[fbSave] BLOQUEADO: "'+k+'" está vazio neste dispositivo, mas a nuvem tem dados. Gravação recusada para não apagar o que já existe.');
+          FB_SAVE_RUNNING[k]=false;
+          FB_SAVING=false; _fbSavingSet(false); updateFbUI();
+          toast('⚠️ Gravação de "'+k+'" bloqueada — dados locais vazios, mas a nuvem tem informação. Recarregue a página antes de continuar mexendo nisso.','err',9000);
+          return;
+        }
+      }catch(_e){ /* falha na checagem não deve travar indefinidamente — segue com o save */ }
+    }
+
     // FIX-SIZE: verifica tamanho antes de salvar (limite Firestore = 1MB por documento)
     // APP.pontos e APP.bancohoras crescem indefinidamente com meses/funcionarios
     const _sizeBytes=new Blob([payload.d]).size;
