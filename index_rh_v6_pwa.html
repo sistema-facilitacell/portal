@@ -39430,6 +39430,9 @@ window.rAssinaturaDigital = function(){
       <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3)" onclick="atlasAtualizarAssinaturas()" title="Busca o status mais recente no servidor">
         🔄 Verificar Agora
       </button>
+      <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3)" onclick="atlasLimparAssinaturasDuplicadas()" title="Junta documentos duplicados do mesmo tipo/colaborador numa linha só">
+        🧹 Limpar Duplicados
+      </button>
       <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3)" onclick="assinEnviarLote()">
         📤 Solicitar Assinaturas
       </button>
@@ -56162,6 +56165,70 @@ window.atlasGerarLinkParaPendente = async function(docId){
     </div>
     <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>
   `, 620);
+};
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  LIMPAR DUPLICADOS — antes do dedup no envio, cada clique em "Gerar link"
+//  criava um documento novo. Quem clicou várias vezes para o mesmo tipo de
+//  documento e o mesmo colaborador ficou com várias linhas pendentes — e o
+//  colaborador só assinou UMA delas (a que recebeu por último). As outras
+//  continuam "pendente" para sempre, dando a impressão de que nada foi
+//  registrado, quando na verdade uma das cópias já foi assinada.
+// ═══════════════════════════════════════════════════════════════════════════
+window.atlasLimparAssinaturasDuplicadas = async function(){
+  if(typeof FBASE==='undefined' || !FBASE){ toast('Firebase não conectado.','err'); return; }
+  const ok = confirm(
+    'Isso agrupa por colaborador + tipo de documento e mantém apenas UM registro por grupo: '+
+    'o assinado, se houver, ou o mais recente pendente. Os demais são removidos.\n\n'+
+    'Um backup é gravado antes. Continuar?'
+  );
+  if(!ok) return;
+
+  try{
+    if(typeof atlasBackupAntes==='function') atlasBackupAntes('limpar assinaturas duplicadas');
+
+    const snap = await FBASE.collection('hr').doc('assinaturas').get();
+    let all = snap.exists ? JSON.parse(snap.data().d||'[]') : [];
+
+    const grupos = {};
+    all.forEach(a=>{
+      if(!a || !a.empId || !a.tipo) return;
+      const k = a.empId+'|'+a.tipo;
+      (grupos[k] = grupos[k]||[]).push(a);
+    });
+
+    const manterIds = new Set();
+    let removidos = 0;
+    Object.keys(grupos).forEach(k=>{
+      const lista = grupos[k];
+      if(lista.length<=1){ manterIds.add(lista[0].id); return; }
+      const assinado = lista.find(a=>a.status==='assinado');
+      let escolhido;
+      if(assinado){
+        escolhido = assinado;
+      } else {
+        const pend = lista.filter(a=>a.status==='pendente')
+          .sort((a,b)=> String(b.criadoEm||'').localeCompare(String(a.criadoEm||'')));
+        escolhido = pend[0] || lista[0];
+      }
+      manterIds.add(escolhido.id);
+      removidos += (lista.length - 1);
+    });
+
+    const filtrada = all.filter(a=>a && manterIds.has(a.id));
+    await FBASE.collection('hr').doc('assinaturas').set({d:JSON.stringify(filtrada), ts:Date.now(), k:'assinaturas'});
+    APP.assinaturas = filtrada;
+
+    try{ if(typeof auditLog==='function') auditLog('Removeu '+removidos+' assinatura(s) duplicada(s)', '', 'assinaturas'); }catch(e){}
+    toast(removidos>0
+      ? ('🧹 '+removidos+' duplicado(s) removido(s). Cada documento agora tem uma única linha.')
+      : 'Nenhum duplicado encontrado — a lista já estava limpa.', 'ok', 6000);
+    if(typeof navigate==='function') navigate('assinatura_digital');
+  }catch(e){
+    toast('Erro ao limpar duplicados: '+e.message, 'err');
+    console.error('[limpar duplicados]', e);
+  }
 };
 
 (function _atlasInjectButtons(){
