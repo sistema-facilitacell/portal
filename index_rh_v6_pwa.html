@@ -10245,6 +10245,8 @@ function executarCalcRescisao(){
       <div style="text-align:right;margin-top:12px">
         <button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8" onclick="imprimirRescisao()">🖨 Demonstrativo</button>
         <button class="btn btn-sm" style="background:#1E293B;color:#C9A84C;font-weight:700" onclick="gerarTRCT()">📄 Gerar TRCT</button>
+        <button class="btn btn-sm btn-ghost" onclick="atlasEnviarTRCT()" title="Enviar o TRCT para assinatura no portal">✍️ Assinar TRCT</button>
+        <button class="btn btn-sm btn-ghost" onclick="atlasLinkTRCT()" title="Gerar link do TRCT para assinatura">🔗 Link TRCT</button>
         <button class="btn btn-sm" style="background:#7C2D12;color:#FDE68A;font-weight:700" onclick="atlasModalReciboQuitacao()">📜 Recibo de Quitação</button>
         <button class="btn btn-sm btn-ghost" onclick="atlasModalNaoProrrogacao(document.getElementById('rsc-emp')?.value)" title="Comunicado de não prorrogação do contrato de experiência">📨 Comunicado de Não Prorrogação</button>
       </div>
@@ -12275,11 +12277,16 @@ function gerarTRCT(){
   const emp=r.emp||{};
   const cfg=(typeof EMPRESA_CFG!=='undefined')?EMPRESA_CFG:{};
 
-  // Separa o que entra no termo do que é recolhido à parte
-  const verbasTRCT=r.verbas.filter(v=>!v.foraTRCT);
-  const foraTRCT=r.verbas.filter(v=>v.foraTRCT);
+  // Usa a MESMA base de dados do Recibo de Quitação — se uma verba foi
+  // ajustada lá (meta a pagar, dias extras, valor em aberto), o TRCT sai
+  // igual, em vez de voltar aos números originais do cálculo bruto.
+  const _rd = (typeof _atlasReciboDados==='function') ? _atlasReciboDados(r) : null;
+  const verbasTRCT = _rd ? _rd.verbasTRCT.map(v=>({desc:v.desc, valor:v.valor})) : r.verbas.filter(v=>!v.foraTRCT);
+  const foraTRCT = _rd ? _rd.foraTRCT.map(v=>({desc:v.desc, valor:v.valor})) : r.verbas.filter(v=>v.foraTRCT);
+  const descontosTRCT = _rd ? _rd.descontosList.map(v=>({desc:v.desc, valor:v.valor})) : (r.descontos||[]);
+  const totalDescontosTRCT = _rd ? _rd.totalDescontos : r.totalDescontos;
   const brutoTRCT=+verbasTRCT.reduce((s,v)=>s+v.valor,0).toFixed(2);
-  const liquidoTRCT=+(brutoTRCT-r.totalDescontos).toFixed(2);
+  const liquidoTRCT=+(brutoTRCT-totalDescontosTRCT).toFixed(2);
 
   const campo=(n,rot,val)=>`<td style="border:1px solid #000;padding:2px 4px;vertical-align:top">
       <div style="font-size:7px;color:#333">${n?n+' ':''}${rot}</div>
@@ -12296,7 +12303,7 @@ function gerarTRCT(){
   let linhasVerba='';
   for(let i=0;i<celulasVerba.length;i+=3) linhasVerba+='<tr>'+celulasVerba.slice(i,i+3).join('')+'</tr>';
 
-  const celulasDesc=r.descontos.map(d=>{
+  const celulasDesc=descontosTRCT.map(d=>{
     const rb=_trctRubricaDesc(d.desc);
     return `<td style="border:1px solid #000;padding:2px 4px">
       <div style="font-size:7.5px">${rb.cod?'<strong>'+rb.cod+'</strong> ':''}${esc(rb.nome)}</div>
@@ -12358,7 +12365,7 @@ function gerarTRCT(){
     <div class="secao">DEDUÇÕES</div>
     <table>${linhasDesc}
       <tr class="tot"><td colspan="2" style="border:1px solid #000;padding:4px 6px;font-weight:bold;font-size:10px">TOTAL DEDUÇÕES</td>
-        <td style="border:1px solid #000;padding:4px 6px;text-align:right;font-weight:bold;font-size:11px">${_trctVal(r.totalDescontos)}</td></tr>
+        <td style="border:1px solid #000;padding:4px 6px;text-align:right;font-weight:bold;font-size:11px">${_trctVal(totalDescontosTRCT)}</td></tr>
       <tr class="tot"><td colspan="2" style="border:1px solid #000;padding:5px 6px;font-weight:bold;font-size:11px">VALOR LÍQUIDO</td>
         <td style="border:1px solid #000;padding:5px 6px;text-align:right;font-weight:bold;font-size:13px">${_trctVal(liquidoTRCT)}</td></tr>
     </table>
@@ -12497,8 +12504,10 @@ function abrirAvisoPrevio(empIdPre){
       </div>
     </div>
     <div id="ap-preview" style="margin-top:10px"></div>
-    <div class="mft">
+    <div class="mft" style="gap:8px;flex-wrap:wrap">
       <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+      <button class="btn btn-sm" style="background:#0B1E35;color:#C9A84C;border:none;font-weight:700" onclick="atlasEnviarAvisoPrevio()">✍️ Enviar p/ assinar</button>
+      <button class="btn btn-green btn-sm" onclick="atlasLinkAvisoPrevio()">🔗 Gerar link</button>
       <button class="btn btn-blue" onclick="gerarAvisoPrevio()">📄 Gerar aviso</button>
     </div>`,600);
   setTimeout(previewAvisoPrevio,60);
@@ -12695,7 +12704,11 @@ function rDemissao(){
       <div style="flex:1"><p style="margin:0 0 2px;font-weight:700;font-size:14px">${esc(e.nome)}</p><p style="margin:0;font-size:12px;color:var(--mt)">${esc(e.cargo)} — ${esc(e.departamento)}</p>${d?`<p style="margin:4px 0 0;font-size:12px;color:#DC2626">Motivo: ${esc(d.motivo)} · Saída: ${d.dataDemissao}</p>`:''}<p style="margin:3px 0 0;font-size:11px;color:${e.portalBloqueado?'#059669':'#D97706'}">🔒 Portal: ${e.portalBloqueado?'Bloqueado automaticamente':'Não bloqueado'}</p></div>
       <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
         ${bdg('Desligado','#DC2626')}
-        <button class="btn btn-sm" style="background:#1E293B;color:#C9A84C;font-size:11px;padding:4px 10px;gap:4px" onclick="abrirCartaDesligamento('${e.id}')">📄 Carta</button>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-sm" style="background:#1E293B;color:#C9A84C;font-size:11px;padding:4px 10px;gap:4px" onclick="abrirCartaDesligamento('${e.id}')">📄 Carta</button>
+          <button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8;font-size:11px;padding:4px 8px" onclick="atlasEnviarCartaDesligamento('${e.id}')" title="Enviar a carta para assinatura no portal">✍️</button>
+          <button class="btn btn-sm" style="background:#F0FDF4;color:#059669;font-size:11px;padding:4px 8px" onclick="atlasLinkCartaDesligamento('${e.id}')" title="Gerar link de assinatura da carta">🔗</button>
+        </div>
         <button class="btn btn-sm" style="background:#FFF7ED;color:#C2410C;font-size:11px;padding:4px 10px" onclick="abrirAvisoPrevio('${e.id}')">📋 Aviso</button>
         <button class="btn btn-sm" style="background:#F0FDF4;color:#047857;font-size:11px;padding:4px 10px" onclick="abrirCalcRescisao('${e.id}')">🧮 Rescisão</button>
         <button class="btn btn-sm" style="background:#059669;color:#fff;font-size:11px;padding:4px 10px;gap:4px" onclick="confirmarReativarColaborador('${e.id}')">↩️ Reativar</button>
@@ -55611,6 +55624,7 @@ function _atlasReciboRenderizarModal(r){
       <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
       <button class="btn btn-ghost btn-sm" onclick="atlasReciboResetar()" title="Descartar ajustes e voltar ao cálculo original">↺ Restaurar calculado</button>
       <button class="btn btn-sm" style="background:#0B1E35;color:#C9A84C;border:none;font-weight:700" onclick="closeModal();atlasEnviarReciboQuitacao()">✍️ Enviar p/ assinar</button>
+      <button class="btn btn-green btn-sm" onclick="closeModal();atlasLinkReciboQuitacao()">🔗 Gerar link</button>
       <button class="btn btn-blue" onclick="closeModal();atlasImprimirReciboQuitacao()">🖨 Gerar Recibo (PDF)</button>
     </div>`, 620);
 }
@@ -55627,6 +55641,307 @@ window.atlasModalReciboQuitacao = function(empIdPre){
   _atlasReciboRenderizarModal(r);
 };
 
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ENVIO E LINK DE ASSINATURA — genérico para Recibo, TRCT, Carta de
+//  Desligamento e Aviso Prévio. Segue exatamente o mesmo fluxo já usado nos
+//  contratos: canvas + selfie + carimbo de data/hora, com link seguro por
+//  token (48h) para o colaborador abrir sem precisar logar.
+// ═══════════════════════════════════════════════════════════════════════════
+async function _atlasEnviarDocParaAssinatura(empId, meta){
+  const emp = (APP.employees||[]).find(e=>e.id===empId);
+  if(!emp){ toast('Colaborador não encontrado.','warn'); return null; }
+  const doc = {
+    id: uid(), numero: meta.numero||'',
+    empId, empNome: emp.nome||'',
+    tipo: meta.tipo, tipoLabel: meta.tipoLabel, titulo: meta.titulo,
+    conteudo: meta.conteudo,
+    status:'pendente', origem:'rh_rescisao',
+    exigirSelfie:true, exigirFoto:true, registrarDataHora:true, exigirGeo:false,
+    criadoEm:new Date().toISOString(), criadoPor:'RH',
+    assinaturaData:null, assinaturaPNG:null, assinaturaHash:null, assinaturaIP:null, assinaturaGeo:null,
+    historicoStatus:[{status:'pendente',ts:new Date().toISOString(),por:'RH'}]
+  };
+  if(!APP.assinaturas) APP.assinaturas=[];
+  if(typeof atlasCarimbarVersao==='function') await atlasCarimbarVersao(doc);
+  APP.assinaturas.push(doc);
+  await _atlasSyncAssinaturasFB();
+  if(typeof pushNotificacaoPortal==='function'){
+    pushNotificacaoPortal(empId, (meta.icone||'📄')+' '+meta.tipoLabel+' para assinar',
+      'O RH disponibilizou "'+meta.titulo+'" no portal. Acesse "Assinaturas" para ler e assinar.', 'contrato');
+  }
+  try{ if(typeof auditLog==='function') auditLog('Enviou '+meta.tipoLabel+' para assinatura', emp.nome, 'assinaturas'); }catch(e){}
+  toast('✅ '+meta.tipoLabel+' enviado para assinatura no portal!','ok',5000);
+  return doc;
+}
+
+// Gera o link seguro (mesma UI usada nos contratos), reaproveitável por
+// qualquer um dos quatro documentos
+async function _atlasGerarLinkGenerico(empId, meta){
+  const emp = (APP.employees||[]).find(e=>e.id===empId);
+  if(!emp){ toast('Selecione um colaborador.','warn'); return; }
+  if(typeof FBASE==='undefined' || !FBASE){ toast('Conecte o Firebase para gerar links seguros.','err'); return; }
+
+  openModal('🔐 Gerando link de assinatura...', `<div style="text-align:center;padding:32px">
+    <div style="font-size:36px;margin-bottom:12px">⏳</div><div>Preparando '+meta.tipoLabel+' e token seguro...</div></div>`, 480);
+
+  const doc = await _atlasEnviarDocParaAssinatura(empId, meta);
+  if(!doc){ closeModal(); return; }
+
+  const result = await gerarTokenPortal(empId);
+  if(!result){ closeModal(); return; }
+  const url = PORTAL_URL + '?tk=' + result.token;
+  const expStr = result.expira.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  const msg = encodeURIComponent(
+    'Olá '+String(emp.nome).split(' ')[0]+'! '+meta.tipoLabel+' está disponível para assinatura digital.\n\n'+
+    'Acesse o link seguro abaixo e vá em "Assinaturas":\n'+url+'\n\nO link expira em '+expStr+'.'
+  );
+  const tel = (emp.telefone||'').replace(/\D/g,'');
+  const wa = tel ? ('https://wa.me/55'+tel+'?text='+msg) : ('https://web.whatsapp.com/send?text='+msg);
+
+  openModal((meta.icone||'📄')+' Link de assinatura — '+esc(emp.nome), `
+    <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;color:#065F46">
+      ✅ ${esc(meta.tipoLabel)} enviado ao portal e disponível em <b>Assinaturas</b>. O link abaixo dá acesso direto, sem login.
+    </div>
+    <div class="fld">
+      <label>Link seguro (expira em ${expStr})</label>
+      <input type="text" id="atlas-doc-link" value="${url}" readonly
+        style="width:100%;font-size:12px;padding:10px;border:1px solid var(--border);border-radius:8px;background:#F8FAFC">
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+      <button class="btn btn-blue btn-sm" onclick="atlasCopiarLinkGenerico()">📋 Copiar link</button>
+      <a class="btn btn-green btn-sm" href="${wa}" target="_blank" style="text-decoration:none">💬 Enviar no WhatsApp</a>
+      <a class="btn btn-ghost btn-sm" href="${url}" target="_blank" style="text-decoration:none">🔗 Abrir portal</a>
+    </div>
+    <div class="mft"><button class="btn btn-ghost" onclick="closeModal();navigate('assinatura_digital')">Ver em Assinaturas</button></div>
+  `, 620);
+}
+window.atlasCopiarLinkGenerico = function(){
+  const el = document.getElementById('atlas-doc-link');
+  if(!el) return;
+  el.select();
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(el.value).then(()=>toast('Link copiado!'), ()=>toast('Selecione e copie manualmente.','warn'));
+  } else { try{ document.execCommand('copy'); toast('Link copiado!'); }catch(e){ toast('Copie manualmente.','warn'); } }
+};
+
+// ── RECIBO DE QUITAÇÃO: agora também com link ─────────────────────────────
+window.atlasLinkReciboQuitacao = async function(){
+  const r = window._ultimaRescisao;
+  if(!r || !r.emp || !r.emp.id){ toast('Calcule a rescisão primeiro.','err'); return; }
+  const d = _atlasReciboDados(r);
+  await _atlasGerarLinkGenerico(r.emp.id, {
+    tipo:'recibo_quitacao', tipoLabel:'Recibo de Quitação de Verbas Rescisórias',
+    titulo:'Recibo de Quitação — '+d.numero, numero:d.numero,
+    conteudo:_atlasReciboTextoPlano(d), icone:'📜'
+  });
+};
+
+// ── TRCT: texto plano a partir da MESMA base de dados do recibo ──────────
+function _atlasTRCTTextoPlano(r){
+  const d = _atlasReciboDados(r);
+  const brl = d.brl;
+  const L = (rot,val) => rot.padEnd(38,'.')+' '+val;
+  let verbas = ''; d.verbasTRCT.forEach(v=>{ verbas += '  '+L(v.desc, brl(v.valor))+'\n'; });
+  let descontos = ''; d.descontosList.forEach(v=>{ descontos += '  '+L(v.desc, brl(v.valor))+'\n'; });
+  let fora = ''; d.foraTRCT.forEach(v=>{ fora += '  '+L(v.desc, brl(v.valor))+'\n'; });
+
+  return `TERMO DE RESCISÃO DO CONTRATO DE TRABALHO (TRCT)
+
+EMPREGADOR: ${d.empresa} — CNPJ: ${d.cnpj}
+${d.endEmpresa}
+
+TRABALHADOR: ${d.nome}
+CPF: ${d.cpf}${d.rg?(' · RG: '+d.rg):''}${d.ctps?(' · CTPS: '+d.ctps):''}${d.pis?(' · PIS/PASEP: '+d.pis):''}
+
+DADOS DO CONTRATO
+  Data de admissão .................. ${d.admissao}
+  Data do afastamento ................ ${d.desligamento}
+  Causa do afastamento ............... ${d.modalidade}
+  Categoria do trabalhador ........... 101 - Empregado - Geral
+  Cargo ............................... ${d.cargo}
+
+DISCRIMINAÇÃO DAS VERBAS RESCISÓRIAS
+${verbas || '  (nenhuma verba)\n'}  ${L('TOTAL BRUTO', brl(d.totalVerbas))}
+
+DEDUÇÕES
+${descontos || '  (nenhuma dedução)\n'}  ${L('TOTAL DE DEDUÇÕES', brl(d.totalDescontos))}
+
+  ${L('VALOR LÍQUIDO A RECEBER', brl(d.liquido))}
+
+${fora ? 'RECOLHIDO EM GUIA PRÓPRIA (fora deste termo)\n'+fora : ''}
+Os valores definitivos observam o prazo do Art. 477, §6º, da CLT (até 10 dias corridos).
+
+${d.cidade}, ${new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}.`;
+}
+
+window.atlasEnviarTRCT = async function(){
+  const r = window._ultimaRescisao;
+  if(!r || !r.emp || !r.emp.id){ toast('Calcule a rescisão primeiro.','err'); return; }
+  await _atlasEnviarDocParaAssinatura(r.emp.id, {
+    tipo:'trct', tipoLabel:'Termo de Rescisão do Contrato de Trabalho (TRCT)',
+    titulo:'TRCT — '+(r.emp.nome||''), conteudo:_atlasTRCTTextoPlano(r), icone:'📄'
+  });
+};
+window.atlasLinkTRCT = async function(){
+  const r = window._ultimaRescisao;
+  if(!r || !r.emp || !r.emp.id){ toast('Calcule a rescisão primeiro.','err'); return; }
+  await _atlasGerarLinkGenerico(r.emp.id, {
+    tipo:'trct', tipoLabel:'Termo de Rescisão do Contrato de Trabalho (TRCT)',
+    titulo:'TRCT — '+(r.emp.nome||''), conteudo:_atlasTRCTTextoPlano(r), icone:'📄'
+  });
+};
+
+// ── CARTA DE DESLIGAMENTO (Notificação de Rescisão Contratual) ───────────
+function _atlasCartaTextoPlano(emp, dem){
+  const fmtDate = d => { if(!d) return '—'; const p=String(d).split('-'); return p.length===3?(p[2]+'/'+p[1]+'/'+p[0]):d; };
+  const motivo = dem.motivo || 'Demissão sem Justa Causa';
+  const artigoLegal = {
+    'Pedido de Demissão':'Art. 477 da CLT — Rescisão por iniciativa do empregado.',
+    'Demissão sem Justa Causa':'Arts. 477 e 487 da CLT — Rescisão sem justa causa por iniciativa do empregador, com direito a aviso prévio.',
+    'Demissão com Justa Causa':'Art. 482 da CLT — Rescisão por justa causa, nos termos legais aplicáveis.',
+    'Comum Acordo':'Art. 484-A da CLT — Rescisão por acordo entre as partes.',
+    'Término de Contrato':'Art. 443, §2º, e Art. 451 da CLT — Extinção pelo término do prazo determinado (contrato de experiência), sem aviso prévio.'
+  }[motivo] || 'Nos termos da CLT e legislação trabalhista vigente.';
+
+  let tempoServico = '—';
+  if(emp.dataAdmissao){
+    const adm = new Date(emp.dataAdmissao+'T00:00:00');
+    const fim = new Date((dem.dataDemissao||new Date().toISOString().slice(0,10))+'T00:00:00');
+    const dias = Math.max(0, Math.round((fim-adm)/86400000));
+    const anos = Math.floor(dias/365), meses = Math.floor((dias%365)/30);
+    const p = [];
+    if(anos>0) p.push(anos+(anos===1?' ano':' anos'));
+    if(meses>0) p.push(meses+(meses===1?' mês':' meses'));
+    if(!p.length) p.push(dias+(dias===1?' dia':' dias'));
+    tempoServico = p.join(' e ');
+  }
+
+  const cfg = (typeof EMPRESA_CFG!=='undefined') ? EMPRESA_CFG : {};
+  const empresaNome = (cfg.nomeRazao||'').toUpperCase() || 'EMPRESA';
+  const empresaCnpj = cfg.cnpj || '—';
+  const empresaEnd = [cfg.endereco, cfg.cidade, cfg.uf].filter(Boolean).join(', ') || '—';
+
+  const verbasInclusas = [];
+  if(dem.fgts) verbasInclusas.push('Saque do FGTS');
+  if(dem.multaFgts) verbasInclusas.push('Multa de 40% sobre o FGTS');
+  if(dem.decimo) verbasInclusas.push('13º salário proporcional');
+  if(dem.ferias) verbasInclusas.push('Férias proporcionais + 1/3');
+
+  const temAviso = (typeof _temAvisoPrevio==='function') ? _temAvisoPrevio(motivo) : (motivo!=='Término de Contrato');
+
+  return `NOTIFICAÇÃO DE RESCISÃO CONTRATUAL
+Carta de Comunicação de Desligamento
+
+EMPREGADOR: ${empresaNome} — CNPJ: ${empresaCnpj}
+${empresaEnd}
+
+EMPREGADO(A): ${emp.nome}
+CPF: ${emp.cpf||'—'} · Cargo: ${emp.cargo||'—'}
+
+Pela presente, comunicamos formalmente o desligamento de ${emp.nome}, admitido(a) em ${fmtDate(emp.dataAdmissao)},
+totalizando aproximadamente ${tempoServico} de tempo de serviço.
+
+MODALIDADE DE RESCISÃO
+  ${motivo}
+  Base legal: ${artigoLegal}
+
+DATAS
+  Data do aviso ....................... ${dem.dataAviso?fmtDate(dem.dataAviso):'—'}
+  Data do desligamento ................ ${fmtDate(dem.dataDemissao)}
+
+AVISO PRÉVIO
+  ${temAviso ? 'Devido, na forma do Art. 487 da CLT.' : 'Não devido nesta modalidade.'}
+
+VERBAS INCLUÍDAS NO ACERTO
+${verbasInclusas.length ? verbasInclusas.map(v=>'  ✓ '+v).join('\n') : '  (a discriminar no TRCT)'}
+
+Os valores exatos serão apurados e consignados no Termo de Rescisão do Contrato de Trabalho (TRCT),
+observados os descontos legais de INSS, IRRF e demais encargos pertinentes, a ser disponibilizado
+no prazo legal (Art. 477, §6º, da CLT — até 10 dias corridos).
+
+Declaro estar ciente do exposto acima.
+
+${new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}.`;
+}
+
+window.atlasEnviarCartaDesligamento = async function(eid){
+  const emp = (APP.employees||[]).find(e=>e.id===eid);
+  const dem = APP.demissoes && APP.demissoes[eid];
+  if(!emp || !dem){ toast('Registro de desligamento não encontrado.','warn'); return; }
+  await _atlasEnviarDocParaAssinatura(eid, {
+    tipo:'carta_desligamento', tipoLabel:'Notificação de Rescisão Contratual',
+    titulo:'Carta de Desligamento — '+emp.nome, conteudo:_atlasCartaTextoPlano(emp, dem), icone:'📄'
+  });
+};
+window.atlasLinkCartaDesligamento = async function(eid){
+  const emp = (APP.employees||[]).find(e=>e.id===eid);
+  const dem = APP.demissoes && APP.demissoes[eid];
+  if(!emp || !dem){ toast('Registro de desligamento não encontrado.','warn'); return; }
+  await _atlasGerarLinkGenerico(eid, {
+    tipo:'carta_desligamento', tipoLabel:'Notificação de Rescisão Contratual',
+    titulo:'Carta de Desligamento — '+emp.nome, conteudo:_atlasCartaTextoPlano(emp, dem), icone:'📄'
+  });
+};
+
+// ── AVISO PRÉVIO ───────────────────────────────────────────────────────────
+function _atlasAvisoTextoPlano(c){
+  const emp = c.emp;
+  const pedido = (c.motivo==='pedido');
+  const trabalhado = (c.tipo==='trabalhado');
+  const cfg = (typeof EMPRESA_CFG!=='undefined') ? EMPRESA_CFG : {};
+  const razao = cfg.nomeRazao || cfg.nomeFantasia || '';
+
+  let corpo;
+  if(pedido){
+    corpo = trabalhado
+      ? `Comunico minha decisão de rescindir o contrato de trabalho que mantenho com essa empresa. Cumprirei o aviso prévio de ${c.dias} dias, trabalhando até ${_apBR(c.dFim)}.`
+      : `Comunico minha decisão de rescindir o contrato de trabalho que mantenho com essa empresa. Solicito a dispensa do cumprimento do aviso prévio, ciente de que o valor correspondente poderá ser descontado das verbas rescisórias (Art. 487, §2º, da CLT).`;
+  } else if(trabalhado){
+    corpo = `Comunicamos que a empresa não manterá mais o contrato de trabalho, devendo o(a) trabalhador(a) laborar até ${_apBR(c.dFim)}.
+Até o término do aviso prévio (Art. 488 da CLT), a jornada diária terá redução de duas horas.
+O(A) trabalhador(a) poderá optar por faltar ao serviço 7 dias corridos, sem prejuízo do salário, trabalhando até ${_apBR(c.dOpcao)} nesse caso.
+Solicitamos comparecimento em ${_apBR(c.dPagto)}, com CTPS e exame demissional (ASO), para receber e dar quitação das verbas rescisórias.`;
+  } else {
+    corpo = `Comunicamos que a empresa não manterá mais o contrato de trabalho, ficando o(a) trabalhador(a) dispensado(a) do cumprimento do aviso prévio, que será indenizado pelo período de ${c.dias} dias (Art. 487, §1º, da CLT).
+O contrato encerra-se nesta data, projetando-se o aviso indenizado para efeito de CTPS, férias e 13º salário.
+Solicitamos comparecimento em ${_apBR(c.dPagto)}, com CTPS e exame demissional (ASO), para receber e dar quitação das verbas rescisórias.`;
+  }
+
+  const titulo = pedido ? 'AVISO PRÉVIO DO TRABALHADOR — PEDIDO DE DEMISSÃO'
+    : (trabalhado ? 'AVISO PRÉVIO DO EMPREGADOR — TRABALHADO, COM REDUÇÃO DE DUAS HORAS DIÁRIAS'
+                  : 'AVISO PRÉVIO INDENIZADO DO EMPREGADOR');
+
+  return `${titulo}
+
+EMPREGADOR: ${razao} — CNPJ: ${cfg.cnpj||'—'}
+TRABALHADOR: ${emp.nome} — CPF: ${emp.cpf||'—'} — CTPS: ${emp.ctps||'—'} — PIS: ${emp.pis||'—'}
+Função: ${emp.cargo||'—'}
+
+${corpo}
+
+Declaro estar ciente do exposto acima.
+
+${new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}.`;
+}
+
+window.atlasEnviarAvisoPrevio = async function(){
+  const c = (typeof _apCalcular==='function') ? _apCalcular() : null;
+  if(!c){ toast('Selecione colaborador e data no formulário de aviso.','err'); return; }
+  await _atlasEnviarDocParaAssinatura(c.emp.id, {
+    tipo:'aviso_previo', tipoLabel:'Aviso Prévio',
+    titulo:'Aviso Prévio — '+c.emp.nome, conteudo:_atlasAvisoTextoPlano(c), icone:'📋'
+  });
+};
+window.atlasLinkAvisoPrevio = async function(){
+  const c = (typeof _apCalcular==='function') ? _apCalcular() : null;
+  if(!c){ toast('Selecione colaborador e data no formulário de aviso.','err'); return; }
+  await _atlasGerarLinkGenerico(c.emp.id, {
+    tipo:'aviso_previo', tipoLabel:'Aviso Prévio',
+    titulo:'Aviso Prévio — '+c.emp.nome, conteudo:_atlasAvisoTextoPlano(c), icone:'📋'
+  });
+};
 
 (function _atlasInjectButtons(){
   // 3a. Botão no módulo de Assinatura Digital
