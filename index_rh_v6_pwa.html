@@ -12746,6 +12746,7 @@ function rDemissao(){
           <button class="btn btn-sm" style="background:#1E293B;color:#C9A84C;font-size:11px;padding:4px 10px;gap:4px" onclick="abrirCartaDesligamento('${e.id}')">📄 Carta</button>
           <button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8;font-size:11px;padding:4px 8px" onclick="atlasEnviarCartaDesligamento('${e.id}')" title="Enviar a carta para assinatura no portal">✍️</button>
           <button class="btn btn-sm" style="background:#F0FDF4;color:#059669;font-size:11px;padding:4px 8px" onclick="atlasLinkCartaDesligamento('${e.id}')" title="Gerar link de assinatura da carta">🔗</button>
+          <button class="btn btn-sm" style="background:#FFFBEB;color:#92400E;font-size:11px;padding:4px 8px" onclick="atlasEditarDemissao('${e.id}')" title="Corrigir motivo, data do aviso ou da demissão">✏️</button>
         </div>
         <button class="btn btn-sm" style="background:#FFF7ED;color:#C2410C;font-size:11px;padding:4px 10px" onclick="abrirAvisoPrevio('${e.id}')">📋 Aviso</button>
         <button class="btn btn-sm" style="background:#F0FDF4;color:#047857;font-size:11px;padding:4px 10px" onclick="abrirCalcRescisao('${e.id}')">🧮 Rescisão</button>
@@ -39426,6 +39427,9 @@ window.rAssinaturaDigital = function(){
       <p>Coleta e gestão de assinaturas eletrônicas com validade jurídica — contratos, advertências e documentos admissionais</p>
     </div>
     <div style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3)" onclick="atlasAtualizarAssinaturas()" title="Busca o status mais recente no servidor">
+        🔄 Verificar Agora
+      </button>
       <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3)" onclick="assinEnviarLote()">
         📤 Solicitar Assinaturas
       </button>
@@ -39511,8 +39515,7 @@ function _renderTab(tab, pend, assn, recu){
             <td style="padding:10px 14px"><div style="display:flex;gap:5px">
               <button class="btn btn-sm" style="background:#EFF6FF;color:#2563EB" onclick="assinVerDoc('${a.id}')">👁 Ver</button>
               ${a.status==='assinado'?`<button class="btn btn-sm" style="background:#0B1E35;color:#C9A84C" onclick="atlasComprovanteAssinatura('${a.id}')" title="Comprovante com data, hora, assinatura e foto">📄 Comprovante</button>`:''}
-              ${a.status==='pendente'?`<button class="btn btn-sm btn-green" onclick="assinAssinar('${a.id}')">✍️ Assinar</button>`:''}
-              <button class="btn btn-sm btn-ghost" onclick="assinBaixarPDF('${a.id}')">📄 PDF</button>
+              ${a.status==='pendente'?`<button class="btn btn-sm btn-green" onclick="atlasGerarLinkParaPendente('${a.id}')">🔗 Gerar link</button>`:''}
             </div></td>
           </tr>`;
         }).join('')}
@@ -39534,9 +39537,9 @@ function _assinRow(a){
     <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
       ${stBadge}
       <button class="btn btn-sm" style="background:#EFF6FF;color:#2563EB" onclick="assinVerDoc('${a.id}')">👁 Ver</button>
-      ${a.status==='pendente'?`<button class="btn btn-sm btn-green" onclick="assinAssinar('${a.id}')">✍️ Assinar</button><button class="btn btn-sm btn-ghost" onclick="assinRecusar('${a.id}')">✗ Recusar</button>`:''}
+      ${a.status==='pendente'?`<button class="btn btn-sm btn-green" onclick="atlasGerarLinkParaPendente('${a.id}')">🔗 Gerar link</button><button class="btn btn-sm btn-ghost" onclick="assinRecusar('${a.id}')">✗ Recusar</button>`:''}
       ${a.status==='assinado'?`<button class="btn btn-sm" style="background:#0B1E35;color:#C9A84C" onclick="atlasComprovanteAssinatura('${a.id}')" title="Comprovante com data, hora, assinatura e foto">📄 Comprovante</button>`:''}
-      <button class="btn btn-sm btn-ghost" onclick="assinBaixarPDF('${a.id}')">📄 PDF simples</button>
+
     </div>
   </div>`;
 }
@@ -39682,8 +39685,8 @@ window.assinVerDoc = function(id){
     </div>
     <div class="mft">
       <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
-      ${a.status==='pendente'?`<button class="btn btn-green" onclick="closeModal();assinAssinar('${a.id}')">✍️ Assinar Agora</button>`:''}
-      <button class="btn btn-blue" onclick="assinBaixarPDF('${a.id}')">📄 Baixar PDF</button>
+      ${a.status==='pendente'?`<button class="btn btn-green" onclick="closeModal();atlasGerarLinkParaPendente('${a.id}')">🔗 Gerar link</button>`:''}
+      ${a.status==='assinado'?`<button class="btn btn-blue" onclick="closeModal();atlasComprovanteAssinatura('${a.id}')">📄 Comprovante</button>`:''}
     </div>
   `, 580);
 };
@@ -39937,7 +39940,7 @@ window.assinEnviarLote = function(){
             <div style="font-weight:600;font-size:13px">${esc(emp.nome||a.empNome||'—')}</div>
             <div style="font-size:12px;color:var(--mt)">${esc(a.tipoLabel)}</div>
           </div>
-          <button class="btn btn-sm btn-green" onclick="closeModal();assinAssinar('${a.id}')">✍️ Assinar</button>
+          <button class="btn btn-sm btn-green" onclick="atlasGerarLinkParaPendente('${a.id}')">🔗 Gerar link</button>
         </div>`;
       }).join('')}
     </div>
@@ -55268,7 +55271,13 @@ function _atlasTempoServicoTxt(admissaoISO, saidaISO){
 // o que foi calculado, e o que muda aqui são ajustes finos linha por linha
 // (meta a pagar, dias trabalhados a mais, valor em aberto, correção pontual).
 function _atlasReciboChave(r){
-  return String((r.emp&&r.emp.id)||'')+'|'+String(r.dataRescisao||'')+'|'+String(r.tipoKey||'');
+  // Inclui os TOTAIS brutos do cálculo na chave — não só quem/quando/qual
+  // modalidade. Sem isso, recalcular com faltas ou aviso diferentes não
+  // invalidava a edição em cache: o recibo continuava com números antigos
+  // por baixo das linhas adicionadas manualmente, e o TRCT (que lê a mesma
+  // base) divergia do que estava impresso no recibo.
+  return String((r.emp&&r.emp.id)||'')+'|'+String(r.dataRescisao||'')+'|'+String(r.tipoKey||'')
+       +'|'+String(r.totalVerbas)+'|'+String(r.totalDescontos);
 }
 
 // Cópia de trabalho das verbas — só é recriada quando o cálculo de base muda
@@ -55603,6 +55612,20 @@ window.atlasEnviarReciboQuitacao = async function(){
   const r = window._ultimaRescisao;
   if(!r || !r.emp || !r.emp.id){ toast('Calcule a rescisão primeiro.','err'); return; }
   const d = _atlasReciboDados(r);
+
+  // Mesma lógica de reaproveitamento: atualiza o recibo pendente existente
+  // em vez de empilhar um novo a cada clique em "Enviar"/"Gerar link".
+  const jaPend = (APP.assinaturas||[]).find(a=>a && a.empId===r.emp.id && a.tipo==='recibo_quitacao' && a.status==='pendente');
+  if(jaPend){
+    jaPend.conteudo = _atlasReciboTextoPlano(d);
+    jaPend.numero = d.numero;
+    jaPend.titulo = 'Recibo de Quitação — '+d.numero;
+    if(typeof atlasCarimbarVersao==='function') await atlasCarimbarVersao(jaPend);
+    await _atlasSyncAssinaturasFB();
+    toast('📜 Recibo já estava pendente — atualizado com os valores atuais.','ok',5000);
+    return jaPend;
+  }
+
   const doc = {
     id: uid(), numero: d.numero,
     empId: r.emp.id, empNome: d.nome,
@@ -55691,6 +55714,21 @@ window.atlasModalReciboQuitacao = function(empIdPre){
 async function _atlasEnviarDocParaAssinatura(empId, meta){
   const emp = (APP.employees||[]).find(e=>e.id===empId);
   if(!emp){ toast('Colaborador não encontrado.','warn'); return null; }
+
+  // Reaproveita um pendente do MESMO tipo em vez de criar outro — era isso
+  // que empilhava vários "Notificação de Rescisão" ou "Recibo" aguardando
+  // assinatura toda vez que o link era gerado de novo.
+  const jaPend = (APP.assinaturas||[]).find(a=>a && a.empId===empId && a.tipo===meta.tipo && a.status==='pendente');
+  if(jaPend){
+    jaPend.conteudo = meta.conteudo;              // atualiza com a versão mais recente
+    jaPend.titulo = meta.titulo;
+    if(meta.numero) jaPend.numero = meta.numero;
+    if(typeof atlasCarimbarVersao==='function') await atlasCarimbarVersao(jaPend);
+    await _atlasSyncAssinaturasFB();
+    toast('📄 '+meta.tipoLabel+' já estava pendente — atualizado com os dados atuais.','ok',5000);
+    return jaPend;
+  }
+
   const doc = {
     id: uid(), numero: meta.numero||'',
     empId, empNome: emp.nome||'',
@@ -55912,6 +55950,10 @@ window.atlasEnviarCartaDesligamento = async function(eid){
   const emp = (APP.employees||[]).find(e=>e.id===eid);
   const dem = APP.demissoes && APP.demissoes[eid];
   if(!emp || !dem){ toast('Registro de desligamento não encontrado.','warn'); return; }
+  if(!dem.dataDemissao){
+    toast('Data do desligamento não preenchida. Corrija antes de enviar.','err',6000);
+    atlasEditarDemissao(eid); return;
+  }
   await _atlasEnviarDocParaAssinatura(eid, {
     tipo:'carta_desligamento', tipoLabel:'Notificação de Rescisão Contratual',
     titulo:'Carta de Desligamento — '+emp.nome, conteudo:_atlasCartaTextoPlano(emp, dem), icone:'📄'
@@ -55921,6 +55963,10 @@ window.atlasLinkCartaDesligamento = async function(eid){
   const emp = (APP.employees||[]).find(e=>e.id===eid);
   const dem = APP.demissoes && APP.demissoes[eid];
   if(!emp || !dem){ toast('Registro de desligamento não encontrado.','warn'); return; }
+  if(!dem.dataDemissao){
+    toast('Data do desligamento não preenchida. Corrija antes de gerar o link.','err',6000);
+    atlasEditarDemissao(eid); return;
+  }
   await _atlasGerarLinkGenerico(eid, {
     tipo:'carta_desligamento', tipoLabel:'Notificação de Rescisão Contratual',
     titulo:'Carta de Desligamento — '+emp.nome, conteudo:_atlasCartaTextoPlano(emp, dem), icone:'📄'
@@ -55983,6 +56029,139 @@ window.atlasLinkAvisoPrevio = async function(){
     tipo:'aviso_previo', tipoLabel:'Aviso Prévio',
     titulo:'Aviso Prévio — '+c.emp.nome, conteudo:_atlasAvisoTextoPlano(c), icone:'📋'
   });
+};
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  EDITAR DESLIGAMENTO JÁ REGISTRADO
+//  Antes não existia como corrigir motivo/data depois de salvo — se o
+//  registro ficasse incompleto (dado corrompido, digitação incompleta),
+//  não tinha volta e a carta/aviso saíam com "—" no lugar da data.
+// ═══════════════════════════════════════════════════════════════════════════
+window.atlasEditarDemissao = function(eid){
+  const emp = APP.employees.find(e=>e.id===eid);
+  const dem = (APP.demissoes && APP.demissoes[eid]) || {};
+  if(!emp){ toast('Colaborador não encontrado.','err'); return; }
+  openModal('✏️ Corrigir Dados do Desligamento — '+esc(emp.nome), `
+    <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:9px;padding:10px 13px;margin-bottom:13px;font-size:12px;color:#92400E;line-height:1.55">
+      Use esta tela para completar ou corrigir os dados de um desligamento já registrado —
+      necessário quando a carta ou o aviso saem com datas em branco ("—").
+    </div>
+    <div class="g2">
+      <div class="fld"><label>Motivo</label>
+        <select id="ed-m">
+          ${['Pedido de Demissão','Demissão sem Justa Causa','Demissão com Justa Causa','Comum Acordo','Término de Contrato']
+            .map(o=>`<option ${dem.motivo===o?'selected':''}>${o}</option>`).join('')}
+        </select>
+      </div>
+      <div class="fld"><label>Saldo Salário (R$)</label><input type="number" id="ed-sal" value="${esc(dem.saldoSalario||'')}"></div>
+      <div class="fld"><label>Data Aviso Prévio</label><input type="date" id="ed-av" value="${esc(dem.dataAviso||'')}"></div>
+      <div class="fld"><label>Data da Demissão</label><input type="date" id="ed-d" value="${esc(dem.dataDemissao||'')}"></div>
+    </div>
+    <div class="g2">
+      ${[{k:'fgts',l:'Saque do FGTS'},{k:'multa',l:'Multa 40% FGTS'},{k:'decimo',l:'13º Proporcional'},{k:'ferias',l:'Férias + 1/3'}]
+        .map(({k,l})=>{
+          const campo = k==='fgts'?'fgts':(k==='multa'?'multaFgts':(k==='decimo'?'decimoTerceiro':'feriasVencidas'));
+          return `<label class="chk-item"><input type="checkbox" id="ed-${k}" ${dem[campo]?'checked':''}> ${l}</label>`;
+        }).join('')}
+    </div>
+    <div class="fld" style="margin-top:10px"><label>Observações</label><textarea id="ed-o">${esc(dem.obs||'')}</textarea></div>
+    <div class="mft">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-blue" onclick="atlasSalvarEdicaoDemissao('${eid}')">💾 Salvar correção</button>
+    </div>`, 620);
+};
+
+window.atlasSalvarEdicaoDemissao = function(eid){
+  const dtDem = document.getElementById('ed-d')?.value;
+  if(!dtDem){ toast('A data da demissão é obrigatória.','err'); return; }
+  const emp = APP.employees.find(e=>e.id===eid);
+  if(emp && emp.dataAdmissao){
+    const dAdm = new Date(emp.dataAdmissao+'T00:00:00'), dDem = new Date(dtDem+'T00:00:00');
+    if(dDem<dAdm){ toast('A data de demissão não pode ser anterior à admissão.','err'); return; }
+  }
+  if(!APP.demissoes) APP.demissoes = {};
+  const anterior = APP.demissoes[eid] || {};
+  APP.demissoes[eid] = Object.assign({}, anterior, {
+    motivo: document.getElementById('ed-m')?.value,
+    dataAviso: document.getElementById('ed-av')?.value,
+    dataDemissao: dtDem,
+    saldoSalario: document.getElementById('ed-sal')?.value,
+    fgts: document.getElementById('ed-fgts')?.checked,
+    multaFgts: document.getElementById('ed-multa')?.checked,
+    decimoTerceiro: document.getElementById('ed-decimo')?.checked,
+    feriasVencidas: document.getElementById('ed-ferias')?.checked,
+    obs: document.getElementById('ed-o')?.value
+  });
+  try{ if(typeof save==='function') save('demissoes'); }catch(e){}
+  try{ if(typeof auditLog==='function') auditLog('Corrigiu dados do desligamento', emp?emp.nome:eid, 'demissao'); }catch(e){}
+  closeModal();
+  toast('✅ Dados do desligamento atualizados.','ok');
+  if(typeof navigate==='function') navigate('demissao');
+};
+
+
+// Busca manual, sob demanda — o sistema já atualiza sozinho por um listener
+// em tempo real, mas esse botão dá uma forma explícita de conferir agora,
+// sem depender da conexão em segundo plano continuar ativa.
+window.atlasAtualizarAssinaturas = async function(){
+  if(typeof FBASE==='undefined' || !FBASE){ toast('Firebase não conectado.','err'); return; }
+  toast('🔄 Verificando status das assinaturas...','ok',2000);
+  try{
+    const snap = await FBASE.collection('hr').doc('assinaturas').get();
+    if(snap.exists){ APP.assinaturas = JSON.parse(snap.data().d||'[]'); }
+    if(typeof navigate==='function') navigate('assinatura_digital');
+    toast('✅ Atualizado com o status mais recente.','ok',3000);
+  }catch(e){
+    toast('Erro ao verificar: '+e.message,'err');
+  }
+};
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  LINK PARA PENDENTE JÁ EXISTENTE — funciona para qualquer tipo de
+//  documento na lista (contrato, TRCT, carta, recibo, regimento...).
+//  Este módulo é só isso: emitir link, ver quem assinou, ver e imprimir o
+//  que já foi assinado. Nada de assinatura presencial aqui dentro.
+// ═══════════════════════════════════════════════════════════════════════════
+window.atlasGerarLinkParaPendente = async function(docId){
+  const doc = (APP.assinaturas||[]).find(a=>a && a.id===docId);
+  if(!doc){ toast('Documento não encontrado.','warn'); return; }
+  if(doc.status!=='pendente'){ toast('Este documento não está mais pendente.','warn'); return; }
+  const emp = (APP.employees||[]).find(e=>e.id===doc.empId);
+  if(!emp){ toast('Colaborador não encontrado.','warn'); return; }
+  if(typeof FBASE==='undefined' || !FBASE){ toast('Conecte o Firebase para gerar links seguros.','err'); return; }
+
+  openModal('🔐 Gerando link de assinatura...', `<div style="text-align:center;padding:32px">
+    <div style="font-size:36px;margin-bottom:12px">⏳</div><div>Preparando token seguro...</div></div>`, 480);
+
+  const result = await gerarTokenDocumento(emp.id, doc.id);
+  if(!result){ closeModal(); return; }
+  const url = ATLAS_ASSINATURA_URL + '?tk=' + result.token;
+  const expStr = result.expira.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  const msg = encodeURIComponent(
+    'Olá '+String(emp.nome).split(' ')[0]+'! '+(doc.tipoLabel||'Um documento')+' está disponível para assinatura digital.\n\n'+
+    'Acesse o link abaixo para ler e assinar (não precisa de login):\n'+url+'\n\nO link expira em '+expStr+'.'
+  );
+  const tel = (emp.telefone||'').replace(/\D/g,'');
+  const wa = tel ? ('https://wa.me/55'+tel+'?text='+msg) : ('https://web.whatsapp.com/send?text='+msg);
+
+  openModal('🔗 Link de assinatura — '+esc(emp.nome), `
+    <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;color:#065F46">
+      ${esc(doc.tipoLabel||'Documento')} — link avulso, não passa pelo portal do colaborador.
+    </div>
+    <div class="fld">
+      <label>Link seguro (expira em ${expStr})</label>
+      <input type="text" id="atlas-doc-link" value="${url}" readonly
+        style="width:100%;font-size:12px;padding:10px;border:1px solid var(--border);border-radius:8px;background:#F8FAFC">
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+      <button class="btn btn-blue btn-sm" onclick="atlasCopiarLinkGenerico()">📋 Copiar link</button>
+      <a class="btn btn-green btn-sm" href="${wa}" target="_blank" style="text-decoration:none">💬 Enviar no WhatsApp</a>
+      <a class="btn btn-ghost btn-sm" href="${url}" target="_blank" style="text-decoration:none">🔗 Abrir página de assinatura</a>
+    </div>
+    <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>
+  `, 620);
 };
 
 (function _atlasInjectButtons(){
