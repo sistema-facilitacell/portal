@@ -10245,6 +10245,7 @@ function executarCalcRescisao(){
       <div style="text-align:right;margin-top:12px">
         <button class="btn btn-sm" style="background:#EFF6FF;color:#1D4ED8" onclick="imprimirRescisao()">🖨 Demonstrativo</button>
         <button class="btn btn-sm" style="background:#1E293B;color:#C9A84C;font-weight:700" onclick="gerarTRCT()">📄 Gerar TRCT</button>
+        <button class="btn btn-sm" style="background:#7C2D12;color:#FDE68A;font-weight:700" onclick="atlasModalReciboQuitacao()">📜 Recibo de Quitação</button>
         <button class="btn btn-sm btn-ghost" onclick="atlasModalNaoProrrogacao(document.getElementById('rsc-emp')?.value)" title="Comunicado de não prorrogação do contrato de experiência">📨 Comunicado de Não Prorrogação</button>
       </div>
     </div>`;
@@ -10648,12 +10649,6 @@ window.restaurarArquivoHistorico=restaurarArquivoHistorico;
 // ══════════════════════════════════════════════════════════════════════════
 
 const ERRLOG_MAX = 60;              // quantos erros manter
-// ── VERSÃO DO APP ────────────────────────────────────────────────────────
-// Suba este valor a cada deploy (data + contador do dia é suficiente).
-// Usado no painel de Diagnóstico pra detectar tela rodando versão velha em cache.
-const APP_VERSION = '2026.08.18-1';
-window.APP_VERSION = APP_VERSION;
-
 const ERRLOG_KEY = 'fcrh_errlog';
 
 function _errlogLer(){
@@ -10770,25 +10765,6 @@ window.limparLogErros=limparLogErros;
 async function rodarDiagnostico(){
   const testes=[];
   const add=(nome,estado,detalhe,acao)=>testes.push({nome,estado,detalhe,acao});
-
-  // 0. Versão do app rodando nesta tela vs. versão mais recente publicada
-  //    (grava/lê hr/_app_version — atualize o doc no deploy pra detectar cache velho)
-  try{
-    if(FBASE){
-      const vSnap=await FBASE.collection('hr').doc('_app_version').get();
-      if(vSnap.exists && vSnap.data().latest && vSnap.data().latest!==APP_VERSION){
-        add('Versão do app','alerta',`Esta tela está na versão ${APP_VERSION}, mas a mais recente publicada é ${vSnap.data().latest}. Dê um refresh forçado (Ctrl+Shift+R) pra atualizar.`,'Atualizar agora');
-      }else{
-        add('Versão do app','ok',`Rodando a versão ${APP_VERSION}`);
-        if(!vSnap.exists || vSnap.data().latest!==APP_VERSION){
-          // Auto-publica a versão atual como "mais recente" se ninguém tiver feito ainda
-          FBASE.collection('hr').doc('_app_version').set({latest:APP_VERSION,ts:Date.now()},{merge:true}).catch(()=>{});
-        }
-      }
-    }else{
-      add('Versão do app','alerta',`Rodando a versão ${APP_VERSION} (sem Firebase pra comparar com a mais recente)`);
-    }
-  }catch(e){ add('Versão do app','alerta',`Rodando a versão ${APP_VERSION} (não foi possível comparar: ${e.message||''})`); }
 
   // 1. Conexão com o Firebase
   if(!FBASE){
@@ -10907,7 +10883,7 @@ async function abrirDiagnostico(){
   const ico={ok:'✅',alerta:'⚠️',falha:'❌'};
   const cor={ok:'#059669',alerta:'#D97706',falha:'#DC2626'};
   const bg ={ok:'#ECFDF5',alerta:'#FFFBEB',falha:'#FEF2F2'};
-  const acoes={'Configurar IA':'closeModal();openAnthropicKeyModal()','Fazer backup':'closeModal();openBackup()','Ver erros':'closeModal();abrirLogErros()','Abrir biométrico':'closeModal();navigate(\'biometrico\')','Ver colaboradores':'closeModal();navigate(\'funcionarios\')','Atualizar agora':'location.reload(true)'};
+  const acoes={'Configurar IA':'closeModal();openAnthropicKeyModal()','Fazer backup':'closeModal();openBackup()','Ver erros':'closeModal();abrirLogErros()','Abrir biométrico':'closeModal();navigate(\'biometrico\')','Ver colaboradores':'closeModal();navigate(\'funcionarios\')'};
 
   const falhas=testes.filter(t=>t.estado==='falha').length;
   const alertas=testes.filter(t=>t.estado==='alerta').length;
@@ -12708,6 +12684,7 @@ function rDemissao(){
       <button class="btn" style="background:#F0FDF4;color:#047857;font-weight:700" onclick="abrirCalcRescisao()">🧮 Calcular Rescisão</button>
       <button class="btn" style="background:#EEF2FF;color:#4338CA;font-weight:700" onclick="atlasModalNaoProrrogacao()" title="Comunicado de não prorrogação do contrato de experiência">📨 Não Prorrogação</button>
       <button class="btn" style="background:#FEF9EC;color:#92400E;font-weight:700" onclick="atlasModalEncerrarAutonomo()" title="Encerrar contrato de prestador autônomo (sem vínculo)">📄 Encerrar Autônomo</button>
+      <button class="btn" style="background:#7C2D12;color:#FDE68A;font-weight:700" onclick="atlasModalReciboQuitacao()" title="Recibo elegante de quitação das verbas rescisórias">📜 Recibo de Quitação</button>
       <button class="btn btn-red" onclick="openDemForm()">+ Novo Processo</button>
     </div>
   </div>
@@ -28122,49 +28099,6 @@ td,th{font-size:15px!important;}
   const pbioToday=()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
   const pbioUid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 
-  // ── OBSERVABILIDADE: log de tentativas reprovadas (fluxo de ponto local deste arquivo) ─
-  // NOTA: o fluxo de ponto que os colaboradores realmente usam no dia a dia é
-  // o portal_v2_pwa.html (Biometria v3, Groq Vision + face-api), que loga em
-  // 'bio_falhas' via _logFalhaPonto() — é essa coleção que a aba "🚨 Falhas
-  // Ponto" deste admin lê. Este bloco aqui cobre o fluxo de câmera embutido
-  // neste MESMO arquivo (ativado via ?portal na URL) caso ele seja usado como
-  // contingência; grava em 'bio_attempts' só por completude, não é a fonte
-  // principal de dados do painel.
-  // Grava no Firestore (visível pra todo mundo, não só localStorage do device)
-  // toda vez que uma tentativa de bater ponto falha, com motivo + device.
-  // Não bloqueia o fluxo do usuário: falha de log nunca deve travar o ponto.
-  function _pbioDeviceInfo(){
-    try{
-      const ua=navigator.userAgent||'';
-      let nav='Outro';
-      if(/Edg\//.test(ua))nav='Edge';
-      else if(/Chrome\//.test(ua)&&!/OPR|Opera/.test(ua))nav='Chrome';
-      else if(/Firefox\//.test(ua))nav='Firefox';
-      else if(/Safari\//.test(ua)&&!/Chrome/.test(ua))nav='Safari';
-      let so='Outro';
-      if(/Android/.test(ua))so='Android';
-      else if(/iPhone|iPad|iPod/.test(ua))so='iOS';
-      else if(/Windows/.test(ua))so='Windows';
-      else if(/Mac OS X/.test(ua))so='macOS';
-      else if(/Linux/.test(ua))so='Linux';
-      return {ua,navegador:nav,so,mobile:/Mobi|Android|iPhone|iPad/.test(ua)};
-    }catch(_){return {ua:'',navegador:'?',so:'?',mobile:false};}
-  }
-  async function logBioAttemptFail(motivo,detalhe){
-    try{
-      const db=P_DB||FBASE;if(!db)return;
-      const dev=_pbioDeviceInfo();
-      const cpf=(P_EMP&&P_EMP.cpf?P_EMP.cpf:'').replace(/\D/g,'');
-      await db.collection('bio_attempts').add({
-        cpf,empName:(P_EMP&&P_EMP.nome)||null,hrEmpId:(P_EMP&&P_EMP.id)||null,
-        ok:false,motivo,detalhe:detalhe?String(detalhe).slice(0,300):null,
-        navegador:dev.navegador,so:dev.so,mobile:dev.mobile,userAgent:dev.ua.slice(0,300),
-        appVersion:(typeof APP_VERSION!=='undefined'?APP_VERSION:null),
-        ts:new Date().toISOString(),date:pbioToday()
-      });
-    }catch(e){ console.warn('[BioAttempts] Falha ao gravar log (não crítico):',e&&e.message); }
-  }
-
   async function pbioLoadModels(){
     if(PBIO.models)return true;
     if(PBIO.loading){
@@ -28266,28 +28200,25 @@ td,th{font-size:15px!important;}
       if(!ok){
         pbioClose();
         pToast('Falha ao baixar modelos de IA. Verifique a internet e tente novamente.','err',5000);
-        logBioAttemptFail('modelos_ia_nao_carregaram');
         return;
       }
     }
 
     // Busca descriptor do funcionário no Firebase
     const db=P_DB||FBASE;
-    if(!db){pbioClose();pToast('Sem conexão com Firebase.','err');return;} // nota: sem db não dá pra logar essa falha (é justamente o motivo)
+    if(!db){pbioClose();pToast('Sem conexão com Firebase.','err');return;}
     try{
         const cpf=(P_EMP.cpf||'').replace(/\D/g,'');
         const snap=await db.collection('bio_users').where('cpf','==',cpf).where('active','==',true).limit(1).get();
         if(snap.empty){
           pbioClose();
-          pToast('Biometria facial não cadastrada. Peça ao RH para cadastrar seu rosto.','err',4000);
-          logBioAttemptFail('nao_cadastrado_bio_users');return;
+          pToast('Biometria facial não cadastrada. Peça ao RH para cadastrar seu rosto.','err',4000);return;
         }
         const u=snap.docs[0].data();
         // Aceita descriptor singular OU primeiro item de descriptors (multi-ângulo)
         const rawDesc=u.descriptor&&u.descriptor.length>=128?u.descriptor:(u.descriptors&&u.descriptors.length>0?u.descriptors[0]:null);
         if(!rawDesc||rawDesc.length<128){
-          pbioClose();pToast('Rosto não cadastrado no sistema. Fale com o RH.','err',4000);
-          logBioAttemptFail('descriptor_ausente_ou_invalido');return;
+          pbioClose();pToast('Rosto não cadastrado no sistema. Fale com o RH.','err',4000);return;
         }
         PBIO.descriptor=new Float32Array(rawDesc);
         // Determina próxima batida
@@ -28302,7 +28233,7 @@ td,th{font-size:15px!important;}
         const badge=document.getElementById('pbio-badge');
         if(badge){badge.textContent=PBIO.nextType==='in'?'▶ ENTRADA':'■ SAÍDA';badge.style.background=PBIO.nextType==='in'?'rgba(16,185,129,.25)':'rgba(244,63,94,.25)';badge.style.color=PBIO.nextType==='in'?'#10b981':'#f43f5e';}
         await pbioOpenCamera();
-      }catch(e){pbioClose();pToast('Erro ao buscar dados: '+e.message,'err');logBioAttemptFail('erro_buscar_dados',e&&e.message);}
+      }catch(e){pbioClose();pToast('Erro ao buscar dados: '+e.message,'err');}
   }
 
   async function pbioOpenCamera(){
@@ -28320,7 +28251,6 @@ td,th{font-size:15px!important;}
       pbioStartDetection();pbioStartTimeout();
     }catch(e){
       pbioSetStatus('❌ Câmera bloqueada','Permita acesso à câmera e tente novamente');
-      logBioAttemptFail('camera_bloqueada',e&&e.message);
     }
   }
 
@@ -28376,7 +28306,6 @@ td,th{font-size:15px!important;}
               PBIO.processing=false;
               pbioStopCamera();
               pbioShowResult(false,'Erro inesperado ao registrar ponto: '+e.message);
-              logBioAttemptFail('erro_inesperado_registro',e&&e.message);
             }
           }
         }else{
@@ -28390,7 +28319,7 @@ td,th{font-size:15px!important;}
 
   function pbioStartTimeout(){
     let rem=40;const bar=document.getElementById('pbio-timeout');
-    PBIO.timeout=setInterval(()=>{rem--;if(bar)bar.style.width=(rem/40*100)+'%';if(rem<=0){clearInterval(PBIO.timeout);PBIO.timeout=null;if(!PBIO.processing){clearInterval(PBIO.detect);PBIO.detect=null;pbioShowResult(false,'Tempo esgotado. Rosto não reconhecido.');logBioAttemptFail('timeout_nao_reconhecido');}};},1000);
+    PBIO.timeout=setInterval(()=>{rem--;if(bar)bar.style.width=(rem/40*100)+'%';if(rem<=0){clearInterval(PBIO.timeout);PBIO.timeout=null;if(!PBIO.processing){clearInterval(PBIO.detect);PBIO.detect=null;pbioShowResult(false,'Tempo esgotado. Rosto não reconhecido.');}};},1000);
   }
 
   async function pbioPunch(){
@@ -28416,7 +28345,6 @@ td,th{font-size:15px!important;}
               ?'Permissão de localização negada. Permita o acesso ao GPS nas configurações do seu navegador e tente novamente.'
               :'GPS indisponível ou tempo esgotado. Aproxime-se de uma área com sinal e tente novamente.';
             pbioShowResult(false,'⛔ Localização necessária\n\n'+gpsMsg);
-            logBioAttemptFail(gpsErr.code===1?'gps_negado':'gps_indisponivel');
             return;
           }
           // Geo não obrigatório: registra sem localização
@@ -28426,7 +28354,7 @@ td,th{font-size:15px!important;}
           const cpf=(P_EMP.cpf||'').replace(/\D/g,'');
           const punch={id:pbioUid(),cpf,userId:cpf,empName:P_EMP.nome,hrEmpId:P_EMP.id,date:today,time,type:PBIO.nextType,lat:null,lng:null,dist:null,locName:null,month,verified:true,origem:'portal_biometrico',geoSkipped:true,ts:new Date().toISOString()};
           try{await db.collection('bio_punches').doc(punch.id).set(punch);P_TODAY_PUNCHES.push(punch);P_TODAY_PUNCHES.sort((a,b)=>a.time.localeCompare(b.time));if(typeof bioAplicarBatidaLocal==='function')bioAplicarBatidaLocal(punch);pbioStopCamera();pbioShowResult(true,null,null,PBIO.nextType,time);}
-          catch(e){pbioStopCamera();pbioShowResult(false,'Erro ao salvar: '+e.message);logBioAttemptFail('erro_salvar_punch',e&&e.message);}
+          catch(e){pbioStopCamera();pbioShowResult(false,'Erro ao salvar: '+e.message);}
           return;
         }
         const myLat=pos.coords.latitude,myLng=pos.coords.longitude;
@@ -28442,7 +28370,6 @@ td,th{font-size:15px!important;}
     if(!geoOk){
       pbioStopCamera();
       pbioShowResult(false,`⛔ Você está fora da área permitida.\n\n📍 Sua distância atual: ${geoData?.dist||'?'} metros\n🏪 Local mais próximo: ${geoData?.locName||'Loja'}\n🔵 Raio permitido: ${geoData?.reqRadius||cfg.locations?.[0]?.radius||50} metros\n\nAproxime-se do local de trabalho e tente novamente.`);
-      logBioAttemptFail('fora_area_permitida','dist:'+(geoData?.dist||'?')+'m local:'+(geoData?.locName||''));
       return;
     }
 
@@ -28455,7 +28382,7 @@ td,th{font-size:15px!important;}
       P_TODAY_PUNCHES.push(punch);P_TODAY_PUNCHES.sort((a,b)=>a.time.localeCompare(b.time));
       if(typeof bioAplicarBatidaLocal==='function')bioAplicarBatidaLocal(punch);
       pbioStopCamera();pbioShowResult(true,null,geoData,PBIO.nextType,time);
-    }catch(e){pbioStopCamera();pbioShowResult(false,'Erro ao salvar: '+e.message);logBioAttemptFail('erro_salvar_punch',e&&e.message);}
+    }catch(e){pbioStopCamera();pbioShowResult(false,'Erro ao salvar: '+e.message);}
   }
 
   function pbioShowResult(ok,errMsg,geoData,type,time){
@@ -55239,6 +55166,468 @@ window.atlasComprovanteAssinatura = function(docId){
   try{ if(typeof auditLog==='function') auditLog('Emitiu comprovante de assinatura', titulo, 'assinaturas'); }catch(e){}
 };
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  RECIBO DE QUITAÇÃO DE VERBAS RESCISÓRIAS
+//  Documento elegante, em estilo cartorial, para acompanhar o TRCT: explica
+//  em linguagem clara o que a empresa deve, o que foi pago e a quitação
+//  restrita às verbas discriminadas (Súmula 330 do TST) — nunca uma
+//  quitação geral, que seria nula em instrumento particular sem assistência
+//  sindical. NÃO substitui o TRCT, que segue sendo o documento oficial
+//  para saque do FGTS e habilitação ao seguro-desemprego.
+// ═══════════════════════════════════════════════════════════════════════════
+const ATLAS_RESC_BASE_LEGAL = {
+  sem_justa_causa: 'Arts. 477 e 487 da CLT — dispensa sem justa causa, com aviso prévio e multa de 40% sobre o saldo do FGTS (Art. 18, §1º, da Lei nº 8.036/1990).',
+  pedido_demissao: 'Arts. 477 e 487 da CLT — rescisão por iniciativa do(a) empregado(a).',
+  justa_causa: 'Art. 482 da CLT — dispensa por justa causa, sem aviso prévio, sem multa do FGTS e sem férias e 13º proporcionais (Súmula 171 do TST).',
+  acordo: 'Art. 484-A da CLT — rescisão por acordo entre as partes, com aviso prévio pela metade, multa de 20% sobre o FGTS e saque de até 80% do saldo.',
+  fim_experiencia: 'Arts. 443, §2º, e 451 da CLT — término do contrato de experiência no prazo pactuado, sem aviso prévio e sem multa do FGTS.',
+  exp_antecipada_empregador: 'Art. 479 da CLT — rescisão antecipada do contrato de experiência por iniciativa da empregadora, com indenização de metade da remuneração do período restante e multa de 40% sobre o FGTS.',
+  exp_antecipada_empregado: 'Art. 480 da CLT — rescisão antecipada do contrato de experiência por iniciativa do(a) empregado(a).',
+  exp_clausula_481: 'Art. 481 da CLT — rescisão do contrato de experiência com cláusula assecuratória, aplicando-se as regras do contrato por prazo indeterminado.'
+};
+
+function _atlasReciboNumero(){
+  const ano = new Date().getFullYear();
+  const n = (APP.assinaturas||[]).filter(a=>a && a.tipo==='recibo_quitacao'
+    && String(a.numero||'').indexOf('RQ-'+ano)===0).length + 1;
+  return 'RQ-'+ano+'-'+String(n).padStart(4,'0');
+}
+
+function _atlasTempoServicoTxt(admissaoISO, saidaISO){
+  if(!admissaoISO) return '—';
+  try{
+    const adm = new Date(admissaoISO+'T00:00:00');
+    const fim = new Date((saidaISO||new Date().toISOString().slice(0,10))+'T00:00:00');
+    const dias = Math.max(0, Math.round((fim-adm)/86400000));
+    const anos = Math.floor(dias/365), meses = Math.floor((dias%365)/30);
+    const p = [];
+    if(anos>0) p.push(anos+(anos===1?' ano':' anos'));
+    if(meses>0) p.push(meses+(meses===1?' mês':' meses'));
+    if(!p.length) p.push(dias+(dias===1?' dia':' dias'));
+    return p.join(' e ');
+  }catch(e){ return '—'; }
+}
+
+
+// Monta todos os campos do recibo a partir do cálculo de rescisão (r),
+// combinando os dados fixos do contrato com a EDIÇÃO das verbas — que fica
+// amarrada a este cálculo (não é um documento livre): a base continua sendo
+// o que foi calculado, e o que muda aqui são ajustes finos linha por linha
+// (meta a pagar, dias trabalhados a mais, valor em aberto, correção pontual).
+function _atlasReciboChave(r){
+  return String((r.emp&&r.emp.id)||'')+'|'+String(r.dataRescisao||'')+'|'+String(r.tipoKey||'');
+}
+
+// Cópia de trabalho das verbas — só é recriada quando o cálculo de base muda
+// (outro colaborador, outra data ou outra modalidade). Reabrir o recibo do
+// mesmo cálculo preserva os ajustes já feitos.
+function _atlasReciboEdicao(r){
+  const chave = _atlasReciboChave(r);
+  if(window._reciboEdicao && window._reciboEdicao.chave===chave) return window._reciboEdicao;
+  const round2 = v => +((parseFloat(v)||0).toFixed(2));
+  const verbas = (r.verbas||[]).filter(v=>!v.foraTRCT).map(v=>({desc:v.desc, valor:round2(v.valor)}));
+  const foraTRCT = (r.verbas||[]).filter(v=>v.foraTRCT).map(v=>({desc:v.desc, valor:round2(v.valor)}));
+  const descontos = (r.descontos||[]).map(d=>({desc:d.desc, valor:round2(d.valor)}));
+  window._reciboEdicao = {chave, verbas, foraTRCT, descontos};
+  return window._reciboEdicao;
+}
+
+function _atlasReciboDados(r){
+  const emp = r.emp||{};
+  const map = (typeof _atlasMapContrato==='function') ? _atlasMapContrato(emp) : {};
+  const brl = v => 'R$ '+(parseFloat(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fmtData = iso => { try{ return new Date(iso+'T00:00:00').toLocaleDateString('pt-BR'); }catch(e){ return iso||'—'; } };
+
+  const ed = _atlasReciboEdicao(r);
+  // O bruto e o líquido do recibo NÃO incluem a multa do FGTS (ela é
+  // recolhida à parte, em guia própria — não é dinheiro que passa pela
+  // mesma folha de pagamento). Mesma regra que já usávamos no TRCT.
+  const totalVerbas = +ed.verbas.reduce((s,v)=>s+(parseFloat(v.valor)||0),0).toFixed(2);
+  const totalDescontos = +ed.descontos.reduce((s,v)=>s+(parseFloat(v.valor)||0),0).toFixed(2);
+  const liquido = +(totalVerbas-totalDescontos).toFixed(2);
+  const totalForaTRCT = +ed.foraTRCT.reduce((s,v)=>s+(parseFloat(v.valor)||0),0).toFixed(2);
+
+  return {
+    numero: _atlasReciboNumero(),
+    emp, map, brl, fmtData, edicao: ed,
+    empresa: map['{EMPRESA}']||'', cnpj: map['{CNPJ}']||'', endEmpresa: map['{ENDERECO_EMPRESA}']||'',
+    cidade: map['{CIDADE}']||'', comarca: map['{COMARCA}']||'',
+    nome: map['{NOME}']||emp.nome||'', cpf: map['{CPF}']||emp.cpf||'', rg: map['{RG}']||'',
+    ctps: map['{CTPS}']||'', pis: map['{PIS}']||'', cargo: map['{CARGO}']||emp.cargo||'',
+    endEmp: map['{ENDERECO_EMP}']||'',
+    admissao: fmtData(emp.dataAdmissao||''), desligamento: fmtData(r.dataRescisao),
+    tempoServico: _atlasTempoServicoTxt(emp.dataAdmissao, r.dataRescisao),
+    modalidade: r.tipo.label, baseLegal: ATLAS_RESC_BASE_LEGAL[r.tipoKey]||'Legislação trabalhista vigente.',
+    verbasTRCT: ed.verbas, foraTRCT: ed.foraTRCT, descontosList: ed.descontos,
+    totalVerbas, totalDescontos, liquido, totalForaTRCT,
+    saqueFgts: !!r.saqueFgts, seguroDesemprego: !!r.seguroDesemprego,
+    saldoFgts: r.saldoFgts||0, fgtsEstimado: !!r.fgtsEstimado
+  };
+}
+
+// ── Edição das linhas — chamada pelos inputs do modal ─────────────────────
+window.atlasReciboEditarCampo = function(tipo, i, campo, valor){
+  const ed = window._reciboEdicao;
+  if(!ed || !ed[tipo] || !ed[tipo][i]) return;
+  ed[tipo][i][campo] = (campo==='valor') ? (parseFloat(valor)||0) : valor;
+  _atlasReciboAtualizarTotaisNaTela();
+};
+
+window.atlasReciboAdicionarLinha = function(tipo){
+  const ed = window._reciboEdicao;
+  if(!ed || !ed[tipo]) return;
+  ed[tipo].push({desc:'', valor:0});
+  const r = window._ultimaRescisao;
+  if(r) _atlasReciboRenderizarModal(r);
+};
+
+window.atlasReciboRemoverLinha = function(tipo, i){
+  const ed = window._reciboEdicao;
+  if(!ed || !ed[tipo]) return;
+  ed[tipo].splice(i,1);
+  const r = window._ultimaRescisao;
+  if(r) _atlasReciboRenderizarModal(r);
+};
+
+// Descarta os ajustes manuais e volta aos valores exatos do cálculo
+window.atlasReciboResetar = function(){
+  window._reciboEdicao = null;
+  const r = window._ultimaRescisao;
+  if(!r){ toast('Nenhum cálculo carregado.','warn'); return; }
+  _atlasReciboEdicao(r);
+  _atlasReciboRenderizarModal(r);
+  toast('Valores restaurados ao cálculo original.','ok');
+};
+
+// Atualiza só os totais na tela, sem redesenhar as linhas — preserva o
+// foco do campo em que a pessoa está digitando.
+function _atlasReciboAtualizarTotaisNaTela(){
+  const r = window._ultimaRescisao;
+  if(!r) return;
+  const d = _atlasReciboDados(r);
+  const set = (id,val) => { const el=document.getElementById(id); if(el) el.textContent = val; };
+  set('recibo-tot-bruto', d.brl(d.totalVerbas));
+  set('recibo-tot-desc', '− '+d.brl(d.totalDescontos));
+  set('recibo-tot-liq', d.brl(d.liquido));
+  set('recibo-tot-fora', d.brl(d.totalForaTRCT));
+}
+
+function _atlasReciboLinhaHTML(tipo, i, item){
+  const cor = tipo==='descontos' ? '#DC2626' : (tipo==='foraTRCT' ? '#92400E' : '#0F172A');
+  return `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+    <input value="${esc(item.desc)}" placeholder="Descrição" oninput="atlasReciboEditarCampo('${tipo}',${i},'desc',this.value)"
+      style="flex:1;min-width:130px;padding:7px 9px;border:1px solid var(--border);border-radius:7px;font-size:12px">
+    <input type="number" step="0.01" value="${item.valor}" placeholder="0,00" oninput="atlasReciboEditarCampo('${tipo}',${i},'valor',this.value);_atlasReciboAtualizarTotaisNaTela()"
+      style="width:105px;padding:7px 9px;border:1px solid var(--border);border-radius:7px;font-size:12px;text-align:right;color:${cor};font-weight:700">
+    <button onclick="atlasReciboRemoverLinha('${tipo}',${i})" title="Remover linha"
+      style="background:#FEF2F2;color:#DC2626;border:none;border-radius:7px;width:30px;height:30px;cursor:pointer;font-size:13px;flex-shrink:0">✕</button>
+  </div>`;
+}
+
+function _atlasReciboSecaoHTML(tipo, titulo, itens, corBtn, corTxt){
+  return `<div style="margin-bottom:12px">
+    <div style="font-size:10.5px;font-weight:800;color:#0B1E35;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px">${titulo}</div>
+    <div id="recibo-linhas-${tipo}">${itens.length?itens.map((it,i)=>_atlasReciboLinhaHTML(tipo,i,it)).join(''):'<div style="font-size:11.5px;color:#94A3B8;padding:6px 0">nenhum item</div>'}</div>
+    <button onclick="atlasReciboAdicionarLinha('${tipo}')" style="background:${corBtn||'#EFF6FF'};color:${corTxt||'#2563EB'};border:none;border-radius:7px;padding:6px 12px;font-size:11.5px;font-weight:700;cursor:pointer">+ Adicionar item</button>
+  </div>`;
+}
+
+function _atlasReciboTextoPlano(d){
+  const L = (rot,val) => rot.padEnd(34,'.')+' '+val;
+  let verbas = '';
+  d.verbasTRCT.forEach(v=>{ verbas += '  '+L(v.desc||'(sem descrição)', d.brl(v.valor))+'\n'; });
+  let descontosTxt = '';
+  d.descontosList.forEach(v=>{ descontosTxt += '  '+L(v.desc||'(sem descrição)', d.brl(v.valor))+'\n'; });
+  let foraTxt = '';
+  d.foraTRCT.forEach(v=>{ foraTxt += '  '+L(v.desc||'(sem descrição)', d.brl(v.valor))+'\n'; });
+
+  return `RECIBO DE QUITAÇÃO DE VERBAS RESCISÓRIAS
+Nº ${d.numero}
+
+EMPREGADOR(A): ${d.empresa} — CNPJ nº ${d.cnpj}
+${d.endEmpresa}
+
+EMPREGADO(A): ${d.nome}
+CPF nº ${d.cpf}${d.rg?(' · RG nº '+d.rg):''}${d.ctps?(' · CTPS '+d.ctps):''}${d.pis?(' · PIS/NIT '+d.pis):''}
+Cargo: ${d.cargo}
+
+DO CONTRATO E DO DESLIGAMENTO
+  Admissão .......................... ${d.admissao}
+  Desligamento ...................... ${d.desligamento}
+  Tempo de serviço .................. ${d.tempoServico}
+  Modalidade ......................... ${d.modalidade}
+  Base legal: ${d.baseLegal}
+
+VERBAS A RECEBER
+${verbas || '  (nenhuma verba discriminada)\n'}  ${L('TOTAL BRUTO', d.brl(d.totalVerbas))}
+
+DESCONTOS E RETENÇÕES
+${descontosTxt || '  (nenhum desconto)\n'}  ${L('TOTAL DE DESCONTOS', d.brl(d.totalDescontos))}
+
+  ${L('VALOR LÍQUIDO A RECEBER', d.brl(d.liquido))}
+
+FGTS
+${foraTxt ? foraTxt : '  Sem valores de FGTS recolhidos à parte nesta modalidade.\n'}  ${d.saqueFgts ? 'Saque do saldo do FGTS: autorizado, mediante o código de movimentação correspondente à modalidade de desligamento.' : 'Saque do saldo do FGTS: não autorizado nesta modalidade.'}
+  ${d.fgtsEstimado ? '(Saldo do FGTS estimado — confira o valor exato no extrato antes do saque.)' : ''}
+
+SEGURO-DESEMPREGO
+  ${d.seguroDesemprego ? 'O(A) empregado(a) pode ter direito ao benefício, mediante habilitação com o TRCT e os documentos exigidos pelo Ministério do Trabalho.' : 'Não há direito ao seguro-desemprego nesta modalidade de desligamento.'}
+
+DO PRAZO DE PAGAMENTO
+  Os valores acima observam o prazo do Art. 477, §6º, da CLT — até 10 (dez) dias corridos contados do término do contrato.
+
+DA QUITAÇÃO
+  O(A) EMPREGADO(A) declara ter recebido a importância líquida de ${d.brl(d.liquido)}, dando à EMPREGADORA
+  quitação plena e para nada mais reclamar EXCLUSIVAMENTE quanto às verbas e valores discriminados
+  neste recibo, decorrentes da extinção do contrato de trabalho, sem prejuízo de eventuais diferenças,
+  verbas não contempladas ou direitos que venha a demonstrar fazer jus, nos termos da Súmula 330 do
+  Tribunal Superior do Trabalho e do Art. 477, §2º, da CLT.
+
+  Este recibo não substitui o Termo de Rescisão do Contrato de Trabalho (TRCT), documento oficial
+  exigido para o saque do FGTS e para a habilitação ao seguro-desemprego, fornecido em separado.
+
+${d.cidade}, ${new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}.`;
+}
+
+function _atlasReciboHTML(d, hash){
+  const brl = d.brl;
+  const linhaVerba = v => `<tr><td style="padding:6px 10px;font-size:12.5px;color:#334155">${esc(v.desc)}</td>
+    <td style="padding:6px 10px;font-size:12.5px;font-weight:700;text-align:right;white-space:nowrap">${brl(v.valor)}</td></tr>`;
+  const foraTRCTHtml = d.foraTRCT.length ? `
+    <div style="font-size:10px;font-weight:800;letter-spacing:.08em;color:#92400E;text-transform:uppercase;margin:14px 0 6px">Recolhido em guia própria (fora deste recibo)</div>
+    <table style="width:100%;border-collapse:collapse">${d.foraTRCT.map(v=>`<tr><td style="padding:5px 10px;font-size:12px;color:#92400E">${esc(v.desc)}</td><td style="padding:5px 10px;font-size:12px;font-weight:700;text-align:right;color:#92400E">${brl(v.valor)}</td></tr>`).join('')}</table>` : '';
+
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
+<title>Recibo de Quitação — ${esc(d.nome)}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Georgia&display=swap');
+  *{box-sizing:border-box}
+  body{font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;background:#FEFDFB;margin:0;padding:26px}
+  .folha{max-width:760px;margin:0 auto;border:2px solid #0B1E35;padding:0;position:relative}
+  .barra{height:6px;background:linear-gradient(90deg,#0B1E35,#C9A84C,#0B1E35)}
+  .miolo{padding:34px 46px 40px}
+  .topo{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid #D8D2C4}
+  .marca{font-size:19px;font-weight:700;letter-spacing:.02em;color:#0B1E35}
+  .marca b{color:#C9A84C}
+  .marca-sub{font-size:10.5px;color:#7A756A;margin-top:2px;letter-spacing:.03em}
+  .selo{text-align:right;font-size:9.5px;color:#7A756A;line-height:1.6}
+  .selo b{color:#0B1E35;font-size:11px}
+  h1{font-size:16.5px;text-align:center;letter-spacing:.06em;text-transform:uppercase;margin:6px 0 4px;color:#0B1E35}
+  .subt{text-align:center;font-size:11px;font-style:italic;color:#57534E;margin-bottom:22px;padding:0 20px}
+  .rot{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#0B1E35;border-bottom:1px solid #C9A84C;padding-bottom:3px;margin:20px 0 9px}
+  .partes{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:6px}
+  .parte{flex:1;min-width:220px;border:1px solid #E7E2D6;background:#FBFAF6;padding:11px 13px;border-radius:2px}
+  .parte .tit{font-size:9px;font-weight:800;letter-spacing:.08em;color:#92806B;text-transform:uppercase;margin-bottom:5px}
+  .parte .nm{font-size:13px;font-weight:700;color:#0B1E35}
+  .parte div.linha{font-size:11.5px;color:#44403C;margin-top:2px}
+  table.dados{width:100%;border-collapse:collapse;font-size:12px;margin-top:4px}
+  table.dados td{padding:4px 0;color:#44403C}
+  table.dados td.v{font-weight:700;color:#1a1a1a;text-align:right}
+  table.verbas{width:100%;border-collapse:collapse;margin-top:4px}
+  table.verbas tr:nth-child(odd){background:#FBFAF6}
+  .tot{border-top:2px solid #0B1E35;font-weight:800}
+  .tot td{padding:9px 10px;font-size:13.5px;color:#0B1E35}
+  .liq{background:#0B1E35}
+  .liq td{color:#fff;padding:11px 10px;font-size:15px;font-weight:800}
+  .box-info{border:1px solid #E7E2D6;background:#FBFAF6;padding:11px 13px;font-size:11.5px;color:#44403C;line-height:1.7;margin-top:6px}
+  .quitacao{text-align:justify;text-indent:26px;font-size:12px;line-height:1.85;color:#292524;margin-top:8px}
+  .assin{display:flex;gap:26px;flex-wrap:wrap;margin-top:44px}
+  .assin div{flex:1;min-width:230px;text-align:center}
+  .linha-assin{border-top:1px solid #1a1a1a;margin-top:34px;padding-top:5px;font-size:11px}
+  .linha-assin b{display:block;font-size:12px}
+  .test{margin-top:30px;font-size:10.5px;color:#57534E}
+  .test .l{border-top:1px solid #A8A29E;display:inline-block;width:270px;margin-top:26px;padding-top:4px}
+  .rodape{margin-top:28px;padding-top:12px;border-top:1px solid #D8D2C4;font-size:9px;color:#8A8378;line-height:1.7}
+  .rodape .hash{font-family:'Courier New',monospace;word-break:break-all}
+  @media print{.noprint{display:none}body{padding:0;background:#fff}.folha{border:none;max-width:none}}
+  .noprint{position:fixed;top:16px;right:16px;display:flex;gap:8px;z-index:99}
+  .btn{background:#2563EB;color:#fff;border:none;padding:9px 16px;border-radius:8px;font-family:Arial,sans-serif;font-size:13px;font-weight:700;cursor:pointer}
+  .btn.g{background:#059669}
+</style></head><body>
+  <div class="noprint">
+    <button class="btn" onclick="window.print()">🖨 Imprimir / PDF</button>
+    <button class="btn g" onclick="window.close()">✓ Fechar</button>
+  </div>
+  <div class="folha">
+    <div class="barra"></div>
+    <div class="miolo">
+      <div class="topo">
+        <div><div class="marca">ATLAS <b>RH</b></div><div class="marca-sub">Comércio e Assistência Técnica</div></div>
+        <div class="selo"><b>Recibo nº ${esc(d.numero)}</b><br>Emitido em ${new Date().toLocaleString('pt-BR')}<br>Documento oficial da empresa</div>
+      </div>
+
+      <h1>Recibo de Quitação de Verbas Rescisórias</h1>
+      <div class="subt">${esc(d.baseLegal)}</div>
+
+      <div class="partes">
+        <div class="parte"><div class="tit">Empregador(a)</div><div class="nm">${esc(d.empresa)}</div>
+          <div class="linha">CNPJ: ${esc(d.cnpj)}</div><div class="linha">${esc(d.endEmpresa)}</div></div>
+        <div class="parte"><div class="tit">Empregado(a)</div><div class="nm">${esc(d.nome)}</div>
+          <div class="linha">CPF: ${esc(d.cpf)}${d.rg?(' · RG: '+esc(d.rg)):''}</div>
+          <div class="linha">${d.ctps?('CTPS: '+esc(d.ctps)+' · '):''}${d.pis?('PIS/NIT: '+esc(d.pis)):''}</div>
+          <div class="linha">Cargo: ${esc(d.cargo)}</div></div>
+      </div>
+
+      <div class="rot">Do Contrato e do Desligamento</div>
+      <table class="dados">
+        <tr><td>Data de admissão</td><td class="v">${esc(d.admissao)}</td>
+            <td style="padding-left:24px">Tempo de serviço</td><td class="v">${esc(d.tempoServico)}</td></tr>
+        <tr><td>Data do desligamento</td><td class="v">${esc(d.desligamento)}</td>
+            <td style="padding-left:24px">Modalidade</td><td class="v">${esc(d.modalidade)}</td></tr>
+      </table>
+
+      <div class="rot">Verbas a Receber</div>
+      <table class="verbas">${d.verbasTRCT.length?d.verbasTRCT.map(linhaVerba).join(''):'<tr><td colspan="2" style="padding:8px 10px;font-size:11.5px;color:#94A3B8;font-style:italic">nenhuma verba discriminada</td></tr>'}</table>
+      <table class="verbas"><tr class="tot"><td>TOTAL BRUTO</td><td style="text-align:right">${brl(d.totalVerbas)}</td></tr></table>
+
+      ${d.descontosList.length?`<div class="rot">Descontos e Retenções</div>
+      <table class="verbas">${d.descontosList.map(v=>`<tr><td style="padding:6px 10px;font-size:12.5px;color:#B91C1C">${esc(v.desc)}</td><td style="padding:6px 10px;font-size:12.5px;font-weight:700;text-align:right;color:#B91C1C">${brl(v.valor)}</td></tr>`).join('')}</table>`:''}
+      <table class="verbas">
+        <tr><td style="padding:6px 10px;font-size:12px;color:#B91C1C">TOTAL DE DESCONTOS</td><td style="padding:6px 10px;text-align:right;font-weight:700;color:#B91C1C">${brl(d.totalDescontos)}</td></tr>
+        <tr class="liq"><td>VALOR LÍQUIDO A RECEBER</td><td style="text-align:right">${brl(d.liquido)}</td></tr>
+      </table>
+      ${foraTRCTHtml}
+
+      <div class="rot">FGTS e Seguro-Desemprego</div>
+      <div class="box-info">
+        ${d.saqueFgts ? '✓ Saque do saldo do FGTS autorizado, mediante o código de movimentação correspondente a esta modalidade de desligamento.' : '✗ Não há autorização de saque do FGTS nesta modalidade.'}
+        ${d.fgtsEstimado ? '<br><i>Saldo do FGTS estimado — confira o valor exato no extrato antes do saque.</i>' : ''}
+        <br>${d.seguroDesemprego ? '✓ O(A) empregado(a) pode ter direito ao seguro-desemprego, mediante habilitação com o TRCT.' : '✗ Não há direito ao seguro-desemprego nesta modalidade.'}
+      </div>
+
+      <div class="rot">Da Quitação</div>
+      <p class="quitacao">
+        O(A) EMPREGADO(A) declara ter recebido, nesta data, a importância líquida de <b>${brl(d.liquido)}</b>,
+        dando à EMPREGADORA quitação plena e para nada mais reclamar <b>exclusivamente quanto às verbas e
+        valores discriminados neste recibo</b>, decorrentes da extinção do contrato de trabalho, sem
+        prejuízo de eventuais diferenças, verbas não contempladas ou direitos que venha a demonstrar fazer
+        jus, nos termos da Súmula 330 do Tribunal Superior do Trabalho e do Art. 477, §2º, da CLT. Os
+        valores observam o prazo do Art. 477, §6º, da CLT.
+      </p>
+      <p class="quitacao" style="font-style:italic;font-size:11px">
+        Este recibo não substitui o Termo de Rescisão do Contrato de Trabalho (TRCT), documento oficial
+        exigido para o saque do FGTS e para a habilitação ao seguro-desemprego, fornecido em separado.
+      </p>
+
+      <div style="text-align:right;font-size:11.5px;margin-top:22px">${esc(d.cidade)}, ${new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}.</div>
+
+      <div class="assin">
+        <div><div class="linha-assin"><b>${esc(d.nome)}</b>CPF: ${esc(d.cpf)} — EMPREGADO(A)</div></div>
+        <div><div class="linha-assin"><b>${esc(d.empresa)}</b>CNPJ: ${esc(d.cnpj)} — EMPREGADORA</div></div>
+      </div>
+      <div class="test">
+        TESTEMUNHAS:<br>
+        <span class="l">Nome: _____________________ CPF: _______________</span><br>
+        <span class="l">Nome: _____________________ CPF: _______________</span>
+      </div>
+
+      <div class="rodape">
+        Documento emitido eletronicamente pelo Sistema Atlas RH em ${new Date().toLocaleString('pt-BR')}.
+        Assinatura eletrônica com validade jurídica nos termos da MP nº 2.200-2/2001 e da Lei nº 14.063/2020.
+        ${hash?`<br>Hash de verificação de integridade: <span class="hash">${esc(hash)}</span>`:''}
+      </div>
+    </div>
+  </div>
+</body></html>`;
+}
+
+// Abre o recibo elegante em nova aba, pronto para imprimir ou salvar em PDF
+window.atlasImprimirReciboQuitacao = async function(){
+  const r = window._ultimaRescisao;
+  if(!r){ toast('Calcule a rescisão primeiro.','err'); return; }
+  const d = _atlasReciboDados(r);
+  let hash = '';
+  try{ if(typeof hashSHA256==='function') hash = await hashSHA256(_atlasReciboTextoPlano(d)); }catch(e){}
+  const win = window.open('','_blank');
+  if(!win){ toast('Permita pop-ups para gerar o recibo.','err'); return; }
+  win.document.write(_atlasReciboHTML(d, hash));
+  win.document.close();
+  try{ if(typeof auditLog==='function') auditLog('Emitiu recibo de quitação '+d.numero, d.nome, 'rescisao'); }catch(e){}
+};
+
+// Envia o recibo para assinatura eletrônica no portal (canvas + selfie)
+window.atlasEnviarReciboQuitacao = async function(){
+  const r = window._ultimaRescisao;
+  if(!r || !r.emp || !r.emp.id){ toast('Calcule a rescisão primeiro.','err'); return; }
+  const d = _atlasReciboDados(r);
+  const doc = {
+    id: uid(), numero: d.numero,
+    empId: r.emp.id, empNome: d.nome,
+    tipo:'recibo_quitacao', tipoLabel:'Recibo de Quitação de Verbas Rescisórias',
+    titulo:'Recibo de Quitação — '+d.numero,
+    conteudo: _atlasReciboTextoPlano(d),
+    status:'pendente', origem:'rh_rescisao',
+    exigirSelfie:true, exigirFoto:true, registrarDataHora:true, exigirGeo:false,
+    criadoEm:new Date().toISOString(), criadoPor:'RH',
+    assinaturaData:null, assinaturaPNG:null, assinaturaHash:null, assinaturaIP:null, assinaturaGeo:null,
+    historicoStatus:[{status:'pendente',ts:new Date().toISOString(),por:'RH'}]
+  };
+  if(!APP.assinaturas) APP.assinaturas=[];
+  await atlasCarimbarVersao(doc);
+  APP.assinaturas.push(doc);
+  await _atlasSyncAssinaturasFB();
+  if(typeof pushNotificacaoPortal==='function'){
+    pushNotificacaoPortal(r.emp.id, '📜 Recibo de Quitação para assinar',
+      'O RH disponibilizou o recibo de quitação da sua rescisão ('+d.numero+'). Acesse "Assinaturas" no portal.', 'contrato');
+  }
+  try{ if(typeof auditLog==='function') auditLog('Enviou recibo de quitação '+d.numero+' para assinatura', d.nome, 'assinaturas'); }catch(e){}
+  toast('✅ Recibo enviado para assinatura no portal!','ok',5000);
+};
+
+// Modal de pré-visualização, aberto a partir do painel de rescisão ou do
+// módulo Demissão
+// Redesenha o modal preservando os ajustes já feitos (usado após
+// adicionar/remover linha, sem reabrir do zero)
+function _atlasReciboRenderizarModal(r){
+  const d = _atlasReciboDados(r);
+  const brl = d.brl;
+
+  openModal('📜 Recibo de Quitação — '+esc(d.nome), `
+    <div style="background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:11px 13px;margin-bottom:12px;font-size:11.5px;color:#64748B">
+      Nº ${esc(d.numero)} · ${esc(d.modalidade)} · desligamento em ${esc(d.desligamento)} ·
+      admitido em ${esc(d.admissao)} · tempo de casa: ${esc(d.tempoServico)}
+    </div>
+
+    <div style="max-height:44vh;overflow-y:auto;padding-right:4px;margin-bottom:10px">
+      ${_atlasReciboSecaoHTML('verbas', 'Verbas a Receber (editável — metas, dias extras, valores em aberto...)', d.verbasTRCT, '#EFF6FF', '#2563EB')}
+      ${_atlasReciboSecaoHTML('descontos', 'Descontos e Retenções (editável)', d.descontosList, '#FEF2F2', '#DC2626')}
+      ${_atlasReciboSecaoHTML('foraTRCT', 'Recolhido à parte — FGTS (não entra no líquido)', d.foraTRCT, '#FFFBEB', '#92400E')}
+    </div>
+
+    <div style="background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:11px 13px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12.5px"><span>Total bruto</span><span id="recibo-tot-bruto" style="font-weight:700">${brl(d.totalVerbas)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12.5px"><span>Descontos</span><span id="recibo-tot-desc" style="font-weight:700;color:#DC2626">− ${brl(d.totalDescontos)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0 0;margin-top:4px;border-top:1px solid var(--border);font-size:14px"><span style="font-weight:700">Líquido a receber</span><span id="recibo-tot-liq" style="font-weight:800;color:#059669">${brl(d.liquido)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0 0;font-size:11px;color:#92400E"><span>Recolhido à parte (FGTS)</span><span id="recibo-tot-fora">${brl(d.totalForaTRCT)}</span></div>
+    </div>
+
+    <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:11px;color:#92400E;line-height:1.6">
+      Os ajustes ficam amarrados a este cálculo — para mudar a modalidade, a data ou o salário, recalcule a rescisão.
+      Este recibo complementa o TRCT e não o substitui.
+    </div>
+
+    <div class="mft" style="gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+      <button class="btn btn-ghost btn-sm" onclick="atlasReciboResetar()" title="Descartar ajustes e voltar ao cálculo original">↺ Restaurar calculado</button>
+      <button class="btn btn-sm" style="background:#0B1E35;color:#C9A84C;border:none;font-weight:700" onclick="closeModal();atlasEnviarReciboQuitacao()">✍️ Enviar p/ assinar</button>
+      <button class="btn btn-blue" onclick="closeModal();atlasImprimirReciboQuitacao()">🖨 Gerar Recibo (PDF)</button>
+    </div>`, 620);
+}
+
+// Entrada pública — decide qual cálculo usar e delega para o renderizador
+window.atlasModalReciboQuitacao = function(empIdPre){
+  let r = window._ultimaRescisao;
+  if(empIdPre && r && r.emp && r.emp.id!==empIdPre) r = null;
+  if(!r){
+    toast('Calcule a rescisão deste colaborador primeiro.','warn',5000);
+    if(typeof abrirCalcRescisao==='function') abrirCalcRescisao(empIdPre);
+    return;
+  }
+  _atlasReciboRenderizarModal(r);
+};
+
+
 (function _atlasInjectButtons(){
   // 3a. Botão no módulo de Assinatura Digital
   const _origAssin = window.rAssinaturaDigital;
@@ -55345,154 +55734,6 @@ window.atlasComprovanteAssinatura = function(docId){
 // ═══════════════ FIM DO MÓDULO Regimento + Modelo de Contrato ═══════════════
 
 console.log('[Atlas] Módulo Regimento + Modelo de Contrato carregado ✅');
-</script>
-
-<script>
-// ════════════════════════════════════════════════════════════════════
-// [OBSERVABILIDADE] Painel de Falhas de Reconhecimento — aba "🚨 Falhas Ponto"
-// Lê a coleção bio_falhas — gravada pelo portal.com.br do colaborador
-// (_logFalhaPonto, dentro de abrirBioPonto() no portal_v2_pwa.html) — e
-// mostra agregado por motivo + dispositivo/navegador + versão do app, pra
-// dar visibilidade cross-device de tentativas de ponto reprovadas. Antes
-// disso os erros não ficavam visíveis em lugar nenhum pro RH.
-// ════════════════════════════════════════════════════════════════════
-let BIO_FALHAS_CACHE={loaded:false,loading:false,items:[]};
-const BIO_FALHAS_MOTIVO_LABEL={
-  fora_da_area:'Fora da área permitida (geofence)',
-  sem_referencia_facial:'Sem foto/rosto de referência cadastrado',
-  sem_referencia_facial_sem_groq:'Sem referência facial e Groq indisponível',
-  multiplos_rostos:'Mais de um rosto no quadro',
-  nenhum_rosto_detectado:'Nenhum rosto detectado (timeout)',
-  identidade_nao_confirmada_timeout:'Identidade não confirmada (timeout)',
-  negado_groq_e_faceapi:'Negado por Groq Vision e face-api',
-  biometria_nao_cadastrada:'Biometria não cadastrada',
-  erro_camera:'Erro/permissão de câmera'
-};
-// Extrai navegador/SO/mobile a partir do userAgent bruto salvo pelo portal
-// (o payload do portal só grava userAgent+plataforma, não já separado).
-function _bioFalhaParseUA(ua){
-  ua=ua||'';
-  let nav='Outro';
-  if(/Edg\//.test(ua))nav='Edge';
-  else if(/Chrome\//.test(ua)&&!/OPR|Opera/.test(ua))nav='Chrome';
-  else if(/Firefox\//.test(ua))nav='Firefox';
-  else if(/Safari\//.test(ua)&&!/Chrome/.test(ua))nav='Safari';
-  let so='Outro';
-  if(/Android/.test(ua))so='Android';
-  else if(/iPhone|iPad|iPod/.test(ua))so='iOS';
-  else if(/Windows/.test(ua))so='Windows';
-  else if(/Mac OS X/.test(ua))so='macOS';
-  else if(/Linux/.test(ua))so='Linux';
-  return {navegador:nav,so,mobile:/Mobi|Android|iPhone|iPad/.test(ua)};
-}
-async function bioLoadFalhas(force){
-  if(BIO_FALHAS_CACHE.loaded && !force)return;
-  if(BIO_FALHAS_CACHE.loading)return;
-  BIO_FALHAS_CACHE.loading=true;
-  try{
-    if(!FBASE){BIO_FALHAS_CACHE.items=[];BIO_FALHAS_CACHE.loaded=true;BIO_FALHAS_CACHE.loading=false;return;}
-    const snap=await FBASE.collection('bio_falhas').orderBy('ts','desc').limit(300).get();
-    BIO_FALHAS_CACHE.items=snap.docs.map(d=>{
-      const data=d.data();
-      const dev=_bioFalhaParseUA(data.userAgent);
-      return {id:d.id,...data,...dev};
-    });
-  }catch(e){
-    console.warn('[BioFalhas] Erro ao carregar:',e&&e.message);
-    BIO_FALHAS_CACHE.items=BIO_FALHAS_CACHE.items||[];
-  }
-  BIO_FALHAS_CACHE.loaded=true;BIO_FALHAS_CACHE.loading=false;
-}
-window.bioLoadFalhas=bioLoadFalhas;
-
-function rBioFalhas(){
-  if(!BIO_FALHAS_CACHE.loaded){
-    bioLoadFalhas().then(()=>{ if(typeof BIO_TAB!=='undefined'&&BIO_TAB==='falhas'&&typeof navigate==='function')navigate('biometrico'); });
-    return '<div class="card" style="padding:40px;text-align:center;color:var(--mt)">⏳ Carregando tentativas reprovadas...</div>';
-  }
-  const items=BIO_FALHAS_CACHE.items||[];
-  if(items.length===0){
-    return '<div class="card" style="padding:40px;text-align:center"><div style="font-size:36px;margin-bottom:10px">✅</div><div style="font-weight:700;margin-bottom:6px">Nenhuma tentativa reprovada registrada</div><p style="color:var(--mt);font-size:13px">A partir de agora, toda tentativa de bater ponto que falhar no portal aparece aqui — com motivo, dispositivo e versão do app.</p></div>';
-  }
-  // ts vem como epoch (Date.now()) do portal
-  const ultimas24h=items.filter(i=>i.ts&&(Date.now()-Number(i.ts))<24*3600*1000);
-  const porMotivo={};items.forEach(i=>{const k=i.motivo||'desconhecido';porMotivo[k]=(porMotivo[k]||0)+1;});
-  const porDevice={};items.forEach(i=>{const k=(i.navegador||'?')+' / '+(i.so||'?');porDevice[k]=(porDevice[k]||0)+1;});
-  const porVersao={};items.forEach(i=>{const k=i.appVersion||'(sem versão registrada)';porVersao[k]=(porVersao[k]||0)+1;});
-  const topMotivos=Object.entries(porMotivo).sort((a,b)=>b[1]-a[1]);
-  const topDevices=Object.entries(porDevice).sort((a,b)=>b[1]-a[1]);
-  const topVersoes=Object.entries(porVersao).sort((a,b)=>b[1]-a[1]);
-  // Se um único motivo domina as últimas 24h com muitos colaboradores diferentes,
-  // é sinal forte de problema sistêmico (não um device isolado) — destaca isso.
-  const empsUnicos24h=new Set(ultimas24h.map(i=>i.cpf||i.empNome)).size;
-  const alertaSistemico = ultimas24h.length>=5 && empsUnicos24h>=3;
-  // Se mais de uma versão de app aparece entre as falhas recentes, é sinal
-  // de cache velho em alguns aparelhos — exatamente o problema que motivou este painel.
-  const alertaVersao = topVersoes.length>=2 && ultimas24h.some(i=>i.appVersion && i.appVersion!==APP_VERSION);
-  return `<div>
-    ${alertaSistemico?`<div style="background:#FEF2F2;border:2px solid #FECACA;border-radius:14px;padding:16px 18px;margin-bottom:14px">
-      <div style="font-weight:800;color:#DC2626;margin-bottom:4px">⚠ Padrão sistêmico nas últimas 24h</div>
-      <div style="font-size:13px;color:#7F1D1D">${ultimas24h.length} tentativas reprovadas de ${empsUnicos24h} colaboradores diferentes — não parece ser um dispositivo isolado. Motivo mais comum: <strong>${esc(BIO_FALHAS_MOTIVO_LABEL[topMotivos[0]?.[0]]||topMotivos[0]?.[0]||'?')}</strong>.</div>
-    </div>`:''}
-    ${alertaVersao?`<div style="background:#FFFBEB;border:2px solid #FDE68A;border-radius:14px;padding:16px 18px;margin-bottom:18px">
-      <div style="font-weight:800;color:#92400E;margin-bottom:4px">📦 Versões diferentes rodando ao mesmo tempo</div>
-      <div style="font-size:13px;color:#78350F">Tem colaborador batendo ponto com uma versão do app diferente de ${esc(APP_VERSION)} (a mais recente). Pode ser cache velho — peça pra fazer refresh forçado (Ctrl+Shift+R / fechar e reabrir o app).</div>
-    </div>`:''}
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px">
-      <div class="card" style="padding:16px">
-        <div style="font-weight:700;margin-bottom:10px;font-size:13px;color:var(--mt);text-transform:uppercase;letter-spacing:.5px">Por motivo (últimos 300)</div>
-        ${topMotivos.map(([m,n])=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #F1F5F9;font-size:13px"><span>${esc(BIO_FALHAS_MOTIVO_LABEL[m]||m)}</span><strong>${n}</strong></div>`).join('')}
-      </div>
-      <div class="card" style="padding:16px">
-        <div style="font-weight:700;margin-bottom:10px;font-size:13px;color:var(--mt);text-transform:uppercase;letter-spacing:.5px">Por navegador/SO (últimos 300)</div>
-        ${topDevices.map(([d,n])=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #F1F5F9;font-size:13px"><span>${esc(d)}</span><strong>${n}</strong></div>`).join('')}
-      </div>
-      <div class="card" style="padding:16px">
-        <div style="font-weight:700;margin-bottom:10px;font-size:13px;color:var(--mt);text-transform:uppercase;letter-spacing:.5px">Por versão do app</div>
-        ${topVersoes.map(([v,n])=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #F1F5F9;font-size:13px"><span style="font-family:monospace">${esc(v)}${v===APP_VERSION?' ✓':''}</span><strong>${n}</strong></div>`).join('')}
-      </div>
-    </div>
-    <div class="card" style="padding:0;overflow:hidden">
-      <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-        <div style="font-weight:700">Últimas tentativas reprovadas</div>
-        <button class="btn btn-sm" style="background:#EFF6FF;color:var(--blue)" onclick="bioLoadFalhas(true).then(()=>navigate('biometrico'))">🔄 Atualizar</button>
-      </div>
-      <div style="max-height:480px;overflow:auto">
-        ${items.slice(0,100).map(i=>`
-          <div style="padding:10px 18px;border-bottom:1px solid #F8FAFC;display:flex;gap:12px;align-items:center;font-size:12.5px">
-            <div style="width:14px;height:14px;border-radius:50%;background:#FEE2E2;color:#DC2626;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px">✗</div>
-            <div style="flex:1">
-              <div style="font-weight:700;color:#0F172A">${esc(BIO_FALHAS_MOTIVO_LABEL[i.motivo]||i.motivo||'desconhecido')}</div>
-              <div style="color:var(--mt)">${esc(i.empNome||'Não identificado')} ${i.cpf?'· '+esc(i.cpf):''} · ${esc(i.navegador||'?')}/${esc(i.so||'?')}${i.mobile?' 📱':' 🖥'}${i.appVersion?' · v'+esc(i.appVersion):''}</div>
-            </div>
-            <div style="color:#94A3B8;white-space:nowrap;font-family:monospace">${i.ts?new Date(Number(i.ts)).toLocaleString('pt-BR'):''}</div>
-          </div>`).join('')}
-      </div>
-    </div>
-  </div>`;
-}
-window.rBioFalhas=rBioFalhas;
-
-// Injeta a aba "🚨 Falhas Ponto" no mesmo padrão das outras patches de rBiometrico
-(function(){
-  const _prevRBiometrico=window.rBiometrico;
-  window.rBiometrico=function(){
-    if(typeof BIO_TAB!=='undefined' && BIO_TAB==='falhas'){
-      const bar=`<div style="display:flex;gap:6px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:14px;flex-wrap:wrap">
-        <button onclick="BIO_TAB='hoje';navigate('biometrico')" class="btn btn-sm" style="background:#F1F5F9;color:#475569">🏠 Hoje</button>
-        <button onclick="BIO_TAB='falhas';navigate('biometrico')" class="btn btn-sm" style="background:#0B1E35;color:#fff;font-weight:700">🚨 Falhas Ponto</button>
-        <button onclick="bioLoadFalhas(true).then(()=>navigate('biometrico'))" class="btn btn-sm" style="background:#EFF6FF;color:var(--blue);margin-left:auto">🔄 Atualizar</button>
-      </div>`;
-      return `<div>${bar}${rBioFalhas()}</div>`;
-    }
-    let html=_prevRBiometrico?_prevRBiometrico():'';
-    const _ativa=(typeof BIO_TAB!=='undefined' && BIO_TAB==='falhas');
-    const novaAba=`<button onclick="BIO_TAB='falhas';navigate('biometrico')" class="btn btn-sm" style="${_ativa?'background:#0B1E35;color:#fff':'background:#FEF2F2;color:#DC2626'};font-weight:700">🚨 Falhas Ponto</button>`;
-    html=html.replace(/(<button onclick="sincronizarTudo)/, novaAba+'$1');
-    return html;
-  };
-})();
-console.log('[Atlas] Painel de Falhas de Reconhecimento (observabilidade) carregado ✅');
 </script>
 
 </body>
