@@ -1784,6 +1784,11 @@ td,th{font-size:15px!important;}
     </div>
     <nav id="nav-menu"></nav>
     <div class="sb-foot">
+      <!-- Carimbo de versão — resolve em 1 segundo a dúvida "é bug ou é
+           versão antiga no ar", que já tomou tempo demais neste sistema. -->
+      <div style="text-align:center;font-size:9.5px;color:#CBD5E1;padding:2px 0 6px;user-select:all;cursor:default" title="Versão do build — se algo parecer estranho, confira se esta é a versão mais recente antes de investigar">
+        Atlas RH · build 2026-08-27 20:02
+      </div>
       <!-- Botão Sair visível sempre -->
       <button class="fb-btn" style="color:#DC2626;margin-top:4px" onclick="(async()=>{if(await confirmDialog('Sair do sistema?'))logout()})()">🔓 Sair</button>
 
@@ -16128,6 +16133,8 @@ function rBiometrico() {
     <div style="display:flex;gap:6px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:14px;flex-wrap:wrap">
       ${tabs.map(([id,lbl])=>`<button onclick="BIO_TAB='${id}';navigate('biometrico')" class="btn btn-sm" style="${BIO_TAB===id?'background:var(--navy);color:#fff':'background:#F1F5F9;color:var(--mt)'}">${lbl}</button>`).join('')}
       <button onclick="sincronizarTudo({mes:BIO_MES,ano:BIO_ANO,origem:'biometrico'})" class="btn btn-sm" style="background:#7C3AED;color:#fff;font-weight:700" title="Sincroniza Biométrico → Cartão Ponto → Banco de Horas">⚡ Sincronizar Tudo</button>
+      <button onclick="atlasModalFalhasPonto()" class="btn btn-sm" style="background:#F5F3FF;color:#7C3AED;font-weight:700" title="Por que o colaborador não conseguiu bater o ponto: câmera, geolocalização ou reconhecimento facial">🔍 Falhas de Biometria</button>
+      <button onclick="exportarAlertasPDF()" class="btn btn-sm" style="background:#FEF2F2;color:#DC2626;font-weight:700" title="Exporta em PDF os atrasos, faltas e irregularidades do dia">📄 Falhas do Ponto</button>
       <button onclick="atlasModalPontoExterno()" class="btn btn-sm" style="background:#FFFBEB;color:#92400E;font-weight:700;margin-left:auto" title="Autorizar quem pode bater ponto fora da loja">📍 Ponto Externo</button>
       <button onclick="bioLoadData().then(()=>navigate('biometrico'))" class="btn btn-sm" style="background:#EFF6FF;color:var(--blue)">🔄 Atualizar</button>
     </div>
@@ -18810,24 +18817,6 @@ window.revisarPonto=revisarPonto;
 
 
 
-function rBioSolicitacoes() {
-  setTimeout(async function() {
-    await _loadSolicRH();
-    var wrap = document.getElementById('_bio_solic_wrap');
-    if (wrap) wrap.innerHTML = _htmlSolicRHBio();
-    _solAtualizarBadgeNav();
-    if (typeof buildNav === 'function') buildNav();
-  }, 0);
-  return '<div id="_bio_solic_wrap"><div class="card" style="padding:32px;text-align:center"><div style="font-size:32px;margin-bottom:8px">📋</div><div style="font-size:14px;color:var(--mt)">Carregando solicitações...</div></div></div>';
-}
-function _htmlSolicRHBio() {
-  if (typeof _htmlSolicRH !== 'function') return '<div class="card" style="padding:32px;text-align:center;color:var(--mt)">Módulo de solicitações não carregado.</div>';
-  var html = _htmlSolicRH();
-  var _b1 = "onclick=\"_loadSolicRH(true).then(()=>{document.getElementById('content').innerHTML=_htmlSolicRH();_solAtualizarBadgeNav();}\"";
-  var _b2 = "onclick=\"_loadSolicRH(true).then(()=>{var w=document.getElementById('_bio_solic_wrap');if(w)w.innerHTML=_htmlSolicRHBio();_solAtualizarBadgeNav();}\"";
-  html = html.split(_b1).join(_b2);
-  return html;
-}
 
 
 // ── TAB: SOLICITAÇÕES DO PORTAL (embutida no Biométrico IA) ──────────────
@@ -32075,7 +32064,7 @@ function detectarPontoSuspeito(empId){
 // ════════════════════════════════════════════════════════════════
 // FEATURE 5 — MODAL DE SCORE / PADRÃO / PREDIÇÃO por funcionário
 // ════════════════════════════════════════════════════════════════
-function verDetalheAlerta(empId, tipo){
+function verAnaliseIndividualColaborador(empId){
   const emp = APP.employees.find(e=>e.id===empId);
   if(!emp){ toast('Funcionário não encontrado.','err'); return; }
   const score   = calcScorePontualidade(empId);
@@ -32127,6 +32116,7 @@ function verDetalheAlerta(empId, tipo){
   </div>
   `, 640);
 }
+window.verAnaliseIndividualColaborador = verAnaliseIndividualColaborador;
 
 // ════════════════════════════════════════════════════════════════
 // FEATURE 6 — CHAT IA SOBRE O PONTO (modo conversacional)
@@ -32675,6 +32665,8 @@ async function enviarStatusPortalHoje(){
         return '<button onclick="BIO_TAB=\''+id+'\';navigate(\'biometrico\')" class="btn btn-sm" style="'+(BIO_TAB===id?'background:var(--navy);color:#fff':'background:#F1F5F9;color:var(--mt)')+(isAI?';position:relative':'')+'">'+lbl+(hasAlerts?'<span style="position:absolute;top:-4px;right:-4px;background:#DC2626;color:#fff;border-radius:50%;width:16px;height:16px;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center">'+nAl+'</span>':'')+'</button>';
       }).join('')+
       '<button onclick="sincronizarTudo({mes:BIO_MES,ano:BIO_ANO,origem:\'biometrico\'})" class="btn btn-sm" style="background:#7C3AED;color:#fff;font-weight:700" title="Sincroniza Biométrico → Cartão Ponto → Banco de Horas">⚡ Sincronizar Tudo</button>'+
+      '<button onclick="atlasModalFalhasPonto()" class="btn btn-sm" style="background:#F5F3FF;color:#7C3AED;font-weight:700" title="Por que o colaborador não conseguiu bater o ponto: câmera, geolocalização ou reconhecimento facial">🔍 Falhas de Biometria</button>'+
+      '<button onclick="exportarAlertasPDF()" class="btn btn-sm" style="background:#FEF2F2;color:#DC2626;font-weight:700" title="Exporta em PDF os atrasos, faltas e irregularidades do dia">📄 Falhas do Ponto</button>'+
       '<button onclick="bioLoadData().then(()=>{gerarAlertasHoje();navigate(\'biometrico\')})" class="btn btn-sm" style="background:#EFF6FF;color:var(--blue);margin-left:auto">🔄 Atualizar</button></div>'+
       // BUG-C1 FIX: router chain agora inclui 'justificativas'
       (BIO_TAB==='ia'?rBioAI():BIO_TAB==='revisao'?rBioRevisao():BIO_TAB==='solicitacoes'?rBioSolicitacoes():BIO_TAB==='hoje'?rBioHoje():BIO_TAB==='funcionarios'?rBioFuncionarios():BIO_TAB==='mensal'?rBioMensal():BIO_TAB==='geo'?rBioGeo():BIO_TAB==='justificativas'?rBioJustificativas():BIO_TAB==='comunicados'?rBioComunicados():rBioFechamento())+
@@ -48559,9 +48551,16 @@ window.rBiometrico = function(){
   // caía na Análise IA.
   if(typeof BIO_TAB!=='undefined' && BIO_TAB==='analiseia'){
     // Reconstrói só a barra de abas + painel Análise IA
-    const tabs=[['hoje','🏠 Hoje'],['ia','🤖 IA Monitor'],['funcionarios','👥 Colaboradores'],['mensal','📅 Mensal'],['fechamento','📊 Fechamento'],['justificativas','📎 Justificativas'],['comunicados','📢 Comunicados'],['geo','📍 Geolocalização'],['solicitacoes','📋 Solicitações'],['analiseia','🧠 Análise IA']];
+    const tabs=[['hoje','🏠 Hoje'],['ia','🤖 IA Monitor'],['funcionarios','👥 Colaboradores'],['mensal','📅 Mensal'],['fechamento','📊 Fechamento'],
+      ['justificativas',(()=>{const n=(BIO_DATA.justificativas||[]).filter(j=>j&&(!j.status||j.status==='pendente')).length;return '📎 Justificativas'+(n>0?' <span style="background:#DC2626;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800">'+n+'</span>':'');})()],
+      ['comunicados','📢 Comunicados'],['geo','📍 Geolocalização'],
+      ['solicitacoes',(()=>{const n=window._SOLIC_PENDING_COUNT||0;return '📋 Solicitações'+(n>0?' <span style="background:#E85D04;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800">'+n+'</span>':'');})()],
+      ['revisao',(()=>{const n=(window._REVISAO_CACHE&&window._REVISAO_CACHE.pend)?window._REVISAO_CACHE.pend.filter(p=>p&&!p.revisadoRH).length:(BIO_DATA.punches||[]).filter(p=>p&&p.precisaRevisao===true&&!p.revisadoRH).length;return '📸 Revisão'+(n>0?' <span style="background:#DC2626;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:800">'+n+'</span>':'');})()],
+      ['analiseia','🧠 Análise IA']];
     const bar=`<div style="display:flex;gap:6px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:14px;flex-wrap:wrap">
       ${tabs.map(([id,lbl])=>`<button onclick="BIO_TAB='${id}';navigate('biometrico')" class="btn btn-sm" style="${id==='analiseia'?'background:#0B1E35;color:#fff':'background:#F1F5F9;color:#475569'}">${lbl}</button>`).join('')}
+      <button onclick="atlasModalFalhasPonto()" class="btn btn-sm" style="background:#F5F3FF;color:#7C3AED;font-weight:700" title="Por que o colaborador não conseguiu bater o ponto: câmera, geolocalização ou reconhecimento facial">🔍 Falhas de Biometria</button>
+      <button onclick="exportarAlertasPDF()" class="btn btn-sm" style="background:#FEF2F2;color:#DC2626;font-weight:700" title="Exporta em PDF os atrasos, faltas e irregularidades do dia">📄 Falhas do Ponto</button>
       <button onclick="atlasModalPontoExterno()" class="btn btn-sm" style="background:#FFFBEB;color:#92400E;font-weight:700;margin-left:auto" title="Autorizar quem pode bater ponto fora da loja">📍 Ponto Externo</button>
       <button onclick="bioLoadData().then(()=>navigate('biometrico'))" class="btn btn-sm" style="background:#EFF6FF;color:var(--blue)">🔄 Atualizar</button>
     </div>`;
@@ -56326,6 +56325,151 @@ window.abrirListaExtratosAdiantamento = function(ano, mes){
     <div style="max-height:52vh;overflow-y:auto;padding-right:4px">${linhas.map(linha).join('')}</div>
     <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>
   `, 520);
+};
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  FALHAS DE PONTO — por que o colaborador não bateu
+//  O portal agora registra toda tentativa que não chegou a virar um ponto
+//  batido: câmera negada/em uso/incompatível, fora da área de geolocalização,
+//  ou reconhecimento facial que a pessoa abandonou sem concluir. Este painel
+//  lê essa coleção nova (bio_falhas) e explica cada caso em português.
+// ═══════════════════════════════════════════════════════════════════════════
+const ATLAS_FALHA_CATEGORIAS = {
+  camera_permissao_negada:      {icone:'🚫', label:'Permissão de câmera negada',      cor:'#DC2626', dica:'O colaborador (ou o navegador) bloqueou o acesso à câmera.'},
+  camera_nao_encontrada:        {icone:'📷', label:'Nenhuma câmera encontrada',        cor:'#DC2626', dica:'Aparelho sem câmera disponível ou desconectada.'},
+  camera_em_uso:                {icone:'📵', label:'Câmera em uso por outro app',      cor:'#D97706', dica:'Outro aplicativo (ex.: WhatsApp, outra aba) estava usando a câmera.'},
+  camera_incompativel:          {icone:'⚠️', label:'Câmera incompatível',             cor:'#D97706', dica:'O navegador não conseguiu configurar a câmera nesse aparelho.'},
+  camera_bloqueada_seguranca:   {icone:'🔒', label:'Câmera bloqueada por segurança',   cor:'#DC2626', dica:'Bloqueio de segurança do navegador/sistema operacional.'},
+  camera_erro_outro:            {icone:'❓', label:'Erro de câmera não identificado',  cor:'#64748B', dica:'Falha técnica que não se encaixa nas categorias comuns.'},
+  geolocalizacao:               {icone:'📍', label:'Fora da área permitida',           cor:'#D97706', dica:'O colaborador estava fora do raio configurado para bater ponto.'},
+  reconhecimento_facial_nao_concluido: {icone:'🧑\u200d💻', label:'Reconhecimento facial não concluído', cor:'#7C3AED', dica:'A pessoa tentou, mas fechou antes de o rosto ser reconhecido — luz ruim, ângulo, ou o sistema não reconheceu.'}
+};
+
+window.atlasCarregarFalhasPonto = async function(dias){
+  if(typeof FBASE==='undefined' || !FBASE){ toast('Firebase não conectado.','err'); return []; }
+  const limite = new Date(); limite.setDate(limite.getDate() - (dias||14));
+  const limiteISO = limite.toISOString().slice(0,10);
+  try{
+    const snap = await FBASE.collection('bio_falhas').where('data','>=',limiteISO).get();
+    return snap.docs.map(d=>({id:d.id, ...d.data()}))
+      .sort((a,b)=> String(b.timestamp||'').localeCompare(String(a.timestamp||'')));
+  }catch(e){
+    console.warn('[Falhas de Ponto]', e);
+    toast('Erro ao carregar falhas: '+e.message,'err');
+    return [];
+  }
+};
+
+window.atlasModalFalhasPonto = async function(){
+  openModal('🔍 Falhas de Ponto', '<div style="text-align:center;padding:40px"><div style="font-size:32px;margin-bottom:10px">⏳</div>Carregando os últimos 14 dias...</div>', 680);
+  const falhas = await atlasCarregarFalhasPonto(14);
+  _atlasRenderFalhasPonto(falhas);
+};
+
+function _atlasRenderFalhasPonto(falhas){
+  const porColab = {};
+  falhas.forEach(f=>{
+    const k = f.empId||'—';
+    (porColab[k] = porColab[k] || {nome:f.empNome||'—', itens:[]}).itens.push(f);
+  });
+  const grupos = Object.values(porColab).sort((a,b)=> b.itens.length - a.itens.length);
+
+  // Cruza a falha técnica com o ponto do mesmo dia: se o dia acabou marcado
+  // como falta (ou sem nenhuma batida), o problema não foi "não foi
+  // trabalhar" — foi "tentou e a biometria não deixou". É essa diferença
+  // que este cruzamento existe para mostrar.
+  function _atlasPontoDoDia(empId, dataISO){
+    if(!empId || !dataISO) return null;
+    const partes = String(dataISO).split('-');
+    if(partes.length!==3) return null;
+    const ano = parseInt(partes[0]), mesIdx = parseInt(partes[1])-1, dia = parseInt(partes[2]);
+    const key = empId+'_'+ano+'_'+mesIdx;
+    const rec = APP.pontos && APP.pontos[key] && APP.pontos[key][dia];
+    if(!rec) return {semRegistro:true};
+    return {semRegistro:false, status:rec.status||'', entrada:rec.entrada||'', saida:rec.saida||''};
+  }
+
+  const linhaFalha = f => {
+    // Registro sem categoria = gravado por uma versão do portal anterior a
+    // este recurso (comum em testes feitos antes do arquivo novo subir).
+    const semCategoria = !f.categoria;
+    const cat = ATLAS_FALHA_CATEGORIAS[f.categoria] ||
+      (semCategoria ? {icone:'🕰️', label:'Registro de versão antiga (sem detalhe)', cor:'#94A3B8', dica:'Gravado antes desta categorização existir.'}
+                     : {icone:'❓', label:'Categoria não reconhecida: '+f.categoria, cor:'#64748B', dica:''});
+    const quando = f.timestamp ? new Date(f.timestamp).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+
+    const pd = _atlasPontoDoDia(f.empId, f.data);
+    let cruzamento = '';
+    if(pd && (pd.semRegistro || pd.status==='falta')){
+      cruzamento = `<div style="margin-top:3px;font-size:10.5px;font-weight:700;color:#B91C1C;background:#FEF2F2;display:inline-block;padding:1px 8px;border-radius:8px">
+        ⚠️ ${pd.semRegistro ? 'Sem nenhuma batida registrada nesse dia' : 'Esse dia consta como FALTA'}
+      </div>`;
+    }
+    return `<div style="display:flex;gap:9px;padding:7px 0;border-bottom:1px dashed #E2E8F0">
+      <span style="font-size:15px;flex-shrink:0">${cat.icone}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:700;color:${cat.cor}">${esc(cat.label)}</div>
+        <div style="font-size:11px;color:var(--mt)">${quando}${f.detalhe?(' · '+esc(f.detalhe)):''}</div>
+        ${cruzamento}
+      </div>
+    </div>`;
+  };
+
+  const cardColab = g => {
+    const cats = {};
+    g.itens.forEach(f=>{ cats[f.categoria] = (cats[f.categoria]||0)+1; });
+    const resumo = Object.keys(cats).map(c=>{
+      const cat = ATLAS_FALHA_CATEGORIAS[c] || (c==='undefined' || !c
+        ? {icone:'🕰️', cor:'#94A3B8'} : {icone:'❓', cor:'#64748B'});
+      return `<span style="background:${(cat.cor||'#64748B')}14;color:${cat.cor||'#64748B'};font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px">${cat.icone} ${cats[c]}x</span>`;
+    }).join(' ');
+    return `<div style="background:#fff;border:1px solid var(--border);border-left:4px solid ${g.itens.length>=3?'#DC2626':'#D97706'};border-radius:10px;padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+        <div style="font-weight:800;font-size:13.5px">${esc(g.nome)}</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">${resumo}</div>
+      </div>
+      <div style="max-height:160px;overflow-y:auto">${g.itens.slice(0,8).map(linhaFalha).join('')}</div>
+      ${g.itens.length>8?`<div style="font-size:11px;color:var(--mt);margin-top:4px">e mais ${g.itens.length-8} ocorrência(s)...</div>`:''}
+    </div>`;
+  };
+
+  openModal('🔍 Falhas de Ponto — últimos 14 dias', `
+    <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:9px;padding:10px 13px;margin-bottom:13px;font-size:11.5px;color:#1E40AF;line-height:1.55">
+      Toda tentativa de bater ponto que não chegou a se concluir — câmera negada, fora da área,
+      rosto não reconhecido — fica registrada aqui, mesmo quando o colaborador simplesmente
+      não conseguiu e desistiu.
+    </div>
+    <div style="font-size:12px;color:var(--mt);font-weight:700;margin-bottom:10px">
+      ${falhas.length} ocorrência(s) em ${grupos.length} colaborador(es)
+    </div>
+    <div style="max-height:50vh;overflow-y:auto;padding-right:4px">
+      ${grupos.length ? grupos.map(cardColab).join('') : '<div style="text-align:center;padding:26px;color:var(--mt);font-size:13px">Nenhuma falha registrada nos últimos 14 dias. 🎉</div>'}
+    </div>
+    <div class="mft" style="gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+      <button class="btn btn-blue btn-sm" onclick="atlasModalFalhasPonto()">🔄 Atualizar</button>
+      <button class="btn btn-ghost btn-sm" style="color:#DC2626" onclick="atlasLimparFalhasSemCategoria()" title="Remove registros antigos gravados antes da categorização existir">🗑 Limpar registros antigos</button>
+    </div>
+  `, 680);
+}
+
+// Remove só os registros gravados por versões antigas do portal (sem
+// categoria) — não mexe em nenhum registro categorizado corretamente.
+window.atlasLimparFalhasSemCategoria = async function(){
+  if(typeof FBASE==='undefined' || !FBASE){ toast('Firebase não conectado.','err'); return; }
+  const ok = confirm('Isso remove somente os registros de falha SEM categoria (gravados antes deste recurso existir). Os registros categorizados corretamente não são afetados. Continuar?');
+  if(!ok) return;
+  try{
+    const snap = await FBASE.collection('bio_falhas').get();
+    const semCategoria = snap.docs.filter(d=>!d.data().categoria);
+    if(!semCategoria.length){ toast('Nenhum registro antigo para remover.','ok'); return; }
+    await Promise.all(semCategoria.map(d=>d.ref.delete()));
+    toast('🗑 '+semCategoria.length+' registro(s) antigo(s) removido(s).','ok',5000);
+    atlasModalFalhasPonto();
+  }catch(e){
+    toast('Erro ao limpar: '+e.message,'err');
+  }
 };
 
 (function _atlasInjectButtons(){
