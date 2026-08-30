@@ -4173,6 +4173,20 @@ async function openEmpresaCfgModal(){
         </div>
       </div>
     </div>
+    <div class="sh" style="border-color:#059669;margin-top:8px">📜 Convenção Coletiva</div>
+    <div style="font-size:12px;color:var(--mt);margin-bottom:10px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:10px 12px">
+      Preenchendo o piso salarial, o sistema avisa sozinho quando algum colaborador ativo estiver
+      recebendo abaixo do valor da categoria.
+    </div>
+    <div class="g2">
+      <div class="fld"><label>Sindicato / Categoria</label><input id="ec-sindicato" value="${esc(EMPRESA_CFG.sindicatoCategoria||'')}" placeholder="Ex.: Sindicato dos Comerciários"></div>
+      <div class="fld"><label>Piso salarial da categoria (R$)</label><input id="ec-piso" type="number" step="0.01" value="${esc(EMPRESA_CFG.pisoSalarial||'')}" placeholder="0,00"></div>
+      <div class="fld"><label>Data-base (reajuste anual)</label><input id="ec-database" value="${esc(EMPRESA_CFG.dataBase||'')}" placeholder="Ex.: 1º de maio"></div>
+      <div class="fld"><label>Vigência da convenção</label><input id="ec-vigencia" value="${esc(EMPRESA_CFG.vigenciaCCT||'')}" placeholder="Ex.: 05/2026 a 04/2027"></div>
+      <div class="fld"><label>Data final da vigência</label><input id="ec-cctfim" type="date" value="${esc(EMPRESA_CFG.cctVencimento||'')}">
+        <div style="font-size:10.5px;color:#64748B;margin-top:3px">Usada para o sistema avisar quando a convenção estiver perto de vencer.</div>
+      </div>
+    </div>
     <div class="sh" style="border-color:#7C3AED;margin-top:8px">🤖 Modelo de IA</div>
     <div style="font-size:12px;color:var(--mt);margin-bottom:10px;background:#F5F3FF;border:1px solid #DDD6FE;border-radius:8px;padding:10px 12px">
       Se a Anthropic deprecar o modelo atual, selecione um novo modelo aqui sem precisar editar o código.<br>
@@ -4203,7 +4217,7 @@ async function openEmpresaCfgModal(){
           if (file.size > 204800) { toast('Logo muito grande. Use uma imagem menor que 200KB.','err'); return; }
           logoData = await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=e=>res(e.target.result); r.onerror=rej; r.readAsDataURL(file); });
         }
-        await saveEmpresaCfg({nomeRazao:g('ec-razao'),nomeFantasia:g('ec-fantasia'),cnpj:g('ec-cnpj'),cidade:g('ec-cidade'),uf:g('ec-uf').toUpperCase(),telefone:g('ec-tel'),email:g('ec-email'),endereco:g('ec-end'),logo:logoData});
+        await saveEmpresaCfg({nomeRazao:g('ec-razao'),nomeFantasia:g('ec-fantasia'),cnpj:g('ec-cnpj'),cidade:g('ec-cidade'),uf:g('ec-uf').toUpperCase(),telefone:g('ec-tel'),email:g('ec-email'),sindicatoCategoria:g('ec-sindicato'),pisoSalarial:g('ec-piso'),dataBase:g('ec-database'),vigenciaCCT:g('ec-vigencia'),cctVencimento:g('ec-cctfim'),endereco:g('ec-end'),logo:logoData});
         updateBrand();
         const selMod=g('ec-model'); const newModel=selMod==='custom'?g('ec-model-custom').trim():selMod;
         if(newModel){ AI_MODEL=newModel; localStorage.setItem('fcrh_ai_model',AI_MODEL); if(FBASE)try{await FBASE.collection('hr').doc('config').set({aiModel:AI_MODEL},{merge:true});}catch(e){} }
@@ -5097,6 +5111,18 @@ function openEmpForm(id){
     <div class="fld"><label>Médico / CRM</label><input id="ef-asomed" value="${esc(e.asoMedico||'')}" placeholder="Dr(a). Nome — CRM/PR 00000"></div>
     <div class="fld"><label>CTPS anotada em</label><input type="date" id="ef-ctpsdata" value="${esc(e.ctpsAnotadaEm||'')}"></div>
   </div>
+  <div class="sh g">ASO periódico (NR-7)</div>
+  <div class="g2">
+    <div class="fld"><label>Periodicidade</label>
+      <select id="ef-asoperiodo">
+        ${[['','— definir com o médico do trabalho —'],['1','Anual (mais comum em risco baixo/médio)'],['2','A cada 2 anos']]
+          .map(([v,t])=>`<option value="${v}"${(e.asoPeriodoAnos||'')==v?' selected':''}>${t}</option>`).join('')}
+      </select>
+    </div>
+    <div class="fld"><label>Data do último ASO periódico</label><input type="date" id="ef-asoultimo" value="${esc(e.asoUltimoPeriodico||'')}">
+      <div style="font-size:10.5px;color:#64748B;margin-top:3px">Deixe em branco se ainda não fez nenhum — o sistema usa o admissional como base.</div>
+    </div>
+  </div>
   <div class="sh g">Ponto externo</div>
   <div class="g2">
     <div class="fld">
@@ -5327,6 +5353,7 @@ async function saveEmp(){
     banco:g('ef-banco'),tipoPix:g('ef-pixt'),chavePix:g('ef-pix'),
     regime:g('ef-regime'),
     asoData:g('ef-aso'),asoResultado:g('ef-asores'),asoMedico:g('ef-asomed'),ctpsAnotadaEm:g('ef-ctpsdata'),
+    asoPeriodoAnos:g('ef-asoperiodo'),asoUltimoPeriodico:g('ef-asoultimo'),
     pontoExternoAutorizado: g('ef-pontoext')==='1', pontoExternoAte: g('ef-pontoextate'),
     rgOrgao:g('ef-rgorgao'),pis:g('ef-pis'),ctps:g('ef-ctps'),
     estadoCivil:g('ef-ecivil'),nacionalidade:g('ef-nacion'),nomeMae:g('ef-mae'),cbo:g('ef-cbo'),
@@ -14068,6 +14095,7 @@ function rRelatorio(){
       ${anosDisponiveis().map(y=>`<option${ano===y?' selected':''}>${y}</option>`).join('')}
     </select>
     <div style="margin-left:auto;display:flex;gap:10px">
+      <button class="btn" style="background:#F5F3FF;color:#7C3AED;font-weight:700" onclick="atlasModalCustoPorLoja()" title="Quanto cada loja está custando em pessoal este mês">🏪 Custo por Loja</button>
       <button class="btn btn-ghost" onclick="exportarCSV()">📥 Exportar CSV</button>
       <button class="btn btn-navy" onclick="imprimirRelatorio()">🖨️ Imprimir para Financeiro</button>
     </div>
@@ -29706,6 +29734,7 @@ const DOC_NAMES_MAP = {
   doc_lgpd:            {label:'Termo de Proteção de Dados (LGPD)', icon:'🛡', obrig:true},
   doc_treinamento:     {label:'Termo de Treinamento Pós-Admissão', icon:'📚', obrig:false},
   doc_conduta:         {label:'Código de Conduta e Ética Profissional', icon:'⚖️', obrig:false},
+  doc_epi:             {label:'Termo de Responsabilidade por EPIs', icon:'🦺', obrig:false},
 };
 
 // ── Render principal ─────────────────────────────────────────────
@@ -30917,7 +30946,7 @@ if(id==='doc_acumulacao') return `<div class="doc-wrap">${H()}
 
 if(id==='doc_epi') return `<div class="doc-wrap">${H()}
   <div class="doc-title">Termo de Responsabilidade pelo Fornecimento e Uso de EPIs</div>
-  <div class="doc-subtitle">Equipamento de Proteção Individual — NR-6 | Portaria MTE nº 3.214/1978</div>
+  <div class="doc-subtitle">Equipamento de Proteção Individual — NR-6 e NR-21 | Portaria MTE nº 3.214/1978</div>
   <table class="doc-table">
     <tr><td>Empregado(a)</td><td><b>${get('f_nome')}</b></td></tr>
     <tr><td>CPF</td><td>${get('f_cpf')}</td></tr>
@@ -30925,11 +30954,13 @@ if(id==='doc_epi') return `<div class="doc-wrap">${H()}
     <tr><td>Empresa</td><td>${get('e_nome')} — CNPJ: ${get('e_cnpj')}</td></tr>
     <tr><td>Data de Admissão</td><td>${admissaoFmt()}</td></tr>
   </table>
-  <div class="doc-section-title">EPIs Fornecidos</div>
+  <div class="doc-section-title">EPIs Fornecidos — atividade externa (Cláusula 8.4.3 do contrato)</div>
   <table class="doc-table">
     <tr style="background:#f8f6f3"><td><b>EPI / Descrição</b></td><td><b>CA</b></td><td><b>Qtd</b></td><td><b>Data Entrega</b></td></tr>
-    <tr><td>_________________________</td><td>__________</td><td>____</td><td>____/____/____</td></tr>
-    <tr><td>_________________________</td><td>__________</td><td>____</td><td>____/____/____</td></tr>
+    <tr><td>Protetor solar (FPS 30 ou superior)</td><td>—</td><td>____</td><td>____/____/____</td></tr>
+    <tr><td>Boné / cobertura para a cabeça</td><td>—</td><td>____</td><td>____/____/____</td></tr>
+    <tr><td>Colete de alta visibilidade</td><td>__________</td><td>____</td><td>____/____/____</td></tr>
+    <tr><td>Garrafa/squeeze para hidratação</td><td>—</td><td>____</td><td>____/____/____</td></tr>
     <tr><td>_________________________</td><td>__________</td><td>____</td><td>____/____/____</td></tr>
   </table>
   <div class="doc-section-title">Obrigações do(a) Empregado(a) — NR-6, item 6.7</div>
@@ -36119,6 +36150,7 @@ window.rBioFuncionarios = function() {
         </div>
       </div>
       <div style="display:flex;gap:6px;flex-direction:column">
+        <button class="btn btn-sm" style="background:#F5F3FF;color:#7C3AED" onclick="verAnaliseIndividualColaborador('${(u.hrEmpId||u.cpf||'')}')" title="Score de pontualidade, padrão de comportamento e previsões">📊 Análise</button>
         <button class="btn btn-sm" style="background:#EFF6FF;color:var(--blue)" onclick="openBioMultiDescModal('${u.cpf}')">📸 Gerenciar Fotos</button>
         <button class="btn btn-sm" style="background:#EFF6FF;color:var(--blue)" onclick="openBioEditModal('${u.cpf}')">✏ Editar</button>
         <button class="btn btn-sm" style="background:#FEF2F2;color:var(--red)" onclick="deleteBioUser('${u.cpf}')">✕ Excluir</button>
@@ -39455,6 +39487,9 @@ window.rAssinaturaDigital = function(){
       </button>
       <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3)" onclick="atlasLimparAssinaturasDuplicadas()" title="Junta documentos duplicados do mesmo tipo/colaborador numa linha só">
         🧹 Limpar Duplicados
+      </button>
+      <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3)" onclick="atlasModalAuditoriaAssinaturas()" title="Quem assinou o quê, quando, com foto e tempo de leitura">
+        🔍 Auditoria
       </button>
       <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3)" onclick="assinEnviarLote()">
         📤 Solicitar Assinaturas
@@ -52783,7 +52818,7 @@ const ATLAS_DOC_GRUPOS = [
     ids:['doc_contrato','doc_ficha','doc_declaracao','doc_lgpd'] },
   { nome:'Termos de responsabilidade', cor:'#2563EB', icone:'🔒',
     desc:'Protegem o patrimônio e as informações da empresa.',
-    ids:['doc_confidencialidade'] },
+    ids:['doc_confidencialidade','doc_epi'] },
   { nome:'Políticas e regulamentos', cor:'#059669', icone:'📚',
     desc:'Regras internas que o colaborador declara conhecer.',
     ids:['doc_banco','doc_premios','doc_conduta','doc_treinamento'] },
@@ -53601,6 +53636,7 @@ window.atlasModalTimeline = function(empId, filtro, limite){
     <div style="background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:11px 14px;margin-bottom:16px;font-size:12px;color:#475569">
       <b>${esc(emp.cargo||'—')}</b> · admitido em ${emp.dataAdmissao?fmt(emp.dataAdmissao):'—'} ·
       <b>${todos.length}</b> evento(s) no histórico
+      <button class="btn btn-ghost btn-sm" style="float:right" onclick="closeModal();atlasCalendarioColaborador('${empId}')">📅 Ver calendário</button>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">${barra}</div>
     ${ev.length ? `<div style="max-height:56vh;overflow-y:auto;padding-right:4px">${ev.map(linha).join('')}
@@ -54611,6 +54647,56 @@ window.rAtlasConferidor = function(){
       <button class="btn btn-ghost btn-sm" onclick="atlasModalChecklist('${x.emp.id}')">✅ Checklist</button>
     </div>`;
 
+  // Piso salarial da categoria (convenção coletiva) — só verifica se o
+  // valor foi preenchido; sem isso, o sistema não tem como saber o piso.
+  const piso = parseFloat(EMPRESA_CFG.pisoSalarial)||0;
+  const abaixoDoPiso = piso>0 ? (APP.employees||[]).filter(e=>{
+    if(!e || e.status!=='ativo') return false;
+    const reg = atlasRegime(e);
+    if(reg!=='clt' && reg!=='intermitente') return false;   // piso da CCT vale para vínculo CLT
+    return (parseFloat(e.salario)||0) < piso;
+  }) : [];
+  const cardPiso = e => `
+    <div style="background:#fff;border:1px solid var(--border);border-left:4px solid #DC2626;border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div>
+        <div style="font-weight:800;font-size:13.5px;display:flex;align-items:center;gap:7px;flex-wrap:wrap">${esc(e.nome||'')} ${atlasBadgeRegime(e)}</div>
+        <div style="font-size:11.5px;color:#B91C1C;margin-top:3px">
+          Recebe ${fBRL(e.salario)} — piso da categoria é ${fBRL(piso)} (faltam ${fBRL(piso-(parseFloat(e.salario)||0))})
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="openEmpForm('${e.id}')">✏️ Corrigir salário</button>
+    </div>`;
+
+  // Vigência da convenção coletiva perto de vencer (60 dias) ou já vencida
+  let cctAlerta = null;
+  if(EMPRESA_CFG.cctVencimento){
+    const hoje = new Date().toISOString().slice(0,10);
+    const dias = Math.round((new Date(EMPRESA_CFG.cctVencimento+'T00:00:00') - new Date(hoje+'T00:00:00'))/86400000);
+    if(dias<=60){
+      cctAlerta = {
+        vencida: dias<0,
+        dias: Math.abs(dias),
+        texto: dias<0 ? ('Venceu há '+Math.abs(dias)+' dia(s)') : (dias===0 ? 'Vence hoje' : ('Vence em '+dias+' dia(s)'))
+      };
+    }
+  }
+
+  // ASO periódico (NR-7) perto de vencer ou já vencido
+  const asoVencendo = (APP.employees||[]).filter(e=>e && e.status==='ativo')
+    .map(e=>({emp:e, aso:atlasProximoASO(e)})).filter(x=>x.aso && x.aso.dias<=60)
+    .sort((a,b)=> a.aso.dias - b.aso.dias);
+  const cardASO = x => `
+    <div style="background:#fff;border:1px solid var(--border);border-left:4px solid ${x.aso.vencido?'#DC2626':'#D97706'};border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div>
+        <div style="font-weight:800;font-size:13.5px;display:flex;align-items:center;gap:7px;flex-wrap:wrap">${esc(x.emp.nome||'')} ${atlasBadgeRegime(x.emp)}</div>
+        <div style="font-size:11.5px;color:${x.aso.vencido?'#B91C1C':'#B45309'};margin-top:3px">
+          ${x.aso.vencido ? ('ASO periódico venceu há '+Math.abs(x.aso.dias)+' dia(s)') : ('ASO periódico vence em '+x.aso.dias+' dia(s)')}
+          — ${new Date(x.aso.proxISO+'T00:00:00').toLocaleDateString('pt-BR')}
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="openEmpForm('${x.emp.id}')">✏️ Registrar exame</button>
+    </div>`;
+
   return `
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:8px;flex-wrap:wrap">
     <div style="font-size:16px;font-weight:700">Conferência de Dados</div>
@@ -54619,6 +54705,42 @@ window.rAtlasConferidor = function(){
       <button class="btn btn-ghost btn-sm" onclick="navigate('conferidor')">🔄 Atualizar</button>
     </div>
   </div>
+
+  ${cctAlerta ? `
+  <div style="background:${cctAlerta.vencida?'#FEF2F2':'#FFFBEB'};border:1.5px solid ${cctAlerta.vencida?'#FECACA':'#FDE68A'};border-radius:10px;padding:12px 15px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+    <div>
+      <div style="font-weight:800;font-size:13.5px;color:${cctAlerta.vencida?'#991B1B':'#92400E'}">${cctAlerta.vencida?'⛔':'⏰'} Convenção Coletiva ${cctAlerta.texto}</div>
+      <div style="font-size:11.5px;color:${cctAlerta.vencida?'#B91C1C':'#B45309'};margin-top:2px">${cctAlerta.vencida?'Confira com o sindicato se já saiu o novo piso e reajuste antes de aplicar valores desatualizados.':'Fique atenta ao próximo reajuste — o piso salarial pode mudar na renovação.'}</div>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="openEmpresaCfgModal()">⚙️ Atualizar CCT</button>
+  </div>` : ''}
+
+  ${asoVencendo.length ? `
+  <div class="card" style="padding:0;overflow:hidden;margin-bottom:18px">
+    <div style="background:linear-gradient(135deg,#0891B2,#0E7490);padding:15px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div><div style="color:#fff;font-weight:800;font-size:15px">🏥 ASO Periódico a Vencer</div>
+      <div style="color:#CFFAFE;font-size:11.5px;margin-top:3px">NR-7 — exame ocupacional periódico</div></div>
+      <div style="background:#fff;color:#0E7490;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:800">${asoVencendo.length}</div>
+    </div>
+    <div style="padding:14px;display:grid;gap:9px;background:#ECFEFF">
+      ${asoVencendo.map(cardASO).join('')}
+    </div>
+  </div>` : ''}
+
+  ${piso>0 ? `
+  <div class="card" style="padding:0;overflow:hidden;margin-bottom:18px">
+    <div style="background:linear-gradient(135deg,#7F1D1D,#991B1B);padding:15px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div><div style="color:#fff;font-weight:800;font-size:15px">📜 Abaixo do Piso da Categoria</div>
+      <div style="color:#FECACA;font-size:11.5px;margin-top:3px">Piso vigente: ${fBRL(piso)}${EMPRESA_CFG.dataBase?(' · data-base: '+esc(EMPRESA_CFG.dataBase)):''}</div></div>
+      <div style="background:${abaixoDoPiso.length?'#fff':'#059669'};color:${abaixoDoPiso.length?'#991B1B':'#fff'};padding:4px 12px;border-radius:20px;font-size:12px;font-weight:800">${abaixoDoPiso.length} abaixo</div>
+    </div>
+    <div style="padding:14px;display:grid;gap:9px;background:#FEF2F2">
+      ${abaixoDoPiso.length ? abaixoDoPiso.map(cardPiso).join('') : '<div style="text-align:center;padding:22px;color:var(--mt);font-size:13px">Ninguém abaixo do piso. 🎉</div>'}
+    </div>
+  </div>` : `
+  <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:11px 14px;margin-bottom:18px;font-size:12px;color:#92400E">
+    💡 Cadastre o piso salarial da categoria em <b>⚙ Configurações da Empresa → Convenção Coletiva</b> para o sistema avisar sozinho quando alguém ficar abaixo.
+  </div>`}
 
   <div class="card" style="padding:0;overflow:hidden;margin-bottom:18px">
     <div style="background:linear-gradient(135deg,#0B1E35,#152F4D);padding:15px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
@@ -56471,6 +56593,329 @@ window.atlasLimparFalhasSemCategoria = async function(){
     toast('Erro ao limpar: '+e.message,'err');
   }
 };
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  AUDITORIA DE ASSINATURAS — quem assinou o quê, quando, e como
+//  Todo documento assinado hoje já carrega data/hora, método, se a pessoa
+//  leu até o fim e por quanto tempo, e se tem foto. Isso estava espalhado
+//  por vários lugares; aqui fica tudo junto, num só painel, filtrável.
+// ═══════════════════════════════════════════════════════════════════════════
+window.atlasAuditoriaDados = function(filtroTexto){
+  const termo = String(filtroTexto||'').toLowerCase().trim();
+  const todos = (APP.assinaturas||[]).filter(a=>a);
+  const filtrados = termo
+    ? todos.filter(a=> String(a.empNome||'').toLowerCase().includes(termo)
+                     || String(a.tipoLabel||a.titulo||'').toLowerCase().includes(termo))
+    : todos;
+  return filtrados.sort((a,b)=> String(b.criadoEm||'').localeCompare(String(a.criadoEm||'')));
+};
+
+function _atlasAuditoriaLinha(a){
+  const statusCor = {assinado:'#059669', pendente:'#D97706', recusado:'#DC2626'}[a.status]||'#64748B';
+  const statusLabel = {assinado:'✅ Assinado', pendente:'⏳ Pendente', recusado:'✗ Recusado'}[a.status]||a.status;
+  const quando = (typeof _advDataHora==='function') ? _advDataHora(a) : '—';
+  const enviado = a.criadoEm ? new Date(a.criadoEm).toLocaleDateString('pt-BR') : '—';
+  const temFoto = !!(a.assinaturaSelfie||a.fotoRosto);
+  const temCanvas = !!(a.assinaturaPNG||a.assinaturaData);
+  const leu = a.leituraAteOFim===true ? ('✅ '+(a.leituraSegundos?(a.leituraSegundos+'s'):'sim'))
+            : (a.leituraAteOFim===false ? '⚠️ não concluída' : '—');
+  const metodo = {
+    canvas_selfie_portal:'Portal (canvas + foto)',
+    canvas_portal:'Portal (só canvas)',
+    canvas_selfie_link_avulso:'Link avulso (canvas + foto)',
+    canvas_link_avulso:'Link avulso (só canvas)',
+    eletronico_simples:'Eletrônico simples',
+    eletronico_simples_link_avulso:'Link avulso (simples)'
+  }[a.metodoAssinatura] || (a.metodoAssinatura||'—');
+
+  return `<div style="background:#fff;border:1px solid var(--border);border-left:4px solid ${statusCor};border-radius:10px;padding:12px 14px;margin-bottom:9px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+      <div style="font-weight:800;font-size:13px">${esc(a.empNome||'—')}</div>
+      <span style="font-size:11px;font-weight:800;color:${statusCor}">${statusLabel}</span>
+    </div>
+    <div style="font-size:11.5px;color:var(--mt);margin-bottom:6px">${esc(a.tipoLabel||a.titulo||'Documento')} · enviado em ${enviado}</div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:#334155">
+      <div><b>Assinado em:</b> ${a.status==='assinado'?esc(quando):'—'}</div>
+      <div><b>Método:</b> ${esc(metodo)}</div>
+      <div><b>Leitura:</b> ${leu}</div>
+      <div><b>Canvas:</b> ${temCanvas?'✅':'—'}</div>
+      <div><b>Foto:</b> ${temFoto?'✅':'—'}</div>
+    </div>
+    ${a.status==='assinado'?`<button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="atlasComprovanteAssinatura('${a.id}')">📄 Ver comprovante</button>`:''}
+  </div>`;
+}
+
+window.atlasModalAuditoriaAssinaturas = function(){
+  _atlasRenderAuditoria('');
+};
+
+function _atlasRenderAuditoria(termo){
+  const lista = atlasAuditoriaDados(termo);
+  const total = (APP.assinaturas||[]).length;
+  const assinados = (APP.assinaturas||[]).filter(a=>a && a.status==='assinado').length;
+  const pendentes = (APP.assinaturas||[]).filter(a=>a && a.status==='pendente').length;
+  const comFoto = (APP.assinaturas||[]).filter(a=>a && (a.assinaturaSelfie||a.fotoRosto)).length;
+  const lidos = (APP.assinaturas||[]).filter(a=>a && a.leituraAteOFim===true).length;
+
+  openModal('🔍 Auditoria de Assinaturas', `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;margin-bottom:13px">
+      <div style="background:#F8FAFC;border:1px solid var(--border);border-radius:9px;padding:9px;text-align:center">
+        <div style="font-size:18px;font-weight:800">${total}</div><div style="font-size:10px;color:var(--mt)">total</div></div>
+      <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:9px;padding:9px;text-align:center">
+        <div style="font-size:18px;font-weight:800;color:#059669">${assinados}</div><div style="font-size:10px;color:var(--mt)">assinados</div></div>
+      <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:9px;padding:9px;text-align:center">
+        <div style="font-size:18px;font-weight:800;color:#D97706">${pendentes}</div><div style="font-size:10px;color:var(--mt)">pendentes</div></div>
+      <div style="background:#F5F3FF;border:1px solid #DDD6FE;border-radius:9px;padding:9px;text-align:center">
+        <div style="font-size:18px;font-weight:800;color:#7C3AED">${comFoto}</div><div style="font-size:10px;color:var(--mt)">com foto</div></div>
+      <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:9px;padding:9px;text-align:center">
+        <div style="font-size:18px;font-weight:800;color:#2563EB">${lidos}</div><div style="font-size:10px;color:var(--mt)">leram até o fim</div></div>
+    </div>
+    <input id="atlas-audit-busca" placeholder="🔍 Buscar por colaborador ou tipo de documento..."
+      oninput="clearTimeout(window._auditT);window._auditT=setTimeout(()=>{_atlasRenderAuditoria(this.value)},300)"
+      style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:9px;font-size:13px;margin-bottom:12px">
+    <div style="max-height:48vh;overflow-y:auto;padding-right:4px">
+      ${lista.length ? lista.map(_atlasAuditoriaLinha).join('') : '<div style="text-align:center;padding:26px;color:var(--mt);font-size:13px">Nenhum documento encontrado.</div>'}
+    </div>
+    <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>
+  `, 680);
+
+  // Preserva o texto digitado e o foco ao re-renderizar por causa da busca
+  setTimeout(()=>{
+    const inp = document.getElementById('atlas-audit-busca');
+    if(inp && termo){ inp.value = termo; inp.focus(); inp.setSelectionRange(termo.length, termo.length); }
+  }, 20);
+}
+window._atlasRenderAuditoria = _atlasRenderAuditoria;
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  CUSTO POR LOJA — a pergunta que se repete quando se administra mais de
+//  uma unidade: "quanto cada loja está custando em pessoal este mês?"
+//  O cadastro já guarda emp.loja; o Relatório Financeiro já calcula o custo
+//  completo (bruto + FGTS + INSS patronal) por colaborador — só faltava
+//  somar os dois juntos.
+// ═══════════════════════════════════════════════════════════════════════════
+window.atlasCustoPorLoja = function(mes, ano){
+  const origMes = SAL_STATE.mes, origAno = SAL_STATE.ano;
+  SAL_STATE.mes = mes; SAL_STATE.ano = ano;
+
+  const porLoja = {};
+  const add = (loja) => { if(!porLoja[loja]) porLoja[loja] = {loja, funcionarios:0, bruto:0, fgts:0, inssPatronal:0, custoTotal:0, autonomos:0, adiantamentos:0}; return porLoja[loja]; };
+
+  (APP.employees||[]).filter(e=>e && e.status==='ativo').forEach(emp=>{
+    const loja = emp.loja || 'Sem loja definida';
+    const reg = (typeof atlasRegime==='function') ? atlasRegime(emp) : 'clt';
+    const g = add(loja);
+    g.funcionarios++;
+    if(reg==='clt' || reg==='intermitente'){
+      let c = null;
+      try{ c = calcSalCompleto(emp.id); }catch(e){}
+      if(c){
+        const inssPatr = +(c.salBruto*0.20).toFixed(2);
+        g.bruto += c.salBruto||0;
+        g.fgts += c.fgts||0;
+        g.inssPatronal += inssPatr;
+        g.custoTotal += (c.salBruto||0) + (c.fgts||0) + inssPatr;
+      }
+    }
+  });
+
+  // RPA de autônomos pagos nessa competência (mm/aaaa), somado por loja
+  const compAlvo = String(mes+1).padStart(2,'0')+'/'+ano;
+  (APP.rpas||[]).filter(r=>r && r.competencia===compAlvo).forEach(r=>{
+    const emp = (APP.employees||[]).find(e=>e.id===r.empId);
+    const loja = (emp&&emp.loja) || 'Sem loja definida';
+    add(loja).autonomos += (r.rpa&&r.rpa.bruto)||0;
+  });
+
+  // Adiantamentos do mês, por loja (informativo — é antecipação, não custo extra)
+  (APP.adiantamentos||[]).filter(a=>a && Number(a.ano)===Number(ano) && Number(a.mes)===Number(mes+1)).forEach(a=>{
+    const emp = (APP.employees||[]).find(e=>e.id===a.empId);
+    const loja = (emp&&emp.loja) || 'Sem loja definida';
+    add(loja).adiantamentos += parseFloat(a.valor)||0;
+  });
+
+  SAL_STATE.mes = origMes; SAL_STATE.ano = origAno;
+  return Object.values(porLoja).sort((a,b)=> b.custoTotal - a.custoTotal);
+};
+
+window.atlasModalCustoPorLoja = function(){
+  const hoje = new Date();
+  _atlasRenderCustoPorLoja(hoje.getMonth(), hoje.getFullYear());
+};
+
+function _atlasRenderCustoPorLoja(mes, ano){
+  const dados = atlasCustoPorLoja(mes, ano);
+  const fmt = v => 'R$ '+(parseFloat(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const totalGeral = dados.reduce((s,l)=>s+l.custoTotal+l.autonomos,0);
+
+  const cardLoja = l => `
+    <div style="background:#fff;border:1px solid var(--border);border-left:4px solid #0B1E35;border-radius:10px;padding:13px 15px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+        <div style="font-weight:800;font-size:14px">${esc(l.loja)}</div>
+        <div style="font-size:11.5px;color:var(--mt)">${l.funcionarios} colaborador(es)</div>
+      </div>
+      <table style="width:100%;font-size:12px;border-collapse:collapse">
+        <tr><td style="padding:3px 0;color:#64748B">Salário bruto (CLT/Intermitente)</td><td style="text-align:right;font-weight:700">${fmt(l.bruto)}</td></tr>
+        <tr><td style="padding:3px 0;color:#64748B">FGTS (8%)</td><td style="text-align:right;font-weight:700">${fmt(l.fgts)}</td></tr>
+        <tr><td style="padding:3px 0;color:#64748B">INSS patronal (20%)</td><td style="text-align:right;font-weight:700">${fmt(l.inssPatronal)}</td></tr>
+        ${l.autonomos>0?`<tr><td style="padding:3px 0;color:#64748B">RPA — Autônomos</td><td style="text-align:right;font-weight:700">${fmt(l.autonomos)}</td></tr>`:''}
+        <tr style="border-top:1px solid var(--border)"><td style="padding:6px 0 0;font-weight:800;color:#0B1E35">Custo total da loja</td><td style="text-align:right;padding-top:6px;font-weight:900;color:#0B1E35;font-size:13.5px">${fmt(l.custoTotal+l.autonomos)}</td></tr>
+      </table>
+      ${l.adiantamentos>0?`<div style="margin-top:7px;font-size:11px;color:#92400E;background:#FFFBEB;border-radius:7px;padding:5px 9px">💡 ${fmt(l.adiantamentos)} em adiantamentos no mês (antecipação, não soma ao custo)</div>`:''}
+    </div>`;
+
+  openModal('🏪 Custo por Loja', `
+    <div class="g2" style="margin-bottom:12px">
+      <div class="fld"><label>Mês</label>
+        <select id="acl-mes" onchange="_atlasRenderCustoPorLoja(+this.value, +document.getElementById('acl-ano').value)">
+          ${MONTHS.map((m,i)=>`<option value="${i}" ${i===mes?'selected':''}>${m}</option>`).join('')}
+        </select>
+      </div>
+      <div class="fld"><label>Ano</label>
+        <select id="acl-ano" onchange="_atlasRenderCustoPorLoja(+document.getElementById('acl-mes').value, +this.value)">
+          ${[ano-1,ano,ano+1].map(y=>`<option ${y===ano?'selected':''}>${y}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div style="background:#0B1E35;color:#fff;border-radius:10px;padding:13px 15px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
+      <div style="font-size:12.5px;color:#C9A84C;font-weight:700">CUSTO TOTAL DE PESSOAL — TODAS AS LOJAS</div>
+      <div style="font-size:18px;font-weight:900">${fmt(totalGeral)}</div>
+    </div>
+    <div style="max-height:48vh;overflow-y:auto;padding-right:4px">
+      ${dados.length ? dados.map(cardLoja).join('') : '<div style="text-align:center;padding:26px;color:var(--mt);font-size:13px">Nenhum colaborador ativo encontrado.</div>'}
+    </div>
+    <div style="font-size:10.5px;color:var(--mt);margin-top:10px;line-height:1.5">
+      Baseado no holerite salvo do mês (ou no cálculo salvo mais recente). Se ainda não fechou a folha
+      deste mês, os valores podem não refletir horas extras ou comissões lançadas depois.
+    </div>
+    <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>
+  `, 640);
+}
+window._atlasRenderCustoPorLoja = _atlasRenderCustoPorLoja;
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  CALENDÁRIO VISUAL DO COLABORADOR — um mês inteiro, num relance
+//  Hoje tudo sobre uma pessoa está em listas separadas (ponto, férias,
+//  atestados). Aqui é um grid de dias coloridos: verde trabalhou, vermelho
+//  falta, roxo atestado, azul férias, cinza domingo/feriado.
+// ═══════════════════════════════════════════════════════════════════════════
+window.atlasCalendarioColaborador = function(empId, mes, ano){
+  const hoje = new Date();
+  if(mes===undefined) mes = hoje.getMonth();
+  if(ano===undefined) ano = hoje.getFullYear();
+  _atlasRenderCalendario(empId, mes, ano);
+};
+
+function _atlasDiaInfo(empId, ano, mesIdx, dia){
+  const dataObj = new Date(ano, mesIdx, dia);
+  const dow = dataObj.getDay();
+  const dataISO = ano+'-'+String(mesIdx+1).padStart(2,'0')+'-'+String(dia).padStart(2,'0');
+
+  // Férias — período programado ou gozado que cobre esse dia
+  const feriasNoDia = (APP.ferias||[]).find(f=>f && f.empId===empId
+    && dataISO>=String(f.inicio||'') && dataISO<=String(f.fim||''));
+  if(feriasNoDia) return {tipo:'ferias', cor:'#0891B2', label:'Férias'};
+
+  // Ponto do dia
+  const key = empId+'_'+ano+'_'+mesIdx;
+  const rec = APP.pontos && APP.pontos[key] && APP.pontos[key][dia];
+  if(rec){
+    if(rec.status==='falta') return {tipo:'falta', cor:'#DC2626', label:'Falta'};
+    if(rec.status==='atestado') return {tipo:'atestado', cor:'#7C3AED', label:'Atestado'};
+    if(rec.status==='folga') return {tipo:'folga', cor:'#94A3B8', label:'Folga'};
+    if(rec.entrada || rec.saida) return {tipo:'trabalhou', cor:'#059669', label:'Trabalhou'+(rec.entrada?(' · '+rec.entrada+(rec.saida?('–'+rec.saida):'')):'')};
+  }
+
+  if(dow===0) return {tipo:'domingo', cor:'#CBD5E1', label:'Domingo'};
+
+  // Feriado nacional/municipal, se o sistema tiver a lista carregada
+  try{
+    if(typeof isFeriado==='function' && isFeriado(dataISO)) return {tipo:'feriado', cor:'#F59E0B', label:'Feriado'};
+  }catch(e){}
+
+  if(dataObj > hoje) return {tipo:'futuro', cor:'#F1F5F9', label:''};
+  return {tipo:'semregistro', cor:'#FDE68A', label:'Sem registro'};
+}
+
+function _atlasRenderCalendario(empId, mes, ano){
+  const emp = (APP.employees||[]).find(e=>e.id===empId);
+  if(!emp){ toast('Colaborador não encontrado.','warn'); return; }
+
+  const primeiroDow = new Date(ano, mes, 1).getDay();
+  const totalDias = new Date(ano, mes+1, 0).getDate();
+  const nomesMes = (typeof MONTHS!=='undefined') ? MONTHS : ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  const contagem = {trabalhou:0, falta:0, atestado:0, ferias:0, folga:0, feriado:0, semregistro:0};
+  const celulas = [];
+  for(let i=0;i<primeiroDow;i++) celulas.push(null);
+  for(let d=1; d<=totalDias; d++){
+    const info = _atlasDiaInfo(empId, ano, mes, d);
+    if(contagem[info.tipo]!==undefined) contagem[info.tipo]++;
+    celulas.push({dia:d, info});
+  }
+
+  const cabecalho = ['D','S','T','Q','Q','S','S'].map(l=>`<div style="text-align:center;font-size:10px;font-weight:800;color:#94A3B8;padding:4px 0">${l}</div>`).join('');
+  const grid = celulas.map(c=>{
+    if(!c) return '<div></div>';
+    const bg = c.info.tipo==='futuro' ? '#fff' : c.info.cor+'22';
+    const borda = c.info.tipo==='futuro' ? '1px dashed #E2E8F0' : ('2px solid '+c.info.cor);
+    return `<div title="${esc(c.info.label)}" style="aspect-ratio:1;border-radius:8px;border:${borda};background:${bg};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:${c.info.tipo==='futuro'?'#CBD5E1':c.info.cor}">${c.dia}</div>`;
+  }).join('');
+
+  const legenda = [
+    ['#059669','Trabalhou'], ['#DC2626','Falta'], ['#7C3AED','Atestado'],
+    ['#0891B2','Férias'], ['#94A3B8','Folga/Domingo'], ['#F59E0B','Feriado'], ['#FDE68A','Sem registro']
+  ].map(([cor,label])=>`<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;color:#475569;margin-right:10px">
+      <span style="width:9px;height:9px;border-radius:3px;background:${cor}22;border:1.5px solid ${cor};display:inline-block"></span>${label}</span>`).join('');
+
+  const _outrosEmps = (APP.employees||[]).filter(e=>e && e.status==='ativo')
+    .slice().sort((a,b)=>String(a.nome||'').localeCompare(String(b.nome||'')));
+
+  openModal('📅 Calendário do Colaborador', `
+    <select id="cal-troca-emp" onchange="_atlasRenderCalendario(this.value,${mes},${ano})"
+      style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;margin-bottom:10px">
+      ${_outrosEmps.map(e=>`<option value="${e.id}" ${e.id===empId?'selected':''}>${esc(e.nome)}</option>`).join('')}
+    </select>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px">
+      <button class="btn btn-ghost btn-sm" onclick="_atlasRenderCalendario('${empId}',${mes-1<0?11:mes-1},${mes-1<0?ano-1:ano})">◀</button>
+      <div style="font-weight:800;font-size:14px">${nomesMes[mes]} de ${ano}</div>
+      <button class="btn btn-ghost btn-sm" onclick="_atlasRenderCalendario('${empId}',${mes+1>11?0:mes+1},${mes+1>11?ano+1:ano})">▶</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:6px">${cabecalho}</div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:14px">${grid}</div>
+    <div style="margin-bottom:12px">${legenda}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:11.5px">
+      <span style="background:#F0FDF4;color:#059669;padding:3px 9px;border-radius:8px;font-weight:700">${contagem.trabalhou} dia(s) trabalhado(s)</span>
+      ${contagem.falta?`<span style="background:#FEF2F2;color:#DC2626;padding:3px 9px;border-radius:8px;font-weight:700">${contagem.falta} falta(s)</span>`:''}
+      ${contagem.atestado?`<span style="background:#F5F3FF;color:#7C3AED;padding:3px 9px;border-radius:8px;font-weight:700">${contagem.atestado} atestado(s)</span>`:''}
+      ${contagem.ferias?`<span style="background:#ECFEFF;color:#0891B2;padding:3px 9px;border-radius:8px;font-weight:700">${contagem.ferias} dia(s) de férias</span>`:''}
+    </div>
+    <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>
+  `, 460);
+}
+window._atlasRenderCalendario = _atlasRenderCalendario;
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ASO PERIÓDICO — o checklist de admissão só cobra o exame de entrada; a
+//  NR-7 também exige o periódico, ao longo de todo o contrato. Sem isso,
+//  ninguém percebia quando esse prazo vencia depois da admissão.
+// ═══════════════════════════════════════════════════════════════════════════
+window.atlasProximoASO = function(emp){
+  if(!emp || !emp.asoPeriodoAnos) return null;   // periodicidade não definida — não dá para calcular
+  const base = emp.asoUltimoPeriodico || emp.asoData;
+  if(!base) return null;
+  const anos = parseInt(emp.asoPeriodoAnos)||1;
+  const prox = new Date(base+'T00:00:00');
+  prox.setFullYear(prox.getFullYear() + anos);
+  const proxISO = prox.toISOString().slice(0,10);
+  const dias = Math.round((prox - new Date())/86400000);
+  return { proxISO, dias, vencido: dias<0 };
+};
+
 
 (function _atlasInjectButtons(){
   // 3a. Botão no módulo de Assinatura Digital
