@@ -2713,9 +2713,12 @@ function abrirDocCompleto(id) {
       <button onclick="document.getElementById('__doc-ler-ov__').remove()"
         style="background:rgba(255,255,255,.14);color:#fff;border:none;width:34px;height:34px;border-radius:9px;font-size:17px;cursor:pointer;flex-shrink:0">✕</button>
     </div>
-    <div id="__doc-scroll__" style="flex:1;overflow-y:auto;background:#fff;padding:20px 18px;-webkit-overflow-scrolling:touch">
-      <pre style="white-space:pre-wrap;word-wrap:break-word;font-family:'Segoe UI',system-ui,Arial,sans-serif;font-size:13.5px;line-height:1.75;color:#1a1a1a;margin:0">${esc(doc.conteudo || 'Documento sem conteúdo.')}</pre>
-      <div id="__doc-fim__" style="text-align:center;padding:14px 0 4px;font-size:11.5px;color:#94A3B8">— fim do documento —</div>
+    <div id="__doc-scroll__" style="flex:1;overflow-y:auto;background:${doc.conteudoHtml?'#F1F5F9':'#fff'};padding:${doc.conteudoHtml?'12px':'20px 18px'};-webkit-overflow-scrolling:touch">
+      ${doc.conteudoHtml
+        ? `<iframe srcdoc="${esc(doc.conteudoHtml)}" style="width:100%;height:70vh;border:1px solid #E2E8F0;border-radius:10px;background:#fff" onload="try{const d=this.contentWindow.document;if(d.body.scrollHeight<=this.clientHeight+8)document.getElementById('__doc-fim__').dispatchEvent(new Event('_visto'))}catch(e){}"></iframe>
+           <div id="__doc-fim-html__" style="text-align:center;padding:10px 0 2px;font-size:11px;color:#94A3B8">Role o documento acima até o fim antes de assinar</div>`
+        : `<pre style="white-space:pre-wrap;word-wrap:break-word;font-family:'Segoe UI',system-ui,Arial,sans-serif;font-size:13.5px;line-height:1.75;color:#1a1a1a;margin:0">${esc(doc.conteudo || 'Documento sem conteúdo.')}</pre>`}
+      <div id="__doc-fim__" style="text-align:center;padding:14px 0 4px;font-size:11.5px;color:#94A3B8">${doc.conteudoHtml?'':'— fim do documento —'}</div>
     </div>
     <div style="background:#fff;border-top:1px solid #E2E8F0;padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0">
       <button onclick="document.getElementById('__doc-ler-ov__').remove()"
@@ -2735,21 +2738,41 @@ function abrirDocCompleto(id) {
   _reg.abertoEm = Date.now();
   window.LEITURA_DOCS[id] = _reg;
 
-  const sc = document.getElementById('__doc-scroll__');
-  if (sc) {
-    // Documento curto que já cabe na tela conta como lido por inteiro
-    setTimeout(() => {
-      if (sc.scrollHeight <= sc.clientHeight + 8) _reg.ateOFim = true;
-    }, 120);
-    sc.addEventListener('scroll', () => {
-      if (sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 40) {
-        if (!_reg.ateOFim) {
-          _reg.ateOFim = true;
-          const fim = document.getElementById('__doc-fim__');
-          if (fim) { fim.textContent = '✅ Você leu o documento até o fim'; fim.style.color = '#059669'; fim.style.fontWeight = '700'; }
-        }
-      }
-    });
+  const _marcarLido = () => {
+    if (_reg.ateOFim) return;
+    _reg.ateOFim = true;
+    const fim = document.getElementById('__doc-fim__') || document.getElementById('__doc-fim-html__');
+    if (fim) { fim.textContent = '✅ Você leu o documento até o fim'; fim.style.color = '#059669'; fim.style.fontWeight = '700'; }
+  };
+
+  if (doc.conteudoHtml) {
+    // O conteúdo rico vive DENTRO do iframe — o scroll acontece no
+    // documento dele, não no container de fora, então o listener precisa
+    // ser preso ao contentWindow assim que o iframe terminar de carregar.
+    const ifr = ov.querySelector('iframe');
+    if (ifr) {
+      ifr.addEventListener('load', () => {
+        try {
+          const idoc = ifr.contentDocument;
+          const iwin = ifr.contentWindow;
+          if (idoc.body.scrollHeight <= ifr.clientHeight + 12) { _marcarLido(); return; }
+          iwin.addEventListener('scroll', () => {
+            if (iwin.scrollY + ifr.clientHeight >= idoc.body.scrollHeight - 40) _marcarLido();
+          });
+        } catch (e) { _marcarLido(); }  // não deveria falhar (mesma origem via srcdoc), mas não trava o fluxo se falhar
+      });
+    }
+  } else {
+    const sc = document.getElementById('__doc-scroll__');
+    if (sc) {
+      // Documento curto que já cabe na tela conta como lido por inteiro
+      setTimeout(() => {
+        if (sc.scrollHeight <= sc.clientHeight + 8) _marcarLido();
+      }, 120);
+      sc.addEventListener('scroll', () => {
+        if (sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 40) _marcarLido();
+      });
+    }
   }
 
   // Fecha contando o tempo, seja pelo X, pelo Fechar ou pelo botão de assinar
@@ -3358,7 +3381,8 @@ async function carregarEspelhosColab(){
 function _atualizarBadgeEspelho(){
   const b = document.getElementById('espelho-badge');
   if(!b) return;
-  const pend = ESPELHOS.filter(e => e && !e.assinado).length;
+  const pendNovos = (ASSINATURAS_DIGITAL || []).filter(a => a && a.tipo === 'espelho_ponto' && a.status === 'pendente').length;
+  const pend = ESPELHOS.filter(e => e && !e.assinado).length + pendNovos;
   b.style.display = pend > 0 ? 'inline-block' : 'none';
   b.textContent = pend > 0 ? String(pend) : '';
 }
@@ -3369,7 +3393,11 @@ function _fmtHoras(min){
 }
 
 function renderEspelho(){
-  if(!ESPELHOS.length){
+  // Espelhos enviados pelo caminho novo (RH → canvas + foto, o mesmo usado
+  // em Documentos) — ficam em ASSINATURAS_DIGITAL, não na coleção antiga.
+  const novosEspelhos = (ASSINATURAS_DIGITAL || []).filter(a => a && a.tipo === 'espelho_ponto');
+
+  if(!ESPELHOS.length && !novosEspelhos.length){
     return `<div style="text-align:center;padding:48px 20px;color:#64748B">
       <div style="font-size:38px;margin-bottom:12px">🕐</div>
       <div style="font-weight:700;font-size:15px;margin-bottom:5px">Nenhum espelho disponível</div>
@@ -3377,7 +3405,30 @@ function renderEspelho(){
     </div>`;
   }
 
-  return ESPELHOS.map(esp => {
+  const cardNovoEspelho = a => {
+    const pend = a.status === 'pendente';
+    const quando = a.assinadoEm ? new Date(a.assinadoEm).toLocaleDateString('pt-BR') : '';
+    return `
+    <div style="background:#fff;border:1.5px solid ${pend?'#FDE68A':'#D1FAE5'};border-radius:14px;padding:16px 18px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <div>
+          <div style="font-size:15px;font-weight:800;color:#0F172A">${esc(a.titulo || 'Espelho de Ponto')}</div>
+          <div style="font-size:12px;color:#64748B">Enviado pelo RH</div>
+        </div>
+        ${pend
+          ? `<span style="background:#FEF3C7;color:#92400E;border-radius:10px;padding:4px 11px;font-size:11.5px;font-weight:800">Aguardando sua conferência</span>`
+          : `<span style="background:#DCFCE7;color:#166534;border-radius:10px;padding:4px 11px;font-size:11.5px;font-weight:800">✓ Assinado${quando?(' em '+quando):''}</span>`}
+      </div>
+      ${pend
+        ? `<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:9px;padding:10px 12px;margin-bottom:11px;font-size:12px;color:#92400E;line-height:1.55">
+             Leia o espelho, confira os horários e assine com sua assinatura e uma foto — a mesma forma usada nos outros documentos.
+           </div>
+           <button onclick="abrirDocCompleto('${a.id}')" style="width:100%;background:#059669;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:800;cursor:pointer">📄 Ler e Assinar</button>`
+        : `<button onclick="abrirDocCompleto('${a.id}')" style="width:100%;background:#F1F5F9;color:#475569;border:none;border-radius:10px;padding:11px;font-size:13px;font-weight:700;cursor:pointer">👁 Ver espelho assinado</button>`}
+    </div>`;
+  };
+
+  return novosEspelhos.map(cardNovoEspelho).join('') + ESPELHOS.map(esp => {
     const pend = !esp.assinado;
     const linhas = (esp.linhas||[]).map(l => {
       const st = String(l.status||'').toLowerCase();
