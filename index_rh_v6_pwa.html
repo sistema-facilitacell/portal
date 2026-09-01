@@ -36561,8 +36561,10 @@ function abrirEspelhoPontoComAssinatura(empId, mes, ano) {
          </div>`}
   </div>
 
-  <div class="mft" style="margin-top:12px">
+  <div class="mft" style="margin-top:12px;flex-wrap:wrap">
     <button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+    <button class="btn btn-sm" style="background:#0B1E35;color:#C9A84C;border:none;font-weight:700" onclick="atlasEnviarEspelhoPonto('${empId}',${mes},${ano})" title="Envia para o colaborador conferir e assinar no portal, com canvas e foto">✍️ Enviar p/ assinar</button>
+    <button class="btn btn-green btn-sm" onclick="atlasLinkEspelhoPonto('${empId}',${mes},${ano})" title="Gera um link avulso — funciona mesmo com o portal bloqueado">🔗 Gerar link</button>
     <button class="btn btn-navy btn-sm" onclick="_espelhoImprimir('${empId}',${mes},${ano})">🖨️ Imprimir Espelho</button>
     <button class="btn btn-sm" style="background:#0B1E35;color:#C9A84C;font-weight:700" onclick="closeModal();exportarEspelhoIndividualPDF('${empId}','${ano}-${String(mes+1).padStart(2,'0')}')">📄 PDF Espelho</button>
     <button class="btn btn-sm" style="background:#F5F3FF;color:#7C3AED;border:1px solid #DDD6FE" onclick="closeModal();exportarEspelhoIndividualXLSX('${empId}','${ano}-${String(mes+1).padStart(2,'0')}')">📊 XLSX Espelho</button>
@@ -56916,6 +56918,87 @@ window.atlasProximoASO = function(emp){
   return { proxISO, dias, vencido: dias<0 };
 };
 
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ESPELHO DE PONTO — enviar para o portal, assinar remoto com canvas+foto
+//  O espelho só tinha assinatura PRESENCIAL (a pessoa desenhava direto na
+//  tela do RH). Sem forma de mandar para o colaborador conferir e assinar
+//  de casa/do celular, com o mesmo canvas+selfie que já usamos em todo o
+//  resto — reaproveita o pipeline já testado hoje (Recibo, TRCT, Carta...).
+// ═══════════════════════════════════════════════════════════════════════════
+function _atlasEspelhoTextoPlano(emp, mes, ano, rowsDados){
+  const cfg = (typeof EMPRESA_CFG!=='undefined') ? EMPRESA_CFG : {};
+  const empresa = (cfg.nomeRazao||cfg.nomeFantasia||'').toUpperCase() || 'EMPRESA';
+  const L = (a,b,c,d,e) => String(a).padEnd(11)+String(b).padEnd(10)+String(c).padEnd(10)+String(d).padEnd(13)+e;
+  let linhas = L('Dia','Entrada','Saída','Trabalhado','Status') + '\n';
+  linhas += '-'.repeat(58) + '\n';
+  rowsDados.forEach(r=>{ linhas += L(r.diaLabel, r.entrada||'—', r.saida||'—', r.trab||'—', r.status) + '\n'; });
+
+  return `ESPELHO DE PONTO — ${MONTHS[mes]}/${ano}
+Portaria MTP nº 671/2021 · Art. 74, §2º, da CLT
+
+EMPREGADOR: ${empresa} — CNPJ: ${cfg.cnpj||'—'}
+COLABORADOR(A): ${emp.nome} — CPF: ${emp.cpf||'—'} — Cargo: ${emp.cargo||'—'}
+
+${linhas}
+${'-'.repeat(58)}
+Total trabalhado: ${rowsDados.totalTxt||''} · Faltas: ${rowsDados.faltas||0} · Atestados: ${rowsDados.atestados||0}
+
+DECLARAÇÃO
+Declaro, para os devidos fins, ter conferido os registros de ponto acima discriminados,
+referentes à competência de ${MONTHS[mes]}/${ano}, e que os horários lançados correspondem
+à jornada efetivamente trabalhada, nos termos do Art. 74, §2º, da CLT e da Portaria MTP nº 671/2021.
+
+${cfg.cidade||''}, ${new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}.`;
+}
+
+function _atlasEspelhoDadosLinhas(empId, mes, ano){
+  const emp = APP.employees.find(e=>e.id===empId);
+  const k = `${empId}_${ano}_${mes}`;
+  const pm = APP.pontos[k] || {};
+  const diasNoMes = new Date(ano, mes+1, 0).getDate();
+  const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  let totalHoras=0, totalFaltas=0, totalAtestados=0;
+  const linhas = [];
+  for(let d=1; d<=diasNoMes; d++){
+    const reg = pm[d] || {};
+    const diasem = new Date(ano, mes, d).getDay();
+    const fds = diasem===0 || diasem===6;
+    if(reg.status==='falta') totalFaltas++;
+    if(reg.status==='atestado') totalAtestados++;
+    let hTrab = '';
+    if(reg.entrada && reg.saida){
+      const [eh,em2]=reg.entrada.split(':').map(Number), [sh,sm]=reg.saida.split(':').map(Number);
+      const min=(sh*60+sm)-(eh*60+em2)-60;
+      if(min>0){ totalHoras+=min; hTrab = Math.floor(min/60)+'h'+String(min%60).padStart(2,'0'); }
+    }
+    const status = reg.status==='falta'?'Falta':reg.status==='atestado'?'Atestado':reg.status==='folga'?'Folga':fds?(diasem===0?'Dom':'Sáb'):(reg.entrada?'Normal':'—');
+    linhas.push({diaLabel:d+' '+DIAS_SEMANA[diasem], entrada:reg.entrada, saida:reg.saida, trab:hTrab, status});
+  }
+  linhas.totalTxt = Math.floor(totalHoras/60)+'h'+String(totalHoras%60).padStart(2,'0');
+  linhas.faltas = totalFaltas; linhas.atestados = totalAtestados;
+  return {emp, linhas};
+}
+
+window.atlasEnviarEspelhoPonto = async function(empId, mes, ano){
+  const {emp, linhas} = _atlasEspelhoDadosLinhas(empId, mes, ano);
+  if(!emp){ toast('Funcionário não encontrado.','err'); return; }
+  await _atlasEnviarDocParaAssinatura(empId, {
+    tipo:'espelho_ponto', tipoLabel:'Espelho de Ponto',
+    titulo:'Espelho de Ponto — '+MONTHS[mes]+'/'+ano,
+    conteudo:_atlasEspelhoTextoPlano(emp, mes, ano, linhas), icone:'🕐'
+  });
+};
+window.atlasLinkEspelhoPonto = async function(empId, mes, ano){
+  const {emp, linhas} = _atlasEspelhoDadosLinhas(empId, mes, ano);
+  if(!emp){ toast('Funcionário não encontrado.','err'); return; }
+  await _atlasGerarLinkGenerico(empId, {
+    tipo:'espelho_ponto', tipoLabel:'Espelho de Ponto',
+    titulo:'Espelho de Ponto — '+MONTHS[mes]+'/'+ano,
+    conteudo:_atlasEspelhoTextoPlano(emp, mes, ano, linhas), icone:'🕐'
+  });
+};
 
 (function _atlasInjectButtons(){
   // 3a. Botão no módulo de Assinatura Digital
