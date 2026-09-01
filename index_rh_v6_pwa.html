@@ -41273,9 +41273,12 @@ window.pjCarregarRecibo=pjCarregarRecibo;
   };
 
   // ── Geração do documento oficial Portaria 671/2021 ──────────────────────────
-  window.gerarEspelhoPonto671 = function(empId, mes, ano) {
+  // Extraído em função própria para poder ser reaproveitado ao enviar o
+  // espelho para assinatura remota no portal — o colaborador vê o MESMO
+  // documento elegante que o RH já usa, em vez de um texto simples.
+  window._atlasEspelhoHTML671 = function(empId, mes, ano) {
     const emp = APP.employees.find(e => e.id === empId);
-    if (!emp) { toast('Funcionário não encontrado', 'err'); return; }
+    if (!emp) { toast('Funcionário não encontrado', 'err'); return null; }
 
     const k      = `${empId}_${ano}_${mes}`;
     const pm     = APP.pontos[k] || {};
@@ -41659,7 +41662,12 @@ ${sigData ? `
 
 </body>
 </html>`;
+    return html;
+  };
 
+  window.gerarEspelhoPonto671 = function(empId, mes, ano) {
+    const html = window._atlasEspelhoHTML671(empId, mes, ano);
+    if (!html) return;
     // Abre em nova janela para impressão/PDF
     const w = window.open('', '_blank', 'width=960,height=860,scrollbars=yes,resizable=yes');
     if (!w) {
@@ -55880,6 +55888,7 @@ async function _atlasEnviarDocParaAssinatura(empId, meta){
   const jaPend = (APP.assinaturas||[]).find(a=>a && a.empId===empId && a.tipo===meta.tipo && a.status==='pendente');
   if(jaPend){
     jaPend.conteudo = meta.conteudo;              // atualiza com a versão mais recente
+    jaPend.conteudoHtml = meta.conteudoHtml||null;
     jaPend.titulo = meta.titulo;
     if(meta.numero) jaPend.numero = meta.numero;
     if(typeof atlasCarimbarVersao==='function') await atlasCarimbarVersao(jaPend);
@@ -55893,6 +55902,7 @@ async function _atlasEnviarDocParaAssinatura(empId, meta){
     empId, empNome: emp.nome||'',
     tipo: meta.tipo, tipoLabel: meta.tipoLabel, titulo: meta.titulo,
     conteudo: meta.conteudo,
+    conteudoHtml: meta.conteudoHtml||null,   // versão rica (letterhead+tabelas); usada quando existir, sem quebrar quem só tem texto
     status:'pendente', origem:'rh_rescisao',
     exigirSelfie:true, exigirFoto:true, registrarDataHora:true, exigirGeo:false,
     criadoEm:new Date().toISOString(), criadoPor:'RH',
@@ -56986,19 +56996,25 @@ function _atlasEspelhoDadosLinhas(empId, mes, ano){
 window.atlasEnviarEspelhoPonto = async function(empId, mes, ano){
   const {emp, linhas} = _atlasEspelhoDadosLinhas(empId, mes, ano);
   if(!emp){ toast('Funcionário não encontrado.','err'); return; }
+  // Versão rica (a mesma do documento oficial impresso) para o colaborador
+  // ver bonito no portal — se algo falhar aqui, cai para o texto simples.
+  let htmlRico = null;
+  try{ htmlRico = (typeof window._atlasEspelhoHTML671==='function') ? window._atlasEspelhoHTML671(empId, mes, ano) : null; }catch(e){}
   await _atlasEnviarDocParaAssinatura(empId, {
     tipo:'espelho_ponto', tipoLabel:'Espelho de Ponto',
     titulo:'Espelho de Ponto — '+MONTHS[mes]+'/'+ano,
-    conteudo:_atlasEspelhoTextoPlano(emp, mes, ano, linhas), icone:'🕐'
+    conteudo:_atlasEspelhoTextoPlano(emp, mes, ano, linhas), conteudoHtml:htmlRico, icone:'🕐'
   });
 };
 window.atlasLinkEspelhoPonto = async function(empId, mes, ano){
   const {emp, linhas} = _atlasEspelhoDadosLinhas(empId, mes, ano);
   if(!emp){ toast('Funcionário não encontrado.','err'); return; }
+  let htmlRico = null;
+  try{ htmlRico = (typeof window._atlasEspelhoHTML671==='function') ? window._atlasEspelhoHTML671(empId, mes, ano) : null; }catch(e){}
   await _atlasGerarLinkGenerico(empId, {
     tipo:'espelho_ponto', tipoLabel:'Espelho de Ponto',
     titulo:'Espelho de Ponto — '+MONTHS[mes]+'/'+ano,
-    conteudo:_atlasEspelhoTextoPlano(emp, mes, ano, linhas), icone:'🕐'
+    conteudo:_atlasEspelhoTextoPlano(emp, mes, ano, linhas), conteudoHtml:htmlRico, icone:'🕐'
   });
 };
 
