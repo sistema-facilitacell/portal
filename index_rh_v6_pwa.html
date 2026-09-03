@@ -5595,9 +5595,7 @@ function rPonto(){
   const pt=t=>{if(!t)return 0;const[h,m]=(t||'00:00').split(':').map(Number);return h*60+m;};
   const entH=pt(emp?.horarioEntrada||'09:00');
   const saiH=pt(emp?.horarioSaida||'17:50');
-  const almSai=pt(emp?.horarioAlmoco||'12:00'), almVolt=pt(emp?.horarioVoltaAlmoco||'13:00');
-  const cafSai=pt(emp?.horarioCafe||'15:00'), cafVolt=pt(emp?.horarioVoltaCafe||'15:30');
-  const pausas=Math.max(0,almVolt-almSai)+Math.max(0,cafVolt-cafSai);
+  const pausas=atlasPausaMin(emp);
   const diaEsp=Math.max(0,(saiH-entH)-pausas);
 
   // ── Mapa biométrico por data YYYY-MM-DD ──
@@ -6012,11 +6010,7 @@ function imprimirCartaoPontoMensal(empId, mes, ano){
   const fmtMin=mn=>{if(!mn)return '—';const abs=Math.abs(mn),h=Math.floor(abs/60),mi=abs%60;return(mn<0?'-':'')+h+'h'+String(mi).padStart(2,'0')+'m';};
   const entH=pt(emp.horarioEntrada||'09:00');
   const saiH=pt(emp.horarioSaida||'17:50');
-  const almSai=pt(emp.horarioAlmoco||'12:00');
-  const almVolt=pt(emp.horarioVoltaAlmoco||'13:00');
-  const cafSai=pt(emp.horarioCafe||'15:00');
-  const cafVolt=pt(emp.horarioVoltaCafe||'15:30');
-  const pausas=Math.max(0,almVolt-almSai)+Math.max(0,cafVolt-cafSai);
+  const pausas=atlasPausaMin(emp);
   const diaEsp=Math.max(0,(saiH-entH)-pausas);
 
   // Busca dados biométricos do mês
@@ -11067,11 +11061,7 @@ function analisarCorrecoesPonto(empId, mes, ano){
   // Jornada contratada
   const entH=_rcpMin(emp.horarioEntrada||'09:00');
   const saiH=_rcpMin(emp.horarioSaida||'17:50');
-  const almS=_rcpMin(emp.horarioAlmoco||'12:00');
-  const almV=_rcpMin(emp.horarioVoltaAlmoco||'13:00');
-  const cafS=_rcpMin(emp.horarioCafe||'15:00');
-  const cafV=_rcpMin(emp.horarioVoltaCafe||'15:30');
-  const pausas=Math.max(0,almV-almS)+Math.max(0,cafV-cafS);
+  const pausas=atlasPausaMin(emp);
   const jornadaEsperada=Math.max(0,(saiH-entH)-pausas);
 
   const dias=[], vazios=[], incompletos=[], alertas=[];
@@ -15231,11 +15221,7 @@ function bioDiaSaldoHoras(ins, outs, hrEmp) {
   const pt = t => { const [h,m] = (t||'00:00').split(':').map(Number); return h*60+m; };
   const entH = pt(hrEmp.horarioEntrada || '09:00');
   const saiH = pt(hrEmp.horarioSaida   || '17:50');
-  const almSai  = pt(hrEmp.horarioAlmoco      || '12:00');
-  const almVolt = pt(hrEmp.horarioVoltaAlmoco || '13:00');
-  const cafSai  = pt(hrEmp.horarioCafe        || '15:00');
-  const cafVolt = pt(hrEmp.horarioVoltaCafe   || '15:30');
-  const pausaTotal = Math.max(0,(almVolt-almSai)) + Math.max(0,(cafVolt-cafSai));
+  const pausaTotal = atlasPausaMin(hrEmp);
   const diaEsperado = Math.max(0, (saiH - entH) - pausaTotal);
 
   // Entrada real: aplica tolerância de 10min (se chegou até entH+10, conta como entH exato)
@@ -15483,12 +15469,8 @@ function bioCalc(empName) {
   const hrEmp = APP.employees.find(e=>bioNormName(e.nome)===bioNormName(empName))||null;
   const pt=t=>{if(!t)return null;const[h,m]=(t||'09:00').split(':').map(Number);return h*60+m;};
   const entH=pt(hrEmp?.horarioEntrada||'09:00'), saiH=pt(hrEmp?.horarioSaida||'17:50');
-  // Intervalo total de pausa = almoco + cafe (ambos do cadastro do funcionario)
-  const _almSai=pt(hrEmp?.horarioAlmoco||'12:00'), _almVolt=pt(hrEmp?.horarioVoltaAlmoco||'13:00');
-  const _cafSai=pt(hrEmp?.horarioCafe||'15:00'),   _cafVolt=pt(hrEmp?.horarioVoltaCafe||'15:30');
-  const _almIntervalo=Math.max(0,(_almVolt||780)-(_almSai||720));
-  const _cafIntervalo=Math.max(0,(_cafVolt||930)-(_cafSai||900));
-  const _totalPausas=_almIntervalo+_cafIntervalo;
+  // Intervalo total de pausa = almoco + cafe (ou 1h30 corrida para quem não faz café)
+  const _totalPausas=atlasPausaMin(hrEmp);
   const dailyExp=Math.max(0,(saiH-entH)-_totalPausas);
   const workdays=[1,2,3,4,5]; // seg a sex — sábado não gera débito no banco de horas
   const todayS=(()=>{const _d=new Date();return`${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`;  })();
@@ -20480,11 +20462,7 @@ function _autoSyncBHSilenciosoLEGADO_DESATIVADO(){
       APP.bancohoras[emp.id]=(Array.isArray(APP.bancohoras[emp.id])?APP.bancohoras[emp.id]:[]).filter(l=>!l.motivo||!l.motivo.startsWith(TAG));
       const entH=pt(emp.horarioEntrada)||9*60;
       const saiH=pt(emp.horarioSaida)||17*60+50;
-      const almSai=pt(emp.horarioAlmoco)||12*60;
-      const almVolt=pt(emp.horarioVoltaAlmoco)||13*60;
-      const cafSai=pt(emp.horarioCafe)||15*60;
-      const cafVolt=pt(emp.horarioVoltaCafe)||15*60+30;
-      const pausa=Math.max(0,almVolt-almSai)+Math.max(0,cafVolt-cafSai);
+      const pausa=atlasPausaMin(emp);
       const diaEsp=Math.max(0,(saiH-entH)-pausa);
       let credMin=0,debMin=0;
       Object.entries(pm).forEach(([dStr,dia])=>{
@@ -22953,11 +22931,7 @@ function _confirmarImportBHCartaoPonto(){
     // Carga horaria diaria esperada com tolerância de entrada de 10min
     const entH=pt(emp.horarioEntrada)||9*60;
     const saiH=pt(emp.horarioSaida)||17*60+50;
-    const _almSai2=pt(emp.horarioAlmoco)||12*60, _almVolt2=pt(emp.horarioVoltaAlmoco)||13*60;
-    const _cafSai2=pt(emp.horarioCafe)||15*60,   _cafVolt2=pt(emp.horarioVoltaCafe)||15*60+30;
-    const _almInt2=Math.max(0,_almVolt2-_almSai2);
-    const _cafInt2=Math.max(0,_cafVolt2-_cafSai2);
-    const dailyExp=Math.max(0,(saiH-entH)-(_almInt2+_cafInt2));
+    const dailyExp=Math.max(0,(saiH-entH)-atlasPausaMin(emp));
 
     let totalCredMin=0,totalDebMin=0;
 
@@ -28653,9 +28627,7 @@ td,th{font-size:15px!important;}
         const _pt=t=>{if(!t)return null;const[h,m]=(t||'00:00').split(':').map(Number);return h*60+m;};
         const entH=_pt(P_EMP?.horarioEntrada||'09:00')||9*60;
         const saiH=_pt(P_EMP?.horarioSaida||'17:50')||17*60+50;
-        const almSai=_pt(P_EMP?.horarioAlmoco||'12:00'), almVolt=_pt(P_EMP?.horarioVoltaAlmoco||'13:00');
-        const cafSai=_pt(P_EMP?.horarioCafe||'15:00'), cafVolt=_pt(P_EMP?.horarioVoltaCafe||'15:30');
-        const pausas=Math.max(0,(almVolt||780)-(almSai||720))+Math.max(0,(cafVolt||930)-(cafSai||900));
+        const pausas=atlasPausaMin(P_EMP);
         const diaEsp=Math.max(0,(saiH-entH)-pausas);
         let mesExtra=0, mesNeg=0;
         dias.forEach(([,rec])=>{
@@ -28690,9 +28662,7 @@ td,th{font-size:15px!important;}
         const _pt2=t=>{if(!t)return null;const[h,m]=(t||'00:00').split(':').map(Number);return h*60+m;};
         const entH2=_pt2(P_EMP?.horarioEntrada||'09:00')||9*60;
         const saiH2=_pt2(P_EMP?.horarioSaida||'17:50')||17*60+50;
-        const almSai2=_pt2(P_EMP?.horarioAlmoco||'12:00'), almVolt2=_pt2(P_EMP?.horarioVoltaAlmoco||'13:00');
-        const cafSai2=_pt2(P_EMP?.horarioCafe||'15:00'), cafVolt2=_pt2(P_EMP?.horarioVoltaCafe||'15:30');
-        const pausas2=Math.max(0,(almVolt2||780)-(almSai2||720))+Math.max(0,(cafVolt2||930)-(cafSai2||900));
+        const pausas2=atlasPausaMin(P_EMP);
         const diaEsp2=Math.max(0,(saiH2-entH2)-pausas2);
         let saldoLabel='—';
         if(rec.entrada&&rec.saida&&(rec.status==='normal'||rec.status==='trabalhou')){
@@ -28778,18 +28748,23 @@ td,th{font-size:15px!important;}
     const e=P_EMP;
     const he=e.horarioEntrada||'08:00';
     const haSai=e.horarioAlmoco||'12:00';
-    const haVolt=e.horarioVoltaAlmoco||pAddMinutes(haSai,60);
-    const hcSai=e.horarioCafe||'15:00';
-    const hcVolt=e.horarioVoltaCafe||pAddMinutes(hcSai,30);
+    // Quem não faz café tem 1h30 de almoço corrido — a volta do almoço já
+    // reflete isso; sem os dois pontos extras de café na sequência esperada.
+    const haVolt=e.horarioVoltaAlmoco||pAddMinutes(haSai, e.fazCafe===false?90:60);
     const hs=e.horarioSaida||'17:00';
-    return[
+    const _seq=[
       {key:'entrada',    label:'🟢 Bater Entrada',         time:he,    tipo:'in',  ordem:0},
       {key:'sai_almoco', label:'🍽 Saída para Almoço',     time:haSai, tipo:'out', ordem:1},
       {key:'volt_almoco',label:'🍽 Volta do Almoço',       time:haVolt,tipo:'in',  ordem:2},
-      {key:'sai_cafe',   label:'☕ Saída para o Café',     time:hcSai, tipo:'out', ordem:3},
-      {key:'volt_cafe',  label:'☕ Volta do Café',          time:hcVolt,tipo:'in',  ordem:4},
-      {key:'saida',      label:'🔴 Bater Saída Final',     time:hs,    tipo:'out', ordem:5},
     ];
+    if(e.fazCafe!==false){
+      const hcSai=e.horarioCafe||'15:00';
+      const hcVolt=e.horarioVoltaCafe||pAddMinutes(hcSai,30);
+      _seq.push({key:'sai_cafe', label:'☕ Saída para o Café', time:hcSai, tipo:'out', ordem:3});
+      _seq.push({key:'volt_cafe',label:'☕ Volta do Café',      time:hcVolt,tipo:'in',  ordem:4});
+    }
+    _seq.push({key:'saida', label:'🔴 Bater Saída Final', time:hs, tipo:'out', ordem:_seq.length});
+    return _seq;
   }
 
   function pAddMinutes(hm,mins){
@@ -34114,11 +34089,7 @@ async function sincronizarTudo(opts){
 
       const entH=pt(emp.horarioEntrada)||9*60;
       const saiH=pt(emp.horarioSaida)||17*60+50;
-      const almSaiM=pt(emp.horarioAlmoco)||12*60;
-      const almVoltM=pt(emp.horarioVoltaAlmoco)||13*60;
-      const cafSaiM=pt(emp.horarioCafe)||15*60;
-      const cafVoltM=pt(emp.horarioVoltaCafe)||15*60+30;
-      const pausaMin=Math.max(0,almVoltM-almSaiM)+Math.max(0,cafVoltM-cafSaiM);
+      const pausaMin=atlasPausaMin(emp);
       const diaEsp=Math.max(0,(saiH-entH)-pausaMin);
 
       let empCredMin=0, empDebMin=0;
@@ -34422,9 +34393,7 @@ async function _autoSyncSilent(mes, ano){
       if(!APP.pontos[pontoKey])APP.pontos[pontoKey]={};
 
       const entH=pt(emp.horarioEntrada)||9*60,saiH=pt(emp.horarioSaida)||17*60+50;
-      const almSaiM=pt(emp.horarioAlmoco)||12*60,almVoltM=pt(emp.horarioVoltaAlmoco)||13*60;
-      const cafSaiM=pt(emp.horarioCafe)||15*60,cafVoltM=pt(emp.horarioVoltaCafe)||15*60+30;
-      const pausaMin=Math.max(0,almVoltM-almSaiM)+Math.max(0,cafVoltM-cafSaiM);
+      const pausaMin=atlasPausaMin(emp);
       const diaEsp=Math.max(0,(saiH-entH)-pausaMin);
       let credMin=0,debMin=0;
 
@@ -35784,11 +35753,8 @@ function _painelCalcJornada(e) {
   const saiMin = pt(e.horarioSaida||'17:00');
   const almSai = pt(e.horarioAlmoco||'12:00');
   const almVol = pt(e.horarioVoltaAlmoco||'13:00');
-  const cafSai = pt(e.horarioCafe||'15:00');
-  const cafVol = pt(e.horarioVoltaCafe||'15:30');
-  const pausaAlm = (almSai && almVol && almVol>almSai) ? (almVol-almSai) : 60;
-  const pausaCaf = (cafSai && cafVol && cafVol>cafSai) ? (cafVol-cafSai) : 0;
-  const jornada = saiMin - entMin - pausaAlm - pausaCaf;
+  const _pausaTotalE = atlasPausaMin(e);
+  const jornada = saiMin - entMin - _pausaTotalE;
   return { entMin, saiMin, jornada: Math.max(jornada,0), pt };
 }
 
@@ -39105,9 +39071,7 @@ function _renderCalendarioMensal() {
     const saiH = pt(emp && emp.horarioSaida)   || 17*60+50;
     const almSai = pt(emp && emp.horarioAlmoco)       || 12*60;
     const almVol = pt(emp && emp.horarioVoltaAlmoco)  || 13*60;
-    const cafSai = pt(emp && emp.horarioCafe)         || 15*60;
-    const cafVol = pt(emp && emp.horarioVoltaCafe)    || 15*60+30;
-    const pausaMin = Math.max(0, almVol - almSai) + Math.max(0, cafVol - cafSai);
+    const pausaMin = atlasPausaMin(emp);
     const diaEsp  = Math.max(0, (saiH - entH) - pausaMin);
     const e  = pt(reg.entrada);
     const sa = pt(reg.saida_almoco);
@@ -40173,9 +40137,7 @@ console.log('[v18] ✅ Módulo Assinatura Digital carregado — canvas + SHA-256
     const saiH = _pt(emp.horarioSaida)   || 17 * 60 + 50;
     const almSai  = _pt(emp.horarioAlmoco)        || 12 * 60;
     const almVolt = _pt(emp.horarioVoltaAlmoco)   || 13 * 60;
-    const cafSai  = _pt(emp.horarioCafe)           || 15 * 60;
-    const cafVolt = _pt(emp.horarioVoltaCafe)      || 15 * 60 + 30;
-    const pausaTotal = Math.max(0, almVolt - almSai) + Math.max(0, cafVolt - cafSai);
+    const pausaTotal = atlasPausaMin(emp);
     const diaEsp = Math.max(1, (saiH - entH) - pausaTotal);
 
     const e  = _pt(reg.entrada);
@@ -40243,9 +40205,7 @@ console.log('[v18] ✅ Módulo Assinatura Digital carregado — canvas + SHA-256
     const saiH = _pt(emp.horarioSaida)   || 17 * 60 + 50;
     const almSai  = _pt(emp.horarioAlmoco)        || 12 * 60;
     const almVolt = _pt(emp.horarioVoltaAlmoco)   || 13 * 60;
-    const cafSai  = _pt(emp.horarioCafe)           || 15 * 60;
-    const cafVolt = _pt(emp.horarioVoltaCafe)      || 15 * 60 + 30;
-    const pausaTotal = Math.max(0, almVolt - almSai) + Math.max(0, cafVolt - cafSai);
+    const pausaTotal = atlasPausaMin(emp);
     const diaEsp = Math.max(1, (saiH - entH) - pausaTotal);
 
     let credMin = 0, debMin = 0;
@@ -41327,9 +41287,7 @@ window.pjCarregarRecibo=pjCarregarRecibo;
     const saiH   = pt(emp.horarioSaida        || '17:50');
     const almSai = pt(emp.horarioAlmoco       || '12:00');
     const almVlt = pt(emp.horarioVoltaAlmoco  || '13:00');
-    const cafSai = pt(emp.horarioCafe         || '15:00');
-    const cafVlt = pt(emp.horarioVoltaCafe    || '15:30');
-    const pausas = Math.max(0, almVlt - almSai) + Math.max(0, cafVlt - cafSai);
+    const pausas = atlasPausaMin(emp);
     const diaEsp = Math.max(0, (saiH - entH) - pausas);
 
     // Dados biométricos do mês
@@ -57130,6 +57088,25 @@ window.atlasLimparCafesFantasmas = async function(){
   closeModal();
   toast('☕ '+limpos+' registro(s) corrigido(s). Confira o Cartão Ponto.','ok',6000);
   if(typeof navigate==='function') navigate('ponto');
+};
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  PAUSA ESPERADA — função única, usada em todo lugar que precisa saber
+//  quanto tempo de intervalo o colaborador tem no dia. Antes, mais de 20
+//  lugares diferentes (Banco de Horas, Relatório, Holerite, Fechamento...)
+//  recalculavam isso cada um do seu jeito, e nenhum sabia que existia gente
+//  que não faz café — todos somavam 30min de café a mais para essas pessoas.
+// ═══════════════════════════════════════════════════════════════════════════
+window.atlasPausaMin = function(emp){
+  const pt = t => { if(!t) return null; const [h,m]=String(t).split(':').map(Number); return (h||0)*60+(m||0); };
+  const temCafe = !emp || emp.fazCafe !== false;
+  const almSai = pt(emp?.horarioAlmoco) ?? 12*60;
+  const almVolt = pt(emp?.horarioVoltaAlmoco) ?? 13*60;
+  if(!temCafe) return Math.max(90, Math.max(0, almVolt-almSai));  // 1h30 corrida (nunca menos que isso)
+  const cafSai = pt(emp?.horarioCafe) ?? 15*60;
+  const cafVolt = pt(emp?.horarioVoltaCafe) ?? 15*60+30;
+  return Math.max(0, almVolt-almSai) + Math.max(0, cafVolt-cafSai);
 };
 
 (function _atlasInjectButtons(){
