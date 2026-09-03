@@ -30040,30 +30040,9 @@ function wizSyncField(id,val){
   if(CONT_WIZARD) CONT_WIZARD.dados[id]=val;
 }
 
-function wizardStep2(w){
-  return `
-  <div style="margin-bottom:14px;font-size:13px;color:var(--mt)">Selecione os documentos a gerar. Os marcados como <strong>Obrigatório</strong> são exigidos pela CLT.</div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
-    ${Object.entries(DOC_NAMES_MAP).map(([id,info])=>{
-      const sel = w.docs.includes(id);
-      return `<div onclick="toggleWizDoc('${id}')" id="wdoc_${id}" style="border:1.5px solid ${sel?'#2563EB':'var(--border)'};background:${sel?'#EFF6FF':'#fff'};border-radius:10px;padding:14px 16px;cursor:pointer;display:flex;align-items:flex-start;gap:12px;transition:all .15s">
-        <input type="checkbox" ${sel?'checked':''} onclick="event.stopPropagation();toggleWizDoc('${id}')" style="margin-top:3px;accent-color:#2563EB">
-        <div>
-          <div style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px">${info.icon} ${info.label}
-            ${info.obrig?'<span style="background:#FEE2E2;color:#DC2626;font-size:10px;padding:1px 7px;border-radius:10px;font-weight:700">CLT</span>':''}
-          </div>
-        </div>
-      </div>`;
-    }).join('')}
-  </div>
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
-    <div style="font-size:13px;color:var(--mt)">${w.docs.length} documento(s) selecionado(s)</div>
-    <div style="display:flex;gap:10px">
-      <button class="btn btn-ghost" onclick="wizardBack()">← Voltar</button>
-      <button class="btn btn-blue" onclick="wizardNext()">Próximo: Análise IA →</button>
-    </div>
-  </div>`;
-}
+// wizardStep2 (versão simples) REMOVIDA — era código morto, sobrescrita pela
+// versão completa em window.wizardStep2 mais abaixo (tipo de contrato, grupos,
+// bloqueio de docs por regime). Mantido só o comentário como rastro.
 
 function toggleWizDoc(id){
   const w = CONT_WIZARD;
@@ -31935,7 +31914,25 @@ function rBioAI(){
 // FEATURE 1 — SCORE DE PONTUALIDADE (0–100) por funcionário
 // Calculado com: % dias presentes, atraso médio, saídas antecipadas
 // ════════════════════════════════════════════════════════════════
+
+// ── Casamento batida biométrica → colaborador ────────────────────────────
+// As batidas raramente têm p.empId. O padrão do sistema é casar por
+// hrEmpId, depois CPF, depois nome normalizado. As funções de análise
+// individual usavam só p.empId e por isso NUNCA achavam as batidas — o
+// score saía sempre otimista (zero atrasos) e o padrão sempre vazio.
+window.atlasBatidaEhDoEmp = function(p, emp){
+  if(!p || !emp) return false;
+  if(p.empId && p.empId===emp.id) return true;
+  if(p.hrEmpId && p.hrEmpId===emp.id) return true;
+  const cpfEmp=(emp.cpf||'').replace(/\D/g,'');
+  if(cpfEmp && p.cpf && p.cpf.replace(/\D/g,'')===cpfEmp) return true;
+  const n1=(p.empName||'').trim().toLowerCase();
+  const n2=(emp.nome||'').trim().toLowerCase();
+  return !!n1 && n1===n2;
+};
+
 function calcScorePontualidade(empId){
+  const emp = (APP.employees||[]).find(e=>e.id===empId) || {id:empId};
   const mes = new Date().getMonth();
   const ano = new Date().getFullYear();
   const key = `${empId}_${ano}_${mes}`;
@@ -31952,7 +31949,7 @@ function calcScorePontualidade(empId){
   const entMin = ptMin(entPadrao);
   const punchesEmp = (BIO_DATA.punches||[]).filter(p => {
     const [ay,am] = (p.date||'').split('-').map(Number);
-    return p.empId && p.empId === empId && am-1 === mes && ay === ano && p.type === 'in';
+    return atlasBatidaEhDoEmp(p, emp) && am-1 === mes && ay === ano && p.type === 'in';
   });
   const atrasos = punchesEmp.filter(p => {
     const pm = ptMin(p.time);
@@ -31982,7 +31979,8 @@ function calcPadraoComportamento(empId){
     const d = new Date(hoje); d.setDate(d.getDate()-i);
     trintaDias.push(`${d.getFullYear()}-${zp2(d.getMonth()+1)}-${zp2(d.getDate())}`);
   }
-  const punches = (BIO_DATA.punches||[]).filter(p => p.empId === empId && trintaDias.includes(p.date));
+  const _empPad = (APP.employees||[]).find(e=>e.id===empId) || {id:empId};
+  const punches = (BIO_DATA.punches||[]).filter(p => atlasBatidaEhDoEmp(p, _empPad) && trintaDias.includes(p.date));
   if(punches.length === 0) return null;
   const entradas = punches.filter(p=>p.type==='in').map(p=>ptMin(p.time)).filter(v=>v!==null);
   const saidas   = punches.filter(p=>p.type==='out').map(p=>ptMin(p.time)).filter(v=>v!==null);
