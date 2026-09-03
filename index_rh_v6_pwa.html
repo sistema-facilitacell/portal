@@ -5169,8 +5169,17 @@ function openEmpForm(id){
     <div class="fld"><label>🟢 Entrada</label><input type="time" id="ef-he" value="${esc(e.horarioEntrada||'08:00')}"></div>
     <div class="fld"><label>🍽 Saída Almoço</label><input type="time" id="ef-ha" value="${esc(e.horarioAlmoco||'12:00')}"></div>
     <div class="fld"><label>🍽 Volta Almoço</label><input type="time" id="ef-hva" value="${esc(e.horarioVoltaAlmoco||'13:00')}"></div>
-    <div class="fld"><label>☕ Saída Café</label><input type="time" id="ef-hc" value="${esc(e.horarioCafe||'15:00')}"></div>
-    <div class="fld"><label>☕ Volta Café</label><input type="time" id="ef-hvc" value="${esc(e.horarioVoltaCafe||'15:30')}"></div>
+    <div class="fld">
+      <label>☕ Faz pausa para café?</label>
+      <select id="ef-fazcafe" onchange="_atlasToggleCafeCadastro()">
+        <option value="1" ${e.fazCafe!==false?'selected':''}>Sim — 1h de almoço + 30min de café</option>
+        <option value="0" ${e.fazCafe===false?'selected':''}>Não — 1h30 de almoço corrido</option>
+      </select>
+    </div>
+    <div id="ef-cafe-campos" style="${e.fazCafe===false?'display:none':''}display:contents">
+      <div class="fld"><label>☕ Saída Café</label><input type="time" id="ef-hc" value="${esc(e.horarioCafe||'15:00')}"></div>
+      <div class="fld"><label>☕ Volta Café</label><input type="time" id="ef-hvc" value="${esc(e.horarioVoltaCafe||'15:30')}"></div>
+    </div>
     <div class="fld"><label>🔴 Saída Final</label><input type="time" id="ef-hs" value="${esc(e.horarioSaida||'17:00')}"></div>
   </div>
   <div class="sh p">Período de Experiência</div>
@@ -5364,6 +5373,7 @@ async function saveEmp(){
     portalBloqueado:document.getElementById('ef-portal-bloqueado')?.checked||false,
     portalBloqueadoMotivo:g('ef-portal-motivo'),
     horarioEntrada:g('ef-he'),horarioAlmoco:g('ef-ha'),horarioVoltaAlmoco:g('ef-hva'),horarioCafe:g('ef-hc'),horarioVoltaCafe:g('ef-hvc'),horarioSaida:g('ef-hs'),
+    fazCafe: document.getElementById('ef-fazcafe')?.value!=='0',
     temFilhos:c('ef-tf'),filhos:window._ef.filhos,
     fotoPerfil:window._ef._fotoRemovida ? null : (window._ef.fotoPerfil||null),
     experiencia:{dias30:c('ef-dias30'),data30:g('ef-data30'),dias45:c('ef-dias45'),data45:g('ef-data45'),prorrogacao:c('ef-prorrogacao'),dataProrrogacao:g('ef-dataProrrogacao')},
@@ -5862,6 +5872,7 @@ function rPonto(){
     ${eid?`<button class="btn btn-sm" style="background:#EFF6FF;color:#2563EB;border:1px solid #BFDBFE" onclick="verComparativoBioPonto('${eid}',${_mesSel.mes},${_mesSel.ano})">🔬 Comparativo Biométrico</button>`:''}
     ${eid?`<button class="btn btn-sm" style="background:#F5F3FF;color:#7C3AED;border:1px solid #DDD6FE" onclick="abrirEspelhoPontoComAssinatura('${eid}',${_mesSel.mes},${_mesSel.ano})">📋 Espelho c/ Assinatura</button>`:''}
     ${eid?`<button class="btn btn-sm" style="background:#0B1E35;color:#C9A84C;border:none;font-weight:700" onclick="atlasEnviarEspelhoPonto('${eid}',${_mesSel.mes},${_mesSel.ano})" title="Envia para o colaborador conferir e assinar no portal, com canvas e foto">✍️ Enviar Espelho</button>`:''}
+    <button class="btn btn-sm" style="background:#FFFBEB;color:#92400E;border:1px solid #FDE68A" onclick="atlasModalCafesFantasmas()" title="Encontra e corrige pausas de café salvas por engano">☕ Cafés Fantasmas</button>
     ${eid?`<button class="btn btn-sm" style="background:#F0FDF4;color:#059669;border:1px solid #BBF7D0" onclick="atlasLinkEspelhoPonto('${eid}',${_mesSel.mes},${_mesSel.ano})" title="Gera um link avulso — funciona mesmo com o portal bloqueado">🔗 Link Espelho</button>`:''}
     <span id="bio-offline-badge" style="display:none;align-items:center;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;cursor:pointer" onclick="BioOffline.flush()">📵 Offline</span>
   </div>
@@ -5936,11 +5947,14 @@ function openDia(d){
   const _pt=t=>{if(!t)return null;const[h,m]=(t||'00:00').split(':').map(Number);return h*60+m;};
   const _entH=_pt(emp?.horarioEntrada||'09:00')||9*60;
   const _saiH=_pt(emp?.horarioSaida||'17:50')||17*60+50;
+  const _temCafe = emp?.fazCafe!==false;   // quem não faz café tem 1h30 de almoço corrido, sem pausa extra
   const _almSai=_pt(emp?.horarioAlmoco||'12:00');
   const _almVolt=_pt(emp?.horarioVoltaAlmoco||'13:00');
-  const _cafSai=_pt(emp?.horarioCafe||'15:00');
-  const _cafVolt=_pt(emp?.horarioVoltaCafe||'15:30');
-  const _pausas=Math.max(0,(_almVolt||780)-(_almSai||720))+Math.max(0,(_cafVolt||930)-(_cafSai||900));
+  const _cafSai=_temCafe?_pt(emp?.horarioCafe||'15:00'):null;
+  const _cafVolt=_temCafe?_pt(emp?.horarioVoltaCafe||'15:30'):null;
+  const _pausas=_temCafe
+    ? Math.max(0,(_almVolt||780)-(_almSai||720))+Math.max(0,(_cafVolt||930)-(_cafSai||900))
+    : 90;   // 1h30 corrida para quem não faz café
   const _diaEsp=Math.max(0,(_saiH-_entH)-_pausas);
   openModal(`✏️ Editar Ponto — ${esc(emp?.nome||'')} — ${dtFmt}`,`
     ${_ferAviso}
@@ -5968,10 +5982,11 @@ function openDia(d){
       <div class="fld"><label>🍽 Saída Almoço</label><input type="time" id="pd-sa" value="${r.saida_almoco||_bioVal.saida_almoco||emp?.horarioAlmoco||'12:00'}" oninput="_calcPontoPreview()"></div>
       <div class="fld"><label>↩ Volta Almoço</label><input type="time" id="pd-va" value="${r.volta_almoco||_bioVal.volta_almoco||emp?.horarioVoltaAlmoco||'13:00'}" oninput="_calcPontoPreview()"></div>
     </div>
-    <div class="g2">
-      <div class="fld"><label>☕ Saída Café</label><input type="time" id="pd-sc" value="${r.saida_cafe||_bioVal.saida_cafe||emp?.horarioCafe||'15:00'}" oninput="_calcPontoPreview()"></div>
-      <div class="fld"><label>↩ Volta Café</label><input type="time" id="pd-vc" value="${r.volta_cafe||_bioVal.volta_cafe||emp?.horarioVoltaCafe||'15:30'}" oninput="_calcPontoPreview()"></div>
-    </div>
+    ${_temCafe ? `<div class="g2">
+      <div class="fld"><label>☕ Saída Café</label><input type="time" id="pd-sc" value="${r.saida_cafe||_bioVal.saida_cafe||''}" oninput="_calcPontoPreview()"></div>
+      <div class="fld"><label>↩ Volta Café</label><input type="time" id="pd-vc" value="${r.volta_cafe||_bioVal.volta_cafe||''}" oninput="_calcPontoPreview()"></div>
+    </div>` : `<input type="hidden" id="pd-sc" value=""><input type="hidden" id="pd-vc" value="">
+    <div style="font-size:11.5px;color:#64748B;background:#F8FAFC;border-radius:8px;padding:8px 12px">☕ Este colaborador não faz pausa para café — 1h30 de almoço corrido.</div>`}
     <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px 12px;font-size:12px;margin-top:4px">
       💡 Alterações aqui ficam salvas no <strong>Cartão Ponto</strong> e são usadas no Holerite.
     </div>
@@ -6299,6 +6314,7 @@ function _executarSaveDia(d,k,status,entrada,saida_almoco,volta_almoco,saida_caf
 // Preview em tempo real do saldo de horas no modal de edição
 function _calcPontoPreview(entH, saiH, pausas, diaEsp){
   // Se chamado sem args, tenta recalcular com os valores do employee atual
+  let _temCafeGlobal = true;
   if(entH===undefined){
     const {empId}=PONTO_STATE;
     const emp=APP.employees.find(e=>e.id===empId);
@@ -6306,9 +6322,14 @@ function _calcPontoPreview(entH, saiH, pausas, diaEsp){
     const _pt=t=>{if(!t)return 0;const[h,m]=(t||'00:00').split(':').map(Number);return h*60+m;};
     entH=_pt(emp.horarioEntrada||'09:00');
     saiH=_pt(emp.horarioSaida||'17:50');
-    const almSai=_pt(emp.horarioAlmoco||'12:00'),almVolt=_pt(emp.horarioVoltaAlmoco||'13:00');
-    const cafSai=_pt(emp.horarioCafe||'15:00'),cafVolt=_pt(emp.horarioVoltaCafe||'15:30');
-    pausas=Math.max(0,almVolt-almSai)+Math.max(0,cafVolt-cafSai);
+    _temCafeGlobal = emp.fazCafe!==false;
+    if(_temCafeGlobal){
+      const almSai=_pt(emp.horarioAlmoco||'12:00'),almVolt=_pt(emp.horarioVoltaAlmoco||'13:00');
+      const cafSai=_pt(emp.horarioCafe||'15:00'),cafVolt=_pt(emp.horarioVoltaCafe||'15:30');
+      pausas=Math.max(0,almVolt-almSai)+Math.max(0,cafVolt-cafSai);
+    } else {
+      pausas=90;   // 1h30 corrida
+    }
     diaEsp=Math.max(0,(saiH-entH)-pausas);
   }
   const el=document.getElementById('ponto-hora-saldo');
@@ -6327,7 +6348,7 @@ function _calcPontoPreview(entH, saiH, pausas, diaEsp){
     const sa=_pt(saEl.value),va=_pt(vaEl.value);
     if(va>sa)pausasReal+=va-sa;
   }
-  if(scEl&&vcEl&&scEl.value&&vcEl.value){
+  if(_temCafeGlobal && scEl&&vcEl&&scEl.value&&vcEl.value){
     const sc=_pt(scEl.value),vc=_pt(vcEl.value);
     if(vc>sc)pausasReal+=vc-sc;
   }
@@ -57016,6 +57037,99 @@ window.atlasLinkEspelhoPonto = async function(empId, mes, ano){
     titulo:'Espelho de Ponto — '+MONTHS[mes]+'/'+ano,
     conteudo:_atlasEspelhoTextoPlano(emp, mes, ano, linhas), conteudoHtml:htmlRico, icone:'🕐'
   });
+};
+
+
+window._atlasToggleCafeCadastro = function(){
+  const sel = document.getElementById('ef-fazcafe');
+  const bloco = document.getElementById('ef-cafe-campos');
+  if(!sel || !bloco) return;
+  bloco.style.display = sel.value==='0' ? 'none' : 'contents';
+};
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  LIMPAR CAFÉS FANTASMAS — o formulário de editar ponto pré-preenchia os
+//  campos de Saída/Volta Café com um horário inventado mesmo quando a
+//  pessoa nunca bateu café. Quem salvava sem perceber gravava uma pausa
+//  que não existiu, e isso destruía o cálculo do dia. Corrigimos a causa;
+//  esta ferramenta encontra e limpa o que já foi salvo errado.
+// ═══════════════════════════════════════════════════════════════════════════
+window.atlasEncontrarCafesFantasmas = function(){
+  const suspeitos = [];
+  Object.keys(APP.pontos||{}).forEach(key=>{
+    const m = key.match(/^(.+)_(\d{4})_(\d+)$/);
+    if(!m) return;
+    const [, empId, ano, mesIdx] = m;
+    const emp = (APP.employees||[]).find(e=>e.id===empId);
+    const dias = APP.pontos[key];
+    Object.keys(dias||{}).forEach(dia=>{
+      const r = dias[dia];
+      if(!r || !r.saida_cafe) return;
+      const suspeitoNaoFazCafe = emp && emp.fazCafe===false;
+      const voltaZerada = r.volta_cafe==='00:00' || r.volta_cafe==='';
+      const pertoDaSaida = r.saida && r.saida_cafe && Math.abs(_hhmmParaMin(r.saida_cafe) - _hhmmParaMin(r.saida)) <= 15;
+      let gapEnorme = false;
+      if(r.saida_cafe && r.volta_cafe && r.volta_cafe!=='00:00'){
+        const gap = _hhmmParaMin(r.volta_cafe) - _hhmmParaMin(r.saida_cafe);
+        if(gap < 0 || gap > 180) gapEnorme = true;   // pausa negativa ou acima de 3h — impossível
+      }
+      if(suspeitoNaoFazCafe || voltaZerada || pertoDaSaida || gapEnorme){
+        suspeitos.push({empId, empNome: emp?emp.nome:'(desligado)', ano:+ano, mesIdx:+mesIdx, dia:+dia, rec:r,
+          motivo: suspeitoNaoFazCafe?'Não faz café, mas tem horário salvo' : voltaZerada?'Volta do café zerada (00:00)' : pertoDaSaida?'Café muito perto da saída' : 'Duração da pausa impossível'});
+      }
+    });
+  });
+  return suspeitos;
+};
+function _hhmmParaMin(t){ if(!t) return 0; const [h,m]=String(t).split(':').map(Number); return (h||0)*60+(m||0); }
+
+window.atlasModalCafesFantasmas = function(){
+  const suspeitos = atlasEncontrarCafesFantasmas();
+  if(!suspeitos.length){ toast('Nenhum café suspeito encontrado. 🎉','ok',4000); return; }
+  const linha = (s,i) => `
+    <label style="display:flex;align-items:flex-start;gap:9px;padding:9px 0;border-bottom:1px dashed #E2E8F0;cursor:pointer">
+      <input type="checkbox" class="cafe-fantasma-chk" data-idx="${i}" checked style="margin-top:3px">
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:12.5px">${esc(s.empNome)} — ${String(s.dia).padStart(2,'0')}/${String(s.mesIdx+1).padStart(2,'0')}/${s.ano}</div>
+        <div style="font-size:11px;color:#B91C1C">${esc(s.motivo)} · Café: ${s.rec.saida_cafe||'—'} → ${s.rec.volta_cafe||'—'}</div>
+      </div>
+    </label>`;
+  openModal('☕ Cafés Fantasmas Encontrados', `
+    <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:9px;padding:10px 13px;margin-bottom:13px;font-size:12px;color:#92400E;line-height:1.55">
+      ${suspeitos.length} registro(s) com pausa de café suspeita. Desmarque os que você tem certeza que são reais.
+      Um backup é gravado antes de limpar.
+    </div>
+    <div style="max-height:48vh;overflow-y:auto">${suspeitos.map(linha).join('')}</div>
+    <div class="mft">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn" style="background:#DC2626;color:#fff" onclick="atlasLimparCafesFantasmas()">☕ Limpar Selecionados</button>
+    </div>
+  `, 620);
+  window._cafesFantasmasAtual = suspeitos;
+};
+
+window.atlasLimparCafesFantasmas = async function(){
+  const suspeitos = window._cafesFantasmasAtual || [];
+  const marcados = Array.from(document.querySelectorAll('.cafe-fantasma-chk:checked')).map(c=>+c.dataset.idx);
+  if(!marcados.length){ toast('Nenhum selecionado.','warn'); return; }
+
+  if(typeof atlasBackupAntes==='function') atlasBackupAntes('limpar cafés fantasmas');
+
+  let limpos = 0;
+  marcados.forEach(i=>{
+    const s = suspeitos[i];
+    if(!s) return;
+    const key = `${s.empId}_${s.ano}_${s.mesIdx}`;
+    const rec = APP.pontos[key] && APP.pontos[key][s.dia];
+    if(rec){ rec.saida_cafe=''; rec.volta_cafe=''; limpos++; }
+  });
+
+  try{ if(typeof save==='function') save('pontos'); }catch(e){}
+  try{ if(typeof auditLog==='function') auditLog('Limpou '+limpos+' café(s) fantasma(s)', '', 'ponto'); }catch(e){}
+  closeModal();
+  toast('☕ '+limpos+' registro(s) corrigido(s). Confira o Cartão Ponto.','ok',6000);
+  if(typeof navigate==='function') navigate('ponto');
 };
 
 (function _atlasInjectButtons(){
