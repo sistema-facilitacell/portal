@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<!-- Impede o navegador de guardar o HTML em cache: garante que a cada
+     abertura o dispositivo busque a versão mais recente do portal. -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
 <title>Portal do Colaborador — Atlas RH</title>
 <link rel="icon" href="icone-portal-192.png" type="image/png"/>
 <link rel="apple-touch-icon" href="icone-portal-192.png"/>
@@ -510,6 +515,44 @@ body{background:var(--bg);color:var(--tx);}
         window.addEventListener('load', async () => {
           try {
             _SW_REG = await navigator.serviceWorker.register('./sw_portal.js');
+
+            // ── AUTOATUALIZAÇÃO FORÇADA ─────────────────────────────────
+            // O problema histórico: um PWA instalado nunca "fecha" de verdade,
+            // então o colaborador ficava preso numa versão antiga mesmo com o
+            // GitHub já atualizado. Agora, quando o SW detecta um arquivo novo,
+            // ele instala em segundo plano e, assim que fica pronto, a página
+            // se recarrega sozinha uma única vez — igual app de banco.
+            _SW_REG.addEventListener('updatefound', () => {
+              const novo = _SW_REG.installing;
+              if (!novo) return;
+              novo.addEventListener('statechange', () => {
+                // 'installed' + já existe um controller = há uma versão ANTIGA
+                // no ar e uma NOVA pronta. Manda a nova assumir imediatamente.
+                if (novo.state === 'installed' && navigator.serviceWorker.controller) {
+                  novo.postMessage({ type: 'ATIVAR_AGORA' });
+                }
+              });
+            });
+
+            // Quando o SW novo assume o controle, recarrega a página uma vez
+            // para o HTML/JS novos entrarem em cena. O flag evita laço infinito.
+            let _jaRecarregou = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+              if (_jaRecarregou) return;
+              _jaRecarregou = true;
+              window.location.reload();
+            });
+
+            // Verifica se há atualização toda vez que o app volta ao foco —
+            // pega quem deixou o PWA aberto em segundo plano por dias.
+            document.addEventListener('visibilitychange', () => {
+              if (document.visibilityState === 'visible' && _SW_REG) {
+                _SW_REG.update().catch(() => {});
+              }
+            });
+            // E uma verificação logo na abertura, sem esperar o foco mudar.
+            _SW_REG.update().catch(() => {});
+
             navigator.serviceWorker.addEventListener('message', e => {
               if (e.data && e.data.type === 'NOTIF_CLICK') {
                 _pushNavegar(e.data.tipo, e.data.action);
@@ -570,7 +613,7 @@ body{background:var(--bg);color:var(--tx);}
   </button>
 </head>
 <body>
-<div style="position:fixed;bottom:3px;right:6px;z-index:1;font-size:9px;color:rgba(148,163,184,.55);pointer-events:none;user-select:none;font-family:Arial,sans-serif" title="Versão do portal">Portal Atlas RH · build 2026-08-27 20:03</div>
+<div style="position:fixed;bottom:3px;right:6px;z-index:1;font-size:9px;color:rgba(148,163,184,.55);pointer-events:none;user-select:none;font-family:Arial,sans-serif" title="Versão do portal">Portal Atlas RH · build 2026-09-04 18:20 (v5)</div>
 
 <!-- SPLASH -->
 <div id="splash">
