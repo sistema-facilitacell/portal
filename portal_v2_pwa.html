@@ -613,7 +613,7 @@ body{background:var(--bg);color:var(--tx);}
   </button>
 </head>
 <body>
-<div style="position:fixed;bottom:3px;right:6px;z-index:1;font-size:9px;color:rgba(148,163,184,.55);pointer-events:none;user-select:none;font-family:Arial,sans-serif" title="Versão do portal">Portal Atlas RH · build 2026-09-04 18:20 (v5)</div>
+<div style="position:fixed;bottom:3px;right:6px;z-index:1;font-size:9px;color:rgba(148,163,184,.55);pointer-events:none;user-select:none;font-family:Arial,sans-serif" title="Versão do portal">Portal Atlas RH · build 2026-09-07 (v7 · solicitações+)</div>
 
 <!-- SPLASH -->
 <div id="splash">
@@ -8025,7 +8025,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
       <!-- Banner flutuante de instrução, estilo apps de banco (ex.: "Mova a câmera para mais perto") -->
       <div id="bio-move-overlay" style="display:none;position:absolute;top:14px;left:8px;right:8px;z-index:4;background:#FFFFFF;border-radius:13px;padding:13px 16px;box-shadow:0 10px 24px rgba(15,23,42,.2);flex-direction:column;align-items:center;gap:9px">
-        <div id="bio-move-text" style="font-size:14.5px;font-weight:800;color:#0F172A;text-align:center;line-height:1.4;letter-spacing:-.01em">Vire levemente a cabeça</div>
+        <div id="bio-move-text" style="font-size:14.5px;font-weight:800;color:#0F172A;text-align:center;line-height:1.4;letter-spacing:-.01em">Aproxime o rosto da câmera</div>
         <div style="width:100%;height:3px;background:#E2E8F0;border-radius:3px;overflow:hidden">
           <div id="bio-move-bar" style="height:100%;width:0%;background:#2563EB;border-radius:3px;transition:width .12s linear"></div>
         </div>
@@ -8123,60 +8123,87 @@ let BIO_ETAPA        = 0;
 
 // ── Liveness: detecção de movimento de cabeça ─────────────────────────────────
 // Mais robusto que EAR blink — funciona mesmo com olhos semicerrados/óculos
-let _liveNoseRef    = null;   // posição do nariz em repouso
-let _liveMovOk      = false;  // movimento detectado
+// ── PROVA DE VIDA: APROXIME E AFASTE ─────────────────────────────────────
+// Mede a LARGURA do rosto na câmera. Ao aproximar o rosto, ele fica maior;
+// ao afastar, menor. Uma foto impressa/tela não faz isso de forma natural —
+// por isso este desafio é mais difícil de burlar que o de virar a cabeça.
+// A pessoa precisa AFASTAR (rosto encolhe) e depois APROXIMAR (rosto cresce),
+// ou vice-versa, cobrindo uma variação mínima de tamanho.
+let _liveMovOk      = false;  // desafio concluído
 let _liveStartTs    = 0;
 let _liveFrames     = 0;
-// Marca quando a batida foi liberada sem prova de vida verificavel (face-api
-// indisponivel). Gravado no registro para nao afirmar liveness que nao houve.
 let _livenessNaoVerificado = false;
-let _liveMovHits    = 0;   // frames consecutivos com desvio acima do limiar
-// 0.010 (1% da distancia entre os olhos) era tremor natural da mao segurando o
-// celular — qualquer imagem levemente tremida passava como "prova de vida".
-// 0.045 exige deslocamento real da cabeca. Alem disso exigimos que o desvio
-// apareca em 2 frames, para ruido isolado do detector nao aprovar sozinho.
+let _liveBaseW      = null;   // largura do rosto no início (referência)
+let _liveMinW       = null;   // menor largura vista (mais afastado)
+let _liveMaxW       = null;   // maior largura vista (mais próximo)
+let _liveFaseAprox  = false;  // já detectou aproximação suficiente
+let _liveFaseAfasta = false;  // já detectou afastamento suficiente
+// Exige variação de 22% no tamanho do rosto entre o mais perto e o mais longe.
+// Abaixo disso é só tremor de mão; acima exige um gesto real de aproximar/afastar.
+const LIVE_ZOOM_RATIO = 1.22;
+const LIVE_TIMEOUT_MS = 9000;  // mais tempo, pois o gesto é maior que virar a cabeça
+// mantidos por compatibilidade com trechos externos que ainda os citam
 const LIVE_MOV_THRESHOLD = 0.045;
 const LIVE_MOV_FRAMES    = 2;
-const LIVE_TIMEOUT_MS    = 4000;  // tempo máximo aguardando movimento antes de liberar
 
 function _liveReset() {
-  _liveNoseRef = null;
   _liveMovOk   = false;
   _liveStartTs = Date.now();
   _liveFrames  = 0;
-  _liveMovHits = 0;
+  _liveBaseW   = null;
+  _liveMinW    = null;
+  _liveMaxW    = null;
+  _liveFaseAprox  = false;
+  _liveFaseAfasta = false;
   _livenessNaoVerificado = false;
 }
 
 function _liveProcessFrame(landmarks) {
   if (_liveMovOk || !landmarks) return;
-  const pts   = landmarks.positions;
-  const nose  = pts[30]; // ponto central do nariz (landmark 30)
-  const eyeL  = pts[36]; // canto esquerdo olho
-  const eyeR  = pts[45]; // canto direito olho
-  const faceW = Math.hypot(eyeR.x - eyeL.x, eyeR.y - eyeL.y); // largura de referência
-  if (faceW < 10) return;
+  const pts  = landmarks.positions;
+  const eyeL = pts[36]; // canto esquerdo do olho
+  const eyeR = pts[45]; // canto direito do olho
+  const faceW = Math.hypot(eyeR.x - eyeL.x, eyeR.y - eyeL.y); // "tamanho" do rosto
+  if (faceW < 8) return;
 
   _liveFrames++;
-  if (_liveFrames < 2) { _liveNoseRef = { x: nose.x, y: nose.y, fW: faceW }; return; }
+  // Primeiros frames: estabelece a largura de referência (rosto parado no início)
+  if (_liveBaseW === null || _liveFrames < 3) {
+    _liveBaseW = faceW; _liveMinW = faceW; _liveMaxW = faceW;
+    _atualizarInstrucaoZoom();
+    return;
+  }
 
-  if (!_liveNoseRef) { _liveNoseRef = { x: nose.x, y: nose.y, fW: faceW }; return; }
+  if (faceW < _liveMinW) _liveMinW = faceW;
+  if (faceW > _liveMaxW) _liveMaxW = faceW;
 
-  const dx = Math.abs(nose.x - _liveNoseRef.x) / faceW;
-  const dy = Math.abs(nose.y - _liveNoseRef.y) / faceW;
-  const mov = Math.max(dx, dy);
+  // Aproximou o suficiente? (rosto ficou LIVE_ZOOM_RATIO× maior que o menor visto)
+  if (_liveMaxW / _liveMinW >= LIVE_ZOOM_RATIO) _liveFaseAprox = true;
+  // Afastou o suficiente? (rosto ficou bem menor que o maior visto)
+  if (_liveMaxW / Math.max(_liveMinW,1) >= LIVE_ZOOM_RATIO && _liveMinW < _liveBaseW * 0.92) _liveFaseAfasta = true;
 
-  // Exige o desvio em frames consecutivos: um pico isolado costuma ser ruido
-  // do detector de landmarks, nao movimento real da pessoa.
-  if (mov > LIVE_MOV_THRESHOLD) {
-    _liveMovHits++;
-    if (_liveMovHits >= LIVE_MOV_FRAMES) {
-      _liveMovOk = true;
-      BIO_BLINK_OK = true; // sync external flag
-      bioShowMove(false);
-    }
-  } else {
-    _liveMovHits = 0;
+  // Concluído quando houve tanto aproximação quanto uma variação real de tamanho
+  if (_liveFaseAprox && (_liveFaseAfasta || _liveMaxW >= _liveBaseW * LIVE_ZOOM_RATIO)) {
+    _liveMovOk = true;
+    BIO_BLINK_OK = true;
+    bioShowMove(false);
+    return;
+  }
+
+  _atualizarInstrucaoZoom();
+}
+
+// Atualiza o texto e a barra conforme o quanto o rosto já variou de tamanho.
+function _atualizarInstrucaoZoom() {
+  const txt = document.getElementById('bio-move-text');
+  if (_liveBaseW === null) return;
+  const ratioAtual = (_liveMaxW && _liveMinW) ? (_liveMaxW / Math.max(_liveMinW,1)) : 1;
+  const progresso = Math.min(1, (ratioAtual - 1) / (LIVE_ZOOM_RATIO - 1));
+  bioMoveBar(progresso);
+  if (txt) {
+    txt.textContent = _liveFaseAprox
+      ? 'Agora afaste o rosto da câmera'
+      : 'Aproxime o rosto da câmera';
   }
 }
 
@@ -10074,7 +10101,11 @@ async function renderSolicitacoes(c) {
     const dt = s.criadoEm ? new Date(s.criadoEm).toLocaleDateString('pt-BR') : '—';
     const motivo = s.motivo ? `<div style="font-size:12px;color:#64748B;margin-top:3px;line-height:1.4">${esc(s.motivo)}</div>` : '';
     const respostaRH = s.respostaRH ? `<div style="margin-top:6px;padding:8px 10px;background:#F1F5F9;border-radius:8px;font-size:12px;color:#334155"><strong>RH:</strong> ${esc(s.respostaRH)}</div>` : '';
-    const detalhe = s.tipo === 'ferias' && s.dataInicio
+    const detalhe = s.tipo === 'adiantamento' && s.valor
+      ? `R$ ${Number(s.valor).toFixed(2)} · descontar em ${(s.competencia||'').split('-').reverse().join('/')}`
+      : s.tipo === 'segunda_via' && s.competencia
+      ? `holerite de ${(s.competencia||'').split('-').reverse().join('/')}`
+      : s.tipo === 'ferias' && s.dataInicio
       ? `<span style="font-size:11px;color:#64748B;background:#F1F5F9;padding:2px 8px;border-radius:10px">${s.dataInicio} → ${s.dataFim || '?'}</span>`
       : s.tipo === 'ajuste_ponto' && s.dataPonto
       ? `<span style="font-size:11px;color:#64748B;background:#F1F5F9;padding:2px 8px;border-radius:10px">📅 ${s.dataPonto}${s.horarioSolicitado ? ' · ' + s.horarioSolicitado : ''}</span>`
@@ -10116,6 +10147,8 @@ async function renderSolicitacoes(c) {
         <button onclick="_abrirFormSolic('ferias')" style="display:flex;align-items:center;gap:7px;background:linear-gradient(135deg,#F0FDF4,#DCFCE7);border:1.5px solid #86EFAC;color:#166534;border-radius:12px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer">🌴 Pedir Férias</button>
         <button onclick="_abrirFormSolic('ajuste_ponto')" style="display:flex;align-items:center;gap:7px;background:linear-gradient(135deg,#FFF7ED,#FEF3C7);border:1.5px solid #FCA5A5;color:#C2410C;border-radius:12px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer">⏱ Ajuste de Ponto</button>
         <button onclick="_abrirFormSolic('troca_turno')" style="display:flex;align-items:center;gap:7px;background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border:1.5px solid #93C5FD;color:#1D4ED8;border-radius:12px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer">🔄 Troca de Turno</button>
+        <button onclick="_abrirFormSolic('adiantamento')" style="display:flex;align-items:center;gap:7px;background:linear-gradient(135deg,#FEF9EC,#FEF3C7);border:1.5px solid #FCD34D;color:#92400E;border-radius:12px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer">💵 Adiantamento</button>
+        <button onclick="_abrirFormSolic('segunda_via')" style="display:flex;align-items:center;gap:7px;background:linear-gradient(135deg,#F5F3FF,#EDE9FE);border:1.5px solid #C4B5FD;color:#6D28D9;border-radius:12px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer">📄 2ª via de holerite</button>
         <button onclick="_abrirFormSolic('compensacao_bh')" style="display:flex;align-items:center;gap:7px;background:linear-gradient(135deg,#F0FDF4,#DCFCE7);border:1.5px solid #6EE7B7;color:#065F46;border-radius:12px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer">🕐 Comp. Banco de Horas</button>
       </div>
 
@@ -10132,7 +10165,7 @@ async function renderSolicitacoes(c) {
 function _abrirFormSolic(tipo) {
   const wrap = document.getElementById('_solic_form_wrap');
   if (!wrap) return;
-  const labels = { ferias: '🌴 Solicitar Férias', ajuste_ponto: '⏱ Solicitar Ajuste de Ponto', troca_turno: '🔄 Solicitar Troca de Turno' };
+  const labels = { ferias: '🌴 Solicitar Férias', ajuste_ponto: '⏱ Solicitar Ajuste de Ponto', troca_turno: '🔄 Solicitar Troca de Turno', adiantamento: '💵 Solicitar Adiantamento', segunda_via: '📄 Solicitar 2ª via de holerite', compensacao_bh: '⏱ Compensação de Banco de Horas' };
 
   let extraFields = '';
   if (tipo === 'ferias') {
@@ -10170,6 +10203,30 @@ function _abrirFormSolic(tipo) {
           <label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;display:block;margin-bottom:4px">Turno desejado</label>
           <input type="text" id="_sf_tdesej" placeholder="Ex: Tarde (14h–22h)" style="width:100%;padding:9px 10px;border:1.5px solid #E2E8F0;border-radius:8px;font-size:14px">
         </div>
+      </div>`;
+  } else if (tipo === 'adiantamento') {
+    extraFields = `
+      <div style="background:#FEF9EC;border:1px solid #FCD34D;border-radius:10px;padding:10px 12px;font-size:13px;color:#92400E;margin-bottom:12px">
+        💡 Informe o valor desejado. O RH vai analisar e, se aprovado, o desconto entra no holerite do mês indicado.
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:130px">
+          <label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;display:block;margin-bottom:4px">Valor (R$)</label>
+          <input type="number" id="_sf_valor" step="0.01" placeholder="0,00" style="width:100%;padding:9px 10px;border:1.5px solid #E2E8F0;border-radius:8px;font-size:14px">
+        </div>
+        <div style="flex:1;min-width:130px">
+          <label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;display:block;margin-bottom:4px">Descontar em</label>
+          <input type="month" id="_sf_competencia" style="width:100%;padding:9px 10px;border:1.5px solid #E2E8F0;border-radius:8px;font-size:14px">
+        </div>
+      </div>`;
+  } else if (tipo === 'segunda_via') {
+    extraFields = `
+      <div style="background:#F5F3FF;border:1px solid #C4B5FD;border-radius:10px;padding:10px 12px;font-size:13px;color:#6D28D9;margin-bottom:12px">
+        📄 Informe a competência do holerite que você precisa. O RH vai disponibilizar a segunda via.
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;display:block;margin-bottom:4px">Competência (mês/ano)</label>
+        <input type="month" id="_sf_holerite_comp" style="width:100%;padding:9px 10px;border:1.5px solid #E2E8F0;border-radius:8px;font-size:14px">
       </div>`;
   } else if (tipo === 'compensacao_bh') {
     // FIX v7: formulário de compensação de banco de horas integrado à aba Solicitações
@@ -10246,6 +10303,16 @@ async function enviarSolicitacao(tipo) {
     const td = (document.getElementById('_sf_tdesej') || {}).value;
     if (!ta || !td) { toast('Preencha o turno atual e o desejado.', 'err'); return; }
     sol.turnoAtual = ta; sol.turnoDesejado = td;
+  } else if (tipo === 'adiantamento') {
+    const val = parseFloat((document.getElementById('_sf_valor')||{}).value)||0;
+    const comp = (document.getElementById('_sf_competencia')||{}).value;
+    if(val<=0){ toast('Informe um valor maior que zero.','err'); return; }
+    if(!comp){ toast('Selecione a competência do desconto.','err'); return; }
+    sol.valor = val; sol.competencia = comp;
+  } else if (tipo === 'segunda_via') {
+    const comp = (document.getElementById('_sf_holerite_comp')||{}).value;
+    if(!comp){ toast('Selecione a competência do holerite.','err'); return; }
+    sol.competencia = comp;
   } else if (tipo === 'compensacao_bh') {
     // FIX v7: coleta campos do formulário de compensação de banco de horas
     const bhTipo  = (document.getElementById('_sf_bh_tipo')  || {}).value || 'folga_dia';
