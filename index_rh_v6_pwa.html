@@ -1661,11 +1661,11 @@ td,th{font-size:15px!important;}
 <body>
 
 <!-- ══ MODAL ══ -->
-<div id="overlay" onclick="if(event.target===this)closeModal()">
+<div id="overlay" onclick="if(event.target===this)closeModalConfirmado()">
   <div class="mbox" onclick="event.stopPropagation()">
     <div class="mhd">
       <h3 id="mtitle"></h3>
-      <button onclick="closeModal()">
+      <button onclick="closeModalConfirmado()">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
@@ -1859,6 +1859,14 @@ td,th{font-size:15px!important;}
         onmouseout="this.style.background='#F8FAFC';this.style.borderColor='#E2E8F0';this.style.color='#64748B'">
         <svg id="sync-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         <span id="sync-btn-lbl">Sincronizar</span>
+      </button>
+
+      <!-- ── PAINEL DE ATENÇÃO DO DIA ── -->
+      <button onclick="abrirPainelAtencao()" data-tip="O que precisa da sua atenção hoje" id="btn-atencao-dia"
+        style="flex-shrink:0;position:relative;display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:9px;border:1px solid #FDE68A;background:#FFFBEB;color:#92400E;font-weight:700;cursor:pointer;font-size:13px"
+        onmouseover="this.style.background='#FEF3C7'" onmouseout="this.style.background='#FFFBEB'">
+        🎯 <span class="desk-only">Atenção</span>
+        <span id="atencao-badge" style="display:none;position:absolute;top:-6px;right:-6px;background:#DC2626;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:9px;display:none;align-items:center;justify-content:center;padding:0 4px"></span>
       </button>
 
       <!-- ── BUSCA GLOBAL ── -->
@@ -3576,8 +3584,56 @@ function openModal(title,html,width=680,noScroll=false){
     mft.style.display='none';
   }
   mbd.innerHTML=tmp.innerHTML;
+
+  // Registra uma "impressão digital" dos campos do formulário logo após abrir.
+  // Serve para detectar, na hora de fechar, se algo foi digitado e ainda não
+  // foi salvo — e então perguntar antes de descartar. (setTimeout: espera o
+  // navegador aplicar valores default de selects/inputs.)
+  setTimeout(()=>{ try{ window._modalSnapshot = _capturarCamposModal(); }catch(e){ window._modalSnapshot=null; } }, 60);
 }
-function closeModal(){document.getElementById('overlay').classList.remove('open');}
+
+// Captura o valor atual de todos os campos editáveis dentro do modal.
+function _capturarCamposModal(){
+  const mbd=document.getElementById('mbody');
+  if(!mbd) return null;
+  const campos=mbd.querySelectorAll('input,select,textarea');
+  if(!campos.length) return null;   // modal sem formulário — nada a proteger
+  let assinatura='';
+  campos.forEach(c=>{
+    if(c.type==='checkbox'||c.type==='radio') assinatura+=(c.checked?'1':'0')+'|';
+    else assinatura+=(c.value||'')+'|';
+  });
+  return assinatura;
+}
+
+// Há mudanças não salvas? Compara o estado atual com o do momento da abertura.
+function _modalTemAlteracoes(){
+  if(!window._modalSnapshot) return false;
+  try{ return _capturarCamposModal() !== window._modalSnapshot; }catch(e){ return false; }
+}
+
+function closeModal(forcar){
+  window._modalSnapshot=null;
+  document.getElementById('overlay').classList.remove('open');
+}
+
+// Fecho "casual" (Esc, X, clicar fora): pergunta se há dados não salvos.
+// Fecho por botão do formulário (salvar/cancelar) usa closeModal() direto e
+// não pergunta, porque a ação já foi intencional.
+function closeModalConfirmado(){
+  if(_modalTemAlteracoes()){
+    if(!confirm('Há alterações não salvas neste formulário. Deseja mesmo fechar e descartar?')) return;
+  }
+  closeModal(true);
+}
+
+// Fechar com a tecla Esc — padrão de qualquer sistema profissional.
+document.addEventListener('keydown', function(e){
+  if(e.key==='Escape'){
+    const ov=document.getElementById('overlay');
+    if(ov && ov.classList.contains('open')) closeModalConfirmado();
+  }
+});
 
 // ════════════════════════════════════════════════════════════════════
 // LIGHTBOX — abre imagem ou PDF de justificativa/atestado em tela cheia.
@@ -4981,6 +5037,7 @@ function rFuncs(){
       <input value="${esc(EMP_SEARCH)}" oninput="EMP_SEARCH=this.value;navigateDebounced('funcionarios')" placeholder="🔍  Buscar funcionário..." style="width:280px;padding:8px 12px">
     </div>
     <div style="display:flex;gap:8px">
+      <button class="btn btn-sm" style="background:#0B1E35;color:#C9A84C;font-weight:700" onclick="atlasFichaColaborador((APP.employees.find(e=>e.status==='ativo')||{}).id)" title="Ficha completa de qualquer colaborador">👤 Ficha do Colaborador</button>
       <button class="btn btn-sm" style="background:#F0FDF4;color:#059669;border:1px solid #BBF7D0;font-weight:700" onclick="abrirConfigFiliais()">🏪 Lojas</button>
       <button class="btn btn-blue" onclick="openEmpForm(null)">+ Novo Funcionário</button>
     </div>
@@ -5003,6 +5060,7 @@ function rFuncs(){
             <td style="font-weight:700">${fBRL(e.salario)}</td>
             <td>${bdg(e.status,empSC(e.status))}${e.portalBloqueado?'<span style="display:inline-block;margin-left:5px;padding:2px 7px;background:#FEF2F2;border:1px solid #FECACA;border-radius:5px;font-size:10px;font-weight:700;color:#DC2626">🔒 Portal</span>':''}</td>
             <td><div style="display:flex;gap:5px">
+              <button class="btn btn-sm" style="background:#0B1E35;color:#C9A84C;font-weight:700" onclick="atlasFichaColaborador('${e.id}')" title="Ficha completa: dados, ponto, atestados, advertências, férias, vales e documentos">👤 Ficha</button>
               <button class="btn btn-sm btn-icon-blue" onclick="EMP_VIEW='${e.id}';navigate('funcionarios')">👁 Ver</button>
               <button class="btn btn-sm btn-icon-green" onclick="openEmpForm('${e.id}')">✏️ Editar</button>
               <button class="btn btn-sm" style="background:#EFF6FF;color:#2563EB;border:1px solid #BFDBFE;font-size:11px" onclick="verAuditLog('${e.id}')" title="Histórico de alterações deste funcionário">📋 Hist.</button>
@@ -5818,6 +5876,7 @@ function rPonto(){
       📅 Admissão: <strong>${admFmt}</strong>
     </div>
     <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-sm" style="background:#ECFDF5;color:#059669;border:1px solid #A7F3D0;font-weight:700" onclick="abrirCopiarMesPonto()" title="Copiar o padrão de horários do mês anterior para este mês">📋 Copiar mês anterior</button>
       <button class="btn btn-sm" style="background:#7C3AED;color:#fff;font-weight:700" onclick="sincronizarTudo({empId:'${eid}',origem:'ponto'})">⚡ Sincronizar Tudo</button>
       <button class="btn btn-sm btn-ghost" onclick="navigate('biometrico')">🔬 Biométrico</button>
     </div>
@@ -5882,6 +5941,15 @@ function rPonto(){
 function _openDiaFull(ano,mes,d){
   PONTO_STATE.ano=ano; PONTO_STATE.mes=mes;
   openDia(d);
+}
+
+// Navega para outro dia dentro do modal, respeitando alterações não salvas.
+function _navDiaPonto(novoDia){
+  if(typeof _modalTemAlteracoes==='function' && _modalTemAlteracoes()){
+    if(!confirm('Você alterou este dia e não salvou. Trocar de dia vai descartar. Continuar?')) return;
+  }
+  if(typeof window!=='undefined') window._modalSnapshot=null;
+  openDia(novoDia);
 }
 
 function openDia(d){
@@ -5954,7 +6022,14 @@ function openDia(d){
     ? Math.max(0,(_almVolt||780)-(_almSai||720))+Math.max(0,(_cafVolt||930)-(_cafSai||900))
     : 90;   // 1h30 corrida para quem não faz café
   const _diaEsp=Math.max(0,(_saiH-_entH)-_pausas);
+  const _diasNoMes = new Date(ano, mes+1, 0).getDate();
+  const _temAnt = d>1, _temProx = d<_diasNoMes;
   openModal(`✏️ Editar Ponto — ${esc(emp?.nome||'')} — ${dtFmt}`,`
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:6px 8px">
+      <button class="btn btn-sm btn-ghost" ${_temAnt?'':'disabled style="opacity:.35"'} onclick="_navDiaPonto(${d-1})" title="Dia anterior (←)">◀ Dia ${_temAnt?zp2(d-1):''}</button>
+      <span style="font-size:12px;font-weight:800;color:#0B1E35">${zp2(d)}/${zp2(mes+1)}</span>
+      <button class="btn btn-sm btn-ghost" ${_temProx?'':'disabled style="opacity:.35"'} onclick="_navDiaPonto(${d+1})" title="Próximo dia (→)">Dia ${_temProx?zp2(d+1):''} ▶</button>
+    </div>
     ${_ferAviso}
     ${_auditAviso}
     <div id="ponto-hora-preview" style="background:#F0F9FF;border:1px solid #BAE6FD;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;display:flex;gap:16px;flex-wrap:wrap">
@@ -5988,12 +6063,30 @@ function openDia(d){
     <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px 12px;font-size:12px;margin-top:4px">
       💡 Alterações aqui ficam salvas no <strong>Cartão Ponto</strong> e são usadas no Holerite.
     </div>
-    <div class="mft" style="margin-top:14px">
+    <div class="mft" style="margin-top:14px;flex-wrap:wrap;gap:8px">
       <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-sm" style="background:#F5F3FF;color:#7C3AED;border:1px solid #DDD6FE" onclick="abrirAplicarLote(${d})" title="Aplicar estes horários a um intervalo de dias">📅 Aplicar a vários dias</button>
       <button class="btn btn-blue" onclick="saveDia(${d})">💾 Salvar</button>
     </div>`,480);
   // Executa preview inicial
   setTimeout(()=>_calcPontoPreview(_entH,_saiH,_pausas,_diaEsp),50);
+
+  // Setas ← → do teclado navegam entre os dias, sem tirar a mão do teclado
+  window._pontoDiaAtual = d;
+  if(!window._pontoNavKeyBound){
+    window._pontoNavKeyBound = true;
+    document.addEventListener('keydown', function(e){
+      const ov=document.getElementById('overlay');
+      if(!ov || !ov.classList.contains('open')) return;
+      const dcur=window._pontoDiaAtual;
+      if(!dcur) return;
+      const st=(typeof PONTO_STATE!=='undefined')?PONTO_STATE:null;
+      if(!st) return;
+      const diasMes=new Date(st.ano, st.mes+1, 0).getDate();
+      if(e.key==='ArrowLeft' && dcur>1){ e.preventDefault(); _navDiaPonto(dcur-1); }
+      else if(e.key==='ArrowRight' && dcur<diasMes){ e.preventDefault(); _navDiaPonto(dcur+1); }
+    });
+  }
 }
 // ═══════════════════════════════════════════════════
 // RELATÓRIO MENSAL DO CARTÃO PONTO — Fechamento da Folha
@@ -6304,6 +6397,160 @@ function _executarSaveDia(d,k,status,entrada,saida_almoco,volta_almoco,saida_caf
   navigate('ponto');
   if(_scrollEl) setTimeout(()=>{ _scrollEl.scrollTop = _scrollPos; }, 0);
 }
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  EDIÇÃO EM LOTE — aplica os horários atuais do modal a um intervalo de dias
+//  Útil para lançar a mesma jornada numa semana inteira, corrigir o mesmo
+//  erro em vários dias, ou marcar férias/folga num período de uma vez. Pula
+//  domingos e feriados por padrão (não faz sentido lançar jornada neles).
+// ═══════════════════════════════════════════════════════════════════════════
+window.abrirAplicarLote = function(diaBase){
+  const {empId,mes,ano}=PONTO_STATE;
+  if(!empId){ toast('Selecione um funcionário.','err'); return; }
+  const diasNoMes=new Date(ano,mes+1,0).getDate();
+  const status=document.getElementById('pd-s')?.value||'normal';
+  const ent=document.getElementById('pd-e')?.value||'';
+  const sd=document.getElementById('pd-sd')?.value||'';
+
+  const resumo = status==='normal'
+    ? `Entrada ${ent||'—'} · Saída ${sd||'—'}`
+    : ('Status: '+status);
+
+  openModal('📅 Aplicar horários a vários dias', `
+    <div style="background:#F5F3FF;border:1px solid #DDD6FE;border-radius:10px;padding:11px 13px;margin-bottom:14px;font-size:12.5px;color:#5B21B6;line-height:1.55">
+      Vai aplicar <b>${esc(resumo)}</b> aos dias escolhidos, do mesmo jeito que está no formulário agora.
+    </div>
+    <div class="g2">
+      <div class="fld"><label>Do dia</label>
+        <select id="lote-de">${Array.from({length:diasNoMes},(_,i)=>i+1).map(x=>`<option value="${x}" ${x===diaBase?'selected':''}>${zp2(x)}</option>`).join('')}</select>
+      </div>
+      <div class="fld"><label>Até o dia</label>
+        <select id="lote-ate">${Array.from({length:diasNoMes},(_,i)=>i+1).map(x=>`<option value="${x}" ${x===diaBase?'selected':''}>${zp2(x)}</option>`).join('')}</select>
+      </div>
+    </div>
+    <label class="chk-item" style="margin-top:6px"><input type="checkbox" id="lote-pula-dom" checked> Pular domingos</label>
+    <label class="chk-item"><input type="checkbox" id="lote-pula-fer" checked> Pular feriados</label>
+    <label class="chk-item"><input type="checkbox" id="lote-pula-sab"> Pular sábados</label>
+    <div class="mft" style="margin-top:14px">
+      <button class="btn btn-ghost" onclick="openDia(${diaBase})">← Voltar</button>
+      <button class="btn" style="background:#7C3AED;color:#fff" onclick="_executarAplicarLote(${diaBase})">📅 Aplicar</button>
+    </div>
+  `, 480);
+};
+
+window._executarAplicarLote = function(diaBase){
+  const {empId,mes,ano}=PONTO_STATE;
+  const k=`${empId}_${ano}_${mes}`;
+  const emp=APP.employees.find(e=>e.id===empId);
+  const de=parseInt(document.getElementById('lote-de').value);
+  const ate=parseInt(document.getElementById('lote-ate').value);
+  if(de>ate){ toast('O dia inicial não pode ser maior que o final.','err'); return; }
+
+  const pulaDom=document.getElementById('lote-pula-dom')?.checked;
+  const pulaFer=document.getElementById('lote-pula-fer')?.checked;
+  const pulaSab=document.getElementById('lote-pula-sab')?.checked;
+
+  const status=document.getElementById('pd-s')?.value||'normal';
+  const ent=document.getElementById('pd-e')?.value||'';
+  const sa=document.getElementById('pd-sa')?.value||'';
+  const va=document.getElementById('pd-va')?.value||'';
+  const sc=document.getElementById('pd-sc')?.value||'';
+  const vc=document.getElementById('pd-vc')?.value||'';
+  const sd=document.getElementById('pd-sd')?.value||'';
+
+  if(typeof atlasBackupAntes==='function') atlasBackupAntes('edição em lote de ponto');
+
+  let aplicados=0, pulados=0;
+  for(let d=de; d<=ate; d++){
+    const dow=new Date(ano,mes,d).getDay();
+    if(pulaDom && dow===0){ pulados++; continue; }
+    if(pulaSab && dow===6){ pulados++; continue; }
+    if(pulaFer && typeof ehFeriado==='function'){
+      const iso=`${ano}-${zp2(mes+1)}-${zp2(d)}`;
+      const fer=ehFeriado(iso, emp?.cidade);
+      if(fer && fer.feriado){ pulados++; continue; }
+    }
+    _executarSaveDia(d,k,status,ent,sa,va,sc,vc,sd,empId,mes,ano);
+    aplicados++;
+  }
+  if(typeof window!=='undefined') window._modalSnapshot=null;
+  closeModal(true);
+  toast('📅 Aplicado a '+aplicados+' dia(s)'+(pulados?(' · '+pulados+' pulado(s)'):'')+'.','ok',6000);
+  navigate('ponto');
+};
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  COPIAR MÊS ANTERIOR — pré-preenche o mês atual com os horários do anterior
+//  Para quem tem jornada estável, evita relançar tudo do zero: copia dia útil
+//  a dia útil (mesmo dia da semana → mesmo horário) e você só ajusta as
+//  exceções. Nunca sobrescreve dias que já têm registro neste mês.
+// ═══════════════════════════════════════════════════════════════════════════
+window.abrirCopiarMesPonto = function(){
+  const {empId,mes,ano}=PONTO_STATE;
+  if(!empId){ toast('Selecione um funcionário.','err'); return; }
+  const emp=APP.employees.find(e=>e.id===empId);
+  const mesAntIdx = mes===0?11:mes-1;
+  const anoAnt = mes===0?ano-1:ano;
+  const kAnt=`${empId}_${anoAnt}_${mesAntIdx}`;
+  const diasAnt=APP.pontos[kAnt]||{};
+  const qtdAnt=Object.keys(diasAnt).length;
+
+  openModal('📋 Copiar mês anterior',`
+    <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:10px;padding:11px 13px;margin-bottom:14px;font-size:12.5px;color:#065F46;line-height:1.55">
+      Copia os horários de <b>${MONTHS[mesAntIdx]}/${anoAnt}</b> para <b>${MONTHS[mes]}/${ano}</b>, colaborador <b>${esc(emp?.nome||'')}</b>.
+      ${qtdAnt===0?'<br><span style="color:#B91C1C;font-weight:700">⚠️ O mês anterior não tem nenhum registro.</span>':`<br>${qtdAnt} dia(s) registrados no mês anterior.`}
+    </div>
+    <div style="font-size:12px;color:#64748B;line-height:1.6;margin-bottom:14px">
+      • Copia dia por dia mantendo o mesmo dia do mês.<br>
+      • <b>Não sobrescreve</b> dias que já têm ponto neste mês.<br>
+      • Pula domingos e feriados.
+    </div>
+    <div class="mft">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn" style="background:#059669;color:#fff" ${qtdAnt===0?'disabled style="opacity:.4"':''} onclick="_executarCopiarMes()">📋 Copiar</button>
+    </div>
+  `, 480);
+};
+
+window._executarCopiarMes = function(){
+  const {empId,mes,ano}=PONTO_STATE;
+  const emp=APP.employees.find(e=>e.id===empId);
+  const mesAntIdx = mes===0?11:mes-1;
+  const anoAnt = mes===0?ano-1:ano;
+  const kAnt=`${empId}_${anoAnt}_${mesAntIdx}`;
+  const kAtual=`${empId}_${ano}_${mes}`;
+  const diasAnt=APP.pontos[kAnt]||{};
+  const diasNoMes=new Date(ano,mes+1,0).getDate();
+
+  if(typeof atlasBackupAntes==='function') atlasBackupAntes('copiar mês de ponto');
+  if(!APP.pontos[kAtual]) APP.pontos[kAtual]={};
+
+  let copiados=0, pulados=0;
+  for(let d=1; d<=diasNoMes; d++){
+    // Já tem ponto neste mês? não mexe
+    if(APP.pontos[kAtual][d]){ pulados++; continue; }
+    // Domingo ou feriado? pula
+    const dow=new Date(ano,mes,d).getDay();
+    if(dow===0){ pulados++; continue; }
+    if(typeof ehFeriado==='function'){
+      const iso=`${ano}-${zp2(mes+1)}-${zp2(d)}`;
+      const fer=ehFeriado(iso, emp?.cidade);
+      if(fer && fer.feriado){ pulados++; continue; }
+    }
+    // Existe o mesmo dia no mês anterior? copia
+    const orig=diasAnt[d];
+    if(!orig){ pulados++; continue; }
+    APP.pontos[kAtual][d]={...orig, _copiadoDe:`${zp2(mesAntIdx+1)}/${anoAnt}`};
+    copiados++;
+  }
+  try{ if(typeof save==='function') save('pontos'); }catch(e){}
+  try{ if(typeof auditLog==='function') auditLog('Copiou '+copiados+' dia(s) do mês anterior', emp?.nome||'', 'ponto'); }catch(e){}
+  closeModal(true);
+  toast('📋 '+copiados+' dia(s) copiado(s)'+(pulados?(' · '+pulados+' pulado(s)'):'')+'.','ok',6000);
+  navigate('ponto');
+};
 
 // Preview em tempo real do saldo de horas no modal de edição
 function _calcPontoPreview(entH, saiH, pausas, diaEsp){
@@ -14109,6 +14356,7 @@ function rRelatorio(){
     </select>
     <div style="margin-left:auto;display:flex;gap:10px">
       <button class="btn" style="background:#F5F3FF;color:#7C3AED;font-weight:700" onclick="atlasModalCustoPorLoja()" title="Quanto cada loja está custando em pessoal este mês">🏪 Custo por Loja</button>
+      <button class="btn" style="background:#EFF6FF;color:#2563EB;font-weight:700" onclick="atlasModalCompararFolha()" title="Comparar o custo da folha entre dois meses">📊 Comparar meses</button>
       <button class="btn btn-ghost" onclick="exportarCSV()">📥 Exportar CSV</button>
       <button class="btn btn-navy" onclick="imprimirRelatorio()">🖨️ Imprimir para Financeiro</button>
     </div>
@@ -16669,7 +16917,7 @@ function rBioHoje(){
         : av(name,empId,38)}
       <div style="flex:1;min-width:0">
         <div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(name)}</div>
-        <div style="font-size:11px;color:var(--mt)">${ps.map(p=>`${p.type==='in'?'▶':'■'} ${p.time} ${punchOrigemBadge(p)}`).join('&nbsp;&nbsp;')||'Sem registro hoje'}</div>
+        <div style="font-size:11px;color:var(--mt)">${ps.map(p=>{const _f=p.fotoPonto||p.fotoUrl||p.selfie||p.assinaturaSelfie||null; const _cam=_f?` <span onclick=\"abrirAnexoFull('${String(_f).replace(/'/g,"\\\\'")}','Foto da batida — ${p.time}')\" title=\"Ver foto da batida\" style=\"cursor:pointer;color:#7C3AED\">📷</span>`:''; return `${p.type==='in'?'▶':'■'} ${p.time}${_cam} ${punchOrigemBadge(p)}`;}).join('&nbsp;&nbsp;')||'Sem registro hoje'}</div>
       </div>
       <button class="btn btn-sm" style="background:#F0FDF4;color:var(--green);border:1px solid #BBF7D0;white-space:nowrap"
         onclick="bioEditarPontoHoje('${esc(name).replace(/'/g,"\\'")}','${today}')">✏️ Editar</button>
@@ -42144,7 +42392,7 @@ function rSolicitacoesPortal() {
 }
 
 function _htmlSolicRH() {
-  const tipoLabel = { ferias:'🌴 Férias', ajuste_ponto:'⏱ Ajuste de Ponto', troca_turno:'🔄 Troca de Turno', compensacao_bh:'🕐 Compensação de Banco de Horas', banco_horas:'🕐 Banco de Horas' };
+  const tipoLabel = { ferias:'🌴 Férias', ajuste_ponto:'⏱ Ajuste de Ponto', troca_turno:'🔄 Troca de Turno', adiantamento:'💵 Adiantamento', segunda_via:'📄 2ª via de holerite', compensacao_bh:'🕐 Compensação de Banco de Horas', banco_horas:'🕐 Banco de Horas' };
   const statusCfg = {
     pendente:  { txt:'⏳ Pendente',  bg:'#FFF7ED', c:'#C2410C' },
     aprovado:  { txt:'✅ Aprovado',  bg:'#F0FDF4', c:'#166534' },
@@ -42176,6 +42424,8 @@ function _htmlSolicRH() {
     if (s.tipo === 'ferias' && s.dataInicio) detalhe = `📅 ${s.dataInicio} → ${s.dataFim||'?'}`;
     else if (s.tipo === 'ajuste_ponto' && s.dataPonto) detalhe = `📅 ${s.dataPonto}${s.horarioSolicitado ? ' · ⏰ '+s.horarioSolicitado : ''}`;
     else if (s.tipo === 'troca_turno' && s.turnoAtual) detalhe = `${s.turnoAtual} → ${s.turnoDesejado||'?'}`;
+    else if (s.tipo === 'adiantamento' && s.valor) detalhe = `💵 R$ ${Number(s.valor).toFixed(2)} · descontar em ${(s.competencia||'').split('-').reverse().join('/')}`;
+    else if (s.tipo === 'segunda_via' && s.competencia) detalhe = `📄 holerite de ${(s.competencia||'').split('-').reverse().join('/')}`;
     else if (s.tipo === 'compensacao_bh' || s.tipo === 'banco_horas') {
       const fmtM = m => { const abs=Math.abs(m||0), h=Math.floor(abs/60), mi=abs%60; return h+'h'+String(mi).padStart(2,'0'); };
       const tipoCompLabel = { folga_dia:'Folga dia inteiro', saida_antecipada:'Saída antecipada', entrada_tardia:'Entrada tardia', outro:'Outro' };
@@ -42294,7 +42544,7 @@ async function _solResponder(id, novoStatus, respostaRH) {
     }
     // Notificar colaborador via portal_notificacoes
     if (s && s.empId) {
-      const tipoTxt = { ferias:'Férias', ajuste_ponto:'Ajuste de Ponto', troca_turno:'Troca de Turno', compensacao_bh:'Compensação de Banco de Horas', banco_horas:'Banco de Horas' };
+      const tipoTxt = { ferias:'Férias', ajuste_ponto:'Ajuste de Ponto', troca_turno:'Troca de Turno', adiantamento:'Adiantamento', segunda_via:'2ª via de holerite', compensacao_bh:'Compensação de Banco de Horas', banco_horas:'Banco de Horas' };
       const titulo = novoStatus === 'aprovado'
         ? `✅ Solicitação de ${tipoTxt[s.tipo]||s.tipo} aprovada`
         : `❌ Solicitação de ${tipoTxt[s.tipo]||s.tipo} recusada`;
@@ -42349,7 +42599,7 @@ function _solIniciarListenerRealtime() {
         if (novas.length > 0) {
           // Toast de alerta
           const nome = novas[0].empNome || novas[0].empId || 'Colaborador';
-          const tipo = { ferias:'Férias', ajuste_ponto:'Ajuste de Ponto', troca_turno:'Troca de Turno', compensacao_bh:'Compensação BH', banco_horas:'Banco de Horas' };
+          const tipo = { ferias:'Férias', ajuste_ponto:'Ajuste de Ponto', troca_turno:'Troca de Turno', adiantamento:'Adiantamento', segunda_via:'2ª via de holerite', compensacao_bh:'Compensação BH', banco_horas:'Banco de Horas' };
           const tl = tipo[novas[0].tipo] || novas[0].tipo || 'Solicitação';
           if (typeof toast === 'function') {
             toast(`📋 Nova solicitação de ${nome}: ${tl}. Clique em "Solicitações do Portal" para responder.`, 'info', 8000);
@@ -53631,7 +53881,8 @@ window.atlasModalTimeline = function(empId, filtro, limite){
     ${ev.length ? `<div style="max-height:56vh;overflow-y:auto;padding-right:4px">${ev.map(linha).join('')}
       ${restam>0 ? `<div style="text-align:center;padding:10px 0 4px"><button class="btn btn-ghost btn-sm" onclick="atlasModalTimeline('${empId}','${filtro}',${lim+120})">\u2193 Carregar mais (${restam} restante(s))</button></div>` : ''}</div>`
                 : '<div style="text-align:center;padding:28px;color:var(--mt);font-size:13px">Nenhum evento neste filtro.</div>'}
-    <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>
+    <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button>
+      <button class="btn btn-blue btn-sm" onclick="atlasFichaColaborador('${empId}')">👤 Ficha completa</button></div>
   `, 620);
 };
 
@@ -57106,6 +57357,455 @@ window.atlasPausaMin = function(emp){
   const cafVolt = pt(emp?.horarioVoltaCafe) ?? 15*60+30;
   return Math.max(0, almVolt-almSai) + Math.max(0, cafVolt-cafSai);
 };
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  PAINEL DE ATENÇÃO DO DIA — "o que precisa de MIM hoje"
+//  Diferente da Central de Avisos (que é mensagem para o colaborador via
+//  WhatsApp), este reúne as AÇÕES do RH espalhadas por várias telas: prazos
+//  legais vencendo, documentos parados, pendências de cadastro. Usa os
+//  cálculos que já existem em outros módulos, só junta tudo num lugar.
+// ═══════════════════════════════════════════════════════════════════════════
+window.atlasPainelAtencao = function(){
+  const itens = [];
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const ativos = (APP.employees||[]).filter(e=>e && e.status==='ativo');
+
+  // 1) Contrato de experiência vencendo/vencido (prazo legal — vira efetivação)
+  try{
+    if(typeof _expPendentes==='function'){
+      _expPendentes().forEach(x=>{
+        itens.push({
+          prio: x.restam<0?0:1,
+          cor: x.restam<0?'#DC2626':'#D97706',
+          icone:'⏳',
+          titulo: x.restam<0?'Experiência VENCIDA — decisão urgente':'Fim de experiência se aproxima',
+          quem: x.emp.nome,
+          detalhe: x.restam<0?('venceu há '+Math.abs(x.restam)+' dia(s) — pode ter efetivado por lei'):('faltam '+x.restam+' dia(s) para decidir'),
+          acao:()=>{ closeModal(true); if(typeof navigate==='function') navigate('demissao'); }
+        });
+      });
+    }
+  }catch(_){}
+
+  // 2) ASO periódico vencido ou a vencer (NR-7)
+  ativos.forEach(e=>{
+    try{
+      const aso = (typeof atlasProximoASO==='function') ? atlasProximoASO(e) : null;
+      if(aso && aso.dias<=30){
+        itens.push({
+          prio: aso.vencido?0:2,
+          cor: aso.vencido?'#DC2626':'#0891B2',
+          icone:'🏥',
+          titulo: aso.vencido?'ASO periódico VENCIDO':'ASO periódico a vencer',
+          quem: e.nome,
+          detalhe: aso.vencido?('venceu há '+Math.abs(aso.dias)+' dia(s)'):('vence em '+aso.dias+' dia(s)'),
+          acao:()=>{ closeModal(true); if(typeof openEmpForm==='function') openEmpForm(e.id); }
+        });
+      }
+    }catch(_){}
+  });
+
+  // 3) Convenção coletiva perto de vencer
+  try{
+    if(EMPRESA_CFG.cctVencimento){
+      const dias = Math.round((new Date(EMPRESA_CFG.cctVencimento+'T00:00:00') - hoje)/86400000);
+      if(dias<=60){
+        itens.push({
+          prio: dias<0?0:2, cor: dias<0?'#DC2626':'#D97706', icone:'📜',
+          titulo: dias<0?'Convenção Coletiva VENCIDA':'Convenção Coletiva a vencer',
+          quem:'Empresa',
+          detalhe: dias<0?('venceu há '+Math.abs(dias)+' dia(s) — confira o novo piso'):('vence em '+dias+' dia(s)'),
+          acao:()=>{ closeModal(true); if(typeof openEmpresaCfgModal==='function') openEmpresaCfgModal(); }
+        });
+      }
+    }
+  }catch(_){}
+
+  // 3b) Solicitações do portal aguardando decisão do RH
+  try{
+    const nSolic = window._SOLIC_PENDING_COUNT||0;
+    if(nSolic>0){
+      itens.push({
+        prio:1, cor:'#E85D04', icone:'📋',
+        titulo:'Solicitações aguardando sua decisão',
+        quem:'Portal do colaborador',
+        detalhe: nSolic+' pedido(s) pendente(s) — férias, adiantamento, ajuste de ponto...',
+        acao:()=>{ closeModal(true); if(typeof navigate==='function') navigate('solicitacoes_portal'); }
+      });
+    }
+  }catch(_){}
+
+  // 3c) Justificativas de ponto aguardando aprovação
+  try{
+    const jp = (typeof BIO_DATA!=='undefined') ? (BIO_DATA.justificativas||[]).filter(j=>j && (!j.status||j.status==='pendente')).length : 0;
+    if(jp>0){
+      itens.push({
+        prio:1, cor:'#D97706', icone:'📎',
+        titulo:'Justificativas de ponto para aprovar',
+        quem:'Ponto Biométrico',
+        detalhe: jp+' justificativa(s) pendente(s)',
+        acao:()=>{ closeModal(true); if(typeof navigate==='function'){ if(typeof BIO_TAB!=='undefined') BIO_TAB='justificativas'; navigate('biometrico'); } }
+      });
+    }
+  }catch(_){}
+
+  // 4) Documentos parados há muitos dias sem assinar
+  try{
+    (APP.assinaturas||[]).filter(a=>a && a.status==='pendente' && a.criadoEm).forEach(a=>{
+      const d = Math.round((hoje - new Date(a.criadoEm))/86400000);
+      if(d>=4){
+        itens.push({
+          prio: 2, cor:'#7C3AED', icone:'📄',
+          titulo:'Documento parado sem assinar',
+          quem: a.empNome||'—',
+          detalhe: (a.tipoLabel||'Documento')+' · há '+d+' dias',
+          acao:()=>{ closeModal(true); if(typeof navigate==='function') navigate('assinatura_digital'); }
+        });
+      }
+    });
+  }catch(_){}
+
+  // 5) Admissões com pendência legal (ASO admissional, CTPS, contrato assinado)
+  try{
+    if(typeof atlasResumoAdmissao==='function'){
+      ativos.forEach(e=>{
+        const r = atlasResumoAdmissao(e);
+        if(r && !r.ok && r.pendentes && r.pendentes.length){
+          itens.push({
+            prio: 1, cor:'#DC2626', icone:'✅',
+            titulo:'Admissão com pendência legal',
+            quem: e.nome,
+            detalhe: r.pendentes.map(p=>p.label).join(', '),
+            acao:()=>{ closeModal(true); if(typeof atlasModalChecklist==='function') atlasModalChecklist(e.id); }
+          });
+        }
+      });
+    }
+  }catch(_){}
+
+  // 6) Abaixo do piso da categoria
+  try{
+    const piso = parseFloat(EMPRESA_CFG.pisoSalarial)||0;
+    if(piso>0){
+      ativos.forEach(e=>{
+        const reg = (typeof atlasRegime==='function')?atlasRegime(e):'clt';
+        if((reg==='clt'||reg==='intermitente') && (parseFloat(e.salario)||0)<piso){
+          itens.push({
+            prio: 1, cor:'#DC2626', icone:'📉',
+            titulo:'Salário abaixo do piso da categoria',
+            quem: e.nome,
+            detalhe:'recebe '+fBRL(e.salario)+' · piso é '+fBRL(piso),
+            acao:()=>{ closeModal(true); if(typeof openEmpForm==='function') openEmpForm(e.id); }
+          });
+        }
+      });
+    }
+  }catch(_){}
+
+  return itens.sort((a,b)=>a.prio-b.prio);
+};
+
+window.abrirPainelAtencao = function(){
+  let itens=[];
+  try{ itens = atlasPainelAtencao(); }catch(e){ toast('Erro ao montar o painel: '+e.message,'err'); return; }
+  window._atencaoAcoes = itens.map(i=>i.acao);
+
+  const card = (a,idx)=>`
+    <div style="border:1px solid #E2E8F0;border-left:4px solid ${a.cor};border-radius:10px;padding:11px 13px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
+      <div style="font-size:22px;line-height:1;flex-shrink:0">${a.icone}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:800;color:${a.cor}">${esc(a.titulo)}</div>
+        <div style="font-size:12px;color:#1E293B;font-weight:600">${esc(a.quem)}</div>
+        <div style="font-size:11.5px;color:#64748B">${esc(a.detalhe)}</div>
+      </div>
+      <button class="btn btn-sm btn-ghost" onclick="(window._atencaoAcoes[${idx}]||function(){})()" style="flex-shrink:0">Resolver →</button>
+    </div>`;
+
+  const urgentes = itens.filter(i=>i.prio===0).length;
+  openModal('🎯 Atenção do Dia',`
+    <div style="font-size:12.5px;color:#64748B;margin-bottom:12px;line-height:1.55">
+      Tudo que precisa da sua ação hoje, reunido — prazos legais, documentos parados e pendências.
+      ${urgentes?`<b style="color:#DC2626">${urgentes} item(ns) urgente(s).</b>`:''}
+    </div>
+    ${itens.length===0
+      ? '<div style="text-align:center;padding:34px;color:#94A3B8"><div style="font-size:32px;margin-bottom:8px">✓</div><div style="font-weight:700;font-size:14px;color:#059669">Tudo em dia!</div><div style="font-size:12px;margin-top:4px">Nenhuma pendência precisa da sua atenção agora.</div></div>'
+      : `<div style="font-size:12px;font-weight:700;color:#1D4ED8;margin-bottom:9px">${itens.length} item(ns) precisam de atenção</div>${itens.map(card).join('')}`}
+    <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>`, 640);
+};
+
+
+// Atualiza o contador vermelho do botão "Atenção do Dia".
+window.atlasAtualizarBadgeAtencao = function(){
+  try{
+    const badge = document.getElementById('atencao-badge');
+    if(!badge) return;
+    const itens = (typeof atlasPainelAtencao==='function') ? atlasPainelAtencao() : [];
+    const urgentes = itens.filter(i=>i.prio===0).length;
+    const total = itens.length;
+    if(total>0){
+      badge.textContent = total>99?'99+':String(total);
+      badge.style.display = 'flex';
+      badge.style.background = urgentes>0 ? '#DC2626' : '#D97706';
+    } else {
+      badge.style.display = 'none';
+    }
+  }catch(_){}
+};
+setTimeout(()=>{ try{ atlasAtualizarBadgeAtencao(); }catch(_){}}, 3000);
+setInterval(()=>{ try{ atlasAtualizarBadgeAtencao(); }catch(_){}}, 120000);
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  FICHA COMPLETA DO COLABORADOR — tudo sobre uma pessoa, num modal só
+//  Reúne cadastro, ponto do mês, atestados, advertências, férias,
+//  adiantamentos, documentos e histórico. Cada aba lê a coleção respectiva
+//  filtrando pelo empId. Substitui a garimpagem por vários módulos.
+// ═══════════════════════════════════════════════════════════════════════════
+window._fichaTab = 'dados';
+window.atlasFichaColaborador = function(empId, aba){
+  let emp=(APP.employees||[]).find(e=>e.id===empId);
+  // Aceita também CPF (o módulo biométrico identifica por CPF): resolve para o empId real.
+  if(!emp && empId){
+    const cpfBusca=String(empId).replace(/\D/g,'');
+    if(cpfBusca) emp=(APP.employees||[]).find(e=>String(e.cpf||'').replace(/\D/g,'')===cpfBusca);
+    if(emp) empId=emp.id;
+  }
+  if(!emp){ toast('Colaborador não encontrado no cadastro do RH.','warn'); return; }
+  window._fichaEmpId = empId;
+  window._fichaTab = aba || 'dados';
+  _renderFicha();
+};
+
+function _fichaContarPendencias(empId){
+  const at=(APP.atestados||[]).filter(x=>x&&x.empId===empId).length;
+  const adv=(APP.advertencias||[]).filter(x=>x&&x.empId===empId).length;
+  const fer=(APP.ferias||[]).filter(x=>x&&x.empId===empId).length;
+  const adi=(APP.adiantamentos||[]).filter(x=>x&&x.empId===empId).length;
+  const doc=(APP.assinaturas||[]).filter(x=>x&&x.empId===empId).length;
+  return {at,adv,fer,adi,doc};
+}
+
+function _renderFicha(){
+  const empId=window._fichaEmpId;
+  const emp=(APP.employees||[]).find(e=>e.id===empId);
+  if(!emp) return;
+  const tab=window._fichaTab;
+  const c=_fichaContarPendencias(empId);
+  const emps=(APP.employees||[]).filter(e=>e&&e.status==='ativo').slice().sort((a,b)=>String(a.nome||'').localeCompare(String(b.nome||'')));
+
+  const tabBtn=(id,lbl,n)=>`<button onclick="window._fichaTab='${id}';_renderFicha()" style="border:none;background:${tab===id?'#0B1E35':'#F1F5F9'};color:${tab===id?'#fff':'#475569'};padding:7px 13px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">${lbl}${n?` <span style="opacity:.7">(${n})</span>`:''}</button>`;
+
+  const corpo=_fichaCorpo(tab, empId, emp);
+
+  openModal('👤 Ficha do Colaborador', `
+    <div class="fld" style="margin-bottom:12px">
+      <select onchange="atlasFichaColaborador(this.value, window._fichaTab)" style="font-weight:700">
+        ${emps.map(e=>`<option value="${e.id}" ${e.id===empId?'selected':''}>${esc(e.nome)}</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+      ${tabBtn('dados','📋 Dados')}
+      ${tabBtn('ponto','🕐 Ponto')}
+      ${tabBtn('atestados','🏥 Atestados',c.at)}
+      ${tabBtn('advertencias','⚠️ Advertências',c.adv)}
+      ${tabBtn('ferias','🏖️ Férias',c.fer)}
+      ${tabBtn('adiantamentos','💵 Vales',c.adi)}
+      ${tabBtn('documentos','📄 Documentos',c.doc)}
+    </div>
+    <div style="min-height:200px;max-height:52vh;overflow-y:auto;padding-right:4px">${corpo}</div>
+    <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>
+  `, 680);
+}
+
+function _fichaLinha(rot,val){ return `<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px dashed #E2E8F0;font-size:13px"><span style="color:#64748B">${rot}</span><span style="font-weight:600;color:#1E293B;text-align:right">${val||'—'}</span></div>`; }
+function _fichaVazio(txt){ return `<div style="text-align:center;padding:30px;color:#94A3B8;font-size:13px">${txt}</div>`; }
+function _fichaData(iso){ if(!iso) return '—'; const s=String(iso).slice(0,10); const p=s.split('-'); return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:iso; }
+
+function _fichaCorpo(tab, empId, emp){
+  if(tab==='dados'){
+    const reg=(typeof atlasRegimeInfo==='function')?atlasRegimeInfo(emp):{label:'CLT'};
+    return `
+      ${_fichaLinha('Nome', esc(emp.nome))}
+      ${_fichaLinha('CPF', esc(emp.cpf))}
+      ${_fichaLinha('Cargo', esc(emp.cargo))}
+      ${_fichaLinha('Departamento', esc(emp.departamento))}
+      ${_fichaLinha('Loja / Unidade', esc(emp.loja))}
+      ${_fichaLinha('Regime', esc(reg.label))}
+      ${_fichaLinha('Admissão', _fichaData(emp.dataAdmissao))}
+      ${_fichaLinha('Salário', emp.salario?fBRL(emp.salario):'—')}
+      ${_fichaLinha('Telefone', esc(emp.telefone))}
+      ${_fichaLinha('E-mail', esc(emp.email))}
+      ${_fichaLinha('PIS/NIT', esc(emp.pis))}
+      ${_fichaLinha('CTPS', esc(emp.ctps))}
+      ${_fichaLinha('Status', emp.status==='ativo'?'<span style="color:#059669">Ativo</span>':'<span style="color:#DC2626">Desligado</span>')}
+      <div style="margin-top:14px"><button class="btn btn-blue btn-sm" onclick="closeModal();openEmpForm('${empId}')">✏️ Editar cadastro completo</button></div>
+    `;
+  }
+  if(tab==='ponto'){
+    const mes=(typeof PONTO_STATE!=='undefined')?PONTO_STATE.mes:new Date().getMonth();
+    const ano=(typeof PONTO_STATE!=='undefined')?PONTO_STATE.ano:new Date().getFullYear();
+    const pm=(APP.pontos||{})[`${empId}_${ano}_${mes}`]||{};
+    const dias=Object.keys(pm);
+    let pres=0,falt=0,ates=0;
+    dias.forEach(d=>{const r=pm[d];if(r.status==='falta')falt++;else if(r.status==='atestado')ates++;else if(r.entrada)pres++;});
+    const nomeMes=(typeof MONTHS!=='undefined')?MONTHS[mes]:mes+1;
+    return `
+      <div style="background:#F0F9FF;border:1px solid #BAE6FD;border-radius:10px;padding:11px 14px;margin-bottom:12px;font-size:12.5px;color:#075985">
+        Resumo de <b>${nomeMes}/${ano}</b> — troque o mês no Cartão Ponto para ver outro período.
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+        <div style="background:#F0FDF4;border-radius:9px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:800;color:#059669">${pres}</div><div style="font-size:10.5px;color:#64748B">presenças</div></div>
+        <div style="background:#FEF2F2;border-radius:9px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:800;color:#DC2626">${falt}</div><div style="font-size:10.5px;color:#64748B">faltas</div></div>
+        <div style="background:#FFFBEB;border-radius:9px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:800;color:#D97706">${ates}</div><div style="font-size:10.5px;color:#64748B">atestados</div></div>
+      </div>
+      <button class="btn btn-blue btn-sm" onclick="closeModal();PONTO_STATE.empId='${empId}';navigate('ponto')">🕐 Abrir Cartão Ponto completo</button>
+      ${typeof atlasCalendarioColaborador==='function'?`<button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="closeModal();atlasCalendarioColaborador('${empId}',${mes},${ano})">📅 Ver calendário</button>`:''}
+    `;
+  }
+  if(tab==='atestados'){
+    const lista=(APP.atestados||[]).filter(x=>x&&x.empId===empId).sort((a,b)=>String(b.data||'').localeCompare(String(a.data||'')));
+    if(!lista.length) return _fichaVazio('Nenhum atestado registrado.');
+    return lista.map(a=>`<div style="border:1px solid #E2E8F0;border-left:4px solid #0891B2;border-radius:9px;padding:10px 12px;margin-bottom:8px">
+      <div style="font-weight:700;font-size:13px">${_fichaData(a.data)} · ${a.dias||1} dia(s)</div>
+      <div style="font-size:12px;color:#64748B">${esc(a.medico||'')}${a.cid?(' · CID '+esc(a.cid)):''}${a.motivo?(' · '+esc(a.motivo)):''}</div>
+    </div>`).join('');
+  }
+  if(tab==='advertencias'){
+    const lista=(APP.advertencias||[]).filter(x=>x&&x.empId===empId).sort((a,b)=>String(b.dataEmissao||b.criadoEm||'').localeCompare(String(a.dataEmissao||a.criadoEm||'')));
+    if(!lista.length) return _fichaVazio('Nenhuma advertência ou suspensão.');
+    return lista.map(a=>{
+      const tipoLbl=a.tipo==='suspensao'?'Suspensão':a.tipo==='advertencia_escrita'?'Advertência escrita':a.tipo==='advertencia_verbal'?'Advertência verbal':(a.tipo||'Advertência');
+      const cor=a.tipo==='suspensao'?'#DC2626':'#D97706';
+      return `<div style="border:1px solid #E2E8F0;border-left:4px solid ${cor};border-radius:9px;padding:10px 12px;margin-bottom:8px">
+        <div style="font-weight:700;font-size:13px;color:${cor}">${tipoLbl} · ${_fichaData(a.dataEmissao||a.criadoEm)}</div>
+        <div style="font-size:12px;color:#64748B">${esc(a.motivo_resumo||a.descricao||'')}${a.diasSuspensao?(' · '+a.diasSuspensao+' dia(s)'):''}</div>
+        <div style="font-size:11px;color:${a.status==='assinado'?'#059669':'#D97706'};margin-top:2px">${a.status==='assinado'?'✅ Assinada':'⏳ Pendente'}</div>
+      </div>`;
+    }).join('');
+  }
+  if(tab==='ferias'){
+    const lista=(APP.ferias||[]).filter(x=>x&&x.empId===empId).sort((a,b)=>String(b.inicio||'').localeCompare(String(a.inicio||'')));
+    if(!lista.length) return _fichaVazio('Nenhum período de férias registrado.');
+    return lista.map(f=>`<div style="border:1px solid #E2E8F0;border-left:4px solid #7C3AED;border-radius:9px;padding:10px 12px;margin-bottom:8px">
+      <div style="font-weight:700;font-size:13px">${_fichaData(f.inicio)} → ${_fichaData(f.fim)} · ${f.dias||'—'} dias</div>
+      <div style="font-size:12px;color:#64748B">${f.status==='gozado'?'✅ Gozadas':f.status==='programada'?'📅 Programadas':(f.status||'')}${f.obs?(' · '+esc(f.obs)):''}</div>
+    </div>`).join('');
+  }
+  if(tab==='adiantamentos'){
+    const lista=(APP.adiantamentos||[]).filter(x=>x&&x.empId===empId).sort((a,b)=>String(b.data||'').localeCompare(String(a.data||'')));
+    if(!lista.length) return _fichaVazio('Nenhum vale ou adiantamento.');
+    const total=lista.reduce((s,a)=>s+(parseFloat(a.valor)||0),0);
+    return `<div style="font-size:12px;color:#64748B;margin-bottom:10px">Total histórico: <b>${fBRL(total)}</b></div>`+lista.map(a=>`<div style="border:1px solid #E2E8F0;border-left:4px solid #C9A84C;border-radius:9px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+      <div><div style="font-weight:700;font-size:13px">${fBRL(a.valor)}</div><div style="font-size:11.5px;color:#64748B">${_fichaData(a.data)}${a.competencia?(' · desc. '+esc(a.competencia)):''}${a.obs?(' · '+esc(a.obs)):''}</div></div>
+      <span style="font-size:11px;padding:2px 8px;border-radius:8px;background:${a.descontado?'#F1F5F9':'#FEF3C7'};color:${a.descontado?'#64748B':'#92400E'};font-weight:700">${a.descontado?'descontado':'a descontar'}</span>
+    </div>`).join('');
+  }
+  if(tab==='documentos'){
+    const lista=(APP.assinaturas||[]).filter(x=>x&&x.empId===empId).sort((a,b)=>String(b.criadoEm||'').localeCompare(String(a.criadoEm||'')));
+    if(!lista.length) return _fichaVazio('Nenhum documento de assinatura.');
+    return lista.map(d=>{
+      const cor=d.status==='assinado'?'#059669':d.status==='recusado'?'#DC2626':'#D97706';
+      const st=d.status==='assinado'?'✅ Assinado':d.status==='recusado'?'✗ Recusado':'⏳ Pendente';
+      return `<div style="border:1px solid #E2E8F0;border-left:4px solid ${cor};border-radius:9px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13px">${esc(d.tipoLabel||d.titulo||'Documento')}</div><div style="font-size:11.5px;color:${cor}">${st}${d.criadoEm?(' · enviado '+_fichaData(d.criadoEm)):''}</div></div>
+        ${d.status==='assinado'&&typeof atlasComprovanteAssinatura==='function'?`<button class="btn btn-sm btn-ghost" onclick="atlasComprovanteAssinatura('${d.id}')">📄</button>`:''}
+      </div>`;
+    }).join('');
+  }
+  return _fichaVazio('—');
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  COMPARAR FOLHA ENTRE DOIS MESES — "por que a folha veio mais cara?"
+//  Calcula o custo de cada mês com calcSalCompleto (a mesma fonte do
+//  Relatório) e mostra lado a lado, destacando quem entrou, quem saiu, e
+//  quem variou de valor. Restaura o SAL_STATE ao final.
+// ═══════════════════════════════════════════════════════════════════════════
+function _folhaDoMes(mes, ano){
+  const origMes=SAL_STATE.mes, origAno=SAL_STATE.ano;
+  SAL_STATE.mes=mes; SAL_STATE.ano=ano;
+  const map={};
+  (APP.employees||[]).filter(e=>e && e.status==='ativo').forEach(e=>{
+    let c=null; try{ c=calcSalCompleto(e.id); }catch(_){}
+    if(c){
+      const patronal=+(c.salBruto*0.20).toFixed(2);
+      map[e.id]={nome:e.nome, bruto:c.salBruto||0, fgts:c.fgts||0, patronal, custo:(c.salBruto||0)+(c.fgts||0)+patronal, liquido:c.liquido||0};
+    }
+  });
+  SAL_STATE.mes=origMes; SAL_STATE.ano=origAno;
+  return map;
+}
+
+window.atlasModalCompararFolha = function(){
+  const hoje=new Date();
+  let mesB=hoje.getMonth(), anoB=hoje.getFullYear();
+  let mesA=mesB-1, anoA=anoB; if(mesA<0){ mesA=11; anoA--; }
+  _renderCompararFolha(mesA,anoA,mesB,anoB);
+};
+
+function _renderCompararFolha(mesA,anoA,mesB,anoB){
+  const fmt=v=>'R$ '+(parseFloat(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const A=_folhaDoMes(mesA,anoA), B=_folhaDoMes(mesB,anoB);
+  const totA=Object.values(A).reduce((s,x)=>s+x.custo,0);
+  const totB=Object.values(B).reduce((s,x)=>s+x.custo,0);
+  const dif=totB-totA;
+
+  const ids=new Set([...Object.keys(A),...Object.keys(B)]);
+  const entraram=[], sairam=[], mudaram=[];
+  ids.forEach(id=>{
+    const a=A[id], b=B[id];
+    if(!a && b) entraram.push(b);
+    else if(a && !b) sairam.push(a);
+    else if(a && b && Math.abs(b.custo-a.custo)>=0.01) mudaram.push({nome:b.nome, de:a.custo, para:b.custo, dif:b.custo-a.custo});
+  });
+  mudaram.sort((x,y)=>Math.abs(y.dif)-Math.abs(x.dif));
+
+  const selMes=(id,val,outroId)=>`<select id="${id}" onchange="_renderCompararFolha(+document.getElementById('cf-mesA').value,+document.getElementById('cf-anoA').value,+document.getElementById('cf-mesB').value,+document.getElementById('cf-anoB').value)">${MONTHS.map((m,i)=>`<option value="${i}" ${i===val?'selected':''}>${m}</option>`).join('')}</select>`;
+  const selAno=(id,val)=>`<select id="${id}" onchange="_renderCompararFolha(+document.getElementById('cf-mesA').value,+document.getElementById('cf-anoA').value,+document.getElementById('cf-mesB').value,+document.getElementById('cf-anoB').value)">${[val-1,val,val+1].map(y=>`<option ${y===val?'selected':''}>${y}</option>`).join('')}</select>`;
+
+  const bloco=(titulo,cor,lista,render)=> lista.length? `
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;font-weight:800;color:${cor};text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">${titulo} (${lista.length})</div>
+      ${lista.map(render).join('')}
+    </div>`:'';
+
+  openModal('📊 Comparar Folha — dois meses',`
+    <div style="display:flex;gap:10px;align-items:end;margin-bottom:14px;flex-wrap:wrap">
+      <div class="fld" style="flex:1;min-width:110px"><label>Mês base</label>${selMes('cf-mesA',mesA)}</div>
+      <div class="fld" style="width:88px"><label>Ano</label>${selAno('cf-anoA',anoA)}</div>
+      <div style="align-self:center;font-weight:800;color:#94A3B8">vs</div>
+      <div class="fld" style="flex:1;min-width:110px"><label>Mês comparado</label>${selMes('cf-mesB',mesB)}</div>
+      <div class="fld" style="width:88px"><label>Ano</label>${selAno('cf-anoB',anoB)}</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div style="background:#F8FAFC;border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:10.5px;color:#64748B">${MONTHS[mesA]}/${anoA}</div>
+        <div style="font-size:17px;font-weight:800;color:#0B1E35">${fmt(totA)}</div>
+      </div>
+      <div style="background:#F8FAFC;border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:10.5px;color:#64748B">${MONTHS[mesB]}/${anoB}</div>
+        <div style="font-size:17px;font-weight:800;color:#0B1E35">${fmt(totB)}</div>
+      </div>
+    </div>
+    <div style="background:${dif>0?'#FEF2F2':dif<0?'#F0FDF4':'#F8FAFC'};border-radius:10px;padding:12px 14px;text-align:center;margin-bottom:16px">
+      <span style="font-size:13px;color:#64748B">Diferença: </span>
+      <span style="font-size:18px;font-weight:900;color:${dif>0?'#DC2626':dif<0?'#059669':'#64748B'}">${dif>0?'+':''}${fmt(dif)}</span>
+      <span style="font-size:12px;color:#64748B"> ${dif>0?'(mais caro)':dif<0?'(mais barato)':''}</span>
+    </div>
+
+    <div style="max-height:40vh;overflow-y:auto;padding-right:4px">
+      ${bloco('👋 Entraram na folha','#059669',entraram,x=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed #E2E8F0;font-size:12.5px"><span>${esc(x.nome)}</span><span style="font-weight:700;color:#059669">+${fmt(x.custo)}</span></div>`)}
+      ${bloco('🚪 Saíram da folha','#DC2626',sairam,x=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed #E2E8F0;font-size:12.5px"><span>${esc(x.nome)}</span><span style="font-weight:700;color:#DC2626">−${fmt(x.custo)}</span></div>`)}
+      ${bloco('📈 Variaram de valor','#D97706',mudaram,x=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed #E2E8F0;font-size:12.5px"><span>${esc(x.nome)}</span><span style="font-weight:700;color:${x.dif>0?'#DC2626':'#059669'}">${x.dif>0?'+':''}${fmt(x.dif)}</span></div>`)}
+      ${(entraram.length+sairam.length+mudaram.length)===0?'<div style="text-align:center;padding:24px;color:#94A3B8;font-size:13px">Nenhuma diferença entre os dois meses.</div>':''}
+    </div>
+    <div class="mft"><button class="btn btn-ghost" onclick="closeModal()">Fechar</button></div>
+  `, 640);
+}
+window._renderCompararFolha = _renderCompararFolha;
 
 (function _atlasInjectButtons(){
   // 3a. Botão no módulo de Assinatura Digital
