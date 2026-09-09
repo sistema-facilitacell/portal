@@ -2260,11 +2260,17 @@ async function fbSave(k){
           FB_SAVING=false; _fbSavingSet(false); updateFbUI();
           // Já temos o dado certo em mãos (acabamos de buscá-lo) — em vez de só
           // avisar e pedir F5, atualiza a tela na hora com o que está na nuvem.
+          let _autoCorrigiuOk = true;
           try{
             APP[k]=JSON.parse(_dNuvem);
             if(typeof navigate==='function' && typeof MOD!=='undefined') navigate(MOD);
-          }catch(_e){}
-          toast('🔄 "'+k+'" estava vazio neste dispositivo — recarregado da nuvem automaticamente.','ok',6000);
+          }catch(_e){
+            _autoCorrigiuOk = false;
+            console.warn('[fbSave] Falha ao aplicar a autocorreção de "'+k+'" — dado da nuvem pode estar malformado:', _e);
+          }
+          toast(_autoCorrigiuOk
+            ? '🔄 "'+k+'" estava vazio neste dispositivo — recarregado da nuvem automaticamente.'
+            : '⚠️ "'+k+'" estava vazio, mas a recarga automática falhou. Recarregue a página manualmente.', _autoCorrigiuOk?'ok':'err', 8000);
           return;
         }
       }catch(_e){ /* falha na checagem não deve travar indefinidamente — segue com o save */ }
@@ -5650,7 +5656,7 @@ function rPonto(){
   if(dataInicio > hoje) dataInicio.setTime(hoje.getTime());
 
   const fmtMin=m=>{const v=Math.abs(m);const h=Math.floor(v/60),mi=v%60;return h>0?`${h}h${String(mi).padStart(2,'0')}m`:`${mi}min`;};
-  const pt=t=>{if(!t)return 0;const[h,m]=(t||'00:00').split(':').map(Number);return h*60+m;};
+  const pt=t=>atlasHHMMparaMin(t,0);
   const entH=pt(emp?.horarioEntrada||'09:00');
   const saiH=pt(emp?.horarioSaida||'17:50');
   const pausas=atlasPausaMin(emp);
@@ -6010,7 +6016,7 @@ function openDia(d){
       </details>`;
     }
   }catch(_){}
-  const _pt=t=>{if(!t)return null;const[h,m]=(t||'00:00').split(':').map(Number);return h*60+m;};
+  const _pt=t=>atlasHHMMparaMin(t,null);
   const _entH=_pt(emp?.horarioEntrada||'09:00')||9*60;
   const _saiH=_pt(emp?.horarioSaida||'17:50')||17*60+50;
   const _temCafe = emp?.fazCafe!==false;   // quem não faz café tem 1h30 de almoço corrido, sem pausa extra
@@ -6099,7 +6105,7 @@ function imprimirCartaoPontoMensal(empId, mes, ano){
   const nDias=new Date(ano,mes+1,0).getDate();
   const mesNome=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][mes];
   const empresa=typeof EMPRESA_CFG!=='undefined'?(EMPRESA_CFG.nomeFantasia||EMPRESA_CFG.nomeRazao||'Atlas RH'):'Atlas RH';
-  const pt=t=>{if(!t)return 0;const[h,m]=(t||'00:00').split(':').map(Number);return h*60+m;};
+  const pt=t=>atlasHHMMparaMin(t,0);
   const fmtMin=mn=>{if(!mn)return '—';const abs=Math.abs(mn),h=Math.floor(abs/60),mi=abs%60;return(mn<0?'-':'')+h+'h'+String(mi).padStart(2,'0')+'m';};
   const entH=pt(emp.horarioEntrada||'09:00');
   const saiH=pt(emp.horarioSaida||'17:50');
@@ -6284,7 +6290,7 @@ function saveDia(d){
   // ERROS (bloqueiam): sequências impossíveis que quebram o cálculo do dia.
   // AVISOS (só confirmam): valores suspeitos mas possíveis.
   if(status==='normal'&&entrada&&saida){
-    const pt=t=>{const[h,m]=t.split(':').map(Number);return h*60+m;};
+    const pt=t=>atlasHHMMparaMin(t,NaN);
     // "Preenchido" = tem valor E não é 00:00 (campo de café/almoço vazio fica 00:00).
     // Sem isso, um café em branco (00:00) era lido como "antes da entrada" e
     // BLOQUEAVA o salvamento de qualquer dia — era a causa de "não salva".
@@ -6560,7 +6566,7 @@ function _calcPontoPreview(entH, saiH, pausas, diaEsp){
     const {empId}=PONTO_STATE;
     const emp=APP.employees.find(e=>e.id===empId);
     if(!emp)return;
-    const _pt=t=>{if(!t)return 0;const[h,m]=(t||'00:00').split(':').map(Number);return h*60+m;};
+    const _pt=t=>atlasHHMMparaMin(t,0);
     entH=_pt(emp.horarioEntrada||'09:00');
     saiH=_pt(emp.horarioSaida||'17:50');
     _temCafeGlobal = emp.fazCafe!==false;
@@ -6578,7 +6584,7 @@ function _calcPontoPreview(entH, saiH, pausas, diaEsp){
   const eInp=document.getElementById('pd-e');
   const sInp=document.getElementById('pd-sd');
   if(!eInp||!sInp||!eInp.value||!sInp.value){el.innerHTML='📊 Saldo: <strong>—</strong>';return;}
-  const _pt=t=>{const[h,m]=t.split(':').map(Number);return h*60+m;};
+  const _pt=t=>atlasHHMMparaMin(t,NaN);
   const eMin=_pt(eInp.value), sMin=_pt(sInp.value);
   if(sMin<=eMin){el.innerHTML='📊 Saldo: <strong style="color:#DC2626">⚠ Saída antes da entrada</strong>';return;}
   // Recalcula pausas reais usando campos do formulário se preenchidos
@@ -15466,7 +15472,7 @@ function bioDesvioBadge(punch, hrEmp) {
 // Retorna {extraMin, negMin, saldoMin} onde saldo = extras - negativas
 function bioDiaSaldoHoras(ins, outs, hrEmp) {
   if (!hrEmp || !ins.length || !outs.length) return {extraMin:0, negMin:0, saldoMin:0};
-  const pt = t => { const [h,m] = (t||'00:00').split(':').map(Number); return h*60+m; };
+  const pt = t => atlasHHMMparaMin(t,NaN);
   const entH = pt(hrEmp.horarioEntrada || '09:00');
   const saiH = pt(hrEmp.horarioSaida   || '17:50');
   const pausaTotal = atlasPausaMin(hrEmp);
@@ -15715,7 +15721,7 @@ function bioCalc(empName) {
   const adjs = BIO_DATA.adjustments.filter(a=>bioNormName(a.empName)===_nBio);
   // BUG-B3 FIX: usa bioNormName compartilhado — mesma lógica em bioCalc e bioFindEmployee
   const hrEmp = APP.employees.find(e=>bioNormName(e.nome)===bioNormName(empName))||null;
-  const pt=t=>{if(!t)return null;const[h,m]=(t||'09:00').split(':').map(Number);return h*60+m;};
+  const pt=t=>atlasHHMMparaMin(t,null);
   const entH=pt(hrEmp?.horarioEntrada||'09:00'), saiH=pt(hrEmp?.horarioSaida||'17:50');
   // Intervalo total de pausa = almoco + cafe (ou 1h30 corrida para quem não faz café)
   const _totalPausas=atlasPausaMin(hrEmp);
@@ -20698,7 +20704,7 @@ function _autoSyncBHSilenciosoLEGADO_DESATIVADO(){
     const mesKey=`${ano}-${String(mes+1).padStart(2,'0')}`;
     const mesLabel=hoje.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
     const TAG=`[cartaoponto-${mesKey}]`;
-    const pt=t=>{if(!t||!String(t).includes(':'))return null;const[h,m]=String(t).split(':').map(Number);return(h||0)*60+(m||0);};
+    const pt=t=>atlasHHMMparaMin(t,null);
     const ativos=(APP.employees||[]).filter(e=>e.status==='ativo');
     if(!ativos.length)return;
     let atualizados=0;
@@ -20885,7 +20891,10 @@ async function initApp(){
       // Flush fila de batidas que chegaram antes do APP.employees carregar
       if(window._bioPunchQueue&&window._bioPunchQueue.length>0){
         const q=window._bioPunchQueue.splice(0);
-        q.forEach(p=>{try{bioAplicarBatidaLocal(p);}catch(_){} });
+        q.forEach(p=>{
+          try{ bioAplicarBatidaLocal(p); }
+          catch(_e){ console.warn('[bioPunchQueue] Falha ao aplicar batida da fila — pode ter sido perdida:', p, _e); }
+        });
       }
       // _bioSyncAllPontosDoMes removido daqui — bioLoadData() já faz o sync completo
       // Chamar os dois em sequência gera save('pontos') duplicado no boot
@@ -23159,7 +23168,7 @@ function _confirmarImportBHCartaoPonto(){
   const mesLabel=new Date(ano,mes,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
   const TAG=`[cartaoponto-${mesKey}]`;
 
-  const pt=t=>{if(!t||!String(t).includes(':'))return null;const[h,m]=String(t).split(':').map(Number);return(h||0)*60+(m||0);};
+  const pt=t=>atlasHHMMparaMin(t,null);
 
   const ativos=APP.employees.filter(e=>e.status==='ativo');
   let comCredito=0,comDebito=0,semDados=0,atualizados=0;
@@ -28872,7 +28881,7 @@ td,th{font-size:15px!important;}
       <div class="p-sh">Cartão Ponto — ${PMONTHS[mes]} ${ano}</div>
       ${(()=>{
         // Calcula horas extras e negativas para o mês com tolerância de 10min na entrada
-        const _pt=t=>{if(!t)return null;const[h,m]=(t||'00:00').split(':').map(Number);return h*60+m;};
+        const _pt=t=>atlasHHMMparaMin(t,null);
         const entH=_pt(P_EMP?.horarioEntrada||'09:00')||9*60;
         const saiH=_pt(P_EMP?.horarioSaida||'17:50')||17*60+50;
         const pausas=atlasPausaMin(P_EMP);
@@ -28907,7 +28916,7 @@ td,th{font-size:15px!important;}
       <table class="p-table"><thead><tr><th>Dia</th><th>Status</th><th>Entrada</th><th>Saída</th><th>Saldo</th></tr></thead><tbody>
       ${dias.map(([dia,rec])=>{
         // Calcula saldo do dia
-        const _pt2=t=>{if(!t)return null;const[h,m]=(t||'00:00').split(':').map(Number);return h*60+m;};
+        const _pt2=t=>atlasHHMMparaMin(t,null);
         const entH2=_pt2(P_EMP?.horarioEntrada||'09:00')||9*60;
         const saiH2=_pt2(P_EMP?.horarioSaida||'17:50')||17*60+50;
         const pausas2=atlasPausaMin(P_EMP);
@@ -34293,10 +34302,7 @@ async function sincronizarTudo(opts){
     }
 
     // ── Helper ───────────────────────────────────────────────────────
-    const pt = t => {
-      if(!t||!String(t).includes(':')) return null;
-      const [h,m]=String(t).split(':').map(Number); return (h||0)*60+(m||0);
-    };
+    const pt = t => atlasHHMMparaMin(t,null);
 
     // ── 2. Sincroniza por funcionário ────────────────────────────────
     let ativos = APP.employees.filter(e=>e.status==='ativo');
@@ -34617,7 +34623,7 @@ async function _autoSyncSilent(mes, ano){
     if(!BIO_DATA.punches.length) await bioLoadData();
     const mesKey = `${ano}-${String(mes+1).padStart(2,'0')}`;
     const TAG = `[sync-${mesKey}]`;
-    const pt = t => { if(!t||!String(t).includes(':'))return null;const[h,m]=String(t).split(':').map(Number);return(h||0)*60+(m||0);};
+    const pt = t => atlasHHMMparaMin(t,null);
     const ativos = APP.employees.filter(e=>e.status==='ativo');
     let changed=0;
 
@@ -35811,7 +35817,7 @@ function verComparativoBioPonto(empId, mes, ano){
   });
 
   const nDias=new Date(ano,mes+1,0).getDate();
-  const pt=t=>{if(!t)return null;const[h,m]=t.split(':').map(Number);return h*60+m;};
+  const pt=t=>atlasHHMMparaMin(t,null);
   let desvios=0;
   let rows='';
 
@@ -35994,7 +36000,7 @@ let _realtimeInterval = null;
 
 function _painelCalcJornada(e) {
   // Retorna jornada esperada em minutos (entrada → saída menos pausas)
-  const pt = t => { if(!t) return 0; const [h,m]=(t||'00:00').split(':').map(Number); return h*60+m; };
+  const pt = t => atlasHHMMparaMin(t,0);
   const entMin = pt(e.horarioEntrada||'08:00');
   const saiMin = pt(e.horarioSaida||'17:00');
   const almSai = pt(e.horarioAlmoco||'12:00');
@@ -39312,7 +39318,7 @@ function _renderCalendarioMensal() {
     // Feriado em folga: dia pago, nao gera credito nem debito de horas.
     if (reg.status === 'feriado_folga') return 0;
     if (!reg.entrada || !reg.saida) return null;
-    const pt = t => { if (!t || !String(t).includes(':')) return null; const [h, m] = String(t).split(':').map(Number); return (h||0)*60+(m||0); };
+    const pt = t => atlasHHMMparaMin(t,null);
     const entH = pt(emp && emp.horarioEntrada) || 9*60;
     const saiH = pt(emp && emp.horarioSaida)   || 17*60+50;
     const almSai = pt(emp && emp.horarioAlmoco)       || 12*60;
@@ -41524,7 +41530,7 @@ window.pjCarregarRecibo=pjCarregarRecibo;
     const eEmail = ecfg.email      || '—';
 
     // Helpers de tempo
-    const pt      = t => { if (!t) return 0; const [h,m]=(t||'00:00').split(':').map(Number); return h*60+m; };
+    const pt      = t => atlasHHMMparaMin(t,0);
     const fmtMin  = mn => { if (!mn && mn!==0) return '—'; const a=Math.abs(mn),h=Math.floor(a/60),mi=a%60; return (mn<0?'-':'')+h+'h'+String(mi).padStart(2,'0')+'m'; };
     const fmtHH   = mn => { const a=Math.abs(mn),h=Math.floor(a/60),mi=a%60; return (mn<0?'-':'')+String(h).padStart(2,'0')+':'+String(mi).padStart(2,'0'); };
 
@@ -57348,7 +57354,7 @@ window.atlasLimparCafesFantasmas = async function(){
 //  que não faz café — todos somavam 30min de café a mais para essas pessoas.
 // ═══════════════════════════════════════════════════════════════════════════
 window.atlasPausaMin = function(emp){
-  const pt = t => { if(!t) return null; const [h,m]=String(t).split(':').map(Number); return (h||0)*60+(m||0); };
+  const pt = t => atlasHHMMparaMin(t,null);
   const temCafe = !emp || emp.fazCafe !== false;
   const almSai = pt(emp?.horarioAlmoco) ?? 12*60;
   const almVolt = pt(emp?.horarioVoltaAlmoco) ?? 13*60;
@@ -57806,6 +57812,24 @@ function _renderCompararFolha(mesA,anoA,mesB,anoB){
   `, 640);
 }
 window._renderCompararFolha = _renderCompararFolha;
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  CONVERTER "HH:MM" EM MINUTOS — fonte única
+//  Essa conta pequena (transformar "09:00" em 540) estava reimplementada em
+//  19 lugares diferentes do arquivo, cada um copiado e colado do anterior,
+//  algumas com pequenas diferenças (retornar 0 ou null quando vazio, checar
+//  ou não se tem ":"). Foi exatamente esse padrão — a mesma regra copiada em
+//  vários lugares — que causou o bug do café fantasma: um lugar mudava,
+//  os outros 16 não. Agora existe uma única fonte de verdade; os 19 pontos
+//  viraram atalhos finos para ela, cada um preservando o valor de retorno
+//  que já tinha para vazio/inválido (0 ou null), para não mudar
+//  comportamento em nenhum lugar.
+window.atlasHHMMparaMin = function(t, valorSeVazio){
+  if(!t || !String(t).includes(':')) return valorSeVazio;
+  const [h,m] = String(t).split(':').map(Number);
+  return (h||0)*60+(m||0);
+};
 
 (function _atlasInjectButtons(){
   // 3a. Botão no módulo de Assinatura Digital
