@@ -613,7 +613,7 @@ body{background:var(--bg);color:var(--tx);}
   </button>
 </head>
 <body>
-<div style="position:fixed;bottom:3px;right:6px;z-index:1;font-size:9px;color:rgba(148,163,184,.55);pointer-events:none;user-select:none;font-family:Arial,sans-serif" title="Versão do portal">Portal Atlas RH · build 2026-09-07 (v7 · solicitações+)</div>
+<div style="position:fixed;bottom:3px;right:6px;z-index:1;font-size:9px;color:rgba(148,163,184,.55);pointer-events:none;user-select:none;font-family:Arial,sans-serif" title="Versão do portal">Portal Atlas RH · build 2026-09-09 (v9 · prova de vida)</div>
 
 <!-- SPLASH -->
 <div id="splash">
@@ -1864,6 +1864,15 @@ async function loadAll() {
     MATCH_THRESHOLD = 0.55; // fallback se config não existir
   }
   await Promise.all([loadHol(), loadPonto(), loadAdvs(), loadComunicados(), loadJustificativas(), loadComprovantes(), loadContratosEmp(), loadAssinaturasDigital(), loadEspelhoSigs(), loadSolicitacoes(), _loadAdvsPortal()]);
+  // Começa a baixar os modelos de reconhecimento facial JÁ AQUI, assim que o
+  // colaborador entra — não quando ele abre a câmera. Antes, o carregamento
+  // só começava na hora de bater o ponto, e muitas vezes não terminava a
+  // tempo: o sistema caía no modo simples (sem prova de vida real) porque
+  // FACEAPI_READY ainda estava false. Começando cedo, dá o tempo de sobra
+  // que falta para os modelos (alguns MB) baixarem antes de serem cobrados.
+  if (typeof faceapi !== 'undefined' && typeof initFaceAPI === 'function') {
+    initFaceAPI().catch(e => console.warn('[FaceAPI] Não carregou na entrada do portal:', e?.message||e));
+  }
   // Atualiza badge e card rápido de saldo de banco de horas
   _atualizarBadgeBancoHoras();
   // Refresh automático do banco de horas: reflete alterações que o RH fizer
@@ -7696,7 +7705,13 @@ async function enviarMsgChat() {
 // e um resumo das regras de DSR/banco de horas conforme CLT, para
 // que a IA responda com precisão sobre a situação da pessoa.
 // ═══════════════════════════════════════════════════════════════
-const CHAT_IA_MODEL = 'llama-3.3-70b-versatile';
+const CHAT_IA_MODEL = 'openai/gpt-oss-120b'; // llama-3.3-70b descontinuado pela Groq em 16/08/2026; gpt-oss-120b é o substituto estável
+// A Groq aposenta modelos com frequência (já perdemos llama-3.3-70b e o
+// modelo de visão do llama-4-scout no mesmo mês). Em vez de depender de
+// alguém lembrar de trocar o nome do modelo na próxima aposentadoria, a
+// lista abaixo dá uma segunda e terceira tentativa automática: se o
+// primeiro modelo responder 404 (não existe mais), tenta o próximo sozinho.
+const CHAT_IA_MODEL_FALLBACK = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.6-27b'];
 
 // Monta o contexto textual com os dados do colaborador para o prompt da IA.
 function _montarContextoChatIA() {
@@ -7846,27 +7861,44 @@ async function enviarMsgChatIA() {
       .slice(-10) // limita o histórico enviado
       .map(m => ({ role: m.role, content: m.content }));
 
-    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${GROQ_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: CHAT_IA_MODEL,
-        max_tokens: 400,
-        temperature: 0.3,
-        messages: [
-          { role: 'system', content: CHAT_IA_SYSTEM_PROMPT + '\n' + contexto },
-          ...historico
-        ]
-      })
-    });
-
-    if (!resp.ok) {
-      if (resp.status === 401) throw new Error('Chave de IA inválida ou expirada (401). Avise o RH/TI para renovar a chave Groq.');
-      throw new Error(`Erro ${resp.status} ao consultar o assistente.`);
+    // Tenta cada modelo da lista em sequência; só desiste de vez se TODOS
+    // falharem. Um 404 (modelo aposentado) passa pro próximo automaticamente;
+    // um 401 (chave inválida) já avisa direto, porque trocar de modelo não
+    // resolve chave errada.
+    const modelos = (typeof CHAT_IA_MODEL_FALLBACK !== 'undefined' && CHAT_IA_MODEL_FALLBACK.length)
+      ? CHAT_IA_MODEL_FALLBACK : [CHAT_IA_MODEL];
+    let resp = null, ultimoErro = null;
+    for (const modeloTentativa of modelos) {
+      try {
+        resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${GROQ_API_KEY}`
+          },
+          body: JSON.stringify({
+            model: modeloTentativa,
+            max_tokens: 400,
+            temperature: 0.3,
+            messages: [
+              { role: 'system', content: CHAT_IA_SYSTEM_PROMPT + '\n' + contexto },
+              ...historico
+            ]
+          })
+        });
+        if (resp.status === 401) {
+          throw new Error('Chave de IA inválida ou expirada (401). Avise o RH/TI para renovar a chave Groq.');
+        }
+        if (resp.ok) break;   // achou um modelo que funciona — para de tentar
+        ultimoErro = new Error(`Erro ${resp.status} ao consultar o assistente (modelo ${modeloTentativa}).`);
+        resp = null;
+      } catch (eTentativa) {
+        if (eTentativa.message && eTentativa.message.includes('401')) throw eTentativa;
+        ultimoErro = eTentativa;
+      }
     }
+    if (!resp) throw (ultimoErro || new Error('Nenhum modelo de IA respondeu agora.'));
+
     const data = await resp.json();
     const reply = data?.choices?.[0]?.message?.content?.trim() || 'Não consegui gerar uma resposta agora. Tente novamente.';
 
@@ -8068,7 +8100,7 @@ window.addEventListener('DOMContentLoaded', () => {
 // Chave Groq usada no arbítrio do reconhecimento facial e no assistente.
 // Pode ser sobrescrita por config/ia_keys no Firestore (ver _carregarChaveGroqPortal),
 // para trocar a chave sem precisar editar e republicar este arquivo.
-let GROQ_API_KEY = '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';
+let GROQ_API_KEY = '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';
 
 // Busca a chave compartilhada gravada pelo RH. Se existir, tem prioridade.
 async function _carregarChaveGroqPortal(){
@@ -8083,10 +8115,15 @@ async function _carregarChaveGroqPortal(){
 }
 
 // ── CDNs face-api ─────────────────────────────────────────────────────────────
+// Três CDNs em cascata: se o primeiro falhar ou demorar (10s), tenta o
+// próximo sozinho. unpkg às vezes não publica a pasta /weights corretamente
+// para pacotes com arquivos binários grandes — jsdelivr é o reforço mais
+// confiável quando isso acontece.
 const _isFileProto = (window.location.protocol === 'file:');
 const FACEAPI_CDN_OPTIONS = _isFileProto
   ? ['https://raw.githubusercontent.com/justadudewhohacks/face-api.js/0.22.2/weights']
   : ['https://unpkg.com/face-api.js@0.22.2/weights',
+     'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights',
      'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/0.22.2/weights'];
 
 // ── Estado global ─────────────────────────────────────────────────────────────
@@ -8400,15 +8437,20 @@ function bioMostrarComprovante({ tipo, rotulo, timeStr, nsr, nome, metodo, geo, 
 
 // ── Carregamento dos modelos face-api (background) ────────────────────────────
 async function _loadNetWithFallback(net, cdns) {
+  const erros = [];
   for (const cdn of cdns) {
     try {
       await Promise.race([
         net.loadFromUri(cdn),
-        new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 10000))
+        new Promise((_, r) => setTimeout(() => r(new Error('timeout 10s')), 10000))
       ]);
       return;
-    } catch(e) {}
+    } catch(e) { erros.push(cdn + ': ' + (e?.message||e)); }
   }
+  // Nenhum CDN funcionou — antes isso desaparecia em silêncio (.catch(()=>{})
+  // vazio no chamador). Agora ao menos fica registrado, para dar pra investigar
+  // por que a prova de vida real (aproximar/afastar) não está aparecendo.
+  console.warn('[FaceAPI] Todos os CDNs falharam para este modelo:\n' + erros.join('\n'));
   throw new Error('face-api CDN indisponível');
 }
 
@@ -8455,7 +8497,7 @@ async function groqComparar(frameCanvas, fotoCadastradaUrl) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
       body: JSON.stringify({
-        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        model: 'qwen/qwen3.6-27b', // scout e maverick (visão Llama4) descontinuados pela Groq; qwen3.6-27b é o modelo de visão atual
         max_tokens: 10,
         messages: [{
           role: 'user',
@@ -9161,7 +9203,7 @@ async function _iniciarCameraBiometrica() {
     // ── 3. Inicia face-api em background (não bloqueia) ───────────────────────
     let _faceapiPromise = null;
     if (typeof faceapi !== 'undefined' && !FACEAPI_READY) {
-      _faceapiPromise = initFaceAPI().catch(() => {});
+      _faceapiPromise = initFaceAPI().catch(e => console.warn('[FaceAPI] Falhou ao carregar:', e?.message||e));
     }
 
     // ── 4. Canvas de captura ──────────────────────────────────────────────────
@@ -9404,7 +9446,7 @@ async function _iniciarCameraBiometrica() {
     // Se não tem descriptor pré-calculado, inicia face-api com prioridade
     if (!_rawDesc || _rawDesc.length < 128) {
       if (typeof faceapi !== 'undefined' && !FACEAPI_READY && _faceapiPromise === null) {
-        _faceapiPromise = initFaceAPI().catch(() => {});
+        _faceapiPromise = initFaceAPI().catch(e => console.warn('[FaceAPI] Falhou ao carregar:', e?.message||e));
       }
     }
 
